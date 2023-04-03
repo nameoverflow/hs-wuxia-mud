@@ -28,6 +28,7 @@ import Control.Monad (when, forM_)
 import Game.World
 import qualified Data.Set as S
 import Control.Monad.Random (randomIO)
+import Game.Message
 
 -- import Script
 
@@ -40,11 +41,11 @@ processPlayerNormalAction curPlayerId action = case action of
 
 processPlayerBattleAction :: T.Text -> PlayerAction -> GameStateT ()
 processPlayerBattleAction curPlayerId action = case action of
-  ApplySkill skillId -> do
-    player <- getsPlayer curPlayerId
-    battle <- getsBattle curPlayerId
-    let (battle', skill) = runState (useSkill skillId) battle
-    reuturn ()
+  -- ApplySkill skillId -> do
+  --   player <- getsPlayer curPlayerId
+  --   battle <- getsBattle curPlayerId
+  --   let (battle', skill) = runState (useSkill skillId) battle
+  --   reuturn ()
 
 -- Use item -> do
 --   -- Update player's inventory and apply item effects
@@ -55,6 +56,7 @@ processPlayerBattleAction curPlayerId action = case action of
 -- Other command -> do
 --   -- Handle custom commands, e.g., emotes or special actions
 --   handleCustomCommand command
+  _ -> pure ()
 
 playerMove :: T.Text -> Direction -> GameStateT ()
 playerMove curPlayerId direction = do

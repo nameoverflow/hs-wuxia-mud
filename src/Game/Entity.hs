@@ -1,30 +1,30 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-
+{-# LANGUAGE TemplateHaskell #-}
 
 module Game.Entity where
 
+import Control.Applicative ((<|>))
 import Control.Lens (makeLenses)
+import Data.Aeson (FromJSONKey)
 import qualified Data.Map as M
 import Data.Serialize (Serialize)
 import Data.Serialize.Text ()
+import qualified Data.Set as S
 import Data.Text (Text, pack)
-import Data.Yaml (decodeFileEither, FromJSON, ParseException, withObject, (.:), decodeEither')
+import Data.Text.Encoding (encodeUtf8)
+import qualified Data.Text.IO
+import Data.Yaml (FromJSON, ParseException, decodeEither', decodeFileEither, withObject, (.:))
+import Data.Yaml.Aeson (FromJSON (..), Value (..))
 import GHC.Generics (Generic)
 import Relude (toText)
 import System.Directory (doesDirectoryExist, listDirectory)
 import System.FilePath (takeExtension, (</>))
 import Utils
-import Data.Yaml.Aeson (FromJSON(..))
-import Data.Aeson (FromJSONKey)
-import qualified Data.Text.IO
-import Data.Text.Encoding (encodeUtf8)
-import qualified Data.Set as S
-
+import Data.Yaml.Parser (typeMismatch)
 
 type ItemId = Text
 
@@ -52,8 +52,7 @@ type ConcurrencyId = Text
 
 -- Load yaml definitions of items from a directory
 loadItems :: FilePath -> IO (Either Text (M.Map ItemId Item))
-loadItems = loadYamlProperties $ \item -> (_itemId item, item)
-
+loadItems = loadYamlProperties $ \it -> (_itemId it, it)
 
 type EffectId = Text
 
@@ -64,19 +63,16 @@ data Effect = Effect
   }
   deriving (Show, Eq)
 
-data EffectType = DamageOverTime | HealingOverTime | StatModifier
+data EffectType = DoT | HoT | Buff | DeBuff
   deriving (Show, Eq)
 
-
 -- | Skills are active skills that can be used in battle, bind to a tech
-
 type SkillId = Text
 
 data SkillTarget = Single | All | Self
   deriving (Generic, Show, Eq)
 
 instance FromJSON SkillTarget
-
 
 data Skill = Skill
   { _skillId :: SkillId,
@@ -88,14 +84,14 @@ data Skill = Skill
     _skillCost :: Int,
     _skillHeal :: Maybe Int,
     _skillDamage :: Maybe Int,
-    _skillEffectForSelf :: Maybe EffectId,
-    _skillEffectForTarget :: Maybe EffectId
+    _skillEffSelf :: [EffectId],
+    _skillEffTarget :: [EffectId]
   }
   deriving (Generic, Show, Eq)
 
-
 data SkillEntity = SkillEntity
-  { _skillDef :: SkillId
+  { _skillDef :: SkillId,
+    _skillLevel :: Int
   }
   deriving (Generic, Show, Eq)
 
@@ -103,13 +99,13 @@ makeLenses ''Skill
 makeLenses ''SkillEntity
 
 instance FromJSON Skill
-instance FromJSON SkillEntity
+
 
 -- | Moves are normal attacks that bind to a tech
 data Move = Move
   { _moveId :: SkillId,
     _moveName :: Text,
-    _moveDesc :: Text, 
+    _moveDesc :: Text,
     _moveMsg :: Text,
     _moveDamage :: Int
   }
@@ -120,10 +116,19 @@ makeLenses ''Move
 instance FromJSON Move
 
 -- | Routines are sets of skills and moves, can be learned by character
-type TechId = Text
+type MaId = Text
+data MaType = Technique | Cultivation | Lightness
+  deriving (Generic, Show, Eq)
 
-data Technique = Technique
-  { _techId :: TechId,
+instance FromJSON MaType where
+  parseJSON p = case p of
+    String "technique" -> pure Technique
+    String "cultivation" -> pure Cultivation
+    String "lightness" -> pure Lightness
+    _ -> fail "Invalid MaType in MartialArt"
+data MartialArt = MartialArt
+  { _techId :: MaId,
+    _techType :: MaType,
     _techName :: Text,
     _techDesc :: Text,
     _techMoves :: [Move],
@@ -131,64 +136,62 @@ data Technique = Technique
   }
   deriving (Generic, Show, Eq)
 
-data TechEntity = TechEntity
-  { _techDef :: TechId
+data MaEntity = MaEntity
+  { _techDef :: MaId,
+    _techLevel :: Int
   }
   deriving (Generic, Show, Eq)
 
-instance FromJSON Technique
-instance FromJSON TechEntity
+instance FromJSON MartialArt
 
-makeLenses ''Technique
-makeLenses ''TechEntity
+instance FromJSON MaEntity
 
-
--- | Techniques that give character attributes and passive effects
-data CultivationMethod = CultivationMethod {
-  -- too long, is there a better name ?
-  _cultId :: TechId,
-  _cultName :: Text,
-  _cultDesc :: Text,
-
-  _cultStrength :: Int,
-  _cultAgility :: Int,
-  _cultcVitality :: Int,
-
-  _cultEffect :: [EffectId]
-}
-  deriving (Generic, Show, Eq)
-
-data CultMethEntity = CultMethEntity {
-  _iceDef :: TechId
-}
-  deriving (Generic, Show, Eq)
-
-instance FromJSON CultivationMethod
-instance FromJSON CultMethEntity
-
-makeLenses ''CultivationMethod
-makeLenses ''CultMethEntity
-
+makeLenses ''MartialArt
+makeLenses ''MaEntity
 
 -- | Data type representing a character in the game world.
 type CharId = Text
+
+data CharAction
+  = Attacking
+  | Dialogue [Text]
+  | Sparring
+  deriving (Show, Eq, Generic)
+
+instance FromJSON CharAction where
+  parseJSON (Object o) = dialogueParser <|> fail "Invalid action"
+    where
+      dialogueParser = do
+        texts <- o .: "dialogue"
+        return $ Dialogue texts
+  parseJSON (String s) = case s of
+    "attacking" -> return Attacking
+    "sparring" -> return Sparring
+    _ -> fail "Invalid action"
+  parseJSON _ = fail "Invalid action"
+
+data EqMartialArts = EqMartialArts
+  { _eqTch :: Maybe MaEntity,
+    _eqClt :: Maybe MaEntity,
+    _eqLgh :: Maybe MaEntity
+  }
+  deriving (Show, Eq, Generic)
 
 data Character = Character
   { _charId :: CharId,
     _charName :: Text,
     _charDesc :: Text,
-    _charAttackable :: Bool,
-    
-    -- | The character's original attributes.
+    _charAction :: [CharAction],
+    _charRespawn :: Int,
+    -- The character's original attributes.
     _charHP :: Int,
     _charStrength :: Int,
     _charAgility :: Int,
     _charVitality :: Int,
-
-    -- | Equipment
-    _charEqTech :: TechEntity,
-    _charItems :: M.Map ItemEntity Int,
-    _charTech :: [TechEntity]
+    -- Equipment
+    _charEqMa :: [MaEntity],
+    _charItems :: S.Set ItemEntity,
+    _charMa :: [MaEntity]
   }
   deriving (Show, Generic, Eq)
 
@@ -199,19 +202,23 @@ instance FromJSON Character where
     _charId <- o .: "id"
     _charName <- o .: "name"
     _charDesc <- o .: "desc"
-    _charAttackable <- o .: "attackable"
-    _charHP <- o .: "hp"
-    _charStrength <- o .: "strength"
-    _charAgility <- o .: "agility"
-    _charVitality <- o .: "vitality"
-    _charEqTech <- o .: "equipped_tech"
+
+    _charAction <- o .: "actions"
+    _charRespawn <- o .: "respawn"
+
+    attr <- o .: "attr"
+    _charHP <- attr .: "hp"
+    _charStrength <- attr .: "strength"
+    _charAgility <- attr .: "agility"
+    _charVitality <- attr .: "vitality"
+
+    sk <- o .: "skills"
+    _charEqMa <- sk .: "equipped_martial_arts"
     -- _charItems <- o .: "items"
     -- _charRoutine <- o .: "routine"
-    let _charItems = M.empty
-    let _charTech = []
+    let _charItems = S.empty
+    let _charMa = []
     return Character {..}
-
-
 
 -- | Load a list of characters from a YAML file.
 loadCharacters :: FilePath -> IO [Character]
@@ -220,7 +227,6 @@ loadCharacters path = do
   case chars of
     Left err -> error $ "Error loading character file: " ++ show err
     Right cs -> return cs
-
 
 type PlayerId = Text
 
@@ -238,8 +244,6 @@ data Player = Player
 
 makeLenses ''Player
 
-
-
 data Direction = North | South | East | West | NorthEast | NorthWest | SouthEast | SouthWest deriving (Show, Eq, Ord, Generic)
 
 instance FromJSON Direction
@@ -247,6 +251,7 @@ instance FromJSON Direction
 instance FromJSONKey Direction
 
 type RoomId = Text
+
 data Room = Room
   { _roomId :: RoomId,
     _roomName :: Text,

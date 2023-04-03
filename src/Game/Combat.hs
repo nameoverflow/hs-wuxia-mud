@@ -70,10 +70,6 @@ newBattle player npc =
 data CombatException = CombatException Text
   deriving (Show, Eq, Generic)
 
--- newtype Combat a = Combat
---   { unCombat :: ReaderT World (StateT Battle (ExceptT CombatException Identity)) a
---   }
---   deriving (Functor, Applicative, Monad, MonadState Battle, MonadReader World, MonadError CombatException)
 newtype Combat a = Combat
   { unCombat :: RWST World () Battle (ExceptT CombatException (Rand StdGen)) a
   } deriving (Functor, Applicative, Monad, MonadState Battle, MonadReader World, MonadError CombatException, MonadRandom)
@@ -81,10 +77,7 @@ newtype Combat a = Combat
 runCombat :: (MonadError e m) => StdGen -> (CombatException -> e) -> World -> Battle -> Combat a -> m (a, Battle, ())
 runCombat rand fCatch world battle combat = do
   let (action, _) = runRand (runExceptT (runRWST (unCombat combat) world battle)) rand
-  liftEither (fmapL fCatch action)
-  where
-    fmapL :: (a -> b) -> Either a r -> Either b r
-    fmapL f = either (Left . f) Right
+  liftEither $ either (Left . fCatch) Right action
 
 
 -- | Run a combat action, return if the battle is over

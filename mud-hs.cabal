@@ -28,6 +28,7 @@ library
       Database
       Game.Combat
       Game.Entity
+      Game.Message
       Game.Property
       Game.Quest
       Game.World

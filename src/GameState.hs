@@ -28,6 +28,7 @@ import System.Directory (doesDirectoryExist, listDirectory)
 import System.FilePath (takeExtension, (</>))
 import Utils
 import Control.Monad.RWS (MonadWriter)
+import Game.Message
 
 data GameState = GameState
   { -- world properties
@@ -50,27 +51,10 @@ data GameException
   | OtherException Text
   deriving (Show, Eq, Generic)
 
-data PlayerAction
-  = Go Direction
-  | Attack CharId
-  | ApplySkill SkillId
-  | Use T.Text
-  | Say T.Text
-  | Other T.Text
-  deriving (Show, Eq)
-
-data ActionResult
-  = MoveResult Room
-  | AttackResult Character
-  | SkillResult Skill Character
-  | UseResult Item
-  | SayResult T.Text
-  | OtherResult T.Text
-
 newtype GameStateT a = GameStateT
-  { unGameStateT :: WriterT [ActionResult] (StateT GameState (ExceptT GameException IO)) a
+  { unGameStateT :: WriterT [ActionResp] (StateT GameState (ExceptT GameException IO)) a
   }
-  deriving (Functor, Applicative, Monad, MonadState GameState, MonadError GameException, MonadWriter [ActionResult], MonadIO)
+  deriving (Functor, Applicative, Monad, MonadState GameState, MonadError GameException, MonadWriter [ActionResp], MonadIO)
 
 getsPlayer :: PlayerId -> GameStateT Player
 getsPlayer curId = getsL players curId (PlayerNotFound curId)

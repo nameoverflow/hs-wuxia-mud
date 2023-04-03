@@ -22,7 +22,7 @@ data World = World
     _chars :: M.Map CharId Character,
     _quests :: M.Map T.Text Quest,
     _skills :: M.Map TechId Technique,
-    _cults :: M.Map TechId CultivationMethod
+    _cults :: M.Map TechId Cultivation
   }
   deriving (Eq, Show, Generic)
 

@@ -42,8 +42,8 @@ liftMaybeT errMsg = mapStateT $ \s -> ExceptT $ maybe (Left errMsg) Right <$> ru
 
 randomSelect :: MonadRandom m => [a] -> m a
 randomSelect xs = do
-  index <- getRandomR (0, length xs - 1)
-  return $ xs !! index
+  idx <- getRandomR (0, length xs - 1)
+  return $ xs !! idx
 
 
 getsL :: (At m, MonadError e m1, MonadState s m1) => Lens' s m -> Index m -> e -> m1 (IxValue m)
