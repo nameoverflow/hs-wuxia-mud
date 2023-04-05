@@ -1,6 +1,6 @@
 # mud-hs
 
-A MUD (Multi-User Dungeon) game in Haskell.
+A MUD (Multi-User Dungeon) game with WEB UI in Haskell.
 
 WIP
 

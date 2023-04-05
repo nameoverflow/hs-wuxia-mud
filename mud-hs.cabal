@@ -64,6 +64,7 @@ library
     , mtl
     , network
     , relude
+    , stm
     , text
     , time
     , transformers
@@ -101,6 +102,7 @@ executable mud-hs-exe
     , mud-hs
     , network
     , relude
+    , stm
     , text
     , time
     , transformers
@@ -139,6 +141,7 @@ test-suite mud-hs-test
     , mud-hs
     , network
     , relude
+    , stm
     , text
     , time
     , transformers

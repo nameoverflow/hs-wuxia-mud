@@ -46,6 +46,7 @@ dependencies:
 - mtl
 - bytestring
 - transformers
+- stm
 
 ghc-options:
 - -Wall

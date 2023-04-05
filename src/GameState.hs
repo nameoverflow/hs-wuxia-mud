@@ -9,15 +9,11 @@
 module GameState where
 
 import Control.Lens
-import qualified Control.Monad
-import Control.Monad.Except (ExceptT, MonadError (throwError), withExceptT)
+import Control.Monad.Except (ExceptT, MonadError, withExceptT, runExceptT)
 import Control.Monad.State.Strict
 import Control.Monad.Trans.Writer
 import qualified Data.Map as M
-import Data.Maybe (fromMaybe)
 import Data.Text
-import qualified Data.Text as T
-import Data.Yaml (decodeFileEither)
 import GHC.Generics (Generic)
 import Game.Combat
 import Game.Entity
@@ -52,9 +48,9 @@ data GameException
   deriving (Show, Eq, Generic)
 
 newtype GameStateT a = GameStateT
-  { unGameStateT :: WriterT [ActionResp] (StateT GameState (ExceptT GameException IO)) a
+  { unGameStateT :: WriterT [PlayerResp] (StateT GameState (Control.Monad.Except.ExceptT GameException IO)) a
   }
-  deriving (Functor, Applicative, Monad, MonadState GameState, MonadError GameException, MonadWriter [ActionResp], MonadIO)
+  deriving (Functor, Applicative, Monad, MonadState GameState, Control.Monad.Except.MonadError GameException, MonadWriter [PlayerResp], MonadIO)
 
 getsPlayer :: PlayerId -> GameStateT Player
 getsPlayer curId = getsL players curId (PlayerNotFound curId)
@@ -63,4 +59,15 @@ getsBattle :: BattleId -> GameStateT Battle
 getsBattle bId = getsL battles bId $ BattleNotFound bId
 
 liftWorld :: WorldStateT a -> GameStateT a
-liftWorld m = GameStateT . lift $ mapStateT (withExceptT ExceptionInWorld) $ zoom world m
+liftWorld m = GameStateT . lift $ mapStateT (Control.Monad.Except.withExceptT ExceptionInWorld) $ zoom world m
+
+runGameState :: (MonadIO m) => GameState -> GameStateT a -> m (Either GameException ([PlayerResp], GameState))
+runGameState gs m = liftIO $ Control.Monad.Except.runExceptT $ runStateT (execWriterT $ unGameStateT m) gs
+
+newGameState :: World -> GameState
+newGameState w = GameState w M.empty M.empty
+
+loadGameState :: FilePath -> IO (Either Text GameState)
+loadGameState basePath = do
+  worldResult <- loadAllAssets basePath
+  return $ newGameState <$> worldResult

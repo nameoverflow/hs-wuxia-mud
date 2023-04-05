@@ -16,7 +16,7 @@ import Data.Yaml (FromJSON, decodeFileEither)
 import Relude (toText)
 import System.Directory (doesDirectoryExist, listDirectory)
 import System.FilePath (takeExtension, (</>))
-import Control.Monad.Random (randomRIO, MonadRandom, Random (randomR), getRandomR)
+import Control.Monad.Random (MonadRandom, getRandomR)
 import Control.Lens
 
 -- Take a processing function, load and parse all yaml files in a path, and apply the function to the parsed yaml

@@ -21,8 +21,7 @@ data World = World
     _maps :: M.Map MapId Map,
     _chars :: M.Map CharId Character,
     _quests :: M.Map T.Text Quest,
-    _skills :: M.Map TechId Technique,
-    _cults :: M.Map TechId Cultivation
+    _skills :: M.Map MaId MartialArt
   }
   deriving (Eq, Show, Generic)
 
@@ -32,10 +31,9 @@ data WorldException
   = MapNotFound MapId
   | RoomNotFound MapId (Int, Int)
   | ItemNotFound ItemId
-  | SkillNotFound TechId
+  | SkillNotFound MaId
   | QuestNotFound T.Text
   | CharNotFound CharId
-  | CultivationNotFound TechId
   deriving (Eq, Show, Generic)
 
 type WorldStateT = StateT World (ExceptT WorldException IO)
@@ -58,8 +56,7 @@ loadAllAssets basePath = do
             _maps = maps,
             _chars = M.empty,
             _quests = M.empty,
-            _skills = M.empty,
-            _cults = M.empty
+            _skills = M.empty
           }
     _ ->
       Left $
@@ -84,5 +81,5 @@ getsMapRoom mId pos = do
 getsCharacter :: CharId -> WorldStateT Character
 getsCharacter cId = getsL chars cId $ CharNotFound cId
 
-getsTech :: TechId -> WorldStateT Technique
-getsTech rId = getsL skills rId $ SkillNotFound rId
+getsMartialArt :: MaId -> WorldStateT MartialArt
+getsMartialArt rId = getsL skills rId $ SkillNotFound rId

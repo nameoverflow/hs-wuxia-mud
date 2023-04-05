@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -5,7 +6,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE DeriveFunctor #-}
 
 module Game.Combat where
 
@@ -15,7 +15,7 @@ import Control.Monad (when)
 import Control.Monad.Error.Class
 import Control.Monad.Except
 import Control.Monad.Identity (Identity, runIdentity)
-import Control.Monad.RWS (RWST (..))
+import Control.Monad.RWS (RWST (..), MonadWriter (tell))
 import Control.Monad.Random
 import Control.Monad.Reader
 import Control.Monad.State.Strict (MonadState, StateT (..))
@@ -25,6 +25,7 @@ import Data.Maybe (catMaybes)
 import Data.Text (Text)
 import GHC.Generics (Generic)
 import Game.Entity
+import Game.Message
 import Game.World (World, skills)
 import Utils
 
@@ -71,14 +72,23 @@ data CombatException = CombatException Text
   deriving (Show, Eq, Generic)
 
 newtype Combat a = Combat
-  { unCombat :: RWST World () Battle (ExceptT CombatException (Rand StdGen)) a
-  } deriving (Functor, Applicative, Monad, MonadState Battle, MonadReader World, MonadError CombatException, MonadRandom)
+  { unCombat :: RWST World [PlayerResp] Battle (ExceptT CombatException (Rand StdGen)) a
+  }
+  deriving
+    ( Functor,
+      Applicative,
+      Monad,
+      MonadState Battle,
+      MonadReader World,
+      MonadError CombatException,
+      MonadRandom,
+      MonadWriter [PlayerResp]
+    )
 
-runCombat :: (MonadError e m) => StdGen -> (CombatException -> e) -> World -> Battle -> Combat a -> m (a, Battle, ())
+runCombat :: (MonadError e m) => StdGen -> (CombatException -> e) -> World -> Battle -> Combat a -> m (a, Battle, [PlayerResp])
 runCombat rand fCatch world battle combat = do
   let (action, _) = runRand (runExceptT (runRWST (unCombat combat) world battle)) rand
   liftEither $ either (Left . fCatch) Right action
-
 
 -- | Run a combat action, return if the battle is over
 flushBattleTick :: Double -> Combat Bool
@@ -112,7 +122,7 @@ checkApAndAttack left right = do
 -- | Random select a move from player's skill to attack
 battleAttack :: Lens' Battle Character -> Lens' Battle Character -> Combat ()
 battleAttack left right = do
-  eqTechId <- use $ left . charEqTech . techDef
+  eqTechId <- use $ left . charEqMa . ix Technique . techDef
   eqMoves <- view $ skills . at eqTechId . _Just . techMoves
 
   -- randomly select a move
@@ -121,3 +131,10 @@ battleAttack left right = do
   -- apply damage
   let damage = move ^. moveDamage
   right . charHP -= damage
+
+  -- write attack message
+  uid <- use battleOwner
+  leftName <- use $ left . charName
+  rightName <- use $ right . charName
+  let mvMsg = move ^. moveMsg
+  tell [(uid, CombatNormalMsg leftName rightName mvMsg damage)]

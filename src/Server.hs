@@ -2,34 +2,33 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Server (serverApplication) where
+module Server (serverApplication, gameTickLoop) where
 
 import Control.Concurrent
-import Control.Exception (finally)
 import Control.Monad
 import Data.Aeson (decode)
-import Data.Map.Strict as HM
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import Data.Text.Internal.Builder (toLazyText)
 import Data.Time
 import GameState
 import Network.WebSockets
 import Networking
+import Data.Map
+import qualified Data.Map.Strict as M
+import Game.Entity
+import GamePlay
+import Control.Lens
+import Relude (ToText(toText))
+import Game.Message
 
-type ConnectionMap = M.Map Connection Text
+type ConnectionMap = M.Map PlayerId Connection
 
-addPlayer :: Connection -> GameState -> IO (GameState, Text)
-addPlayer conn gameState = do
-  playerId <- generateUniquePlayerId
-  let newPlayer = createNewPlayer playerId
-  let updatedPlayers = Map.insert playerId newPlayer (players gameState)
-  let updatedGameState = gameState {players = updatedPlayers}
-  return (updatedGameState, playerId)
+addPlayer :: PlayerId -> Player -> GameState -> GameState
+addPlayer uid p = players . at uid ?~ p
 
-registerConnection :: Connection -> Text -> ConnectionMap -> ConnectionMap
-registerConnection conn playerId = Map.insert conn playerId
+loadOrCreatePlayer :: PlayerId -> IO Player
+loadOrCreatePlayer uid = return $ newPlayer uid "Player"
 
 getTicks :: IO Double
 getTicks = do
@@ -39,79 +38,116 @@ getTicks = do
       integralVal = fromRational rationalDayTime
   return integralVal
 
-broadcast :: Text -> ServerState -> IO ()
+broadcast :: Text -> ConnectionMap -> IO ()
 broadcast message clients = do
   TIO.putStrLn message
-  forM_ clients $ \(_, conn) -> sendTextData conn message
+  forM_ clients $ \conn -> do
+    sendTextData conn message
 
-type ServerState = HM.HashMap Text (PlayerState, Connection)
+userLogin :: PlayerId -> Connection -> MVar ConnectionMap -> MVar GameState -> IO ()
+userLogin user conn cm s = do
+  modifyMVar_ cm $ \c -> do
+    broadcast (user <> " joined") c
+    sendTextData conn $
+      "Welcome! Users: "
+        <> T.intercalate
+          ", "
+          (keys c)
+    return $ M.insert user conn c
+  modifyMVar_ s $ \st -> do
+    return $ addPlayer user (newPlayer user "Player") st
 
-serverApplication :: MVar ServerState -> ServerApp
-serverApplication state pending = do
+serverApplication :: MVar ConnectionMap -> MVar GameState -> ServerApp
+serverApplication conns state pending = do
   putStrLn "Accepted connection"
   conn <- acceptRequest pending
   withPingThread conn 30 (return ()) $ do
     msg <- receiveData conn
-    s <- readMVar state
+    c <- readMVar conns
     case decode msg :: Maybe NetEvent of
       Just Login {userName = un}
-        | member un s -> do
+        | member un c -> do
           sendTextData conn ("User already exists" :: Text)
           fail "User already exists"
-        | otherwise -> flip finally (disconnectClient un state) $ do
-          modifyMVar_ state $ \s -> do
-            player <- loadPlayerState un
-            let s' = insert un (player, conn) s
-            sendTextData conn $
-              "Welcome! Users: "
-                <> T.intercalate
-                  ", "
-                  (keys s)
-            broadcast (un <> " joined") s'
-            return s'
-          runGameLoop un state
+        | otherwise -> do
+          userLogin un conn conns state
+          runGameLoop un conns state
       _ -> do
         sendTextData conn ("Not Logged In" :: Text)
         return ()
 
-disconnectClient :: Text -> MVar ServerState -> IO ()
-disconnectClient user state = do
+disconnectClient :: Text -> MVar ConnectionMap -> IO ()
+disconnectClient user conns = do
   -- Remove client and return new state
-  s <- modifyMVar state $ \s -> do
-    let s' = delete user s
+  s <- modifyMVar conns $ \s -> do
+    let s' = M.delete user s
     return (s', s')
   broadcast (user <> " disconnected") s
 
-runGameLoop :: Text -> MVar ServerState -> IO ()
-runGameLoop user state = do
-  s_ <- readMVar state
-  let (player, conn) = s_ ! user
-  msg <- receiveData conn
-  case decode msg :: Maybe NetEvent of
-    Just Disconnect -> disconnectClient user state
-    Just (Message msg) -> do
+dispatchResp :: Foldable m => m PlayerResp -> ConnectionMap -> IO ()
+dispatchResp rsp conns = do
+  forM_ rsp $ \(uid, resp) -> do
+    case conns !? uid of
+      Nothing -> return ()
+      Just conn -> do
+        formatResp resp >>= sendTextData conn
+
+
+runGameLoop :: Text -> MVar ConnectionMap -> MVar GameState -> IO ()
+runGameLoop user conns state = do
+  c_ <- readMVar conns
+  forM_ (c_ !? user) receiveMsg
+  where
+    receiveMsg :: Connection -> IO ()
+    receiveMsg conn = do
+      msg <- receiveData conn
+      case decode msg :: Maybe NetEvent of
+        Just Disconnect -> disconnectClient user conns
+        Just (NetPlayerAction action) -> processAction conn action
+        _ -> runGameLoop user conns state
+
+    processAction :: Connection -> PlayerAction -> IO ()
+    processAction conn action = do
       modifyMVar_ state $ \s -> do
-        case msg of
-          Look -> _
-          Status -> _
-          Item -> _
-          Skill -> _
-          Control pc -> _
-        return s
-      runGameLoop user state
-    _ -> return ()
+        let gameM = processPlayerNormalAction user action
+        ret <- runGameState s gameM
+        case ret of
+          Left err -> do
+            sendTextData conn $ "Error: " <> toText (show err)
+            return s
+          Right (resp, s') -> do
+            withMVar conns $ dispatchResp resp
+            return s'
+      runGameLoop user conns state
 
-route :: NetMessage -> PlayerState -> Connection -> MVar ServerState -> IO ServerState
-route Look player conn server = do
-  sendTextData conn ((T.pack . show $ playerMap player) <> (T.pack . show $ playerPosition player))
-  readMVar server
-route Status player conn server = do
-  sendTextData conn $ T.pack . show $ player
-  readMVar server
-route Item player conn server = do
-  semdTextData conn $ T.pack . show $ playerI
-route Skill player conn server = readMVar server
-route (Control pc) player conn server = readMVar server
 
--- route :: NetMessage -> MVar PlayerState -> IO ()
--- route msg = do
+
+gameTickLoop :: MVar ConnectionMap -> MVar GameState -> IO ()
+gameTickLoop cs gs = do
+  currentTime <- getCurrentTime
+  -- Sleep for the given interval (in milliseconds)
+  threadDelay interval
+  loop currentTime
+  where
+    -- 0.1 seconds
+    interval = 100
+    loop :: UTCTime -> IO ()
+    loop lastTime = do
+      -- Get the current time
+      currentTime <- getCurrentTime
+      let diff = diffUTCTime currentTime lastTime
+      -- Run the game tick
+      let gsm = onGameTick $ realToFrac diff
+      modifyMVar_ gs $ \s -> do
+        res <- runGameState s gsm
+        case res of
+          Left err -> do
+            putStrLn $ "Error: " <> show err
+            return s
+          Right (rsp, s') -> do
+            withMVar cs $ dispatchResp rsp
+            return s'
+      threadDelay interval
+      -- Loop again
+      loop currentTime
+

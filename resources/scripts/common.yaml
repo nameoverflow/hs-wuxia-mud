@@ -1,0 +1,3 @@
+# Path: content/maps/test.yaml
+born_map: test_map
+born_room: [3, 3]

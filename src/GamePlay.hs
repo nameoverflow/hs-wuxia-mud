@@ -10,12 +10,9 @@ import Control.Lens
 import qualified Control.Monad
 import Control.Monad.Except
   ( MonadError (throwError),
-    MonadIO (liftIO),
-    MonadTrans (lift),
     unless,
-    when,
   )
-import Data.Maybe (isNothing)
+import Data.Maybe (isNothing, isJust)
 import qualified Data.Text as T
 import Data.Time.Clock.POSIX (POSIXTime, getPOSIXTime)
 import Game.Entity
@@ -27,8 +24,9 @@ import qualified Data.Map as M
 import Control.Monad (when, forM_)
 import Game.World
 import qualified Data.Set as S
-import Control.Monad.Random (randomIO)
+import Control.Monad.Random (randomIO, getStdGen)
 import Game.Message
+import Control.Monad.RWS (tell)
 
 -- import Script
 
@@ -77,9 +75,13 @@ playerAttack :: PlayerId -> CharId -> GameStateT ()
 playerAttack curPlayerId target = do
   player <- getsPlayer curPlayerId
   npc <- liftWorld $ getsCharacter target
-  unless (_charAttackable npc) $ throwError $ UnableToAttack npc
+  unless (charAttackable npc) $ throwError $ UnableToAttack npc
   battles . at curPlayerId .= Just (newBattle player npc)
-
+  players . ix curPlayerId . playerStatus .= PlayerInBattle
+  tell [(curPlayerId, AttackMsg (player ^. playerCharacter . charName) (npc ^. charName))]
+  where
+    charAttackable :: Character -> Bool
+    charAttackable char = isJust (char ^. charActions . at Attacking) && char ^. charStatus == CharAlive
 -- handlePlayerInput :: T.Text -> T.Text -> GameStateT ()
 -- handlePlayerInput playerId input = do
 --   let action = parsePlayerAction input
@@ -105,11 +107,12 @@ onGameTick dt = do
 -- | Update the battle state
 updateBattle :: Double -> BattleId -> GameStateT ()
 updateBattle dt bId = do
-  world <- use world
+  wrld <- use world
   battle <- getsBattle bId
   -- Update battle state
-  randG <- randomIO
-  (battleOver, battle', ()) <- runCombat randG ExceptionInCombat world battle $ flushBattleTick dt
+  randG <- getStdGen
+  (battleOver, battle', bttlMsg) <- runCombat randG ExceptionInCombat wrld battle $ flushBattleTick dt
+  tell bttlMsg
   if battleOver
     then battleSettlement (battle' ^. battleState . battleChar . charHP <= 0) battle'
     else do

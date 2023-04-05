@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -9,7 +10,8 @@ module Game.Entity where
 
 import Control.Applicative ((<|>))
 import Control.Lens (makeLenses)
-import Data.Aeson (FromJSONKey)
+import Data.Aeson (FromJSONKey, FromJSONKeyFunction (..))
+import Data.Aeson.Types (FromJSONKey (..))
 import qualified Data.Map as M
 import Data.Serialize (Serialize)
 import Data.Serialize.Text ()
@@ -19,12 +21,12 @@ import Data.Text.Encoding (encodeUtf8)
 import qualified Data.Text.IO
 import Data.Yaml (FromJSON, ParseException, decodeEither', decodeFileEither, withObject, (.:))
 import Data.Yaml.Aeson (FromJSON (..), Value (..))
+import Data.Yaml.Parser (typeMismatch)
 import GHC.Generics (Generic)
 import Relude (toText)
 import System.Directory (doesDirectoryExist, listDirectory)
 import System.FilePath (takeExtension, (</>))
 import Utils
-import Data.Yaml.Parser (typeMismatch)
 
 type ItemId = Text
 
@@ -100,7 +102,6 @@ makeLenses ''SkillEntity
 
 instance FromJSON Skill
 
-
 -- | Moves are normal attacks that bind to a tech
 data Move = Move
   { _moveId :: SkillId,
@@ -117,8 +118,9 @@ instance FromJSON Move
 
 -- | Routines are sets of skills and moves, can be learned by character
 type MaId = Text
+
 data MaType = Technique | Cultivation | Lightness
-  deriving (Generic, Show, Eq)
+  deriving (Generic, Show, Eq, Ord)
 
 instance FromJSON MaType where
   parseJSON p = case p of
@@ -126,6 +128,14 @@ instance FromJSON MaType where
     String "cultivation" -> pure Cultivation
     String "lightness" -> pure Lightness
     _ -> fail "Invalid MaType in MartialArt"
+
+instance FromJSONKey MaType where
+  fromJSONKey = FromJSONKeyTextParser $ \case
+    "technique" -> pure Technique
+    "cultivation" -> pure Cultivation
+    "lightness" -> pure Lightness
+    _ -> fail "Invalid MaType in MartialArt"
+
 data MartialArt = MartialArt
   { _techId :: MaId,
     _techType :: MaType,
@@ -154,34 +164,30 @@ type CharId = Text
 
 data CharAction
   = Attacking
-  | Dialogue [Text]
+  | Dialogue
   | Sparring
-  deriving (Show, Eq, Generic)
+  deriving (Show, Eq, Generic, Ord)
 
 instance FromJSON CharAction where
-  parseJSON (Object o) = dialogueParser <|> fail "Invalid action"
-    where
-      dialogueParser = do
-        texts <- o .: "dialogue"
-        return $ Dialogue texts
-  parseJSON (String s) = case s of
-    "attacking" -> return Attacking
-    "sparring" -> return Sparring
+  parseJSON = \case
+    String "attacking" -> return Attacking
+    String "sparring" -> return Sparring
+    String "dialogue" -> return Dialogue
     _ -> fail "Invalid action"
-  parseJSON _ = fail "Invalid action"
 
-data EqMartialArts = EqMartialArts
-  { _eqTch :: Maybe MaEntity,
-    _eqClt :: Maybe MaEntity,
-    _eqLgh :: Maybe MaEntity
-  }
+data CharStatus
+  = CharAlive
+  | CharDead
+  | CharBattle
+  | CharBusy
   deriving (Show, Eq, Generic)
 
 data Character = Character
   { _charId :: CharId,
     _charName :: Text,
     _charDesc :: Text,
-    _charAction :: [CharAction],
+    _charDialogue :: [Text],
+    _charActions :: S.Set CharAction,
     _charRespawn :: Int,
     -- The character's original attributes.
     _charHP :: Int,
@@ -189,21 +195,42 @@ data Character = Character
     _charAgility :: Int,
     _charVitality :: Int,
     -- Equipment
-    _charEqMa :: [MaEntity],
+    _charEqMa :: M.Map MaType MaEntity,
     _charItems :: S.Set ItemEntity,
-    _charMa :: [MaEntity]
+    _charMa :: M.Map MaType [MaEntity],
+    -- Status
+    _charStatus :: CharStatus
   }
   deriving (Show, Generic, Eq)
 
 makeLenses ''Character
+
+newCharacter :: CharId -> Text -> Character
+newCharacter cid cname =
+  Character
+    { _charId = cid,
+      _charName = cname,
+      _charDesc = "",
+      _charDialogue = [],
+      _charActions = S.empty,
+      _charRespawn = 0,
+      _charHP = 0,
+      _charStrength = 0,
+      _charAgility = 0,
+      _charVitality = 0,
+      _charEqMa = M.empty,
+      _charItems = S.empty,
+      _charMa = M.empty,
+      _charStatus = CharAlive
+    }
 
 instance FromJSON Character where
   parseJSON = withObject "Character" $ \o -> do
     _charId <- o .: "id"
     _charName <- o .: "name"
     _charDesc <- o .: "desc"
-
-    _charAction <- o .: "actions"
+    _charDialogue <- o .: "dialogue"
+    _charActions <- o .: "actions"
     _charRespawn <- o .: "respawn"
 
     attr <- o .: "attr"
@@ -217,7 +244,8 @@ instance FromJSON Character where
     -- _charItems <- o .: "items"
     -- _charRoutine <- o .: "routine"
     let _charItems = S.empty
-    let _charMa = []
+    let _charMa = M.empty
+    let _charStatus = CharAlive
     return Character {..}
 
 -- | Load a list of characters from a YAML file.
@@ -230,7 +258,7 @@ loadCharacters path = do
 
 type PlayerId = Text
 
-data PlayerStatus = Normal | InBattle | Dead | Banned
+data PlayerStatus = PlayerNormal | PlayerInBattle | PlayerDead | PlayerBanned
   deriving (Show, Eq, Ord, Generic)
 
 data Player = Player
@@ -244,7 +272,26 @@ data Player = Player
 
 makeLenses ''Player
 
-data Direction = North | South | East | West | NorthEast | NorthWest | SouthEast | SouthWest deriving (Show, Eq, Ord, Generic)
+newPlayer :: PlayerId -> Text -> Player
+newPlayer pid cname = Player
+  { _playerId = pid,
+    _playerPosition = ("", (0, 0)),
+    _playerConcurrency = M.empty,
+    _playerStatus = PlayerNormal,
+    _playerCharacter = newCharacter cid cname
+  }
+  where cid = "player$char$" <> pid
+
+data Direction
+  = North
+  | South
+  | East
+  | West
+  | NorthEast
+  | NorthWest
+  | SouthEast
+  | SouthWest
+  deriving (Show, Eq, Ord, Generic)
 
 instance FromJSON Direction
 

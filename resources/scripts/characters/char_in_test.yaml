@@ -1,0 +1,14 @@
+id: char_in_test
+name: "Momo the Tester"
+desc: "This is Momo the Tester."
+actions: [dialogue, attacking, sparring]
+dialogue:
+  - "Hello, I am Momo the Tester."
+  - "What can I do for you?"
+  - "I am a test character."
+respawn: 5
+attr:
+  hp: 114
+  str: 514
+  agi: 19
+  vit: 18

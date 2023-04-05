@@ -1,0 +1,13 @@
+cradle:
+  stack:
+    - path: "./src"
+      component: "mud-hs:lib"
+
+    - path: "./app/Main.hs"
+      component: "mud-hs:exe:mud-hs-exe"
+
+    - path: "./app/Paths_mud_hs.hs"
+      component: "mud-hs:exe:mud-hs-exe"
+
+    - path: "./test"
+      component: "mud-hs:test:mud-hs-test"

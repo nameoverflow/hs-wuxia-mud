@@ -9,22 +9,8 @@ import qualified Data.HashMap.Lazy as HML (lookup)
 import Data.Serialize (Serialize)
 import Data.Text (Text)
 import GHC.Generics (Generic)
-import GameState (PlayerAction)
-
-
-data NetMessage
-  = Look
-  | Status
-  | Item
-  | Skill
-  | Control PlayerControl
-  deriving (Show, Eq, Generic)
-
-instance Serialize NetMessage
-
-instance FromJSON NetMessage
-
-instance ToJSON NetMessage
+import GameState
+import Game.Message
 
 data NetEvent
   = Login
@@ -32,13 +18,8 @@ data NetEvent
         password :: Text
       }
   | Disconnect
-  | Message NetMessage
+  | NetPlayerAction PlayerAction
   deriving (Show, Eq, Generic)
 
 instance FromJSON NetEvent
 
-instance Serialize NetEvent
-
-instance ToJSON NetEvent
-
-type NetInput = [NetEvent]

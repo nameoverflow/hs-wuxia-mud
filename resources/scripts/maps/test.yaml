@@ -1,0 +1,40 @@
+id: test_map
+name: "Test"
+rooms:
+  - position: [3, 3]
+    id: test_entrance
+    name: "Entrance of Test"
+    desc: "This is the entrance of the test map."
+    char:
+      - char_in_test
+    exits:
+      - direction: north
+        dest: [3, 4]
+      - direction: north_east
+        dest: [4, 4]
+      - direction: west
+        dest: [2, 3]
+
+  - position: [3, 4]
+    id: test_north
+    name: "North of Test"
+    desc: "This is the north of the test map."
+    exits:
+      - direction: south
+        dest: [3, 3]
+
+  - position: [4, 4]
+    id: test_ne
+    name: "NE of Test"
+    desc: "This is the north east of the test map."
+    exits:
+      - direction: south_west
+        dest: [3, 3]
+  
+  - position: [2, 3]
+    id: test_west
+    name: "West of Test"
+    desc: "This is the west of the test map."
+    exits:
+      - direction: east
+        dest: [3, 3]
