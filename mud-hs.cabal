@@ -54,6 +54,7 @@ library
     , directory
     , filepath
     , hashable
+    , hashmap
     , hslua-classes
     , hslua-core
     , hslua-marshalling
@@ -91,6 +92,7 @@ executable mud-hs-exe
     , directory
     , filepath
     , hashable
+    , hashmap
     , hslua-classes
     , hslua-core
     , hslua-marshalling
@@ -130,6 +132,7 @@ test-suite mud-hs-test
     , directory
     , filepath
     , hashable
+    , hashmap
     , hslua-classes
     , hslua-core
     , hslua-marshalling

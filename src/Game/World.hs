@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Game.World where
 
@@ -36,25 +37,35 @@ data WorldException
   | CharNotFound CharId
   deriving (Eq, Show, Generic)
 
+instance Exception WorldException
+instance ToText WorldException where
+  toText = \case
+    MapNotFound mid -> "Map not found: " <> toText mid
+    RoomNotFound mid (x, y) -> "Room not found: " <> toText mid <> " " <> toText (show (x, y))
+    ItemNotFound iid -> "Item not found: " <> toText iid
+    SkillNotFound sid -> "Skill not found: " <> toText sid
+    QuestNotFound qid -> "Quest not found: " <> toText qid
+    CharNotFound cid -> "Character not found: " <> toText cid
+
 type WorldStateT = StateT World (ExceptT WorldException IO)
 
 loadAllAssets :: FilePath -> IO (Either T.Text World)
 loadAllAssets basePath = do
   -- itemResult <- loadItems $ basePath </> "items"
   -- skillResult <- loadSkills $ basePath </> "skills"
-  -- npcResult <- loadNPCs $ basePath </> "npcs"
+  charResult <- loadConfigFromDir _charId $ basePath </> "characters"
   -- questResult <- loadQuests $ basePath </> "quests"
-  mapResult <- loadMaps $ basePath </> "maps"
+  mapResult <- loadConfigFromDir _mapId $ basePath </> "maps"
 
   -- return $ case (itemResult, skillResult, npcResult, questResult, mapResult) of
-  return $ case mapResult of
+  return $ case (charResult, mapResult) of
     -- (Right items, Right skills, Right npcs, Right quests, Right maps) ->
-    Right maps ->
+    (Right chars, Right maps) ->
       Right
         World
           { _items = M.empty,
             _maps = maps,
-            _chars = M.empty,
+            _chars = chars,
             _quests = M.empty,
             _skills = M.empty
           }
@@ -65,7 +76,8 @@ loadAllAssets basePath = do
           --   fromMaybe "" $ leftToMaybe skillResult,
           --   fromMaybe "" $ leftToMaybe npcResult,
           --   fromMaybe "" $ leftToMaybe questResult,
-          [ fromMaybe "" $ leftToMaybe mapResult
+          [ fromMaybe "" $ leftToMaybe mapResult,
+            fromMaybe "" $ leftToMaybe charResult
           ]
 
 getsMap :: T.Text -> WorldStateT Map

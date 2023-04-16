@@ -2,6 +2,8 @@ id: char_in_test
 name: "Momo the Tester"
 desc: "This is Momo the Tester."
 actions: [dialogue, attacking, sparring]
+skills:
+  equipped_martial_arts: {}
 dialogue:
   - "Hello, I am Momo the Tester."
   - "What can I do for you?"

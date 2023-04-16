@@ -18,23 +18,36 @@ import System.Directory (doesDirectoryExist, listDirectory)
 import System.FilePath (takeExtension, (</>))
 import Control.Monad.Random (MonadRandom, getRandomR)
 import Control.Lens
+import qualified Data.Text.IO as TIO
 
--- Take a processing function, load and parse all yaml files in a path, and apply the function to the parsed yaml
-loadYamlProperties :: (FromJSON a, Ord k) => (a -> (k, v)) -> FilePath -> IO (Either Text (M.Map k v))
-loadYamlProperties f dir = do
-  isDir <- doesDirectoryExist dir
-  if isDir
-    then do
-      files <- listDirectory dir
-      let yamlFiles = filter ((== ".yaml") . takeExtension) files
-      items <- Control.Monad.forM yamlFiles $ \file -> do
-        let path = dir </> file
-        result <- decodeFileEither path
-        return $ case result of
-          Left err -> Nothing
-          Right item -> Just $ f item
-      return $ Right $ M.fromList $ catMaybes items
-    else return $ Left $ "Directory does not exist: " <> toText dir
+class FromJSON a => Configurable a where
+  loadConfigFrom :: FilePath -> IO (Either Text a)
+  loadConfigFrom p = do
+    result <- decodeFileEither p
+    return $ case result of
+      Right a -> Right a
+      Left e -> Left . pack $ show e
+  
+  loadConfigFromDir :: Ord k => (a -> k) -> FilePath -> IO (Either Text (M.Map k a))
+  loadConfigFromDir f dir = do
+    isDir <- doesDirectoryExist dir
+    if isDir
+      then do
+        files <- listDirectory dir
+        let yamlFiles = Prelude.filter ((== ".yaml") . takeExtension) files
+        items <- Control.Monad.forM yamlFiles $ \file -> do
+          let path = dir </> file
+          result <- decodeFileEither path
+          case result of
+            Left err -> do
+              TIO.putStrLn $ "Failed loading " <> toText path <> ", err: " <> toText (show err)
+              pure Nothing
+            Right item -> pure $ Just (f item, item)
+        let ret = M.fromList $ catMaybes items
+        TIO.putStrLn $ "Loaded " <> toText (show (M.size ret)) <> " items from " <> toText dir
+        return $ Right ret 
+      else return $ Left $ "Directory does not exist: " <> toText dir
+
 
 liftMaybeT :: Monad m => e -> StateT s (MaybeT m) a -> StateT s (ExceptT e m) a
 liftMaybeT errMsg = mapStateT $ \s -> ExceptT $ maybe (Left errMsg) Right <$> runMaybeT s

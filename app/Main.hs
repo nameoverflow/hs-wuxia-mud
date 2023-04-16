@@ -29,7 +29,7 @@ main = do
   putStrLn "Initializing game state..."
   -- Load game data from YAML files and create initial game state
   -- luaState <- newstate
-  gameState <- loadGameState "content" >>= \case
+  gameState <- loadGameState "resources/scripts" >>= \case
     Left err -> error $ "Failed to load game state: " <> show err
     Right gs -> return gs
   gameStateMVar <- newMVar gameState

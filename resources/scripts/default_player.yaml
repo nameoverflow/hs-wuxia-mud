@@ -1,0 +1,18 @@
+id: default
+position: [test_map, [3, 3]]
+status: normal
+concurrency: {}
+char:
+  id: player$default
+  name: "Default the Player"
+  desc: "Default player."
+  actions: []
+  dialogue: []
+  respawn: 0
+  skills:
+    equipped_martial_arts: {}
+  attr:
+    hp: 114
+    str: 514
+    agi: 19
+    vit: 18

@@ -14,7 +14,7 @@ import Game.Message
 
 data NetEvent
   = Login
-      { userName :: Text,
+      { username :: Text,
         password :: Text
       }
   | Disconnect
@@ -22,4 +22,5 @@ data NetEvent
   deriving (Show, Eq, Generic)
 
 instance FromJSON NetEvent
+instance ToJSON NetEvent
 

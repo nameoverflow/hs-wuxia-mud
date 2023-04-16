@@ -9,9 +9,13 @@
 module Game.Entity where
 
 import Control.Applicative ((<|>))
-import Control.Lens (makeLenses)
-import Data.Aeson (FromJSONKey, FromJSONKeyFunction (..))
-import Data.Aeson.Types (FromJSONKey (..))
+import Control.Lens (makeLenses, (^.))
+import Data.Aeson (FromJSON (..), FromJSONKey (..), FromJSONKeyFunction (..), ToJSON, ToJSONKey (..), Value (..), withObject, (.:), (.:?))
+-- import Data.Yaml (FromJSON, ParseException, decodeEither', decodeFileEither, withObject, (.:), (.:?))
+-- import Data.Yaml.Aeson (FromJSON (..), Value (..))
+-- import Data.Yaml.Parser (typeMismatch)
+
+import Data.Aeson.Types
 import qualified Data.Map as M
 import Data.Serialize (Serialize)
 import Data.Serialize.Text ()
@@ -19,9 +23,6 @@ import qualified Data.Set as S
 import Data.Text (Text, pack)
 import Data.Text.Encoding (encodeUtf8)
 import qualified Data.Text.IO
-import Data.Yaml (FromJSON, ParseException, decodeEither', decodeFileEither, withObject, (.:))
-import Data.Yaml.Aeson (FromJSON (..), Value (..))
-import Data.Yaml.Parser (typeMismatch)
 import GHC.Generics (Generic)
 import Relude (toText)
 import System.Directory (doesDirectoryExist, listDirectory)
@@ -48,13 +49,11 @@ data ItemEntity = ItemEntity
 
 instance FromJSON ItemEntity
 
+instance Configurable ItemEntity
+
 makeLenses ''ItemEntity
 
 type ConcurrencyId = Text
-
--- Load yaml definitions of items from a directory
-loadItems :: FilePath -> IO (Either Text (M.Map ItemId Item))
-loadItems = loadYamlProperties $ \it -> (_itemId it, it)
 
 type EffectId = Text
 
@@ -101,6 +100,8 @@ makeLenses ''Skill
 makeLenses ''SkillEntity
 
 instance FromJSON Skill
+
+instance Configurable Skill
 
 -- | Moves are normal attacks that bind to a tech
 data Move = Move
@@ -153,6 +154,8 @@ data MaEntity = MaEntity
   deriving (Generic, Show, Eq)
 
 instance FromJSON MartialArt
+
+instance Configurable MartialArt
 
 instance FromJSON MaEntity
 
@@ -235,9 +238,9 @@ instance FromJSON Character where
 
     attr <- o .: "attr"
     _charHP <- attr .: "hp"
-    _charStrength <- attr .: "strength"
-    _charAgility <- attr .: "agility"
-    _charVitality <- attr .: "vitality"
+    _charStrength <- attr .: "str"
+    _charAgility <- attr .: "agi"
+    _charVitality <- attr .: "vit"
 
     sk <- o .: "skills"
     _charEqMa <- sk .: "equipped_martial_arts"
@@ -248,18 +251,28 @@ instance FromJSON Character where
     let _charStatus = CharAlive
     return Character {..}
 
--- | Load a list of characters from a YAML file.
-loadCharacters :: FilePath -> IO [Character]
-loadCharacters path = do
-  chars <- decodeFileEither path :: IO (Either ParseException [Character])
-  case chars of
-    Left err -> error $ "Error loading character file: " ++ show err
-    Right cs -> return cs
+instance Configurable Character
 
 type PlayerId = Text
 
 data PlayerStatus = PlayerNormal | PlayerInBattle | PlayerDead | PlayerBanned
   deriving (Show, Eq, Ord, Generic)
+
+instance FromJSON PlayerStatus where
+  parseJSON = \case
+    String "normal" -> return PlayerNormal
+    String "inbattle" -> return PlayerInBattle
+    String "dead" -> return PlayerDead
+    String "banned" -> return PlayerBanned
+    _ -> fail "Invalid PlayerStatus"
+
+instance FromJSONKey PlayerStatus where
+  fromJSONKey = FromJSONKeyTextParser $ \case
+    "normal" -> pure PlayerNormal
+    "inbattle" -> pure PlayerInBattle
+    "dead" -> pure PlayerDead
+    "banned" -> pure PlayerBanned
+    _ -> fail "Invalid PlayerStatus"
 
 data Player = Player
   { _playerId :: PlayerId,
@@ -272,15 +285,28 @@ data Player = Player
 
 makeLenses ''Player
 
+instance FromJSON Player where
+  parseJSON = withObject "Player" $ \o -> do
+    _playerId <- o .: "id"
+    _playerPosition <- o .: "position"
+    _playerConcurrency <- o .: "concurrency"
+    _playerStatus <- o .: "status"
+    _playerCharacter <- o .: "char"
+    return Player {..}
+
+instance Configurable Player
+
 newPlayer :: PlayerId -> Text -> Player
-newPlayer pid cname = Player
-  { _playerId = pid,
-    _playerPosition = ("", (0, 0)),
-    _playerConcurrency = M.empty,
-    _playerStatus = PlayerNormal,
-    _playerCharacter = newCharacter cid cname
-  }
-  where cid = "player$char$" <> pid
+newPlayer pid cname =
+  Player
+    { _playerId = pid,
+      _playerPosition = ("", (0, 0)),
+      _playerConcurrency = M.empty,
+      _playerStatus = PlayerNormal,
+      _playerCharacter = newCharacter cid cname
+    }
+  where
+    cid = "player$char$" <> pid
 
 data Direction
   = North
@@ -295,12 +321,36 @@ data Direction
 
 instance FromJSON Direction
 
-instance FromJSONKey Direction
+instance ToJSON Direction
+
+instance FromJSONKey Direction where
+  fromJSONKey = FromJSONKeyTextParser $ \case
+    "north" -> pure North
+    "south" -> pure South
+    "east" -> pure East
+    "west" -> pure West
+    "northeast" -> pure NorthEast
+    "northwest" -> pure NorthWest
+    "southeast" -> pure SouthEast
+    "southwest" -> pure SouthWest
+    _ -> fail "Invalid direction"
+
+instance ToJSONKey Direction where
+  toJSONKey = toJSONKeyText $ \case
+    North -> "north"
+    South -> "south"
+    East -> "east"
+    West -> "west"
+    NorthEast -> "northeast"
+    NorthWest -> "northwest"
+    SouthEast -> "southeast"
+    SouthWest -> "southwest"
 
 type RoomId = Text
 
 data Room = Room
   { _roomId :: RoomId,
+    _roomPos :: (Int, Int),
     _roomName :: Text,
     _roomDesc :: Text,
     _roomScript :: Maybe Text, -- Change this to store the Lua script content
@@ -312,45 +362,49 @@ data Room = Room
 
 makeLenses ''Room
 
-instance FromJSON Room
+instance FromJSON Room where
+  parseJSON = withObject "Room" $ \o -> do
+    _roomId <- o .: "id" 
+    _roomPos <- o .: "position"
+    _roomName <- o .: "name"
+    _roomDesc <- o .: "desc"
+    _roomScript <- o .:? "script"
+    _roomExits <- o .: "exits"
+    _roomChar <- o .:? "char" >>= maybe (return []) parseJSON
+    let _roomPlayer = S.empty
+    return Room {..}
+
+instance ToJSON Room where
+  toJSON Room {..} =
+    object
+      [ "id" .= _roomId,
+        "name" .= _roomName,
+        "desc" .= _roomDesc,
+        "script" .= _roomScript,
+        "exits" .= _roomExits,
+        "char" .= _roomChar
+      ]
 
 type MapId = Text
 
 data Map = Map
   { _mapId :: Text,
+    _mapName :: Text,
+    _mapDesc :: Text,
     _mapRooms :: M.Map (Int, Int) Room
   }
   deriving (Show, Eq, Generic)
 
 makeLenses ''Map
 
-instance FromJSON Map
+instance FromJSON Map where
+  parseJSON = withObject "Character" $ \o -> do
+    _mapId <- o .: "id"
+    _mapName <- o .: "name"
+    _mapDesc <- o .: "desc"
+    -- _mapRooms <- o .: "rooms"
+    rs <- o.: "rooms"
+    let _mapRooms = M.fromList $ map (\r -> (r ^. roomPos, r)) rs
+    return Map {..}
 
-loadMap :: FilePath -> IO (Either Text Map)
-loadMap path = do
-  fileContent <- Data.Text.IO.readFile path
-  case decodeEither' (encodeUtf8 fileContent) of
-    Left err -> return . Left $ pack ("Error loading map: " <> show err)
-    Right (mapData :: Map) -> do
-      -- Load Lua scripts for each room
-      roomsWithScripts <- mapM loadRoomLuaScript $ _mapRooms mapData
-      return $ Right $ mapData {_mapRooms = roomsWithScripts}
-
-loadRoomLuaScript :: Room -> IO Room
-loadRoomLuaScript room = case _roomScript room of
-  Just scriptPath -> do
-    scriptContent <- Data.Text.IO.readFile $ show scriptPath
-    return $ room {_roomScript = Just scriptContent}
-  Nothing -> return room
-
-loadMaps :: FilePath -> IO (Either Text (M.Map Text Map))
-loadMaps path = do
-  isDir <- doesDirectoryExist path
-  if isDir
-    then do
-      files <- listDirectory path
-      let mapFiles = Prelude.filter (\f -> takeExtension f == ".yaml") files
-      mapData <- mapM loadMap mapFiles
-      let mapEither = sequence mapData
-      return $ M.fromList . Prelude.map (\m -> (_mapId m, m)) <$> mapEither
-    else return $ Left "Path is not a directory"
+instance Configurable Map

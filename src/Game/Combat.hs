@@ -28,6 +28,7 @@ import Game.Entity
 import Game.Message
 import Game.World (World, skills)
 import Utils
+import Relude (ToText (..))
 
 type BattleId = Text
 
@@ -70,6 +71,10 @@ newBattle player npc =
 
 data CombatException = CombatException Text
   deriving (Show, Eq, Generic)
+
+instance Exception CombatException
+instance ToText CombatException where
+  toText (CombatException msg) = msg
 
 newtype Combat a = Combat
   { unCombat :: RWST World [PlayerResp] Battle (ExceptT CombatException (Rand StdGen)) a

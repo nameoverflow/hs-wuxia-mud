@@ -5,11 +5,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module GameState where
 
 import Control.Lens
-import Control.Monad.Except (ExceptT, MonadError, withExceptT, runExceptT)
+import Control.Monad.Except (ExceptT, MonadError (throwError), withExceptT, runExceptT)
 import Control.Monad.State.Strict
 import Control.Monad.Trans.Writer
 import qualified Data.Map as M
@@ -25,6 +26,9 @@ import System.FilePath (takeExtension, (</>))
 import Utils
 import Control.Monad.RWS (MonadWriter)
 import Game.Message
+import qualified Data.Set as S
+import Relude (ToText)
+import Relude.String.Conversion (ToText(..))
 
 data GameState = GameState
   { -- world properties
@@ -46,6 +50,16 @@ data GameException
   | ExceptionInCombat CombatException
   | OtherException Text
   deriving (Show, Eq, Generic)
+
+instance ToText GameException where
+  toText = \case
+    PlayerNotFound pid -> "Player not found: " <> toText pid
+    BattleNotFound bid -> "Battle not found: " <> toText bid
+    UnableToAttack char -> "Unable to attack: " <> toText (_charName char)
+    UnableToMove dir room -> "Unable to move " <> toText (show dir) <> " in " <> toText (_roomName room)
+    ExceptionInWorld err -> "Exception in world: " <> toText err
+    ExceptionInCombat err -> "Exception in combat: " <> toText err
+    OtherException err -> "Other exception: " <> err
 
 newtype GameStateT a = GameStateT
   { unGameStateT :: WriterT [PlayerResp] (StateT GameState (Control.Monad.Except.ExceptT GameException IO)) a
@@ -71,3 +85,15 @@ loadGameState :: FilePath -> IO (Either Text GameState)
 loadGameState basePath = do
   worldResult <- loadAllAssets basePath
   return $ newGameState <$> worldResult
+
+createDefaultPlayer :: PlayerId -> FilePath -> GameStateT ()
+createDefaultPlayer pid path = do
+  playerResult <- liftIO $ loadConfigFrom path
+  case playerResult of
+    Left err -> throwError $ OtherException err
+    Right (player :: Player) -> do
+      let player' = player & playerId .~ pid & playerCharacter . charId .~ "player$" <> pid
+      players . at pid .= Just player'
+
+      let (mid, pos) = player ^. playerPosition
+      world . maps . ix mid . mapRooms . ix pos . roomPlayer %= S.insert pid
