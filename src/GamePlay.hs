@@ -13,8 +13,8 @@ import Control.Monad.Except
     unless,
   )
 import Control.Monad.RWS (tell)
-import Control.Monad.Random (getStdGen, MonadIO (liftIO))
-import qualified Data.Map as M
+import Control.Monad.Random (getStdGen, MonadIO (liftIO), newStdGen)
+import qualified Data.Map.Strict as M
 import Data.Maybe (isJust, catMaybes)
 import qualified Data.Set as S
 import qualified Data.Text as T
@@ -92,8 +92,6 @@ playerAttack curPlayerId target = do
   npc <- liftWorld $ getsCharacter target
   unless (charAttackable npc) $ throwError $ UnableToAttack npc
   battles . at curPlayerId .= Just (newBattle player npc)
-  b' <- use battles
-  trace (show b') $ pure ()
   players . ix curPlayerId . playerStatus .= PlayerInBattle
   tell [(curPlayerId, AttackMsg (player ^. playerCharacter . charName) (npc ^. charName))]
   where
@@ -118,7 +116,6 @@ onGameTick :: Double -> GameStateT ()
 onGameTick dt = do
   -- Update all battles
   battles' <- use battles
-  -- liftIO $ TIO.putStrLn $ "updating " <> T.pack (show $ M.size battles') <> " battles."
   forM_ (M.keys battles') $ updateBattle dt
 
 -- Update all NPCs
@@ -130,11 +127,13 @@ updateBattle dt bId = do
   wrld <- use world
   battle <- getsBattle bId
   -- Update battle state
-  randG <- getStdGen
+  randG <- newStdGen
   (battleOver, battle', bttlMsg) <- runCombat randG ExceptionInCombat wrld battle $ flushBattleTick dt
   tell bttlMsg
   if battleOver
-    then battleSettlement (battle' ^. battleState . battleChar . charHP <= 0) battle'
+    then do
+      liftIO $ TIO.putStrLn "Battle over"
+      battleSettlement (battle' ^. battleState . battleChar . charHP <= 0) battle'
     else do
       -- Update battle state
       battles . at bId .= Just battle'

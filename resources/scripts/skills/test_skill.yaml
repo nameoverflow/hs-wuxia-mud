@@ -1,0 +1,15 @@
+id: test
+name: Martial Art Tester
+type: technique
+desc: An epic attacking technique for testing
+moves:
+  - id: test_move1
+    name: Normal Attack the First
+    desc: A normal attack for testing
+    msg: "You attack the target with your fist."
+    damage: 10
+  - id: test_move2
+    name: Normal Attack the Second
+    desc: A normal attack for testing
+    msg: "You attack the target with your leg."
+    damage: 11

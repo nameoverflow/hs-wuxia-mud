@@ -8,7 +8,7 @@ module Game.World where
 
 import Control.Lens
 import Control.Monad.Except
-import qualified Data.Map as M
+import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 import Game.Entity
 import Game.Quest
@@ -22,7 +22,7 @@ data World = World
     _maps :: M.Map MapId Map,
     _chars :: M.Map CharId Character,
     _quests :: M.Map T.Text Quest,
-    _skills :: M.Map MaId MartialArt
+    _skills :: M.Map ArtId MartialArt
   }
   deriving (Eq, Show, Generic)
 
@@ -32,7 +32,7 @@ data WorldException
   = MapNotFound MapId
   | RoomNotFound MapId (Int, Int)
   | ItemNotFound ItemId
-  | SkillNotFound MaId
+  | SkillNotFound ArtId
   | QuestNotFound T.Text
   | CharNotFound CharId
   deriving (Eq, Show, Generic)
@@ -52,22 +52,22 @@ type WorldStateT = StateT World (ExceptT WorldException IO)
 loadAllAssets :: FilePath -> IO (Either T.Text World)
 loadAllAssets basePath = do
   -- itemResult <- loadItems $ basePath </> "items"
-  -- skillResult <- loadSkills $ basePath </> "skills"
+  skillResult <- loadConfigFromDir _artId $ basePath </> "skills"
   charResult <- loadConfigFromDir _charId $ basePath </> "characters"
   -- questResult <- loadQuests $ basePath </> "quests"
   mapResult <- loadConfigFromDir _mapId $ basePath </> "maps"
 
   -- return $ case (itemResult, skillResult, npcResult, questResult, mapResult) of
-  return $ case (charResult, mapResult) of
+  return $ case (charResult, mapResult, skillResult) of
     -- (Right items, Right skills, Right npcs, Right quests, Right maps) ->
-    (Right chars, Right maps) ->
+    (Right chars, Right maps, Right skills) ->
       Right
         World
           { _items = M.empty,
             _maps = maps,
             _chars = chars,
             _quests = M.empty,
-            _skills = M.empty
+            _skills = skills
           }
     _ ->
       Left $
@@ -77,6 +77,7 @@ loadAllAssets basePath = do
           --   fromMaybe "" $ leftToMaybe npcResult,
           --   fromMaybe "" $ leftToMaybe questResult,
           [ fromMaybe "" $ leftToMaybe mapResult,
+            fromMaybe "" $ leftToMaybe skillResult,
             fromMaybe "" $ leftToMaybe charResult
           ]
 
@@ -93,5 +94,5 @@ getsMapRoom mId pos = do
 getsCharacter :: CharId -> WorldStateT Character
 getsCharacter cId = getsL chars cId $ CharNotFound cId
 
-getsMartialArt :: MaId -> WorldStateT MartialArt
+getsMartialArt :: ArtId -> WorldStateT MartialArt
 getsMartialArt rId = getsL skills rId $ SkillNotFound rId

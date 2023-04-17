@@ -22,13 +22,13 @@ import Control.Monad.State.Strict (MonadState, StateT (..))
 import Data.List (sortOn)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes)
-import Data.Text (Text)
+import Data.Text (Text, pack)
 import GHC.Generics (Generic)
 import Game.Entity
 import Game.Message
 import Game.World (World, skills)
 import Utils
-import Relude (ToText (..))
+import Relude (ToText (..), whenNothing)
 
 type BattleId = Text
 
@@ -45,8 +45,8 @@ data BattleState = BattleState
 
 data Battle = Battle
   { _battleOwner :: PlayerId,
-    _battleState :: BattleState,
-    _battleEnemyState :: BattleState
+    _battleState :: !BattleState,
+    _battleEnemyState :: !BattleState
   }
   deriving (Show, Eq, Generic)
 
@@ -115,7 +115,7 @@ flushBattleTick dt = do
     else do
       checkApAndAttack battleEnemyState battleState
       playerHp <- use $ battleState . battleChar . charHP
-      return $ playerHp > 0
+      return $ playerHp <= 0
 
 checkApAndAttack :: Lens' Battle BattleState -> Lens' Battle BattleState -> Combat ()
 checkApAndAttack left right = do
@@ -127,19 +127,23 @@ checkApAndAttack left right = do
 -- | Random select a move from player's skill to attack
 battleAttack :: Lens' Battle Character -> Lens' Battle Character -> Combat ()
 battleAttack left right = do
-  eqTechId <- use $ left . charEqMa . ix Technique . techDef
-  eqMoves <- view $ skills . at eqTechId . _Just . techMoves
+  eqTechId <- use $ left . charPrepare . ix Technique . artDef
+  eqMoves <- view $ skills . at eqTechId . _Just . artMoves
 
   -- randomly select a move
   move <- randomSelect eqMoves
+  case move of
+    Nothing -> do
+      c <- view $ skills . at eqTechId
+      throwError $ CombatException $ pack $ "No move selected, skill: " <> show c
+    Just mv -> do
+      -- apply damage
+      let damage = mv ^. moveDamage
+      right . charHP -= damage
 
-  -- apply damage
-  let damage = move ^. moveDamage
-  right . charHP -= damage
-
-  -- write attack message
-  uid <- use battleOwner
-  leftName <- use $ left . charName
-  rightName <- use $ right . charName
-  let mvMsg = move ^. moveMsg
-  tell [(uid, CombatNormalMsg leftName rightName mvMsg damage)]
+      -- write attack message
+      uid <- use battleOwner
+      leftName <- use $ left . charName
+      rightName <- use $ right . charName
+      let mvMsg = mv ^. moveMsg
+      tell [(uid, CombatNormalMsg leftName rightName mvMsg damage)]

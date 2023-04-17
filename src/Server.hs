@@ -135,8 +135,8 @@ gameTickLoop cs gs = do
   threadDelay interval
   loop currentTime
   where
-    -- 0.1 seconds
-    interval = 100
+    -- 1 seconds
+    interval = 1000000
     loop :: UTCTime -> IO ()
     loop lastTime = do
       -- Get the current time

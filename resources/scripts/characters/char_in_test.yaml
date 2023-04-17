@@ -3,7 +3,13 @@ name: "Momo the Tester"
 desc: "This is Momo the Tester."
 actions: [dialogue, attacking, sparring]
 skills:
-  equipped_martial_arts: {}
+  technique:
+    - id: test
+      level: 1
+prepared:
+  technique:
+    id: test
+    level: 1
 dialogue:
   - "Hello, I am Momo the Tester."
   - "What can I do for you?"

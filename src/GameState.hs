@@ -13,7 +13,7 @@ import Control.Lens
 import Control.Monad.Except (ExceptT, MonadError (throwError), withExceptT, runExceptT)
 import Control.Monad.State.Strict
 import Control.Monad.Trans.Writer
-import qualified Data.Map as M
+import qualified Data.Map.Strict as M
 import Data.Text
 import GHC.Generics (Generic)
 import Game.Combat

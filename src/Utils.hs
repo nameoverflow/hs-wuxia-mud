@@ -53,10 +53,10 @@ liftMaybeT :: Monad m => e -> StateT s (MaybeT m) a -> StateT s (ExceptT e m) a
 liftMaybeT errMsg = mapStateT $ \s -> ExceptT $ maybe (Left errMsg) Right <$> runMaybeT s
 
 
-randomSelect :: MonadRandom m => [a] -> m a
+randomSelect :: MonadRandom m => [a] -> m (Maybe a)
 randomSelect xs = do
   idx <- getRandomR (0, length xs - 1)
-  return $ xs !! idx
+  return $ xs ^? element idx
 
 
 getsL :: (At m, MonadError e m1, MonadState s m1) => Lens' s m -> Index m -> e -> m1 (IxValue m)

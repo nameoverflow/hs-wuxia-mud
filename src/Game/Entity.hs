@@ -99,7 +99,21 @@ data SkillEntity = SkillEntity
 makeLenses ''Skill
 makeLenses ''SkillEntity
 
-instance FromJSON Skill
+instance FromJSON Skill where
+  parseJSON = withObject "Skill" $ \o -> do
+    _skillId <- o .: "id"
+    _skillName <- o .: "name"
+    _skillDesc <- o .: "desc"
+    _skillMsg <- o .: "msg"
+    _skillCooldown <- o .: "cd"
+    _skillTarget <- o .: "target"
+    _skillCost <- o .: "cost"
+    _skillHeal <- o .:? "heal"
+    _skillDamage <- o .:? "damage"
+    eff <- o .: "effect"
+    _skillEffSelf <- eff .:? "self" .!= []
+    _skillEffTarget <- eff .:? "target" .!= []
+    pure Skill {..}
 
 instance Configurable Skill
 
@@ -115,52 +129,71 @@ data Move = Move
 
 makeLenses ''Move
 
-instance FromJSON Move
+instance FromJSON Move where
+  parseJSON = withObject "Move" $ \o -> do
+    _moveId <- o .: "id"
+    _moveName <- o .: "name"
+    _moveDesc <- o .: "desc"
+    _moveMsg <- o .: "msg"
+    _moveDamage <- o .: "damage"
+    pure Move {..}
 
 -- | Routines are sets of skills and moves, can be learned by character
-type MaId = Text
+type ArtId = Text
 
-data MaType = Technique | Cultivation | Lightness
+data ArtType = Technique | Cultivation | Lightness
   deriving (Generic, Show, Eq, Ord)
 
-instance FromJSON MaType where
+instance FromJSON ArtType where
   parseJSON p = case p of
     String "technique" -> pure Technique
     String "cultivation" -> pure Cultivation
     String "lightness" -> pure Lightness
-    _ -> fail "Invalid MaType in MartialArt"
+    _ -> fail "Invalid ArtType in MartialArt"
 
-instance FromJSONKey MaType where
+instance FromJSONKey ArtType where
   fromJSONKey = FromJSONKeyTextParser $ \case
     "technique" -> pure Technique
     "cultivation" -> pure Cultivation
     "lightness" -> pure Lightness
-    _ -> fail "Invalid MaType in MartialArt"
+    _ -> fail "Invalid ArtType in MartialArt"
 
 data MartialArt = MartialArt
-  { _techId :: MaId,
-    _techType :: MaType,
-    _techName :: Text,
-    _techDesc :: Text,
-    _techMoves :: [Move],
-    _techSkills :: [Skill]
+  { _artId :: ArtId,
+    _artType :: ArtType,
+    _artName :: Text,
+    _artDesc :: Text,
+    _artMoves :: [Move],
+    _artSkills :: [Skill]
   }
   deriving (Generic, Show, Eq)
 
-data MaEntity = MaEntity
-  { _techDef :: MaId,
-    _techLevel :: Int
+data ArtEntity = ArtEntity
+  { _artDef :: ArtId,
+    _artLevel :: Int
   }
   deriving (Generic, Show, Eq)
 
-instance FromJSON MartialArt
+instance FromJSON MartialArt where
+  parseJSON = withObject "MartialArt" $ \o -> do
+    _artId <- o .: "id"
+    _artType <- o .: "type"
+    _artName <- o .: "name"
+    _artDesc <- o .: "desc"
+    _artMoves <- o .:? "moves" .!= []
+    _artSkills <- o .:? "skills" .!= []
+    pure MartialArt {..}
 
 instance Configurable MartialArt
 
-instance FromJSON MaEntity
+instance FromJSON ArtEntity where
+  parseJSON = withObject "ArtEntity" $ \o -> do
+    _artDef <- o .: "id"
+    _artLevel <- o .: "level"
+    pure ArtEntity {..}
 
 makeLenses ''MartialArt
-makeLenses ''MaEntity
+makeLenses ''ArtEntity
 
 -- | Data type representing a character in the game world.
 type CharId = Text
@@ -198,9 +231,9 @@ data Character = Character
     _charAgility :: Int,
     _charVitality :: Int,
     -- Equipment
-    _charEqMa :: M.Map MaType MaEntity,
+    _charPrepare :: M.Map ArtType ArtEntity,
     _charItems :: S.Set ItemEntity,
-    _charMa :: M.Map MaType [MaEntity],
+    _charArt :: M.Map ArtType [ArtEntity],
     -- Status
     _charStatus :: CharStatus
   }
@@ -221,9 +254,9 @@ newCharacter cid cname =
       _charStrength = 0,
       _charAgility = 0,
       _charVitality = 0,
-      _charEqMa = M.empty,
+      _charPrepare = M.empty,
       _charItems = S.empty,
-      _charMa = M.empty,
+      _charArt = M.empty,
       _charStatus = CharAlive
     }
 
@@ -242,12 +275,12 @@ instance FromJSON Character where
     _charAgility <- attr .: "agi"
     _charVitality <- attr .: "vit"
 
-    sk <- o .: "skills"
-    _charEqMa <- sk .: "equipped_martial_arts"
+    _charArt <- o .: "skills"
+    _charPrepare <- o .: "prepared"
     -- _charItems <- o .: "items"
     -- _charRoutine <- o .: "routine"
     let _charItems = S.empty
-    let _charMa = M.empty
+    -- let _charArt = M.empty
     let _charStatus = CharAlive
     return Character {..}
 
@@ -370,7 +403,7 @@ instance FromJSON Room where
     _roomDesc <- o .: "desc"
     _roomScript <- o .:? "script"
     _roomExits <- o .: "exits"
-    _roomChar <- o .:? "char" >>= maybe (return []) parseJSON
+    _roomChar <- o .:? "char" .!= []
     let _roomPlayer = S.empty
     return Room {..}
 

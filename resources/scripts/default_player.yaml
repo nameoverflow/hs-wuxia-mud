@@ -10,7 +10,13 @@ char:
   dialogue: []
   respawn: 0
   skills:
-    equipped_martial_arts: {}
+    technique:
+      - id: test
+        level: 1
+  prepared:
+    technique:
+      id: test
+      level: 1
   attr:
     hp: 114
     str: 514
