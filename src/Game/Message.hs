@@ -14,8 +14,9 @@ import Control.Applicative ((<|>))
 
 data PlayerAction
   = Go Direction
+  | Talk CharId
   | Attack CharId
-  | ApplySkill SkillId
+  | Perform SkillId
   | Use T.Text
   | Say T.Text
   | Other T.Text
@@ -25,19 +26,21 @@ instance FromJSON PlayerAction where
   parseJSON = withObject "PlayerAction" $ \o ->
     (Go <$> o .: "go")
       <|> (Attack <$> o .: "attack")
-      <|> (ApplySkill <$> o .: "apply")
+      <|> (Perform <$> o .: "perform")
       <|> (Use <$> o .: "use")
       <|> (Say <$> o .: "say")
       <|> (Other <$> o .: "other")
+      <|> (Talk <$> o .: "talk")
 
 
 instance ToJSON PlayerAction where
   toJSON (Go dir) = object ["go" .= dir]
   toJSON (Attack charId) = object ["attack" .= charId]
-  toJSON (ApplySkill skillId) = object ["apply" .= skillId]
+  toJSON (Perform skillId) = object ["perform" .= skillId]
   toJSON (Use item) = object ["use" .= item]
   toJSON (Say msg) = object ["say" .= msg]
   toJSON (Other msg) = object ["other" .= msg]
+  toJSON (Talk charId) = object ["talk" .= charId]
 
 data ActionResp
   -- | dst room name
@@ -50,8 +53,8 @@ data ActionResp
   | SkillMsg T.Text T.Text T.Text
   -- | attacker, defender, skill desc, damage
   | CombatNormalMsg T.Text T.Text T.Text Int
-  -- | attacker, defender
-  | CombatSettlementMsg T.Text T.Text
+  -- | attacker, defender, win
+  | CombatSettlementMsg T.Text T.Text Bool
   -- | applier, item desc
   | UseItemMsg T.Text T.Text
   -- | speaker, message

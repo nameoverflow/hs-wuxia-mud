@@ -8,8 +8,17 @@ WIP
 
 - Minimal playable demo
 
-  - [ ] Game loop
+  - [-] Game loop
 
-  - [ ] Networking
+  - [-] Networking
 
   - [ ] Client
+
+- Role playing
+
+  - [ ] Battle skills
+
+  - [ ] Items and concurrency
+  
+  - [ ] Character building
+

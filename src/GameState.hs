@@ -35,7 +35,8 @@ data GameState = GameState
     _world :: World,
     -- game status
     _players :: M.Map PlayerId Player,
-    _battles :: M.Map PlayerId Battle
+    _battles :: M.Map PlayerId Battle,
+    _respawn :: M.Map CharId Double
   }
   deriving (Show, Eq, Generic)
 
@@ -44,7 +45,7 @@ makeLenses ''GameState
 data GameException
   = PlayerNotFound PlayerId
   | BattleNotFound BattleId
-  | UnableToAttack Character
+  | UnableToInteract Character CharAction
   | UnableToMove Direction Room
   | ExceptionInWorld WorldException
   | ExceptionInCombat CombatException
@@ -55,7 +56,7 @@ instance ToText GameException where
   toText = \case
     PlayerNotFound pid -> "Player not found: " <> toText pid
     BattleNotFound bid -> "Battle not found: " <> toText bid
-    UnableToAttack char -> "Unable to attack: " <> toText (_charName char)
+    UnableToInteract char act -> "Unable to " <> toText (show act) <> ": " <> toText (_charName char)
     UnableToMove dir room -> "Unable to move " <> toText (show dir) <> " in " <> toText (_roomName room)
     ExceptionInWorld err -> "Exception in world: " <> toText err
     ExceptionInCombat err -> "Exception in combat: " <> toText err
@@ -79,7 +80,7 @@ runGameState :: (MonadIO m) => GameState -> GameStateT a -> m (Either GameExcept
 runGameState gs m = liftIO $ Control.Monad.Except.runExceptT $ runStateT (execWriterT $ unGameStateT m) gs
 
 newGameState :: World -> GameState
-newGameState w = GameState w M.empty M.empty
+newGameState w = GameState w M.empty M.empty M.empty
 
 loadGameState :: FilePath -> IO (Either Text GameState)
 loadGameState basePath = do
