@@ -124,7 +124,7 @@ runGameLoop user conns state = do
 
     processAction :: Connection -> PlayerAction -> IO ()
     processAction conn action = do
-      let gameM = processPlayerNormalAction user action
+      let gameM = processPlayerAction user action
       runAndResponse state conns gameM $ \err -> do
         sendTextData conn $ "Error: " <> toText (show err)
 

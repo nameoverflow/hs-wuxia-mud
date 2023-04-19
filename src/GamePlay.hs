@@ -26,22 +26,27 @@ import Game.World
 import GameState
 import Utils
 import qualified Data.Text.IO as TIO
-import Debug.Trace (trace)
 
--- import Script
+processPlayerAction :: PlayerId -> PlayerAction -> GameStateT ()
+processPlayerAction pid action = do
+  player <- getsPlayer pid
+  case player ^. playerStatus of
+    PlayerNormal -> processNormalAction pid action
+    PlayerInBattle -> processBattleAction pid action
+    _ -> return ()
 
-processPlayerNormalAction :: T.Text -> PlayerAction -> GameStateT ()
-processPlayerNormalAction curPlayerId action = case action of
-  Go direction -> playerMove curPlayerId direction
-  Attack (target :: CharId) -> playerAttack curPlayerId target
-  Talk (target :: CharId) -> playerTalk curPlayerId target
+processNormalAction :: PlayerId -> PlayerAction -> GameStateT ()
+processNormalAction pid action = case action of
+  Go direction -> playerMove pid direction
+  Attack (target :: CharId) -> playerAttack pid target
+  Talk (target :: CharId) -> playerTalk pid target
   _ -> return ()
 
-processPlayerBattleAction :: T.Text -> PlayerAction -> GameStateT ()
-processPlayerBattleAction curPlayerId action = case action of
+processBattleAction :: PlayerId -> PlayerAction -> GameStateT ()
+processBattleAction pid action = case action of
   -- Perform skillId -> do
-  --   player <- getsPlayer curPlayerId
-  --   battle <- getsBattle curPlayerId
+  --   player <- getsPlayer pid
+  --   battle <- getsBattle pid
   --   let (battle', skill) = runState (useSkill skillId) battle
   --   reuturn ()
 
@@ -54,27 +59,27 @@ processPlayerBattleAction curPlayerId action = case action of
   -- Other command -> do
   --   -- Handle custom commands, e.g., emotes or special actions
   --   handleCustomCommand command
-  _ -> pure ()
+  _ -> return ()
 
-playerMove :: T.Text -> Direction -> GameStateT ()
-playerMove curPlayerId direction = do
-  (curMapId, curPos) <- (^. playerPosition) <$> getsPlayer curPlayerId
+playerMove :: PlayerId -> Direction -> GameStateT ()
+playerMove pid direction = do
+  (curMapId, curPos) <- (^. playerPosition) <$> getsPlayer pid
   currentRoom <- liftWorld $ getsMapRoom curMapId curPos
   case currentRoom ^. roomExits . at direction of
     Nothing -> throwError $ UnableToMove direction currentRoom
     Just dst -> do
-      players . at curPlayerId . _Just . playerPosition .= (curMapId, dst)
+      players . at pid . _Just . playerPosition .= (curMapId, dst)
       -- broadcastMessage $ T.concat [playerId, " has entered ", newRoom ^. roomName]
-      world . maps . ix curMapId . mapRooms . ix dst . roomPlayer %= S.insert curPlayerId
+      world . maps . ix curMapId . mapRooms . ix dst . roomPlayer %= S.insert pid
       newRoom <- liftWorld $ getsMapRoom curMapId dst
-      tell [(curPlayerId, MoveMsg $ newRoom ^. roomName)]
-      playerView curPlayerId
+      tell [(pid, MoveMsg $ newRoom ^. roomName)]
+      playerView pid
       return ()
 
 
-playerView :: T.Text -> GameStateT ()
-playerView curPlayerId = do
-  (curMapId, curPos) <- (^. playerPosition) <$> getsPlayer curPlayerId
+playerView :: PlayerId -> GameStateT ()
+playerView pid = do
+  (curMapId, curPos) <- (^. playerPosition) <$> getsPlayer pid
   curRoom <- liftWorld $ getsMapRoom curMapId curPos
   allChars <- use $ world . chars
   let roomChar' = curRoom ^. roomChar
@@ -88,11 +93,11 @@ playerView curPlayerId = do
   let curRoomExits = M.keys $ curRoom ^. roomExits
   let curRoomName = curRoom ^. roomName
   let curRoomDesc = curRoom ^. roomDesc
-  tell [(curPlayerId, ViewMsg curRoomName curRoomDesc curRoomChars curRoomExits)]
+  tell [(pid, ViewMsg curRoomName curRoomDesc curRoomChars curRoomExits)]
 
-playerTalk :: T.Text -> T.Text -> GameStateT ()
-playerTalk curPlayerId target = do
-  player <- getsPlayer curPlayerId
+playerTalk :: PlayerId -> CharId -> GameStateT ()
+playerTalk pid target = do
+  player <- getsPlayer pid
   npc <- liftWorld $ getsCharacter target
   unless (charTalkable npc) $ throwError $ UnableToInteract npc Dialogue
 
@@ -103,20 +108,20 @@ playerTalk curPlayerId target = do
   case dialogue of
     Nothing -> throwError $ UnableToInteract npc Dialogue
     Just dialogue' ->
-      tell [(curPlayerId, DialogueMsg (npc ^. charName) dialogue')]
+      tell [(pid, DialogueMsg (npc ^. charName) dialogue')]
   where
     charTalkable :: Character -> Bool
     charTalkable char = isJust (char ^. charActions . at Dialogue) && char ^. charStatus == CharAlive
 
 -- Create a new battle between the player and the target NPC
 playerAttack :: PlayerId -> CharId -> GameStateT ()
-playerAttack curPlayerId target = do
-  player <- getsPlayer curPlayerId
+playerAttack pid target = do
+  player <- getsPlayer pid
   npc <- liftWorld $ getsCharacter target
   unless (charAttackable npc) $ throwError $ UnableToInteract npc Attacking
-  battles . at curPlayerId .= Just (newBattle player npc)
-  players . ix curPlayerId . playerStatus .= PlayerInBattle
-  tell [(curPlayerId, AttackMsg (player ^. playerCharacter . charName) (npc ^. charName))]
+  battles . at pid .= Just (newBattle player npc)
+  players . ix pid . playerStatus .= PlayerInBattle
+  tell [(pid, AttackMsg (player ^. playerCharacter . charName) (npc ^. charName))]
   where
     charAttackable :: Character -> Bool
     charAttackable char = isJust (char ^. charActions . at Attacking) && char ^. charStatus == CharAlive

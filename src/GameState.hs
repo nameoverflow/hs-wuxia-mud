@@ -32,11 +32,11 @@ import Relude.String.Conversion (ToText(..))
 
 data GameState = GameState
   { -- world properties
-    _world :: World,
+    _world :: !World,
     -- game status
-    _players :: M.Map PlayerId Player,
-    _battles :: M.Map PlayerId Battle,
-    _respawn :: M.Map CharId Double
+    _players :: !(M.Map PlayerId Player),
+    _battles :: !(M.Map PlayerId Battle),
+    _respawn :: !(M.Map CharId Double)
   }
   deriving (Show, Eq, Generic)
 

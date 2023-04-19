@@ -63,6 +63,8 @@ data ActionResp
   | DialogueMsg T.Text T.Text
   deriving (Show, Eq, Generic)
 
+instance ToJSON ActionResp
+
 type PlayerResp = (PlayerId, ActionResp)
 
 formatResp :: ActionResp -> IO Text
