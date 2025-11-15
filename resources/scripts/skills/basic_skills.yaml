@@ -1,0 +1,74 @@
+- id: power_strike
+  name: "Power Strike"
+  desc: "A powerful strike requiring focused Qi"
+  msg: "gathers Qi in their fist and strikes with tremendous force"
+  cd: 5.0
+  target: Single
+  cost: 30
+  ap_req: 60
+  req_status: []
+  damage: 35
+  effect:
+    self: []
+    target: []
+
+- id: healing_palm
+  name: "Healing Palm"
+  desc: "Channel Qi to heal wounds"
+  msg: "places palm over wounds, warm Qi energy flows and heals"
+  cd: 8.0
+  target: Self
+  cost: 50
+  ap_req: 40
+  req_status: []
+  heal: 40
+  effect:
+    self: []
+    target: []
+
+- id: iron_body
+  name: "Iron Body"
+  desc: "Harden body with Qi, granting protection"
+  msg: "channels Qi through meridians, skin turns metallic"
+  cd: 15.0
+  target: Self
+  cost: 40
+  ap_req: 50
+  req_status: []
+  effect:
+    self:
+      - id: iron_body_buff
+        duration: 10.0
+        value: 5
+    target: []
+
+- id: dragon_stance
+  name: "Dragon Stance"
+  desc: "Assume the Dragon Stance, empowering techniques"
+  msg: "assumes the Dragon Stance, energy swirling around them"
+  cd: 20.0
+  target: Self
+  cost: 40
+  ap_req: 50
+  req_status: []
+  effect:
+    self:
+      - id: dragon_stance
+        duration: 15.0
+        value: 1
+    target: []
+
+- id: dragon_burst
+  name: "Dragon Burst"
+  desc: "Ultimate attack requiring Dragon Stance"
+  msg: "unleashes the full power of the Dragon in a devastating blast"
+  cd: 20.0
+  target: Single
+  cost: 80
+  ap_req: 100
+  req_status:
+    - dragon_stance
+  damage: 120
+  effect:
+    self: []
+    target: []

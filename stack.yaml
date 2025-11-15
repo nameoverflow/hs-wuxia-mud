@@ -17,7 +17,9 @@
 #
 # resolver: ./custom-snapshot.yaml
 # resolver: https://example.com/snapshots/2018-01-01.yaml
-resolver: lts-18.28
+resolver: lts-24.19
+
+allow-newer: true
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -39,15 +41,7 @@ packages:
 # - git: https://github.com/commercialhaskell/stack.git
 #   commit: e7b331f14bcffb8367cd58fbfc8b40ec7642100a
 #
-extra-deps: 
- - lua-2.2.1
- - hslua-core-2.2.1
- - hslua-marshalling-2.2.1
- - hslua-objectorientation-2.2.1
- - hslua-packaging-2.2.1
- - hslua-classes-2.2.0
- - bytestring-0.10.12.0
- - transformers-0.5.6.2
+extra-deps: []
 #  - hslua-2.2.1
 # - Yampa-0.14
 # - lua-2.2.1@sha256:667516181cf9b21ecc7b17509feb01f70aa6b4543eafafc86fcd64437d0cb60d,7499

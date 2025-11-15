@@ -6,14 +6,14 @@
 module GamePlay where
 
 import Control.Lens
-import Control.Monad (forM_, when)
+import Control.Monad (forM_, unless, when)
 import qualified Control.Monad
 import Control.Monad.Except
-  ( MonadError (throwError),
-    unless,
+  ( MonadError (throwError)
   )
 import Control.Monad.RWS (tell)
 import Control.Monad.Random (getStdGen, MonadIO (liftIO), newStdGen, runRand)
+import Data.List (find)
 import qualified Data.Map.Strict as M
 import Data.Maybe (isJust, catMaybes)
 import qualified Data.Set as S
@@ -44,12 +44,7 @@ processNormalAction pid action = case action of
 
 processBattleAction :: PlayerId -> PlayerAction -> GameStateT ()
 processBattleAction pid action = case action of
-  -- Perform skillId -> do
-  --   player <- getsPlayer pid
-  --   battle <- getsBattle pid
-  --   let (battle', skill) = runState (useSkill skillId) battle
-  --   reuturn ()
-
+  Perform skillId -> playerPerformSkill pid skillId
   -- Use item -> do
   --   -- Update player's inventory and apply item effects
   --   players . ix playerId %= updatePlayerAfterUsingItem item
@@ -125,6 +120,47 @@ playerAttack pid target = do
   where
     charAttackable :: Character -> Bool
     charAttackable char = isJust (char ^. charActions . at Attacking) && char ^. charStatus == CharAlive
+
+-- Player performs a skill during battle
+playerPerformSkill :: PlayerId -> SkillId -> GameStateT ()
+playerPerformSkill pid targetSkillId = do
+  wrld <- use world
+  battle <- getsBattle pid
+  player <- getsPlayer pid
+
+  -- Get prepared technique and find the skill
+  let preparedTech = player ^. playerCharacter . charPrepare . at Technique
+  case preparedTech of
+    Nothing -> throwError $ OtherException "No technique prepared"
+    Just artEntity -> do
+      let artId = artEntity ^. artDef
+      case M.lookup artId (wrld ^. skills) of
+        Nothing -> throwError $ OtherException $ "Martial art not found: " <> artId
+        Just martialArt -> do
+          -- Find the skill in the martial art
+          let skillList = martialArt ^. artSkills
+              maybeSkill = find (\s -> s ^. skillId == targetSkillId) skillList
+          case maybeSkill of
+            Nothing -> throwError $ OtherException $ "Skill not found in prepared technique: " <> targetSkillId
+            Just skill -> do
+              -- Check if skill can be cast and cast it
+              randG <- newStdGen
+              (canCast, battle', skillMsg) <- runCombat randG ExceptionInCombat wrld battle $ do
+                can <- canCastSkill skill battleState
+                if can
+                  then do
+                    castSkill skill battleState battleEnemyState
+                    return True
+                  else return False
+
+              if canCast
+                then do
+                  -- Update battle state
+                  battles . at pid .= Just battle'
+                  tell skillMsg
+                else do
+                  -- Send error message about why skill can't be cast
+                  tell [(pid, SkillMsg "System" (player ^. playerCharacter . charName) "Cannot cast skill - requirements not met")]
 
 -- handlePlayerInput :: T.Text -> T.Text -> GameStateT ()
 -- handlePlayerInput playerId input = do

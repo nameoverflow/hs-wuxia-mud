@@ -68,4 +68,4 @@ instance ToJSON ActionResp
 type PlayerResp = (PlayerId, ActionResp)
 
 formatResp :: ActionResp -> IO Text
-formatResp r = return . toText $ show r
+formatResp r = return . toText $ Prelude.show r

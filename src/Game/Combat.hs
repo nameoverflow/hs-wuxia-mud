@@ -11,7 +11,7 @@ module Game.Combat where
 
 import Control.Exception (Exception)
 import Control.Lens
-import Control.Monad (when)
+import Control.Monad (forM_, when)
 import Control.Monad.Error.Class
 import Control.Monad.Except
 import Control.Monad.Identity (Identity, runIdentity)
@@ -38,8 +38,9 @@ maxAp = 100
 data BattleState = BattleState
   { _battleSkillCd :: M.Map SkillId Double,
     _battleAp :: Int,
-    _battleChar :: Character
-    -- _battleEffects :: M.Map EffectId Effect
+    _battleQi :: Int,
+    _battleChar :: Character,
+    _battleEffects :: M.Map EffectId ActiveEffect
   }
   deriving (Show, Eq, Generic)
 
@@ -66,7 +67,9 @@ newBattle player npc =
       BattleState
         { _battleSkillCd = M.empty,
           _battleAp = 0,
-          _battleChar = char
+          _battleQi = _charQi char,
+          _battleChar = char,
+          _battleEffects = M.empty
         }
 
 data CombatException = CombatException Text
@@ -100,10 +103,24 @@ flushBattleTick :: Double -> Combat Bool
 flushBattleTick dt = do
   char <- use $ battleState . battleChar
   enemy <- use $ battleEnemyState . battleChar
+
+  -- Update skill cooldowns
   battleState . battleSkillCd %= M.filter (> 0.0) . M.map (subtract dt)
   battleEnemyState . battleSkillCd %= M.filter (> 0.0) . M.map (subtract dt)
 
-  -- action points moving on
+  -- Update active effects (reduce duration, remove expired)
+  battleState . battleEffects %= M.filter ((> 0.0) . _activeEffectRemaining) . M.map (\e -> e & activeEffectRemaining %~ subtract dt)
+  battleEnemyState . battleEffects %= M.filter ((> 0.0) . _activeEffectRemaining) . M.map (\e -> e & activeEffectRemaining %~ subtract dt)
+
+  -- Regenerate Qi
+  battleState . battleQi += round (dt * _charQiRegen char)
+  battleEnemyState . battleQi += round (dt * _charQiRegen enemy)
+
+  -- Cap Qi at max
+  battleState . battleQi %= min (_charMaxQi char)
+  battleEnemyState . battleQi %= min (_charMaxQi enemy)
+
+  -- Accumulate action points
   battleState . battleAp += round (dt * fromIntegral (_charAgility char))
   battleEnemyState . battleAp += round (dt * fromIntegral (_charAgility enemy))
 
@@ -147,3 +164,78 @@ battleAttack left right = do
       rightName <- use $ right . charName
       let mvMsg = mv ^. moveMsg
       tell [(uid, CombatNormalMsg leftName rightName mvMsg damage)]
+
+-- | Check if all requirements are met to cast a skill
+canCastSkill :: Skill -> Lens' Battle BattleState -> Combat Bool
+canCastSkill skill state = do
+  apValue <- use $ state . battleAp
+  qi <- use $ state . battleQi
+  cds <- use $ state . battleSkillCd
+  effects <- use $ state . battleEffects
+
+  let hasEnoughAp = apValue >= skill ^. skillApReq
+      hasEnoughQi = qi >= skill ^. skillCost
+      isOffCooldown = not $ M.member (skill ^. skillId) cds
+      hasRequiredEffects = all (`M.member` effects) (skill ^. skillReqStatus)
+
+  return $ hasEnoughAp && hasEnoughQi && isOffCooldown && hasRequiredEffects
+
+-- | Cast a skill and apply its effects immediately
+castSkill :: Skill -> Lens' Battle BattleState -> Lens' Battle BattleState -> Combat ()
+castSkill skill caster target = do
+  -- Consume Qi
+  caster . battleQi -= skill ^. skillCost
+
+  -- Set cooldown
+  caster . battleSkillCd . at (skill ^. skillId) .= Just (skill ^. skillCooldown)
+
+  -- Apply effects based on target type
+  case skill ^. skillTarget of
+    Single -> applySkillEffects skill caster target
+    Self   -> applySkillEffects skill caster caster
+    All    -> applySkillEffects skill caster target  -- For now, same as Single
+
+  -- Generate skill message
+  uid <- use battleOwner
+  casterName <- use $ caster . battleChar . charName
+  targetName <- use $ target . battleChar . charName
+  tell [(uid, SkillMsg casterName targetName (skill ^. skillMsg))]
+
+-- | Apply damage, healing, and status effects from a skill
+applySkillEffects :: Skill -> Lens' Battle BattleState -> Lens' Battle BattleState -> Combat ()
+applySkillEffects skill caster target = do
+  uid <- use battleOwner
+  casterName <- use $ caster . battleChar . charName
+  targetName <- use $ target . battleChar . charName
+
+  -- Apply damage
+  case skill ^. skillDamage of
+    Just dmg -> do
+      target . battleChar . charHP -= dmg
+      tell [(uid, CombatNormalMsg casterName targetName (skill ^. skillMsg) dmg)]
+    Nothing -> return ()
+
+  -- Apply healing
+  case skill ^. skillHeal of
+    Just heal -> do
+      target . battleChar . charHP += heal
+      -- TODO: Add proper healing message
+    Nothing -> return ()
+
+  -- Apply effects to target
+  forM_ (skill ^. skillEffTarget) $ \(effId, duration, value) -> do
+    let activeEff = ActiveEffect
+          { _activeEffectDef = effId,
+            _activeEffectRemaining = duration,
+            _activeEffectValue = value
+          }
+    target . battleEffects . at effId .= Just activeEff
+
+  -- Apply effects to caster (self-buffs)
+  forM_ (skill ^. skillEffSelf) $ \(effId, duration, value) -> do
+    let activeEff = ActiveEffect
+          { _activeEffectDef = effId,
+            _activeEffectRemaining = duration,
+            _activeEffectValue = value
+          }
+    caster . battleEffects . at effId .= Just activeEff
