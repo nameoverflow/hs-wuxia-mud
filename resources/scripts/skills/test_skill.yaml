@@ -13,3 +13,37 @@ moves:
     desc: A normal attack for testing
     msg: "You attack the target with your leg."
     damage: 11
+skills:
+  - id: test_skill_heavy_strike
+    name: Heavy Strike
+    desc: A powerful strike that deals massive damage
+    msg: unleashes a devastating Heavy Strike
+    cd: 5.0
+    target: Single
+    cost: 50
+    damage: 30
+    effect:
+      self: []
+      target: []
+  - id: test_skill_healing_palm
+    name: Healing Palm
+    desc: Channel inner energy to heal yourself
+    msg: uses Healing Palm to restore vitality
+    cd: 10.0
+    target: Self
+    cost: 30
+    heal: 25
+    effect:
+      self: []
+      target: []
+  - id: test_skill_quick_jab
+    name: Quick Jab
+    desc: A fast attack with low cooldown
+    msg: strikes with a Quick Jab
+    cd: 2.0
+    target: Single
+    cost: 20
+    damage: 15
+    effect:
+      self: []
+      target: []

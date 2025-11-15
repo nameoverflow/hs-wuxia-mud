@@ -55,6 +55,17 @@ start client.html
 | `look` | `look` | Refresh room view |
 | `say <message>` | `say Hello!` | Chat (not implemented server-side yet) |
 
+**Combat Commands (during battle):**
+
+| Command | Example | Description |
+|---------|---------|-------------|
+| `perform <skill_id>` | `perform test_skill_heavy_strike` | Use a skill |
+
+**Available Skills:**
+- `test_skill_heavy_strike` - Heavy damage (30), 5s cooldown, costs 50 AP
+- `test_skill_healing_palm` - Heal self (25 HP), 10s cooldown, costs 30 AP
+- `test_skill_quick_jab` - Quick damage (15), 2s cooldown, costs 20 AP
+
 **Shortcuts**:
 - **Direction buttons**: Click to move instantly
 - **NPC buttons**: Click Talk or Attack for quick actions

@@ -44,11 +44,15 @@ processNormalAction pid action = case action of
 
 processBattleAction :: PlayerId -> PlayerAction -> GameStateT ()
 processBattleAction pid action = case action of
-  -- Perform skillId -> do
-  --   player <- getsPlayer pid
-  --   battle <- getsBattle pid
-  --   let (battle', skill) = runState (useSkill skillId) battle
-  --   reuturn ()
+  Perform skillId -> do
+    -- Execute the skill in combat
+    wrld <- use world
+    battle <- getsBattle pid
+    randG <- newStdGen
+    (_, battle', skillMsg) <- runCombat randG ExceptionInCombat wrld battle $ useSkill skillId
+    tell skillMsg
+    -- Update battle state
+    battles . at pid .= Just battle'
 
   -- Use item -> do
   --   -- Update player's inventory and apply item effects
