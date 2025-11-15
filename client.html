@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wuxia MUD Client</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #login-screen {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+        }
+
+        #login-box {
+            background: #2a2a2a;
+            padding: 2rem;
+            border-radius: 8px;
+            border: 2px solid #d4af37;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            min-width: 300px;
+        }
+
+        #login-box h1 {
+            color: #d4af37;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            font-size: 1.5rem;
+        }
+
+        #login-box input {
+            width: 100%;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        #login-box button {
+            width: 100%;
+            padding: 0.75rem;
+            background: #d4af37;
+            color: #1a1a1a;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+        }
+
+        #login-box button:hover {
+            background: #b8941f;
+        }
+
+        #game-screen {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #header {
+            background: #2a2a2a;
+            padding: 1rem;
+            border-bottom: 2px solid #d4af37;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #header h1 {
+            color: #d4af37;
+            font-size: 1.2rem;
+        }
+
+        #status {
+            font-size: 0.9rem;
+        }
+
+        #main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        #messages {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            background: #1a1a1a;
+        }
+
+        #sidebar {
+            width: 300px;
+            background: #2a2a2a;
+            border-left: 2px solid #444;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .message {
+            margin-bottom: 0.5rem;
+            padding: 0.25rem 0;
+        }
+
+        .message.system { color: #888; }
+        .message.movement { color: #4a9eff; }
+        .message.combat { color: #ff4444; }
+        .message.dialogue { color: #44ff44; }
+        .message.error { color: #ff0000; font-weight: bold; }
+
+        .timestamp {
+            color: #666;
+            font-size: 0.8rem;
+            margin-right: 0.5rem;
+        }
+
+        #input-area {
+            background: #2a2a2a;
+            border-top: 2px solid #444;
+            padding: 1rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        #command-input {
+            flex: 1;
+            padding: 0.75rem;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+        }
+
+        #send-btn {
+            padding: 0.75rem 1.5rem;
+            background: #d4af37;
+            color: #1a1a1a;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+        }
+
+        #send-btn:hover {
+            background: #b8941f;
+        }
+
+        .section-title {
+            color: #d4af37;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            border-bottom: 1px solid #444;
+            padding-bottom: 0.25rem;
+        }
+
+        #quick-actions {
+            margin-bottom: 1rem;
+        }
+
+        .direction-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.25rem;
+            margin-top: 0.5rem;
+        }
+
+        .dir-btn {
+            padding: 0.5rem;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+        }
+
+        .dir-btn:hover:not(:disabled) {
+            background: #3a3a3a;
+            border-color: #d4af37;
+        }
+
+        .dir-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        #room-info, #npcs-in-room {
+            margin-bottom: 1rem;
+        }
+
+        .npc-item {
+            padding: 0.5rem;
+            margin: 0.25rem 0;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 4px;
+        }
+
+        .npc-name {
+            color: #d4af37;
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+
+        .npc-actions {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .npc-btn {
+            padding: 0.25rem 0.5rem;
+            background: #3a3a3a;
+            border: 1px solid #555;
+            color: #e0e0e0;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            border-radius: 3px;
+        }
+
+        .npc-btn:hover {
+            background: #4a4a4a;
+            border-color: #d4af37;
+        }
+
+        #help-text {
+            font-size: 0.85rem;
+            color: #888;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #444;
+        }
+
+        #connection-status {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff4444;
+            margin-right: 0.5rem;
+        }
+
+        #connection-status.connected {
+            background: #44ff44;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="login-screen">
+        <div id="login-box">
+            <h1>武侠 Wuxia MUD</h1>
+            <input type="text" id="username-input" placeholder="Enter username" autocomplete="off">
+            <button id="login-btn">Enter the World</button>
+            <div id="login-error" style="color: #ff4444; margin-top: 0.5rem; font-size: 0.85rem;"></div>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen">
+        <div id="header">
+            <h1>武侠 Wuxia MUD</h1>
+            <div id="status">
+                <span id="connection-status"></span>
+                <span id="username-display"></span>
+            </div>
+        </div>
+
+        <div id="main-content">
+            <div id="messages"></div>
+            <div id="sidebar">
+                <div id="room-info">
+                    <div class="section-title">CURRENT LOCATION</div>
+                    <div id="room-name" style="color: #d4af37; font-weight: bold;"></div>
+                    <div id="room-desc" style="color: #aaa; font-size: 0.9rem; margin-top: 0.5rem;"></div>
+                </div>
+
+                <div id="quick-actions">
+                    <div class="section-title">MOVEMENT</div>
+                    <div class="direction-grid">
+                        <button class="dir-btn" data-dir="NW">NW</button>
+                        <button class="dir-btn" data-dir="N">N</button>
+                        <button class="dir-btn" data-dir="NE">NE</button>
+                        <button class="dir-btn" data-dir="W">W</button>
+                        <button class="dir-btn" disabled>•</button>
+                        <button class="dir-btn" data-dir="E">E</button>
+                        <button class="dir-btn" data-dir="SW">SW</button>
+                        <button class="dir-btn" data-dir="S">S</button>
+                        <button class="dir-btn" data-dir="SE">SE</button>
+                    </div>
+                </div>
+
+                <div id="npcs-in-room">
+                    <div class="section-title">CHARACTERS IN ROOM</div>
+                    <div id="npc-list"></div>
+                </div>
+
+                <div id="help-text">
+                    <strong>Commands:</strong><br>
+                    • go &lt;dir&gt; - Move<br>
+                    • talk &lt;name&gt; - Talk<br>
+                    • attack &lt;name&gt; - Attack<br>
+                    • look - Refresh view
+                </div>
+            </div>
+        </div>
+
+        <div id="input-area">
+            <input type="text" id="command-input" placeholder="Enter command..." autocomplete="off">
+            <button id="send-btn">Send</button>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let ws = null;
+        let username = '';
+        let currentRoom = { name: '', desc: '', npcs: [], exits: [] };
+        let commandHistory = [];
+        let historyIndex = -1;
+
+        // DOM elements
+        const loginScreen = document.getElementById('login-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const usernameInput = document.getElementById('username-input');
+        const loginBtn = document.getElementById('login-btn');
+        const loginError = document.getElementById('login-error');
+        const messagesDiv = document.getElementById('messages');
+        const commandInput = document.getElementById('command-input');
+        const sendBtn = document.getElementById('send-btn');
+        const connectionStatus = document.getElementById('connection-status');
+        const usernameDisplay = document.getElementById('username-display');
+        const roomName = document.getElementById('room-name');
+        const roomDesc = document.getElementById('room-desc');
+        const npcList = document.getElementById('npc-list');
+
+        // Login handler
+        loginBtn.addEventListener('click', login);
+        usernameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') login();
+        });
+
+        function login() {
+            const user = usernameInput.value.trim();
+            if (!user) {
+                loginError.textContent = 'Please enter a username';
+                return;
+            }
+            username = user;
+            connectWebSocket();
+        }
+
+        // WebSocket connection
+        function connectWebSocket() {
+            addMessage('Connecting to server...', 'system');
+
+            try {
+                ws = new WebSocket('ws://127.0.0.1:9160');
+
+                ws.onopen = () => {
+                    connectionStatus.classList.add('connected');
+                    addMessage('Connected to server', 'system');
+
+                    // Send login
+                    const loginMsg = {
+                        username: username,
+                        password: ''
+                    };
+                    ws.send(JSON.stringify(loginMsg));
+
+                    // Show game screen
+                    loginScreen.style.display = 'none';
+                    gameScreen.style.display = 'flex';
+                    usernameDisplay.textContent = username;
+                    commandInput.focus();
+                };
+
+                ws.onmessage = (event) => {
+                    handleServerMessage(event.data);
+                };
+
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    addMessage('Connection error', 'error');
+                    connectionStatus.classList.remove('connected');
+                };
+
+                ws.onclose = () => {
+                    addMessage('Disconnected from server', 'system');
+                    connectionStatus.classList.remove('connected');
+                };
+            } catch (error) {
+                loginError.textContent = 'Failed to connect: ' + error.message;
+                console.error('Connection error:', error);
+            }
+        }
+
+        // Handle server messages
+        function handleServerMessage(data) {
+            console.log('Received:', data);
+
+            try {
+                // Try to parse as JSON first
+                const parsed = JSON.parse(data);
+                handleParsedMessage(parsed);
+            } catch (e) {
+                // If not JSON, display as plain text
+                addMessage(data, 'system');
+            }
+        }
+
+        function handleParsedMessage(msg) {
+            if (msg.ViewMsg) {
+                const [name, desc, chars, exits] = msg.ViewMsg;
+                currentRoom = { name, desc, npcs: chars, exits };
+                updateRoomDisplay();
+                addMessage(`You are in ${name}`, 'movement');
+            } else if (msg.MoveMsg) {
+                addMessage(`You moved to ${msg.MoveMsg}`, 'movement');
+            } else if (msg.AttackMsg) {
+                const [attacker, defender] = msg.AttackMsg;
+                addMessage(`${attacker} attacks ${defender}!`, 'combat');
+            } else if (msg.CombatNormalMsg) {
+                const [attacker, defender, desc, damage] = msg.CombatNormalMsg;
+                addMessage(`${attacker} uses ${desc} on ${defender} for ${damage} damage!`, 'combat');
+            } else if (msg.CombatSettlementMsg) {
+                const [attacker, defender, win] = msg.CombatSettlementMsg;
+                const result = win ? 'defeated' : 'was defeated by';
+                addMessage(`${attacker} ${result} ${defender}!`, 'combat');
+            } else if (msg.DialogueMsg) {
+                const [charName, dialogue] = msg.DialogueMsg;
+                addMessage(`${charName} says: "${dialogue}"`, 'dialogue');
+            } else if (msg.SayMsg) {
+                const [speaker, message] = msg.SayMsg;
+                addMessage(`${speaker}: ${message}`, 'dialogue');
+            } else if (msg.UseItemMsg) {
+                const [user, itemDesc] = msg.UseItemMsg;
+                addMessage(`${user} uses ${itemDesc}`, 'system');
+            } else if (msg.SkillMsg) {
+                const [attacker, defender, skill] = msg.SkillMsg;
+                addMessage(`${attacker} uses ${skill} on ${defender}!`, 'combat');
+            } else {
+                // Unknown message type, display raw
+                addMessage(JSON.stringify(msg), 'system');
+            }
+        }
+
+        // Update room display
+        function updateRoomDisplay() {
+            roomName.textContent = currentRoom.name;
+            roomDesc.textContent = currentRoom.desc;
+
+            // Update NPCs
+            npcList.innerHTML = '';
+            if (currentRoom.npcs.length === 0) {
+                npcList.innerHTML = '<div style="color: #666; font-size: 0.85rem;">No one here</div>';
+            } else {
+                currentRoom.npcs.forEach(npc => {
+                    const npcDiv = document.createElement('div');
+                    npcDiv.className = 'npc-item';
+                    npcDiv.innerHTML = `
+                        <div class="npc-name">${npc}</div>
+                        <div class="npc-actions">
+                            <button class="npc-btn" onclick="talkTo('${npc}')">Talk</button>
+                            <button class="npc-btn" onclick="attackNpc('${npc}')">Attack</button>
+                        </div>
+                    `;
+                    npcList.appendChild(npcDiv);
+                });
+            }
+
+            // Update direction buttons
+            const dirBtns = document.querySelectorAll('.dir-btn[data-dir]');
+            dirBtns.forEach(btn => {
+                const dir = btn.getAttribute('data-dir');
+                btn.disabled = !currentRoom.exits.includes(dir);
+            });
+        }
+
+        // Add message to display
+        function addMessage(text, type = 'system') {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${type}`;
+
+            const timestamp = new Date().toLocaleTimeString();
+            msgDiv.innerHTML = `<span class="timestamp">[${timestamp}]</span>${text}`;
+
+            messagesDiv.appendChild(msgDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Send command
+        function sendCommand(cmd) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addMessage('Not connected to server', 'error');
+                return;
+            }
+
+            addMessage(`> ${cmd}`, 'system');
+
+            // Add to history
+            commandHistory.push(cmd);
+            historyIndex = commandHistory.length;
+
+            // Parse command
+            const parts = cmd.trim().split(/\s+/);
+            const action = parts[0].toLowerCase();
+            const args = parts.slice(1).join(' ');
+
+            let msg = null;
+
+            switch (action) {
+                case 'go':
+                case 'move':
+                    const dir = args.toUpperCase();
+                    msg = { NetPlayerAction: { go: dir } };
+                    break;
+                case 'talk':
+                    msg = { NetPlayerAction: { talk: args } };
+                    break;
+                case 'attack':
+                    msg = { NetPlayerAction: { attack: args } };
+                    break;
+                case 'perform':
+                case 'skill':
+                    msg = { NetPlayerAction: { perform: args } };
+                    break;
+                case 'use':
+                    msg = { NetPlayerAction: { use: args } };
+                    break;
+                case 'say':
+                    msg = { NetPlayerAction: { say: args } };
+                    break;
+                case 'look':
+                case 'l':
+                    // Request room view again
+                    msg = { NetPlayerAction: { other: 'look' } };
+                    break;
+                default:
+                    msg = { NetPlayerAction: { other: cmd } };
+            }
+
+            if (msg) {
+                ws.send(JSON.stringify(msg));
+            }
+        }
+
+        // Command input handlers
+        sendBtn.addEventListener('click', () => {
+            const cmd = commandInput.value.trim();
+            if (cmd) {
+                sendCommand(cmd);
+                commandInput.value = '';
+            }
+        });
+
+        commandInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const cmd = commandInput.value.trim();
+                if (cmd) {
+                    sendCommand(cmd);
+                    commandInput.value = '';
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    commandInput.value = commandHistory[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    commandInput.value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = commandHistory.length;
+                    commandInput.value = '';
+                }
+            }
+        });
+
+        // Direction buttons
+        document.querySelectorAll('.dir-btn[data-dir]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const dir = btn.getAttribute('data-dir');
+                sendCommand(`go ${dir}`);
+            });
+        });
+
+        // NPC interaction functions
+        window.talkTo = (npcName) => {
+            sendCommand(`talk ${npcName}`);
+        };
+
+        window.attackNpc = (npcName) => {
+            sendCommand(`attack ${npcName}`);
+        };
+    </script>
+</body>
+</html>
