@@ -16,6 +16,8 @@ import Data.Aeson (FromJSON (..), FromJSONKey (..), FromJSONKeyFunction (..), To
 -- import Data.Yaml.Parser (typeMismatch)
 
 import Data.Aeson.Types
+import qualified Data.Aeson.Key as Key
+import qualified Data.Aeson.KeyMap as KM
 import qualified Data.Map as M
 import Data.Serialize (Serialize)
 import Data.Serialize.Text ()
@@ -58,14 +60,44 @@ type ConcurrencyId = Text
 type EffectId = Text
 
 data Effect = Effect
-  { effectId :: EffectId,
-    effectName :: Text,
-    effectType :: EffectType
+  { _effectId :: EffectId,
+    _effectName :: Text,
+    _effectType :: EffectType,
+    _effectDesc :: Text
   }
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
+
+instance FromJSON Effect where
+  parseJSON = withObject "Effect" $ \o -> do
+    _effectId <- o .: "id"
+    _effectName <- o .: "name"
+    _effectType <- o .: "type"
+    _effectDesc <- o .: "desc"
+    pure Effect {..}
+
+instance Configurable Effect
 
 data EffectType = DoT | HoT | Buff | DeBuff
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
+
+instance FromJSON EffectType where
+  parseJSON = \case
+    String "dot" -> return DoT
+    String "hot" -> return HoT
+    String "buff" -> return Buff
+    String "debuff" -> return DeBuff
+    _ -> fail "Invalid EffectType"
+
+-- | Active effect instance applied to a character
+data ActiveEffect = ActiveEffect
+  { _activeEffectDef :: EffectId,
+    _activeEffectRemaining :: Double,  -- Time remaining in seconds
+    _activeEffectValue :: Int          -- Magnitude (damage/heal per tick, stat modifier)
+  }
+  deriving (Show, Eq, Generic)
+
+makeLenses ''Effect
+makeLenses ''ActiveEffect
 
 -- | Skills are active skills that can be used in battle, bind to a tech
 type SkillId = Text
@@ -83,10 +115,12 @@ data Skill = Skill
     _skillCooldown :: Double,
     _skillTarget :: SkillTarget,
     _skillCost :: Int,
+    _skillApReq :: Int,
+    _skillReqStatus :: [EffectId],
     _skillHeal :: Maybe Int,
     _skillDamage :: Maybe Int,
-    _skillEffSelf :: [EffectId],
-    _skillEffTarget :: [EffectId]
+    _skillEffSelf :: [(EffectId, Double, Int)],
+    _skillEffTarget :: [(EffectId, Double, Int)]
   }
   deriving (Generic, Show, Eq)
 
@@ -108,12 +142,31 @@ instance FromJSON Skill where
     _skillCooldown <- o .: "cd"
     _skillTarget <- o .: "target"
     _skillCost <- o .: "cost"
+    _skillApReq <- o .:? "ap_req" .!= 0
+    _skillReqStatus <- o .:? "req_status" .!= []
     _skillHeal <- o .:? "heal"
     _skillDamage <- o .:? "damage"
     eff <- o .: "effect"
-    _skillEffSelf <- eff .:? "self" .!= []
-    _skillEffTarget <- eff .:? "target" .!= []
+    _skillEffSelf <- parseEffectList <$> (eff .:? "self" .!= [])
+    _skillEffTarget <- parseEffectList <$> (eff .:? "target" .!= [])
     pure Skill {..}
+    where
+      parseEffectList :: [Value] -> [(EffectId, Double, Int)]
+      parseEffectList = map parseEffectItem
+
+      parseEffectItem :: Value -> (EffectId, Double, Int)
+      parseEffectItem (Object o) =
+        let effId = case fromJSON <$> KM.lookup (Key.fromString "id") o of
+              Just (Success eid) -> eid
+              _ -> ""
+            duration = case fromJSON <$> KM.lookup (Key.fromString "duration") o of
+              Just (Success d) -> d
+              _ -> 0.0
+            value = case fromJSON <$> KM.lookup (Key.fromString "value") o of
+              Just (Success v) -> v
+              _ -> 0
+        in (effId, duration, value)
+      parseEffectItem _ = ("", 0.0, 0)
 
 instance Configurable Skill
 
@@ -227,6 +280,9 @@ data Character = Character
     _charRespawn :: Int,
     -- The character's original attributes.
     _charHP :: Int,
+    _charQi :: Int,
+    _charMaxQi :: Int,
+    _charQiRegen :: Double,
     _charStrength :: Int,
     _charAgility :: Int,
     _charVitality :: Int,
@@ -251,6 +307,9 @@ newCharacter cid cname =
       _charActions = S.empty,
       _charRespawn = 0,
       _charHP = 0,
+      _charQi = 0,
+      _charMaxQi = 0,
+      _charQiRegen = 0.0,
       _charStrength = 0,
       _charAgility = 0,
       _charVitality = 0,
@@ -271,6 +330,9 @@ instance FromJSON Character where
 
     attr <- o .: "attr"
     _charHP <- attr .: "hp"
+    _charQi <- attr .:? "qi" .!= 0
+    _charMaxQi <- attr .:? "max_qi" .!= 0
+    _charQiRegen <- attr .:? "qi_regen" .!= 0.0
     _charStrength <- attr .: "str"
     _charAgility <- attr .: "agi"
     _charVitality <- attr .: "vit"

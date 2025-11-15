@@ -1,0 +1,24 @@
+- id: dragon_stance
+  name: "Dragon Stance"
+  type: buff
+  desc: "Combat stance of the dragon, empowers dragon techniques"
+
+- id: iron_body_buff
+  name: "Iron Body"
+  type: buff
+  desc: "Body hardened with Qi, reducing damage taken"
+
+- id: bleeding
+  name: "Bleeding"
+  type: dot
+  desc: "Losing blood over time"
+
+- id: poisoned
+  name: "Poisoned"
+  type: dot
+  desc: "Toxins coursing through the body"
+
+- id: weakened
+  name: "Weakened"
+  type: debuff
+  desc: "Strength and vitality reduced"

@@ -56,8 +56,8 @@ instance ToText GameException where
   toText = \case
     PlayerNotFound pid -> "Player not found: " <> toText pid
     BattleNotFound bid -> "Battle not found: " <> toText bid
-    UnableToInteract char act -> "Unable to " <> toText (show act) <> ": " <> toText (_charName char)
-    UnableToMove dir room -> "Unable to move " <> toText (show dir) <> " in " <> toText (_roomName room)
+    UnableToInteract char act -> "Unable to " <> toText (Prelude.show act) <> ": " <> toText (_charName char)
+    UnableToMove dir room -> "Unable to move " <> toText (Prelude.show dir) <> " in " <> toText (_roomName room)
     ExceptionInWorld err -> "Exception in world: " <> toText err
     ExceptionInCombat err -> "Exception in combat: " <> toText err
     OtherException err -> "Other exception: " <> err

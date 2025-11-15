@@ -6,10 +6,37 @@ moves:
   - id: test_move1
     name: Normal Attack the First
     desc: A normal attack for testing
-    msg: "You attack the target with your fist."
+    msg: "attacks the target with their fist"
     damage: 10
   - id: test_move2
     name: Normal Attack the Second
     desc: A normal attack for testing
-    msg: "You attack the target with your leg."
+    msg: "attacks the target with their leg"
     damage: 11
+skills:
+  - id: power_strike
+    name: "Power Strike"
+    desc: "A powerful strike requiring focused Qi"
+    msg: "gathers Qi and delivers a devastating blow"
+    cd: 5.0
+    target: Single
+    cost: 30
+    ap_req: 60
+    req_status: []
+    damage: 35
+    effect:
+      self: []
+      target: []
+  - id: healing_palm
+    name: "Healing Palm"
+    desc: "Channel Qi to heal wounds"
+    msg: "channels healing Qi"
+    cd: 8.0
+    target: Self
+    cost: 50
+    ap_req: 40
+    req_status: []
+    heal: 40
+    effect:
+      self: []
+      target: []
