@@ -40,6 +40,7 @@ processNormalAction pid action = case action of
   Go direction -> playerMove pid direction
   Attack (target :: CharId) -> playerAttack pid target
   Talk (target :: CharId) -> playerTalk pid target
+  Other "view" -> playerView pid
   _ -> return ()
 
 processBattleAction :: PlayerId -> PlayerAction -> GameStateT ()
@@ -72,6 +73,22 @@ playerMove pid direction = do
       return ()
 
 
+sendPlayerStats :: PlayerId -> GameStateT ()
+sendPlayerStats pid = do
+  player <- getsPlayer pid
+  let char = player ^. playerCharacter
+  let hp = char ^. charHP
+  let maxHp = 100  -- TODO: Add maxHP field to Character
+  let qi = char ^. charQi
+  let maxQi = char ^. charMaxQi
+  -- AP is only available during battle
+  let ap = 0  -- Default, will be updated in battle
+  let status = case player ^. playerStatus of
+        PlayerNormal -> "Normal"
+        PlayerInBattle -> "In Battle"
+        _ -> "Unknown"
+  tell [(pid, PlayerStatsMsg hp maxHp qi maxQi ap status)]
+
 playerView :: PlayerId -> GameStateT ()
 playerView pid = do
   (curMapId, curPos) <- (^. playerPosition) <$> getsPlayer pid
@@ -83,12 +100,13 @@ playerView pid = do
           Nothing -> Nothing
           Just char ->
             if char ^. charStatus == CharAlive
-              then Just $ char ^. charName
+              then Just $ char ^. charName <> " (" <> cid <> ")"
               else Nothing
   let curRoomExits = M.keys $ curRoom ^. roomExits
   let curRoomName = curRoom ^. roomName
   let curRoomDesc = curRoom ^. roomDesc
   tell [(pid, ViewMsg curRoomName curRoomDesc curRoomChars curRoomExits)]
+  sendPlayerStats pid
 
 playerTalk :: PlayerId -> CharId -> GameStateT ()
 playerTalk pid target = do
@@ -193,6 +211,18 @@ onGameTick dt = do
     world . chars . ix charId . charStatus .= CharAlive
 
 -- | Update the battle state
+sendBattleStats :: PlayerId -> Battle -> GameStateT ()
+sendBattleStats pid battle = do
+  let pState = battle ^. battleState
+  let char = pState ^. battleChar
+  let hp = char ^. charHP
+  let maxHp = 100  -- TODO: Add maxHP field
+  let qi = pState ^. battleQi
+  let maxQi = char ^. charMaxQi
+  let ap = pState ^. battleAp
+  let status = "In Battle"
+  tell [(pid, PlayerStatsMsg hp maxHp qi maxQi ap status)]
+
 updateBattle :: Double -> BattleId -> GameStateT ()
 updateBattle dt bId = do
   wrld <- use world
@@ -201,6 +231,9 @@ updateBattle dt bId = do
   randG <- newStdGen
   (battleOver, battle', bttlMsg) <- runCombat randG ExceptionInCombat wrld battle $ flushBattleTick dt
   tell bttlMsg
+  -- Send updated player stats after combat
+  let pid = battle' ^. battleOwner
+  sendBattleStats pid battle'
   if battleOver
     then do
       liftIO $ TIO.putStrLn "Battle over"

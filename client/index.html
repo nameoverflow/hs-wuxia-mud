@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wuxia MUD</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>Wuxia MUD</h1>
+            <div class="header-right">
+                <button id="help-btn" class="btn btn-help">?</button>
+                <div id="connection-status" class="status-disconnected">Disconnected</div>
+            </div>
+        </header>
+
+        <!-- Help Modal -->
+        <div id="help-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Game Help</h2>
+                    <button id="close-help" class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <section class="help-section">
+                        <h3>Commands</h3>
+                        <table class="help-table">
+                            <tr><td><code>go north</code> or <code>n</code></td><td>Move north</td></tr>
+                            <tr><td><code>look</code> or <code>l</code></td><td>View current room</td></tr>
+                            <tr><td><code>attack [id]</code></td><td>Attack a character</td></tr>
+                            <tr><td><code>talk [id]</code></td><td>Talk to a character</td></tr>
+                            <tr><td><code>perform [skill]</code></td><td>Use a skill (in combat)</td></tr>
+                            <tr><td><code>say [message]</code></td><td>Say something</td></tr>
+                        </table>
+                    </section>
+                    <section class="help-section">
+                        <h3>Combat System</h3>
+                        <p><strong>AP (Action Points):</strong> Accumulates over time based on agility. Skills require a minimum AP to use.</p>
+                        <p><strong>Qi:</strong> Resource consumed by skills. Regenerates slowly during battle.</p>
+                        <p><strong>Cooldowns:</strong> Skills have cooldown periods after use.</p>
+                    </section>
+                    <section class="help-section">
+                        <h3>Skills</h3>
+                        <div class="skills-help">
+                            <div class="skill-help-item">
+                                <strong>Power Strike</strong> (30 Qi, 60 AP) - 35 damage attack
+                            </div>
+                            <div class="skill-help-item">
+                                <strong>Healing Palm</strong> (50 Qi, 40 AP) - Heal 40 HP
+                            </div>
+                            <div class="skill-help-item">
+                                <strong>Iron Body</strong> (40 Qi, 50 AP) - +5 Defense buff
+                            </div>
+                            <div class="skill-help-item">
+                                <strong>Dragon Stance</strong> (40 Qi, 50 AP) - Enables Dragon Burst
+                            </div>
+                            <div class="skill-help-item">
+                                <strong>Dragon Burst</strong> (80 Qi, 100 AP) - 120 damage (requires Dragon Stance)
+                            </div>
+                        </div>
+                    </section>
+                    <section class="help-section">
+                        <h3>Tips</h3>
+                        <ul>
+                            <li>Click on character names in the room panel for quick interaction</li>
+                            <li>Click on exit names to move in that direction</li>
+                            <li>Skills only work during combat</li>
+                            <li>Use Dragon Stance before Dragon Burst for maximum damage</li>
+                        </ul>
+                    </section>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left Panel - Player Status -->
+            <aside class="player-panel">
+                <h2>Player Status</h2>
+                <div class="status-section">
+                    <div class="status-item">
+                        <label>Name:</label>
+                        <span id="player-name">-</span>
+                    </div>
+                    <div class="status-item">
+                        <label>Location:</label>
+                        <span id="player-location">-</span>
+                    </div>
+                    <div class="status-item">
+                        <label>Status:</label>
+                        <span id="player-status">-</span>
+                    </div>
+                </div>
+
+                <!-- Resource Bars -->
+                <div class="resource-bars">
+                    <div class="resource-bar-container">
+                        <label>HP</label>
+                        <div class="resource-bar hp-bar">
+                            <div class="resource-bar-fill" id="hp-bar-fill"></div>
+                            <span class="resource-bar-text" id="hp-text">-/-</span>
+                        </div>
+                    </div>
+                    <div class="resource-bar-container">
+                        <label>Qi</label>
+                        <div class="resource-bar qi-bar">
+                            <div class="resource-bar-fill" id="qi-bar-fill"></div>
+                            <span class="resource-bar-text" id="qi-text">-/-</span>
+                        </div>
+                    </div>
+                    <div class="resource-bar-container">
+                        <label>AP</label>
+                        <div class="resource-bar ap-bar">
+                            <div class="resource-bar-fill" id="ap-bar-fill"></div>
+                            <span class="resource-bar-text" id="ap-text">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Effects -->
+                <div class="effects-section">
+                    <h3>Active Effects</h3>
+                    <div id="active-effects" class="effects-list">
+                        <span class="no-effects">None</span>
+                    </div>
+                </div>
+
+                <!-- Settings -->
+                <div class="settings-section">
+                    <h3>Settings</h3>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="sound-toggle" />
+                        <span>Combat Sounds</span>
+                    </label>
+                </div>
+
+                <!-- Login Section -->
+                <div id="login-section" class="login-section">
+                    <h3>Login</h3>
+                    <input type="text" id="username-input" placeholder="Username" />
+                    <button id="login-btn" class="btn btn-primary">Connect</button>
+                </div>
+            </aside>
+
+            <!-- Center Panel - Game Display -->
+            <main class="game-panel">
+                <!-- Battle Panel (shown during combat) -->
+                <div id="battle-panel" class="battle-panel hidden">
+                    <div class="battle-header">
+                        <span class="battle-indicator">IN COMBAT</span>
+                    </div>
+                    <div class="battle-content">
+                        <div class="combatant player-combatant">
+                            <div class="combatant-name" id="battle-player-name">Player</div>
+                            <div class="combatant-hp-bar">
+                                <div class="combatant-hp-fill" id="battle-player-hp"></div>
+                            </div>
+                        </div>
+                        <div class="vs-indicator">VS</div>
+                        <div class="combatant enemy-combatant">
+                            <div class="combatant-name" id="battle-enemy-name">Enemy</div>
+                            <div class="combatant-hp-bar enemy">
+                                <div class="combatant-hp-fill" id="battle-enemy-hp"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Message Display -->
+                <div class="message-panel">
+                    <div class="message-filters">
+                        <button type="button" class="filter-btn active" data-filter="all">All</button>
+                        <button type="button" class="filter-btn" data-filter="combat">Combat</button>
+                        <button type="button" class="filter-btn" data-filter="dialogue">Dialogue</button>
+                        <button type="button" class="filter-btn" data-filter="system">System</button>
+                    </div>
+                    <div id="message-display" class="message-display">
+                        <div class="welcome-message">
+                            Welcome to Wuxia MUD! Enter your username and click Connect to begin your martial arts journey.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Command Input -->
+                <div class="command-section">
+                    <input
+                        type="text"
+                        id="command-input"
+                        placeholder="Enter command (e.g., go north, attack char_id, perform skill_id)"
+                        disabled
+                    />
+                    <button id="send-btn" class="btn btn-primary" disabled>Send</button>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <div class="button-group">
+                        <h3>Movement</h3>
+                        <div class="movement-grid">
+                            <button type="button" class="btn btn-action" data-action="go" data-param="northwest">NW</button>
+                            <button type="button" class="btn btn-action" data-action="go" data-param="north">N</button>
+                            <button type="button" class="btn btn-action" data-action="go" data-param="northeast">NE</button>
+                            <button type="button" class="btn btn-action" data-action="go" data-param="west">W</button>
+                            <button type="button" class="btn btn-action btn-look" data-action="view">Look</button>
+                            <button type="button" class="btn btn-action" data-action="go" data-param="east">E</button>
+                            <button type="button" class="btn btn-action" data-action="go" data-param="southwest">SW</button>
+                            <button type="button" class="btn btn-action" data-action="go" data-param="south">S</button>
+                            <button type="button" class="btn btn-action" data-action="go" data-param="southeast">SE</button>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <h3>Interactions</h3>
+                        <div class="button-row">
+                            <button type="button" class="btn btn-action btn-talk" data-action="talk" data-param-prompt="Character ID">Talk</button>
+                            <button type="button" class="btn btn-action btn-attack" data-action="attack" data-param-prompt="Character ID">Attack</button>
+                            <button type="button" class="btn btn-action btn-say" data-action="say" data-param-prompt="Message">Say</button>
+                        </div>
+                    </div>
+
+                    <div class="button-group skills-group">
+                        <h3>Martial Arts</h3>
+                        <div id="skills-panel" class="skills-panel">
+                            <!-- Skills will be populated dynamically -->
+                            <div class="skill-card" data-skill-id="power_strike">
+                                <div class="skill-header">
+                                    <span class="skill-name">Power Strike</span>
+                                    <span class="skill-cost">30 Qi</span>
+                                </div>
+                                <div class="skill-info">
+                                    <span class="skill-ap">AP: 60</span>
+                                    <span class="skill-damage">DMG: 35</span>
+                                </div>
+                                <div class="skill-cooldown" id="cd-power_strike"></div>
+                            </div>
+                            <div class="skill-card" data-skill-id="healing_palm">
+                                <div class="skill-header">
+                                    <span class="skill-name">Healing Palm</span>
+                                    <span class="skill-cost">50 Qi</span>
+                                </div>
+                                <div class="skill-info">
+                                    <span class="skill-ap">AP: 40</span>
+                                    <span class="skill-heal">HEAL: 40</span>
+                                </div>
+                                <div class="skill-cooldown" id="cd-healing_palm"></div>
+                            </div>
+                            <div class="skill-card" data-skill-id="iron_body">
+                                <div class="skill-header">
+                                    <span class="skill-name">Iron Body</span>
+                                    <span class="skill-cost">40 Qi</span>
+                                </div>
+                                <div class="skill-info">
+                                    <span class="skill-ap">AP: 50</span>
+                                    <span class="skill-buff">DEF +5</span>
+                                </div>
+                                <div class="skill-cooldown" id="cd-iron_body"></div>
+                            </div>
+                            <div class="skill-card" data-skill-id="dragon_stance">
+                                <div class="skill-header">
+                                    <span class="skill-name">Dragon Stance</span>
+                                    <span class="skill-cost">40 Qi</span>
+                                </div>
+                                <div class="skill-info">
+                                    <span class="skill-ap">AP: 50</span>
+                                    <span class="skill-buff">Stance</span>
+                                </div>
+                                <div class="skill-cooldown" id="cd-dragon_stance"></div>
+                            </div>
+                            <div class="skill-card skill-ultimate" data-skill-id="dragon_burst" data-requires="dragon_stance">
+                                <div class="skill-header">
+                                    <span class="skill-name">Dragon Burst</span>
+                                    <span class="skill-cost">80 Qi</span>
+                                </div>
+                                <div class="skill-info">
+                                    <span class="skill-ap">AP: 100</span>
+                                    <span class="skill-damage">DMG: 120</span>
+                                </div>
+                                <div class="skill-requirement">Requires: Dragon Stance</div>
+                                <div class="skill-cooldown" id="cd-dragon_burst"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Right Panel - Room Info -->
+            <aside class="room-panel">
+                <h2>Location</h2>
+                <div id="room-info">
+                    <div class="room-name" id="room-name">-</div>
+                    <div class="room-desc" id="room-desc">-</div>
+                </div>
+                <div class="room-section">
+                    <h3>Characters Here</h3>
+                    <div id="room-characters" class="character-list">
+                        <span class="empty-list">None</span>
+                    </div>
+                </div>
+                <div class="room-section">
+                    <h3>Exits</h3>
+                    <div id="room-exits" class="exits-list">
+                        <span class="empty-list">None</span>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- Combat Log (collapsible) -->
+        <div class="combat-log-section">
+            <div class="combat-log-header" id="combat-log-toggle">
+                <span>Combat Log</span>
+                <span class="toggle-icon">+</span>
+            </div>
+            <div id="combat-log" class="combat-log collapsed">
+                <!-- Combat messages will appear here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

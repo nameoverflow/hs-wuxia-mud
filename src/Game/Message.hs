@@ -7,6 +7,8 @@ import Game.Entity
 import qualified Data.Text as T
 import GHC.Generics (Generic)
 import Data.Aeson
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Encoding as TLE
 import Relude (ToText(toText))
 import Data.Text
 import Data.HashMap as HM
@@ -61,6 +63,8 @@ data ActionResp
   | SayMsg T.Text T.Text
   -- | char name, message
   | DialogueMsg T.Text T.Text
+  -- | hp, maxHp, qi, maxQi, ap, status
+  | PlayerStatsMsg Int Int Int Int Int T.Text
   deriving (Show, Eq, Generic)
 
 instance ToJSON ActionResp
@@ -68,4 +72,4 @@ instance ToJSON ActionResp
 type PlayerResp = (PlayerId, ActionResp)
 
 formatResp :: ActionResp -> IO Text
-formatResp r = return . toText $ Prelude.show r
+formatResp r = return . TL.toStrict . TLE.decodeUtf8 . encode $ r

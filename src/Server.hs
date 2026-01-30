@@ -96,16 +96,20 @@ runAndResponse state conns gameM onError = do
         onError err
         return s
       Right (resp, s') -> do
+        TIO.putStrLn $ "runAndResponse: dispatching " <> toText (show (length resp)) <> " responses"
         withMVar conns $ dispatchResp resp
         return s'
 
 dispatchResp :: Foldable m => m PlayerResp -> ServerMap -> IO ()
 dispatchResp rsp conns = do
   forM_ rsp $ \(uid, resp) -> do
+    TIO.putStrLn $ "dispatchResp: sending to " <> uid <> ": " <> toText (show resp)
     case conns !? uid of
-      Nothing -> return ()
+      Nothing -> TIO.putStrLn $ "dispatchResp: player " <> uid <> " not found in connections"
       Just conn -> do
-        formatResp resp >>= sendTextData conn
+        msg <- formatResp resp
+        TIO.putStrLn $ "dispatchResp: formatted message: " <> msg
+        sendTextData conn msg
 
 runGameLoop :: Text -> MVar ServerMap -> MVar GameState -> IO ()
 runGameLoop user conns state = do
@@ -114,18 +118,27 @@ runGameLoop user conns state = do
   where
     receiveMsg :: Connection -> IO ()
     receiveMsg conn = do
+      TIO.putStrLn $ user <> " waiting for message..."
       msg <- receiveData conn
+      TIO.putStrLn $ user <> " received: " <> toText (show msg)
       case decode msg :: Maybe NetEvent of
-        Just Disconnect -> disconnectClient user conns
+        Just Disconnect -> do
+          TIO.putStrLn $ user <> " disconnecting..."
+          disconnectClient user conns
         Just (NetPlayerAction action) -> do
+          TIO.putStrLn $ user <> " action: " <> toText (show action)
           processAction conn action
           runGameLoop user conns state
-        _ -> runGameLoop user conns state
+        _ -> do
+          TIO.putStrLn $ user <> " invalid message, continuing..."
+          runGameLoop user conns state
 
     processAction :: Connection -> PlayerAction -> IO ()
     processAction conn action = do
+      TIO.putStrLn $ user <> " processing action..."
       let gameM = processPlayerAction user action
       runAndResponse state conns gameM $ \err -> do
+        TIO.putStrLn $ user <> " ERROR: " <> toText (show err)
         sendTextData conn $ "Error: " <> toText (show err)
 
 gameTickLoop :: MVar ServerMap -> MVar GameState -> IO ()
