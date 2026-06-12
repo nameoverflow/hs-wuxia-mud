@@ -1,18 +1,18 @@
 id: basic_techniques
-name: Basic Martial Arts
+name: "冷雨短打"
 type: technique
-desc: Fundamental techniques taught to all practitioners
+desc: "没有门派。只有活下来的手。"
 moves:
   - id: basic_punch
-    name: Basic Punch
-    desc: A simple punch
-    msg: "throws a basic punch"
+    name: "一拳"
+    desc: "很直的一拳。直得像一句不肯回头的话。"
+    msg: "只出一拳"
     damage: 10
 skills:
   - id: power_strike
-    name: "Power Strike"
-    desc: "A powerful strike requiring focused Qi"
-    msg: "gathers Qi in their fist and strikes with tremendous force"
+    name: "断雨一击"
+    desc: "气沉拳锋，出手只在一瞬。"
+    msg: "将一口气压到拳上，一击断雨"
     cd: 5.0
     target: Single
     cost: 30
@@ -24,9 +24,9 @@ skills:
       target: []
 
   - id: healing_palm
-    name: "Healing Palm"
-    desc: "Channel Qi to heal wounds"
-    msg: "places palm over wounds, warm Qi energy flows and heals"
+    name: "回灯掌"
+    desc: "把将熄的气息，从伤口边缘拉回来。"
+    msg: "一掌按下，气息像残灯又亮"
     cd: 8.0
     target: Self
     cost: 50
@@ -38,9 +38,9 @@ skills:
       target: []
 
   - id: iron_body
-    name: "Iron Body"
-    desc: "Harden body with Qi, granting protection"
-    msg: "channels Qi through meridians, skin turns metallic"
+    name: "铁衣"
+    desc: "不求不伤，只求伤得慢一点。"
+    msg: "气入皮骨，像披了一件看不见的铁衣"
     cd: 15.0
     target: Self
     cost: 40
@@ -54,9 +54,9 @@ skills:
       target: []
 
   - id: dragon_stance
-    name: "Dragon Stance"
-    desc: "Assume the Dragon Stance, empowering techniques"
-    msg: "assumes the Dragon Stance, energy swirling around them"
+    name: "听雨势"
+    desc: "先听雨，再听风，最后听杀意。"
+    msg: "微微侧身，像在听雨里的刀声"
     cd: 20.0
     target: Self
     cost: 40
@@ -70,9 +70,9 @@ skills:
       target: []
 
   - id: dragon_burst
-    name: "Dragon Burst"
-    desc: "Ultimate attack requiring Dragon Stance"
-    msg: "unleashes the full power of the Dragon in a devastating blast"
+    name: "伞骨八刺"
+    desc: "须先入听雨势。出手时，影子比人更快。"
+    msg: "身影一折，八点寒光从雨里同时刺出"
     cd: 20.0
     target: Single
     cost: 80

@@ -1,24 +1,24 @@
 - id: dragon_stance
-  name: "Dragon Stance"
+  name: "听雨势"
   type: buff
-  desc: "Combat stance of the dragon, empowers dragon techniques"
+  desc: "雨里有声，声里有杀机。"
 
 - id: iron_body_buff
-  name: "Iron Body"
+  name: "铁衣"
   type: buff
-  desc: "Body hardened with Qi, reducing damage taken"
+  desc: "伤仍会来，只是慢一点。"
 
 - id: bleeding
-  name: "Bleeding"
+  name: "血线"
   type: dot
-  desc: "Losing blood over time"
+  desc: "血从很细的地方流出来。"
 
 - id: poisoned
-  name: "Poisoned"
+  name: "青毒"
   type: dot
-  desc: "Toxins coursing through the body"
+  desc: "毒不急。人急。"
 
 - id: weakened
-  name: "Weakened"
+  name: "力竭"
   type: debuff
-  desc: "Strength and vitality reduced"
+  desc: "手还在，力已不在。"

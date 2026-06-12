@@ -1,0 +1,71 @@
+- id: cold_rain_innkeeper
+  name: "冷雨掌柜"
+  desc: "掌柜的眼睛总看着门外，好像雨里藏着账，也藏着命。"
+  actions: [dialogue]
+  skills:
+    technique:
+      - id: test
+        level: 1
+  prepared:
+    technique:
+      id: test
+      level: 1
+  dialogue:
+    - "酒在桌上，人在雨里。客官若要问事，先问自己的胆。"
+  respawn: 0
+  attr:
+    hp: 80
+    qi: 60
+    max_qi: 60
+    qi_regen: 2.0
+    str: 10
+    agi: 8
+    vit: 12
+
+- id: qingyi_guest
+  name: "青衣客"
+  desc: "青衣客的剑很旧，旧得像一段无人敢提的往事。"
+  actions: [dialogue]
+  skills:
+    technique:
+      - id: test
+        level: 1
+  prepared:
+    technique:
+      id: test
+      level: 1
+  dialogue:
+    - "雨越大，脚步声越清楚。"
+  respawn: 0
+  attr:
+    hp: 100
+    qi: 80
+    max_qi: 80
+    qi_regen: 3.0
+    str: 20
+    agi: 16
+    vit: 16
+
+- id: paper_umbrella_killer
+  name: "纸伞客"
+  desc: "他撑着一柄干净的纸伞，伞骨细得像暗器。"
+  actions: [dialogue, attacking]
+  skills:
+    technique:
+      - id: test
+        level: 1
+  prepared:
+    technique:
+      id: test
+      level: 1
+  dialogue:
+    - "伞是用来遮雨的，也是用来遮眼的。"
+  respawn: 30
+  attr:
+    hp: 60
+    qi: 70
+    max_qi: 70
+    qi_regen: 2.0
+    str: 24
+    agi: 12
+    vit: 12

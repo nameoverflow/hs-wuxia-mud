@@ -10,10 +10,14 @@
     <div class="container">
         <!-- Header -->
         <header>
-            <h1>Wuxia MUD</h1>
+            <h1 data-i18n="app.title">Wuxia MUD</h1>
             <div class="header-right">
-                <button id="help-btn" class="btn btn-help">?</button>
-                <div id="connection-status" class="status-disconnected">Disconnected</div>
+                <div class="locale-switcher" role="group" aria-label="Language">
+                    <button type="button" class="locale-btn" data-locale="en" data-i18n-title="lang.english" aria-pressed="false">EN</button>
+                    <button type="button" class="locale-btn" data-locale="zh" data-i18n-title="lang.chinese" aria-pressed="false">中</button>
+                </div>
+                <button id="help-btn" class="btn btn-help" data-i18n-title="app.help" data-i18n-aria-label="app.help">?</button>
+                <div id="connection-status" class="status-disconnected" data-i18n="status.disconnected">Disconnected</div>
             </div>
         </header>
 
@@ -21,56 +25,70 @@
         <div id="help-modal" class="modal hidden">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>Game Help</h2>
+                    <h2 data-i18n="help.title">Game Help</h2>
                     <button id="close-help" class="modal-close">&times;</button>
                 </div>
                 <div class="modal-body">
                     <section class="help-section">
-                        <h3>Commands</h3>
+                        <h3 data-i18n="help.commands">Commands</h3>
                         <table class="help-table">
                             <tr><td><code>go north</code> or <code>n</code></td><td>Move north</td></tr>
                             <tr><td><code>look</code> or <code>l</code></td><td>View current room</td></tr>
                             <tr><td><code>attack [id]</code></td><td>Attack a character</td></tr>
                             <tr><td><code>talk [id]</code></td><td>Talk to a character</td></tr>
+                            <tr><td><code>choose [id]</code></td><td>Choose a story option</td></tr>
+                            <tr><td><code>quests</code></td><td>Show quest log</td></tr>
+                            <tr><td><code>inventory</code></td><td>Show inventory</td></tr>
                             <tr><td><code>perform [skill]</code></td><td>Use a skill (in combat)</td></tr>
                             <tr><td><code>say [message]</code></td><td>Say something</td></tr>
                         </table>
                     </section>
                     <section class="help-section">
-                        <h3>Combat System</h3>
-                        <p><strong>AP (Action Points):</strong> Accumulates over time based on agility. Skills require a minimum AP to use.</p>
-                        <p><strong>Qi:</strong> Resource consumed by skills. Regenerates slowly during battle.</p>
-                        <p><strong>Cooldowns:</strong> Skills have cooldown periods after use.</p>
+                        <h3 data-i18n="help.combat_system">Combat System</h3>
+                        <p><strong>AP (Action Points):</strong> <span>Accumulates over time based on agility. Skills require a minimum AP to use.</span></p>
+                        <p><strong>Qi:</strong> <span>Resource consumed by skills. Regenerates slowly during battle.</span></p>
+                        <p><strong>Cooldowns:</strong> <span>Skills have cooldown periods after use.</span></p>
                     </section>
                     <section class="help-section">
-                        <h3>Skills</h3>
+                        <h3 data-i18n="help.skills">Skills</h3>
                         <div class="skills-help">
                             <div class="skill-help-item">
-                                <strong>Power Strike</strong> (30 Qi, 60 AP) - 35 damage attack
+                                <strong>断雨一击</strong> (30 Qi, 60 AP) - <span>35 damage attack</span>
                             </div>
                             <div class="skill-help-item">
-                                <strong>Healing Palm</strong> (50 Qi, 40 AP) - Heal 40 HP
+                                <strong>回灯掌</strong> (50 Qi, 40 AP) - <span>Heal 40 HP</span>
                             </div>
                             <div class="skill-help-item">
-                                <strong>Iron Body</strong> (40 Qi, 50 AP) - +5 Defense buff
+                                <strong>铁衣</strong> (40 Qi, 50 AP) - <span>+5 Defense buff</span>
                             </div>
                             <div class="skill-help-item">
-                                <strong>Dragon Stance</strong> (40 Qi, 50 AP) - Enables Dragon Burst
+                                <strong>听雨势</strong> (40 Qi, 50 AP) - <span>Enables 伞骨八刺</span>
                             </div>
                             <div class="skill-help-item">
-                                <strong>Dragon Burst</strong> (80 Qi, 100 AP) - 120 damage (requires Dragon Stance)
+                                <strong>伞骨八刺</strong> (80 Qi, 100 AP) - <span>120 damage (requires 听雨势)</span>
                             </div>
                         </div>
                     </section>
                     <section class="help-section">
-                        <h3>Tips</h3>
+                        <h3 data-i18n="help.tips">Tips</h3>
                         <ul>
-                            <li>Click on character names in the room panel for quick interaction</li>
-                            <li>Click on exit names to move in that direction</li>
+                            <li>Click character action buttons in the room panel for quick interaction</li>
+                            <li>Click exit names to move in that direction</li>
                             <li>Skills only work during combat</li>
-                            <li>Use Dragon Stance before Dragon Burst for maximum damage</li>
+                            <li>Use 听雨势 before 伞骨八刺 for maximum damage</li>
                         </ul>
                     </section>
+                </div>
+            </div>
+        </div>
+
+        <div id="npc-modal" class="modal npc-modal hidden">
+            <div class="modal-content npc-modal-content">
+                <div class="npc-modal-body">
+                    <button id="close-npc-modal" class="modal-close npc-modal-close" data-i18n-aria-label="action.close">&times;</button>
+                    <h2 id="npc-modal-name">-</h2>
+                    <p id="npc-modal-desc" class="npc-modal-desc">-</p>
+                    <div id="npc-modal-actions" class="npc-modal-actions"></div>
                 </div>
             </div>
         </div>
@@ -79,19 +97,23 @@
         <div class="main-content">
             <!-- Left Panel - Player Status -->
             <aside class="player-panel">
-                <h2>Player Status</h2>
+                <h2 data-i18n="panel.player_status">Player Status</h2>
                 <div class="status-section">
                     <div class="status-item">
-                        <label>Name:</label>
+                        <label data-i18n="field.name">Name:</label>
                         <span id="player-name">-</span>
                     </div>
                     <div class="status-item">
-                        <label>Location:</label>
+                        <label data-i18n="field.location">Location:</label>
                         <span id="player-location">-</span>
                     </div>
                     <div class="status-item">
-                        <label>Status:</label>
+                        <label data-i18n="field.status">Status:</label>
                         <span id="player-status">-</span>
+                    </div>
+                    <div class="status-item">
+                        <label data-i18n="field.money">Money:</label>
+                        <span id="player-money">0</span>
                     </div>
                 </div>
 
@@ -122,46 +144,89 @@
 
                 <!-- Active Effects -->
                 <div class="effects-section">
-                    <h3>Active Effects</h3>
+                    <h3 data-i18n="panel.active_effects">Active Effects</h3>
                     <div id="active-effects" class="effects-list">
-                        <span class="no-effects">None</span>
+                        <span class="no-effects" data-i18n="ui.none">None</span>
+                    </div>
+                </div>
+
+                <div class="quest-section">
+                    <h3 data-i18n="panel.quests">Quests</h3>
+                    <div id="quest-log" class="quest-log">
+                        <span class="empty-list" data-i18n="ui.none">None</span>
+                    </div>
+                </div>
+
+                <div class="inventory-section">
+                    <h3 data-i18n="panel.inventory">Inventory</h3>
+                    <div id="inventory-list" class="inventory-list">
+                        <span class="empty-list" data-i18n="ui.none">None</span>
                     </div>
                 </div>
 
                 <!-- Settings -->
                 <div class="settings-section">
-                    <h3>Settings</h3>
+                    <h3 data-i18n="panel.settings">Settings</h3>
                     <label class="checkbox-label">
                         <input type="checkbox" id="sound-toggle" />
-                        <span>Combat Sounds</span>
+                        <span data-i18n="field.combat_sounds">Combat Sounds</span>
                     </label>
                 </div>
 
                 <!-- Login Section -->
                 <div id="login-section" class="login-section">
-                    <h3>Login</h3>
-                    <input type="text" id="username-input" placeholder="Username" />
-                    <button id="login-btn" class="btn btn-primary">Connect</button>
+                    <h3 data-i18n="panel.login">Login</h3>
+                    <input type="text" id="username-input" placeholder="Username" data-i18n-placeholder="placeholder.username" />
+                    <button id="login-btn" class="btn btn-primary" data-i18n="action.connect">Connect</button>
                 </div>
             </aside>
 
             <!-- Center Panel - Game Display -->
             <main class="game-panel">
+                <section class="room-panel scene-panel">
+                    <div class="scene-topbar">
+                        <span class="scene-top-label" data-i18n="panel.player_status">Player Status</span>
+                        <strong class="scene-title" id="room-name">-</strong>
+                        <span class="scene-top-label" data-i18n="panel.local_map">Local Map</span>
+                    </div>
+                    <div id="room-info" class="room-info">
+                        <div class="room-desc" id="room-desc">-</div>
+                    </div>
+                    <div class="scene-map-section">
+                        <div class="scene-section-heading">
+                            <h3 data-i18n="panel.exits">Exits</h3>
+                            <span data-i18n="map.click_to_move">Click a node to move</span>
+                        </div>
+                        <div id="room-map" class="room-map" aria-live="polite">
+                            <div class="map-node map-node-current" data-i18n="map.current_position">Current</div>
+                        </div>
+                        <div id="room-exits" class="exits-list exits-fallback">
+                            <span class="empty-list" data-i18n="ui.none">None</span>
+                        </div>
+                    </div>
+                    <div class="room-section actors-section">
+                        <h3 data-i18n="panel.characters_here">Characters Here</h3>
+                        <div id="room-characters" class="character-list">
+                            <span class="empty-list" data-i18n="ui.none">None</span>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- Battle Panel (shown during combat) -->
                 <div id="battle-panel" class="battle-panel hidden">
                     <div class="battle-header">
-                        <span class="battle-indicator">IN COMBAT</span>
+                        <span class="battle-indicator" data-i18n="battle.in_combat">IN COMBAT</span>
                     </div>
                     <div class="battle-content">
                         <div class="combatant player-combatant">
-                            <div class="combatant-name" id="battle-player-name">Player</div>
+                            <div class="combatant-name" id="battle-player-name" data-i18n="battle.player">Player</div>
                             <div class="combatant-hp-bar">
                                 <div class="combatant-hp-fill" id="battle-player-hp"></div>
                             </div>
                         </div>
-                        <div class="vs-indicator">VS</div>
+                        <div class="vs-indicator" data-i18n="battle.vs">VS</div>
                         <div class="combatant enemy-combatant">
-                            <div class="combatant-name" id="battle-enemy-name">Enemy</div>
+                            <div class="combatant-name" id="battle-enemy-name" data-i18n="battle.enemy">Enemy</div>
                             <div class="combatant-hp-bar enemy">
                                 <div class="combatant-hp-fill" id="battle-enemy-hp"></div>
                             </div>
@@ -169,13 +234,22 @@
                     </div>
                 </div>
 
+                <div id="story-guide" class="story-guide">
+                    <div class="guide-header">
+                        <span class="guide-kicker" data-i18n="guide.kicker">Chapter</span>
+                        <strong id="guide-title">冷雨客栈</strong>
+                    </div>
+                    <div id="guide-objective" class="guide-objective" data-i18n="guide.start_after_connect">Connect to begin.</div>
+                    <div id="guide-actions" class="guide-actions"></div>
+                </div>
+
                 <!-- Message Display -->
                 <div class="message-panel">
                     <div class="message-filters">
-                        <button type="button" class="filter-btn active" data-filter="all">All</button>
-                        <button type="button" class="filter-btn" data-filter="combat">Combat</button>
-                        <button type="button" class="filter-btn" data-filter="dialogue">Dialogue</button>
-                        <button type="button" class="filter-btn" data-filter="system">System</button>
+                        <button type="button" class="filter-btn active" data-filter="all" data-i18n="filter.all">All</button>
+                        <button type="button" class="filter-btn" data-filter="combat" data-i18n="filter.combat">Combat</button>
+                        <button type="button" class="filter-btn" data-filter="dialogue" data-i18n="filter.dialogue">Dialogue</button>
+                        <button type="button" class="filter-btn" data-filter="system" data-i18n="filter.system">System</button>
                     </div>
                     <div id="message-display" class="message-display">
                         <div class="welcome-message">
@@ -190,95 +264,98 @@
                         type="text"
                         id="command-input"
                         placeholder="Enter command (e.g., go north, attack char_id, perform skill_id)"
+                        data-i18n-placeholder="placeholder.command"
                         disabled
                     />
-                    <button id="send-btn" class="btn btn-primary" disabled>Send</button>
+                    <button id="send-btn" class="btn btn-primary" disabled data-i18n="action.send">Send</button>
                 </div>
 
                 <!-- Action Buttons -->
                 <div class="action-buttons">
                     <div class="button-group">
-                        <h3>Movement</h3>
+                        <h3 data-i18n="panel.movement">Movement</h3>
                         <div class="movement-grid">
-                            <button type="button" class="btn btn-action" data-action="go" data-param="northwest">NW</button>
-                            <button type="button" class="btn btn-action" data-action="go" data-param="north">N</button>
-                            <button type="button" class="btn btn-action" data-action="go" data-param="northeast">NE</button>
-                            <button type="button" class="btn btn-action" data-action="go" data-param="west">W</button>
-                            <button type="button" class="btn btn-action btn-look" data-action="view">Look</button>
-                            <button type="button" class="btn btn-action" data-action="go" data-param="east">E</button>
-                            <button type="button" class="btn btn-action" data-action="go" data-param="southwest">SW</button>
-                            <button type="button" class="btn btn-action" data-action="go" data-param="south">S</button>
-                            <button type="button" class="btn btn-action" data-action="go" data-param="southeast">SE</button>
+                            <button type="button" class="btn btn-action" data-action="go" data-param="northwest" data-i18n="action.northwest">NW</button>
+                            <button type="button" class="btn btn-action" data-action="go" data-param="north" data-i18n="action.north">N</button>
+                            <button type="button" class="btn btn-action" data-action="go" data-param="northeast" data-i18n="action.northeast">NE</button>
+                            <button type="button" class="btn btn-action" data-action="go" data-param="west" data-i18n="action.west">W</button>
+                            <button type="button" class="btn btn-action btn-look" data-action="view" data-i18n="action.look">Look</button>
+                            <button type="button" class="btn btn-action" data-action="go" data-param="east" data-i18n="action.east">E</button>
+                            <button type="button" class="btn btn-action" data-action="go" data-param="southwest" data-i18n="action.southwest">SW</button>
+                            <button type="button" class="btn btn-action" data-action="go" data-param="south" data-i18n="action.south">S</button>
+                            <button type="button" class="btn btn-action" data-action="go" data-param="southeast" data-i18n="action.southeast">SE</button>
                         </div>
                     </div>
 
                     <div class="button-group">
-                        <h3>Interactions</h3>
+                        <h3 data-i18n="panel.interactions">Interactions</h3>
                         <div class="button-row">
-                            <button type="button" class="btn btn-action btn-talk" data-action="talk" data-param-prompt="Character ID">Talk</button>
-                            <button type="button" class="btn btn-action btn-attack" data-action="attack" data-param-prompt="Character ID">Attack</button>
-                            <button type="button" class="btn btn-action btn-say" data-action="say" data-param-prompt="Message">Say</button>
+                            <button type="button" class="btn btn-action btn-talk" data-action="talk" data-param-prompt-key="prompt.character_id" data-i18n="action.talk">Talk</button>
+                            <button type="button" class="btn btn-action btn-attack" data-action="attack" data-param-prompt-key="prompt.character_id" data-i18n="action.attack">Attack</button>
+                            <button type="button" class="btn btn-action btn-say" data-action="say" data-param-prompt-key="prompt.message" data-i18n="action.say">Say</button>
+                            <button type="button" class="btn btn-action" data-action="other" data-param="quests" data-i18n="action.quests">Quests</button>
+                            <button type="button" class="btn btn-action" data-action="other" data-param="inventory" data-i18n="action.inventory">Inventory</button>
                         </div>
                     </div>
 
                     <div class="button-group skills-group">
-                        <h3>Martial Arts</h3>
+                        <h3 data-i18n="panel.martial_arts">Martial Arts</h3>
                         <div id="skills-panel" class="skills-panel">
                             <!-- Skills will be populated dynamically -->
                             <div class="skill-card" data-skill-id="power_strike">
                                 <div class="skill-header">
-                                    <span class="skill-name">Power Strike</span>
-                                    <span class="skill-cost">30 Qi</span>
+                                    <span class="skill-name">断雨一击</span>
+                                    <span class="skill-cost" data-i18n="skill.cost.qi" data-i18n-vars='{"value":30}'>30 Qi</span>
                                 </div>
                                 <div class="skill-info">
-                                    <span class="skill-ap">AP: 60</span>
-                                    <span class="skill-damage">DMG: 35</span>
+                                    <span class="skill-ap" data-i18n="skill.ap" data-i18n-vars='{"value":60}'>AP: 60</span>
+                                    <span class="skill-damage" data-i18n="skill.damage" data-i18n-vars='{"value":35}'>DMG: 35</span>
                                 </div>
                                 <div class="skill-cooldown" id="cd-power_strike"></div>
                             </div>
                             <div class="skill-card" data-skill-id="healing_palm">
                                 <div class="skill-header">
-                                    <span class="skill-name">Healing Palm</span>
-                                    <span class="skill-cost">50 Qi</span>
+                                    <span class="skill-name">回灯掌</span>
+                                    <span class="skill-cost" data-i18n="skill.cost.qi" data-i18n-vars='{"value":50}'>50 Qi</span>
                                 </div>
                                 <div class="skill-info">
-                                    <span class="skill-ap">AP: 40</span>
-                                    <span class="skill-heal">HEAL: 40</span>
+                                    <span class="skill-ap" data-i18n="skill.ap" data-i18n-vars='{"value":40}'>AP: 40</span>
+                                    <span class="skill-heal" data-i18n="skill.heal" data-i18n-vars='{"value":40}'>HEAL: 40</span>
                                 </div>
                                 <div class="skill-cooldown" id="cd-healing_palm"></div>
                             </div>
                             <div class="skill-card" data-skill-id="iron_body">
                                 <div class="skill-header">
-                                    <span class="skill-name">Iron Body</span>
-                                    <span class="skill-cost">40 Qi</span>
+                                    <span class="skill-name">铁衣</span>
+                                    <span class="skill-cost" data-i18n="skill.cost.qi" data-i18n-vars='{"value":40}'>40 Qi</span>
                                 </div>
                                 <div class="skill-info">
-                                    <span class="skill-ap">AP: 50</span>
-                                    <span class="skill-buff">DEF +5</span>
+                                    <span class="skill-ap" data-i18n="skill.ap" data-i18n-vars='{"value":50}'>AP: 50</span>
+                                    <span class="skill-buff" data-i18n="skill.def" data-i18n-vars='{"value":5}'>DEF +5</span>
                                 </div>
                                 <div class="skill-cooldown" id="cd-iron_body"></div>
                             </div>
                             <div class="skill-card" data-skill-id="dragon_stance">
                                 <div class="skill-header">
-                                    <span class="skill-name">Dragon Stance</span>
-                                    <span class="skill-cost">40 Qi</span>
+                                    <span class="skill-name">听雨势</span>
+                                    <span class="skill-cost" data-i18n="skill.cost.qi" data-i18n-vars='{"value":40}'>40 Qi</span>
                                 </div>
                                 <div class="skill-info">
-                                    <span class="skill-ap">AP: 50</span>
-                                    <span class="skill-buff">Stance</span>
+                                    <span class="skill-ap" data-i18n="skill.ap" data-i18n-vars='{"value":50}'>AP: 50</span>
+                                    <span class="skill-buff" data-i18n="skill.stance">Stance</span>
                                 </div>
                                 <div class="skill-cooldown" id="cd-dragon_stance"></div>
                             </div>
-                            <div class="skill-card skill-ultimate" data-skill-id="dragon_burst" data-requires="dragon_stance">
+                            <div class="skill-card skill-ultimate" data-skill-id="dragon_burst" data-requires="dragon_stance" data-requires-label="听雨势">
                                 <div class="skill-header">
-                                    <span class="skill-name">Dragon Burst</span>
-                                    <span class="skill-cost">80 Qi</span>
+                                    <span class="skill-name">伞骨八刺</span>
+                                    <span class="skill-cost" data-i18n="skill.cost.qi" data-i18n-vars='{"value":80}'>80 Qi</span>
                                 </div>
                                 <div class="skill-info">
-                                    <span class="skill-ap">AP: 100</span>
-                                    <span class="skill-damage">DMG: 120</span>
+                                    <span class="skill-ap" data-i18n="skill.ap" data-i18n-vars='{"value":100}'>AP: 100</span>
+                                    <span class="skill-damage" data-i18n="skill.damage" data-i18n-vars='{"value":120}'>DMG: 120</span>
                                 </div>
-                                <div class="skill-requirement">Requires: Dragon Stance</div>
+                                <div class="skill-requirement" data-i18n="skill.requires" data-i18n-vars='{"value":"听雨势"}'>Requires: 听雨势</div>
                                 <div class="skill-cooldown" id="cd-dragon_burst"></div>
                             </div>
                         </div>
@@ -286,32 +363,12 @@
                 </div>
             </main>
 
-            <!-- Right Panel - Room Info -->
-            <aside class="room-panel">
-                <h2>Location</h2>
-                <div id="room-info">
-                    <div class="room-name" id="room-name">-</div>
-                    <div class="room-desc" id="room-desc">-</div>
-                </div>
-                <div class="room-section">
-                    <h3>Characters Here</h3>
-                    <div id="room-characters" class="character-list">
-                        <span class="empty-list">None</span>
-                    </div>
-                </div>
-                <div class="room-section">
-                    <h3>Exits</h3>
-                    <div id="room-exits" class="exits-list">
-                        <span class="empty-list">None</span>
-                    </div>
-                </div>
-            </aside>
         </div>
 
         <!-- Combat Log (collapsible) -->
         <div class="combat-log-section">
             <div class="combat-log-header" id="combat-log-toggle">
-                <span>Combat Log</span>
+                <span data-i18n="panel.combat_log">Combat Log</span>
                 <span class="toggle-icon">+</span>
             </div>
             <div id="combat-log" class="combat-log collapsed">
@@ -320,6 +377,7 @@
         </div>
     </div>
 
+    <script src="i18n.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

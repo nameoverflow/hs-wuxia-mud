@@ -26,7 +26,7 @@ import Data.Text (Text, pack)
 import GHC.Generics (Generic)
 import Game.Entity
 import Game.Message
-import Game.World (World, skills)
+import Game.World (World, effects, skills)
 import Utils
 import Relude (ToText (..), whenNothing)
 
@@ -108,31 +108,65 @@ flushBattleTick dt = do
   battleState . battleSkillCd %= M.filter (> 0.0) . M.map (subtract dt)
   battleEnemyState . battleSkillCd %= M.filter (> 0.0) . M.map (subtract dt)
 
-  -- Update active effects (reduce duration, remove expired)
-  battleState . battleEffects %= M.filter ((> 0.0) . _activeEffectRemaining) . M.map (\e -> e & activeEffectRemaining %~ subtract dt)
-  battleEnemyState . battleEffects %= M.filter ((> 0.0) . _activeEffectRemaining) . M.map (\e -> e & activeEffectRemaining %~ subtract dt)
+  -- Apply and expire active effects.
+  applyActiveEffects dt battleState
+  applyActiveEffects dt battleEnemyState
+  expireActiveEffects dt battleState
+  expireActiveEffects dt battleEnemyState
 
-  -- Regenerate Qi
-  battleState . battleQi += round (dt * _charQiRegen char)
-  battleEnemyState . battleQi += round (dt * _charQiRegen enemy)
-
-  -- Cap Qi at max
-  battleState . battleQi %= min (_charMaxQi char)
-  battleEnemyState . battleQi %= min (_charMaxQi enemy)
-
-  -- Accumulate action points
-  battleState . battleAp += round (dt * fromIntegral (_charAgility char))
-  battleEnemyState . battleAp += round (dt * fromIntegral (_charAgility enemy))
-
-  -- Check whether to attack the enemy
-  checkApAndAttack battleState battleEnemyState
-  enemyHp <- use $ battleEnemyState . battleChar . charHP
-  if enemyHp <= 0
+  playerHpAfterEffects <- use $ battleState . battleChar . charHP
+  enemyHpAfterEffects <- use $ battleEnemyState . battleChar . charHP
+  if playerHpAfterEffects <= 0 || enemyHpAfterEffects <= 0
     then return True
     else do
-      checkApAndAttack battleEnemyState battleState
-      playerHp <- use $ battleState . battleChar . charHP
-      return $ playerHp <= 0
+      -- Regenerate Qi
+      battleState . battleQi += round (dt * _charQiRegen char)
+      battleEnemyState . battleQi += round (dt * _charQiRegen enemy)
+
+      -- Cap Qi at max
+      battleState . battleQi %= min (_charMaxQi char)
+      battleEnemyState . battleQi %= min (_charMaxQi enemy)
+
+      -- Accumulate action points
+      battleState . battleAp += round (dt * fromIntegral (_charAgility char))
+      battleEnemyState . battleAp += round (dt * fromIntegral (_charAgility enemy))
+
+      -- Check whether to attack the enemy
+      checkApAndAttack battleState battleEnemyState
+      enemyHp <- use $ battleEnemyState . battleChar . charHP
+      if enemyHp <= 0
+        then return True
+        else do
+          checkApAndAttack battleEnemyState battleState
+          playerHp <- use $ battleState . battleChar . charHP
+          return $ playerHp <= 0
+
+applyActiveEffects :: Double -> Lens' Battle BattleState -> Combat ()
+applyActiveEffects dt state = do
+  active <- use $ state . battleEffects
+  effectDefs <- view effects
+  uid <- use battleOwner
+  targetName <- use $ state . battleChar . charName
+  forM_ active $ \activeEffect -> do
+    let amount = max 0 . round $ dt * fromIntegral (activeEffect ^. activeEffectValue)
+    case M.lookup (activeEffect ^. activeEffectDef) effectDefs of
+      Just effect
+        | amount > 0 ->
+            case effect ^. effectType of
+              DoT -> do
+                state . battleChar . charHP -= amount
+                tell [(uid, CombatNormalMsg (effect ^. effectName) targetName "harms" amount)]
+              HoT -> do
+                maxHp <- use $ state . battleChar . charMaxHP
+                state . battleChar . charHP %= min maxHp . (+ amount)
+                tell [(uid, SkillMsg (effect ^. effectName) targetName ("restores " <> pack (show amount) <> " HP"))]
+              Buff -> return ()
+              DeBuff -> return ()
+      _ -> return ()
+
+expireActiveEffects :: Double -> Lens' Battle BattleState -> Combat ()
+expireActiveEffects dt state =
+  state . battleEffects %= M.filter ((> 0.0) . _activeEffectRemaining) . M.map (\e -> e & activeEffectRemaining %~ subtract dt)
 
 checkApAndAttack :: Lens' Battle BattleState -> Lens' Battle BattleState -> Combat ()
 checkApAndAttack left right = do
@@ -183,6 +217,14 @@ canCastSkill skill state = do
 -- | Cast a skill and apply its effects immediately
 castSkill :: Skill -> Lens' Battle BattleState -> Lens' Battle BattleState -> Combat ()
 castSkill skill caster target = do
+  let effectiveTarget =
+        case skill ^. skillTarget of
+          Self -> caster
+          _ -> target
+
+  -- Consume AP
+  caster . battleAp %= max 0 . subtract (skill ^. skillApReq)
+
   -- Consume Qi
   caster . battleQi -= skill ^. skillCost
 
@@ -198,7 +240,7 @@ castSkill skill caster target = do
   -- Generate skill message
   uid <- use battleOwner
   casterName <- use $ caster . battleChar . charName
-  targetName <- use $ target . battleChar . charName
+  targetName <- use $ effectiveTarget . battleChar . charName
   tell [(uid, SkillMsg casterName targetName (skill ^. skillMsg))]
 
 -- | Apply damage, healing, and status effects from a skill
@@ -218,7 +260,8 @@ applySkillEffects skill caster target = do
   -- Apply healing
   case skill ^. skillHeal of
     Just heal -> do
-      target . battleChar . charHP += heal
+      maxHp <- use $ target . battleChar . charMaxHP
+      target . battleChar . charHP %= min maxHp . (+ heal)
       -- TODO: Add proper healing message
     Nothing -> return ()
 

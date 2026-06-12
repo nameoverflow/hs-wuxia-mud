@@ -23,8 +23,12 @@ import Network.WebSockets
 import Networking
 import Relude (ToText (toText))
 import Control.Exception (finally)
+import Database
 
 type ServerMap = M.Map PlayerId Connection
+
+saveDir :: FilePath
+saveDir = "saves"
 
 loadOrCreatePlayer :: PlayerId -> GameState -> IO GameState
 loadOrCreatePlayer uid gs = do
@@ -34,7 +38,15 @@ loadOrCreatePlayer uid gs = do
       TIO.putStrLn $ "Error loading player: " <> toText err
       return gs
     Right (_, gs') -> do
-      return gs'
+      saveResult <- loadPlayerSave saveDir uid
+      case saveResult of
+        Left err -> do
+          TIO.putStrLn $ "Error loading player save: " <> err
+          return gs'
+        Right Nothing ->
+          return gs'
+        Right (Just save) ->
+          return $ applyPlayerSaveToGameState save gs'
 
 broadcast :: Text -> ServerMap -> IO ()
 broadcast message clients = do
@@ -72,19 +84,27 @@ serverApplication conns state pending = do
         | member un c -> do
           sendTextData conn ("User already exists" :: Text)
           fail "User already exists"
-        | otherwise -> flip finally (disconnectClient un conns) $ do
+        | otherwise -> flip finally (disconnectClient un conns state) $ do
           userLogin un conn conns state
           runGameLoop un conns state
       _ -> do
         sendTextData conn ("Not Logged In" :: Text)
         return ()
 
-disconnectClient :: Text -> MVar ServerMap -> IO ()
-disconnectClient user conns = do
+disconnectClient :: Text -> MVar ServerMap -> MVar GameState -> IO ()
+disconnectClient user conns state = do
   -- Remove client and return new state
   s <- modifyMVar conns $ \s -> do
     let s' = M.delete user s
     return (s', s')
+  modifyMVar_ state $ \gs ->
+    do
+      let gs' =
+            gs
+              & battles . at user .~ Nothing
+              & players . ix user . playerStatus .~ PlayerNormal
+      savePlayerState saveDir user gs'
+      return gs'
   TIO.putStrLn $ user <> " disconnected"
   broadcast (user <> " disconnected") s
 
@@ -98,6 +118,8 @@ runAndResponse state conns gameM onError = do
       Right (resp, s') -> do
         TIO.putStrLn $ "runAndResponse: dispatching " <> toText (show (length resp)) <> " responses"
         withMVar conns $ dispatchResp resp
+        unless (Prelude.null resp) $
+          saveAllPlayerSaves saveDir s'
         return s'
 
 dispatchResp :: Foldable m => m PlayerResp -> ServerMap -> IO ()
@@ -124,7 +146,7 @@ runGameLoop user conns state = do
       case decode msg :: Maybe NetEvent of
         Just Disconnect -> do
           TIO.putStrLn $ user <> " disconnecting..."
-          disconnectClient user conns
+          return ()
         Just (NetPlayerAction action) -> do
           TIO.putStrLn $ user <> " action: " <> toText (show action)
           processAction conn action

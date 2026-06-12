@@ -10,7 +10,7 @@ module Game.Entity where
 
 import Control.Applicative ((<|>))
 import Control.Lens (makeLenses, (^.))
-import Data.Aeson (FromJSON (..), FromJSONKey (..), FromJSONKeyFunction (..), ToJSON, ToJSONKey (..), Value (..), withObject, (.:), (.:?))
+import Data.Aeson (FromJSON (..), FromJSONKey (..), FromJSONKeyFunction (..), ToJSON (..), ToJSONKey (..), Value (..), object, withObject, (.:), (.:?), (.=))
 -- import Data.Yaml (FromJSON, ParseException, decodeEither', decodeFileEither, withObject, (.:), (.:?))
 -- import Data.Yaml.Aeson (FromJSON (..), Value (..))
 -- import Data.Yaml.Parser (typeMismatch)
@@ -33,23 +33,79 @@ import Utils
 
 type ItemId = Text
 
+type ArtId = Text
+
+data ItemUse = LearnArtUse
+  { _itemUseArt :: ArtId,
+    _itemUseLevel :: Int,
+    _itemUseConsume :: Bool,
+    _itemUseMessage :: Maybe Text,
+    _itemUseRepeatMessage :: Maybe Text
+  }
+  deriving (Show, Eq, Ord, Generic, Serialize)
+
+instance FromJSON ItemUse where
+  parseJSON = withObject "ItemUse" $ \o -> do
+    useType <- o .: "type"
+    case useType of
+      String "learn_art" -> do
+        _itemUseArt <- o .: "art"
+        _itemUseLevel <- o .:? "level" .!= 1
+        _itemUseConsume <- o .:? "consume" .!= False
+        _itemUseMessage <- o .:? "message"
+        _itemUseRepeatMessage <- o .:? "repeat_message"
+        pure LearnArtUse {..}
+      _ -> fail "Invalid ItemUse type"
+
+instance ToJSON ItemUse where
+  toJSON LearnArtUse {..} =
+    object
+      [ "type" .= ("learn_art" :: Text),
+        "art" .= _itemUseArt,
+        "level" .= _itemUseLevel,
+        "consume" .= _itemUseConsume,
+        "message" .= _itemUseMessage,
+        "repeat_message" .= _itemUseRepeatMessage
+      ]
+
 data Item = Item
   { _itemId :: ItemId,
-    _itemName :: Text
+    _itemName :: Text,
+    _itemDesc :: Text,
+    _itemUse :: Maybe ItemUse
   }
-  deriving (Show, Eq, Generic, Serialize)
+  deriving (Show, Eq, Ord, Generic, Serialize)
 
-instance FromJSON Item
+instance FromJSON Item where
+  parseJSON = withObject "Item" $ \o -> do
+    _itemId <- o .: "id"
+    _itemName <- o .: "name"
+    _itemDesc <- o .:? "desc" .!= ""
+    _itemUse <- o .:? "use"
+    pure Item {..}
 
+instance ToJSON Item where
+  toJSON Item {..} =
+    object
+      [ "id" .= _itemId,
+        "name" .= _itemName,
+        "desc" .= _itemDesc,
+        "use" .= _itemUse
+      ]
+
+instance Configurable Item
+
+makeLenses ''ItemUse
 makeLenses ''Item
 
 data ItemEntity = ItemEntity
   { _item :: Item,
     _amount :: Int
   }
-  deriving (Show, Eq, Generic, Serialize)
+  deriving (Show, Eq, Ord, Generic, Serialize)
 
 instance FromJSON ItemEntity
+instance ToJSON ItemEntity
 
 instance Configurable ItemEntity
 
@@ -191,9 +247,6 @@ instance FromJSON Move where
     _moveDamage <- o .: "damage"
     pure Move {..}
 
--- | Routines are sets of skills and moves, can be learned by character
-type ArtId = Text
-
 data ArtType = Technique | Cultivation | Lightness
   deriving (Generic, Show, Eq, Ord)
 
@@ -204,12 +257,24 @@ instance FromJSON ArtType where
     String "lightness" -> pure Lightness
     _ -> fail "Invalid ArtType in MartialArt"
 
+instance ToJSON ArtType where
+  toJSON = \case
+    Technique -> String "technique"
+    Cultivation -> String "cultivation"
+    Lightness -> String "lightness"
+
 instance FromJSONKey ArtType where
   fromJSONKey = FromJSONKeyTextParser $ \case
     "technique" -> pure Technique
     "cultivation" -> pure Cultivation
     "lightness" -> pure Lightness
     _ -> fail "Invalid ArtType in MartialArt"
+
+instance ToJSONKey ArtType where
+  toJSONKey = toJSONKeyText $ \case
+    Technique -> "technique"
+    Cultivation -> "cultivation"
+    Lightness -> "lightness"
 
 data MartialArt = MartialArt
   { _artId :: ArtId,
@@ -244,6 +309,13 @@ instance FromJSON ArtEntity where
     _artDef <- o .: "id"
     _artLevel <- o .: "level"
     pure ArtEntity {..}
+
+instance ToJSON ArtEntity where
+  toJSON ArtEntity {..} =
+    object
+      [ "id" .= _artDef,
+        "level" .= _artLevel
+      ]
 
 makeLenses ''MartialArt
 makeLenses ''ArtEntity
@@ -280,6 +352,7 @@ data Character = Character
     _charRespawn :: Int,
     -- The character's original attributes.
     _charHP :: Int,
+    _charMaxHP :: Int,
     _charQi :: Int,
     _charMaxQi :: Int,
     _charQiRegen :: Double,
@@ -307,6 +380,7 @@ newCharacter cid cname =
       _charActions = S.empty,
       _charRespawn = 0,
       _charHP = 0,
+      _charMaxHP = 0,
       _charQi = 0,
       _charMaxQi = 0,
       _charQiRegen = 0.0,
@@ -330,6 +404,7 @@ instance FromJSON Character where
 
     attr <- o .: "attr"
     _charHP <- attr .: "hp"
+    _charMaxHP <- attr .:? "max_hp" .!= _charHP
     _charQi <- attr .:? "qi" .!= 0
     _charMaxQi <- attr .:? "max_qi" .!= 0
     _charQiRegen <- attr .:? "qi_regen" .!= 0.0
@@ -369,11 +444,20 @@ instance FromJSONKey PlayerStatus where
     "banned" -> pure PlayerBanned
     _ -> fail "Invalid PlayerStatus"
 
+instance ToJSON PlayerStatus where
+  toJSON = \case
+    PlayerNormal -> String "normal"
+    PlayerInBattle -> String "inbattle"
+    PlayerDead -> String "dead"
+    PlayerBanned -> String "banned"
+
 data Player = Player
   { _playerId :: PlayerId,
     _playerPosition :: (Text, (Int, Int)),
     _playerConcurrency :: M.Map ConcurrencyId Int,
     _playerStatus :: PlayerStatus,
+    _playerInventory :: M.Map ItemId Int,
+    _playerMoney :: Int,
     _playerCharacter :: Character
   }
   deriving (Show, Eq, Generic)
@@ -386,6 +470,8 @@ instance FromJSON Player where
     _playerPosition <- o .: "position"
     _playerConcurrency <- o .: "concurrency"
     _playerStatus <- o .: "status"
+    _playerInventory <- o .:? "inventory" .!= M.empty
+    _playerMoney <- o .:? "money" .!= 0
     _playerCharacter <- o .: "char"
     return Player {..}
 
@@ -398,6 +484,8 @@ newPlayer pid cname =
       _playerPosition = ("", (0, 0)),
       _playerConcurrency = M.empty,
       _playerStatus = PlayerNormal,
+      _playerInventory = M.empty,
+      _playerMoney = 0,
       _playerCharacter = newCharacter cid cname
     }
   where

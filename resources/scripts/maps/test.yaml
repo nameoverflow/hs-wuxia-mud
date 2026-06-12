@@ -1,35 +1,43 @@
 id: test_map
-name: "Test"
-desc: "Map for test"
+name: "冷雨客栈"
+desc: "一间立在渡口边的旧客栈。雨声很密，灯火很瘦。"
 rooms:
   - position: [3, 3]
-    id: test_entrance
-    name: "Entrance of Test"
-    desc: "This is the entrance of the test map."
+    id: cold_rain_ferry
+    name: "冷雨渡口"
+    desc: "渡船拴在黑水边，灯笼被雨打得发白。客栈门口站着一个掌柜，像是在等一个不会来的人。"
     char:
-      - char_in_test
+      - cold_rain_innkeeper
     exits:
       north: [3, 4]
       northeast: [4, 4]
       west: [2, 3]
 
   - position: [3, 4]
-    id: test_north
-    name: "North of Test"
-    desc: "This is the north of the test map."
+    id: cold_rain_hall
+    name: "冷雨客栈大堂"
+    desc: "桌上只有一杯没有动过的冷酒。青衣客坐在灯影最淡处，剑放在膝上，像一句还没有说完的话。"
+    char:
+      - qingyi_guest
     exits:
       south: [3, 3]
+      northeast: [4, 4]
 
   - position: [4, 4]
-    id: test_ne
-    name: "NE of Test"
-    desc: "This is the north east of the test map."
+    id: cold_rain_courtyard
+    name: "后院天井"
+    desc: "井沿积着雨水，一柄纸伞靠在檐下。伞面没有一滴水，伞下的人也像没有影子。"
+    char:
+      - paper_umbrella_killer
     exits:
       southwest: [3, 3]
+      south: [3, 4]
   
   - position: [2, 3]
-    id: test_west
-    name: "West of Test"
-    desc: "This is the west of the test map."
+    id: cold_rain_woodshed
+    name: "柴棚"
+    desc: "湿柴堆在墙角，一个旧木人立在雨线外，身上有许多浅浅刀痕。"
+    char:
+      - char_in_test
     exits:
       east: [3, 3]

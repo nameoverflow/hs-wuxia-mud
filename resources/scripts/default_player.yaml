@@ -4,8 +4,8 @@ status: normal
 concurrency: {}
 char:
   id: player$default
-  name: "Default the Player"
-  desc: "Default player."
+  name: "无名客"
+  desc: "他没有名字。至少在这场雨里没有。"
   actions: []
   dialogue: []
   respawn: 0

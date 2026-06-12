@@ -145,11 +145,11 @@ Available martial arts skills:
 
 | Skill | Qi Cost | AP Req | Effect |
 |-------|---------|--------|--------|
-| Power Strike | 30 | 60 | 35 damage |
-| Healing Palm | 50 | 40 | 40 heal (self) |
-| Iron Body | 40 | 50 | DEF +5 buff |
-| Dragon Stance | 40 | 50 | Enables Dragon Burst |
-| Dragon Burst | 80 | 100 | 120 damage (requires Dragon Stance) |
+| 断雨一击 | 30 | 60 | 35 damage |
+| 回灯掌 | 50 | 40 | 40 heal (self) |
+| 铁衣 | 40 | 50 | DEF +5 buff |
+| 听雨势 | 40 | 50 | Enables 伞骨八刺 |
+| 伞骨八刺 | 80 | 100 | 120 damage (requires 听雨势) |
 
 ## Technical Details
 
@@ -193,7 +193,7 @@ The client connects to `ws://127.0.0.1:9160` and uses JSON messages:
 **Skills not working?**
 - Skills only work during combat
 - Check if you have enough Qi and AP
-- Some skills require specific buffs (e.g., Dragon Burst needs Dragon Stance)
+- Some skills require specific buffs (e.g., 伞骨八刺 needs 听雨势)
 
 **Buttons not responding?**
 - Make sure you're connected first

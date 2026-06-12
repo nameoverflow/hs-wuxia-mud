@@ -9,10 +9,13 @@ import qualified Control.Monad
 import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError))
 import Control.Monad.State.Strict (StateT, mapStateT, MonadState)
 import Control.Monad.Trans.Maybe (MaybeT (runMaybeT))
+import Data.Aeson (FromJSON, Result (..), Value, fromJSON)
+import Data.Either (partitionEithers)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text, pack)
-import Data.Yaml (FromJSON, decodeFileEither)
+import qualified Data.Text as T
+import Data.Yaml (decodeFileEither)
 import Relude (toText)
 import System.Directory (doesDirectoryExist, listDirectory)
 import System.FilePath (takeExtension, (</>))
@@ -39,13 +42,30 @@ class FromJSON a => Configurable a where
           let path = dir </> file
           result <- decodeFileEither path
           case result of
-            Left err -> do
-              TIO.putStrLn $ "Failed loading " <> toText path <> ", err: " <> toText (show err)
-              pure Nothing
-            Right item -> pure $ Just (f item, item)
-        let ret = M.fromList $ catMaybes items
-        TIO.putStrLn $ "Loaded " <> toText (show (M.size ret)) <> " items from " <> toText dir
-        return $ Right ret 
+            Left err ->
+              pure $ Left $ toText path <> ": " <> toText (show err)
+            Right (value :: Value) ->
+              case fromJSON value of
+                Success item -> pure $ Right [(f item, item)]
+                Error singleErr ->
+                  case fromJSON value of
+                    Success many -> pure $ Right $ map (\item -> (f item, item)) many
+                    Error listErr ->
+                      pure $
+                        Left $
+                          toText path
+                            <> ": "
+                            <> toText singleErr
+                            <> "; "
+                            <> toText listErr
+        let (errs, loadedItems) = partitionEithers items
+        case errs of
+          [] -> do
+            let ret = M.fromList $ concat loadedItems
+            TIO.putStrLn $ "Loaded " <> toText (show (M.size ret)) <> " items from " <> toText dir
+            return $ Right ret
+          _ ->
+            return $ Left $ "Failed loading " <> toText dir <> ":\n" <> T.unlines errs
       else return $ Left $ "Directory does not exist: " <> toText dir
 
 
@@ -54,6 +74,7 @@ liftMaybeT errMsg = mapStateT $ \s -> ExceptT $ maybe (Left errMsg) Right <$> ru
 
 
 randomSelect :: MonadRandom m => [a] -> m (Maybe a)
+randomSelect [] = return Nothing
 randomSelect xs = do
   idx <- getRandomR (0, length xs - 1)
   return $ xs ^? element idx

@@ -1,0 +1,184 @@
+id: cold_rain_inn
+name: "冷雨客栈"
+objectives:
+  - stage: accepted
+    text: "把冷酒送到北面的客栈大堂，交给青衣客。"
+  - stage: witness
+    text: "去东北边的后院天井，看清纸伞下的人。"
+  - stage: duel
+    text: "挡住纸伞客，让青衣客活到真相显形。"
+  - stage: completed
+    text: "冷雨洗去了三年的刀名。"
+reward:
+  money: 80
+  items: []
+events:
+  - id: intro_innkeeper
+    trigger:
+      type: talk
+      npc: cold_rain_innkeeper
+    conditions:
+      - type: quest_not_started
+        quest: cold_rain_inn
+    actions:
+      - type: message
+        speaker: "冷雨掌柜"
+        text: "这杯酒已经冷了三次。第一次等一个人，第二次等一柄剑，第三次，等一个肯把它端进去的旁观者。客官，你只需把酒送到堂前，不必替任何人拔刀。"
+        choices:
+          - id: cold_rain_accept_wine
+            text: "接过冷酒，进客栈大堂"
+            actions:
+              - type: set_stage
+                quest: cold_rain_inn
+                stage: accepted
+              - type: set_flag
+                flag: cold_rain.has_wine
+              - type: message
+                speaker: "旁白"
+                text: "酒杯入手很轻，杯底却像压着一场旧案。北面的门虚掩着，灯影从门缝里漏出来。"
+          - id: cold_rain_decline_wine
+            text: "只问雨声，不接这杯酒"
+            actions:
+              - type: message
+                speaker: "冷雨掌柜"
+                text: "江湖事从不勉强人。只是有些雨，避得过一时，避不过一夜。"
+
+  - id: qingyi_receives_wine
+    trigger:
+      type: talk
+      npc: qingyi_guest
+    conditions:
+      - type: quest_stage
+        quest: cold_rain_inn
+        stage: accepted
+      - type: flag
+        flag: cold_rain.has_wine
+    actions:
+      - type: message
+        speaker: "青衣客"
+        text: "酒不是给我喝的。三年前，这里也下这样的雨。有人用一把很快的刀杀了我师兄，却把刀名留给了我。今晚他会来。你若愿意，只需看清一件事：伞下的人，鞋上没有泥。"
+        choices:
+          - id: cold_rain_watch_duel
+            text: "留下，看清伞下的人"
+            actions:
+              - type: set_stage
+                quest: cold_rain_inn
+                stage: witness
+              - type: clear_flag
+                flag: cold_rain.has_wine
+              - type: message
+                speaker: "旁白"
+                text: "青衣客没有碰那杯酒。他只是把剑向桌边推了一寸。东北边的后院里，忽然有纸伞轻轻一响。"
+          - id: cold_rain_walk_away
+            text: "放下酒杯，退到门边"
+            actions:
+              - type: message
+                speaker: "青衣客"
+                text: "能退一步的人，往往比拔刀的人活得久。但今晚，门外也未必安全。"
+
+  - id: first_courtyard_sight
+    trigger:
+      type: enter_room
+      map: test_map
+      position: [4, 4]
+    conditions:
+      - type: quest_stage
+        quest: cold_rain_inn
+        stage: witness
+      - type: not_flag
+        flag: cold_rain.courtyard_seen
+    actions:
+      - type: set_flag
+        flag: cold_rain.courtyard_seen
+      - type: message
+        speaker: "旁白"
+        text: "天井里没有脚印。雨下得这么大，伞下的人却像刚从画里走出来。你忽然明白：杀人的也许不是刀，而是所有人都以为自己看见的那把刀。"
+
+  - id: reveal_umbrella_killer
+    trigger:
+      type: talk
+      npc: paper_umbrella_killer
+    conditions:
+      - type: quest_stage
+        quest: cold_rain_inn
+        stage: witness
+    actions:
+      - type: message
+        speaker: "纸伞客"
+        text: "旁观者最安全，也最危险。因为旁观者若看见了不该看见的影子，就只好变成死人。"
+        choices:
+          - id: cold_rain_tip_lantern
+            text: "打翻檐下灯笼，让伞影现形"
+            actions:
+              - type: set_stage
+                quest: cold_rain_inn
+                stage: duel
+              - type: set_flag
+                flag: cold_rain.lantern_fallen
+              - type: message
+                speaker: "旁白"
+                text: "灯笼落地，火光从水洼里反上来。纸伞的影子裂成八根细刺，刺尖正对着青衣客的背心。你这一动，便不再只是旁观者。"
+              - type: start_battle
+                target: paper_umbrella_killer
+          - id: cold_rain_keep_watching
+            text: "按住刀柄，继续等"
+            actions:
+              - type: message
+                speaker: "旁白"
+                text: "你没有动。纸伞客也没有动。可雨声里已有一点杀意，像针一样扎进耳中。"
+
+  - id: umbrella_killer_defeated
+    trigger:
+      type: kill
+      npc: paper_umbrella_killer
+    conditions:
+      - type: quest_stage
+        quest: cold_rain_inn
+        stage: duel
+    actions:
+      - type: set_stage
+        quest: cold_rain_inn
+        stage: resolved
+      - type: complete_quest
+        quest: cold_rain_inn
+      - type: hide_npc
+        npc: paper_umbrella_killer
+      - type: give_item
+        item: cold_rain_token
+        amount: 1
+      - type: message
+        speaker: "旁白"
+        text: "纸伞落在井边，伞柄里滑出一排细针。针尾刻着一个很淡的刀名，像一滴洗不净的血。青衣客拾起那杯冷酒，洒在雨水里。三年的刀名，终于被雨洗干净。你没有替他报仇，只是让真相有了一瞬灯光。"
+
+  - id: epilogue_qingyi
+    trigger:
+      type: talk
+      npc: qingyi_guest
+    conditions:
+      - type: quest_completed
+        quest: cold_rain_inn
+      - type: not_flag
+        flag: cold_rain.manual_given
+    actions:
+      - type: message
+        speaker: "青衣客"
+        text: "江湖上最难还的不是仇，是清白。今晚你只推倒一盏灯，却比拔一百次刀更重。青衣客把几页湿不了的纸放在桌上。纸上没有图，只有几行字：先听雨，再出手。若还有下一场雨，愿你仍能看清影子。"
+      - type: set_flag
+        flag: cold_rain.manual_given
+      - type: give_item
+        item: cold_rain_manual
+        amount: 1
+
+  - id: epilogue_qingyi_after_manual
+    trigger:
+      type: talk
+      npc: qingyi_guest
+    conditions:
+      - type: quest_completed
+        quest: cold_rain_inn
+      - type: flag
+        flag: cold_rain.manual_given
+    actions:
+      - type: message
+        speaker: "青衣客"
+        text: "雨还会来。你既已听过一次，就该知道，真正快的从来不是刀，是看见刀以前的那一念。"

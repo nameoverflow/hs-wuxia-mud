@@ -1,6 +1,6 @@
 id: char_in_test
-name: "Momo the Tester"
-desc: "This is Momo the Tester."
+name: "沉默木人"
+desc: "一具给客人试招的旧木人，刀痕纵横。"
 actions: [dialogue, attacking, sparring]
 skills:
   technique:
@@ -11,9 +11,7 @@ prepared:
     id: test
     level: 1
 dialogue:
-  - "Hello, I am Momo the Tester."
-  - "What can I do for you?"
-  - "I am a test character."
+  - "木人沉默不语，雨水沿着刀痕往下流。"
 respawn: 5
 attr:
   hp: 114

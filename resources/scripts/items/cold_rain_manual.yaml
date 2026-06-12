@@ -1,0 +1,10 @@
+id: cold_rain_manual
+name: "听雨残谱"
+desc: "薄薄几页纸，没有招式图。只有几行字：先听雨，再出手。"
+use:
+  type: learn_art
+  art: cold_rain_secret
+  level: 1
+  consume: false
+  message: "你借着灯火读完那几页残谱。雨声像刀背敲在心上，你忽然懂了：先听雨，再出手。"
+  repeat_message: "你又翻了一遍《听雨残谱》。那些字仍旧很少，意思却已经留在你的手上。"

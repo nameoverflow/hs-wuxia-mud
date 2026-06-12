@@ -36,7 +36,8 @@ data GameState = GameState
     -- game status
     _players :: !(M.Map PlayerId Player),
     _battles :: !(M.Map PlayerId Battle),
-    _respawn :: !(M.Map CharId Double)
+    _respawn :: !(M.Map CharId Double),
+    _stories :: !(M.Map PlayerId PlayerStoryState)
   }
   deriving (Show, Eq, Generic)
 
@@ -80,7 +81,7 @@ runGameState :: (MonadIO m) => GameState -> GameStateT a -> m (Either GameExcept
 runGameState gs m = liftIO $ Control.Monad.Except.runExceptT $ runStateT (execWriterT $ unGameStateT m) gs
 
 newGameState :: World -> GameState
-newGameState w = GameState w M.empty M.empty M.empty
+newGameState w = GameState w M.empty M.empty M.empty M.empty
 
 loadGameState :: FilePath -> IO (Either Text GameState)
 loadGameState basePath = do
@@ -95,6 +96,7 @@ createDefaultPlayer pid path = do
     Right (player :: Player) -> do
       let player' = player & playerId .~ pid & playerCharacter . charId .~ "player$" <> pid
       players . at pid .= Just player'
+      stories . at pid .= Just newPlayerStoryState
 
       let (mid, pos) = player ^. playerPosition
       world . maps . ix mid . mapRooms . ix pos . roomPlayer %= S.insert pid
