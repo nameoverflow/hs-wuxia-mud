@@ -50,6 +50,22 @@ python3 -m http.server 8080
 3. Click map nodes and character names to interact
 4. Explore the world!
 
+### Test Entry
+
+For local flow testing, start the server with dev mode:
+
+```bash
+MUD_DEV_MODE=1 stack exec mud-hs-exe
+```
+
+Then open:
+
+```text
+http://localhost:8080/?test=1
+```
+
+The test entry auto-connects as `tester` and requests a fresh save reset. Use `?test=1&user=name` for another fixed test user, or `?test=1&reset=0` to auto-login without resetting the save.
+
 ## UI Layout
 
 ```

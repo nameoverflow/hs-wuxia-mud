@@ -8,12 +8,13 @@ module Database
     savePlayerSave,
     savePlayerState,
     saveAllPlayerSaves,
+    deletePlayerSave,
     applyPlayerSaveToGameState,
   )
 where
 
 import Control.Lens hiding ((.=))
-import Control.Monad (forM_)
+import Control.Monad (forM_, when)
 import Data.Aeson
 import Data.Bifunctor (first)
 import qualified Data.ByteString.Lazy as BL
@@ -26,7 +27,7 @@ import GHC.Generics (Generic)
 import Game.Entity
 import Game.Quest
 import GameState
-import System.Directory (createDirectoryIfMissing, doesFileExist)
+import System.Directory (createDirectoryIfMissing, doesFileExist, removeFile)
 import System.FilePath ((</>))
 
 data PlayerSave = PlayerSave
@@ -83,6 +84,12 @@ saveAllPlayerSaves :: FilePath -> GameState -> IO ()
 saveAllPlayerSaves saveDir gs =
   forM_ (M.keys $ gs ^. players) $ \pid ->
     savePlayerState saveDir pid gs
+
+deletePlayerSave :: FilePath -> PlayerId -> IO ()
+deletePlayerSave saveDir pid = do
+  let path = playerSavePath saveDir pid
+  exists <- doesFileExist path
+  when exists $ removeFile path
 
 applyPlayerSaveToGameState :: PlayerSave -> GameState -> GameState
 applyPlayerSaveToGameState PlayerSave {..} =

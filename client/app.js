@@ -3,6 +3,7 @@ class MUDClient {
     constructor() {
         this.i18n = window.MUD_I18N || {};
         this.locale = this.getInitialLocale();
+        this.testEntry = this.getTestEntryConfig();
         this.ws = null;
         this.username = null;
         this.connected = false;
@@ -127,6 +128,31 @@ class MUDClient {
         this.applyI18n();
         this.updateConnectionStatus(false);
         this.updateStoryGuide();
+        this.initializeTestEntry();
+    }
+
+    getTestEntryConfig() {
+        const params = new URLSearchParams(window.location.search);
+        const enabled = params.get('test') === '1' || params.get('dev') === '1';
+        if (!enabled) return { enabled: false };
+        return {
+            enabled: true,
+            username: params.get('user') || 'tester',
+            reset: params.get('reset') !== '0'
+        };
+    }
+
+    initializeTestEntry() {
+        if (!this.testEntry.enabled) return;
+        this.usernameInput.value = this.testEntry.username;
+        document.body.classList.add('test-entry-active');
+        this.displayMessage(this.t('connection.test_entry', { user: this.testEntry.username }), 'system');
+        window.setTimeout(() => {
+            this.connect({
+                username: this.testEntry.username,
+                password: this.testEntry.reset ? '__dev_reset' : ''
+            });
+        }, 0);
     }
 
     getInitialLocale() {
@@ -403,14 +429,17 @@ class MUDClient {
         this.applyMessageFilter();
     }
 
-    connect() {
-        const username = this.usernameInput.value.trim();
+    connect(options = {}) {
+        if (this.connected) return;
+        const username = String(options.username || this.usernameInput.value || '').trim();
         if (!username) {
             this.displayMessage(this.t('error.username_required'), 'error');
             return;
         }
+        const password = options.password || "";
 
         this.username = username;
+        this.usernameInput.value = username;
         this.displayMessage(this.t('connection.connecting', { user: username }), 'system');
 
         try {
@@ -425,7 +454,7 @@ class MUDClient {
                 const loginEvent = JSON.stringify({
                     tag: "Login",
                     username: username,
-                    password: ""
+                    password
                 });
                 this.ws.send(loginEvent);
 

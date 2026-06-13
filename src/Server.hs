@@ -11,12 +11,14 @@ import Control.Monad
 import Data.Aeson (decode)
 import Data.Map
 import qualified Data.Map.Strict as M
+import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import Data.Time
 import Game.Entity
 import Game.Message
+import Game.World (maps)
 import GamePlay
 import GameState
 import Network.WebSockets
@@ -24,29 +26,55 @@ import Networking
 import Relude (ToText (toText))
 import Control.Exception (finally)
 import Database
+import System.Environment (lookupEnv)
 
 type ServerMap = M.Map PlayerId Connection
 
 saveDir :: FilePath
 saveDir = "saves"
 
-loadOrCreatePlayer :: PlayerId -> GameState -> IO GameState
-loadOrCreatePlayer uid gs = do
+devResetPassword :: Text
+devResetPassword = "__dev_reset"
+
+isDevModeEnabled :: IO Bool
+isDevModeEnabled = do
+  mode <- lookupEnv "MUD_DEV_MODE"
+  return $ mode `elem` [Just "1", Just "true", Just "TRUE"]
+
+clearPlayerRuntimeState :: PlayerId -> GameState -> GameState
+clearPlayerRuntimeState uid =
+  (players . at uid .~ Nothing)
+    . (battles . at uid .~ Nothing)
+    . (stories . at uid .~ Nothing)
+    . (world . maps . traversed . mapRooms . traversed . roomPlayer %~ S.delete uid)
+
+loadOrCreatePlayer :: Bool -> PlayerId -> GameState -> IO GameState
+loadOrCreatePlayer resetPlayer uid gs = do
+  when resetPlayer $ do
+    deletePlayerSave saveDir uid
+    TIO.putStrLn $ "Dev reset player save: " <> uid
   let gsm = createDefaultPlayer uid "resources/scripts/default_player.yaml"
-  runGameState gs gsm >>= \case
+      baseState =
+        if resetPlayer
+          then clearPlayerRuntimeState uid gs
+          else gs
+  runGameState baseState gsm >>= \case
     Left err -> do
       TIO.putStrLn $ "Error loading player: " <> toText err
-      return gs
+      return baseState
     Right (_, gs') -> do
-      saveResult <- loadPlayerSave saveDir uid
-      case saveResult of
-        Left err -> do
-          TIO.putStrLn $ "Error loading player save: " <> err
-          return gs'
-        Right Nothing ->
-          return gs'
-        Right (Just save) ->
-          return $ applyPlayerSaveToGameState save gs'
+      if resetPlayer
+        then return gs'
+        else do
+          saveResult <- loadPlayerSave saveDir uid
+          case saveResult of
+            Left err -> do
+              TIO.putStrLn $ "Error loading player save: " <> err
+              return gs'
+            Right Nothing ->
+              return gs'
+            Right (Just save) ->
+              return $ applyPlayerSaveToGameState save gs'
 
 sendResp :: Connection -> ActionResp -> IO ()
 sendResp conn resp = do
@@ -60,8 +88,8 @@ broadcastResp resp clients = do
   forM_ clients $ \conn -> do
     sendTextData conn message
 
-userLogin :: PlayerId -> Connection -> MVar ServerMap -> MVar GameState -> IO ()
-userLogin user conn cm s = do
+userLogin :: PlayerId -> Bool -> Connection -> MVar ServerMap -> MVar GameState -> IO ()
+userLogin user resetPlayer conn cm s = do
   modifyMVar_ cm $ \c -> do
     broadcastResp (SystemMsg $ SystemMessage "user_joined" $ M.singleton "user" user) c
     sendResp conn $
@@ -71,7 +99,7 @@ userLogin user conn cm s = do
           (M.singleton "users" $ T.intercalate ", " (keys c))
     return $ M.insert user conn c
   modifyMVar_ s $ \ss -> do
-    s' <- loadOrCreatePlayer user ss
+    s' <- loadOrCreatePlayer resetPlayer user ss
     TIO.putStrLn $ "players: " <> toText (show (keys . view players $ s'))
     return s'
   runAndResponse s cm (playerView user) $ \err -> do
@@ -86,13 +114,22 @@ serverApplication conns state pending = do
     msg <- receiveData conn
     c <- readMVar conns
     case decode msg :: Maybe NetEvent of
-      Just Login {username = un}
-        | member un c -> do
-          sendResp conn $ ErrorMsg $ ErrorSummary "user_exists" $ M.singleton "user" un
+      Just Login {username = loginUser, password = pw}
+        | member loginUser c -> do
+          sendResp conn $ ErrorMsg $ ErrorSummary "user_exists" $ M.singleton "user" loginUser
           fail "User already exists"
-        | otherwise -> flip finally (disconnectClient un conns state) $ do
-          userLogin un conn conns state
-          runGameLoop un conns state
+        | pw == devResetPassword -> do
+          devMode <- isDevModeEnabled
+          if devMode
+            then flip finally (disconnectClient loginUser conns state) $ do
+              userLogin loginUser True conn conns state
+              runGameLoop loginUser conns state
+            else do
+              sendResp conn $ ErrorMsg $ ErrorSummary "dev_mode_required" M.empty
+              fail "Dev reset requires MUD_DEV_MODE=1"
+        | otherwise -> flip finally (disconnectClient loginUser conns state) $ do
+          userLogin loginUser False conn conns state
+          runGameLoop loginUser conns state
       _ -> do
         sendResp conn $ ErrorMsg $ ErrorSummary "not_logged_in" M.empty
         return ()

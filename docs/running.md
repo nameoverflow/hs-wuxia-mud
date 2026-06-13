@@ -21,6 +21,14 @@ stack exec mud-hs-exe
 stack exec mud-hs-exe
 ```
 
+测试专用 server：
+
+```bash
+MUD_DEV_MODE=1 stack exec mud-hs-exe
+```
+
+`MUD_DEV_MODE=1` 只用于本地开发。它允许测试入口在登录时重置同名玩家存档，避免每次换新登录名。
+
 打开 client：
 
 ```bash
@@ -29,6 +37,19 @@ python3 -m http.server 8080
 ```
 
 然后访问 `http://localhost:8080`。直接打开 `client/index.html` 通常也能工作，但用本地 HTTP server 更接近浏览器正常加载资源的路径。
+
+测试专用入口：
+
+```text
+http://localhost:8080/?test=1
+```
+
+这个入口会自动用 `tester` 登录，不需要点登录按钮；默认会请求 server 重置 `tester` 的存档并从完整新流程开始。server 必须用 `MUD_DEV_MODE=1` 启动，否则会拒绝重置请求。
+
+可用参数：
+
+- `user=<name>`：指定测试用户名，例如 `?test=1&user=story1`。
+- `reset=0`：自动登录但不重置存档，例如 `?test=1&reset=0`。
 
 ## 测试
 
