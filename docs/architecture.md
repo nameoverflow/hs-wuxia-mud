@@ -100,7 +100,7 @@ Server.gameTickLoop
       -> updateBattle dt for each battle
       -> respawn countdown
   -> dispatch responses
-  -> saveAllPlayerSaves when there are responses
+  -> persist dirty players only
 ```
 
 ## 并发模型
