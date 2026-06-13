@@ -7,7 +7,7 @@
 - [运行与开发](./running.md)：本地启动 server/client、测试命令、常见输出。
 - [系统架构](./architecture.md)：后端模块分层、状态流、线程模型。
 - [内容与剧情脚本](./content-scripting.md)：YAML 资源格式、剧情事件、物品使用、冷雨客栈章节。
-- [战斗、武功与物品](./gameplay-systems.md)：AP/Qi 战斗、技能、秘籍学习、奖励与掉落。
+- [战斗、武功与物品](./gameplay-systems.md)：AP/Qi 战斗、主动招式、秘籍学习、奖励与掉落。
 - [角色养成系统设计](./character-progression.md)：无角色等级、基础功门槛、武功升级、招式解锁。
 - [客户端 UI](./client-ui.md)：WebSocket 客户端、方位图、NPC 弹框、i18n 边界。
 - [协议与存档](./protocol-and-persistence.md)：网络事件、响应消息、玩家存档字段。
@@ -15,7 +15,7 @@
 
 ## 当前一句话概括
 
-这是一个 Haskell WebSocket MUD：后端以 YAML 加载地图、NPC、武功、物品和剧情事件，客户端提供武侠风网页 UI。当前可玩闭环包含移动、查看房间、NPC 交互、线性剧情推进、战斗、剧情完成、掉落物、秘籍物品、使用秘籍学习武功、背包/任务显示和基础玩家存档。
+这是一个 Haskell WebSocket MUD：后端以 YAML 加载地图、NPC、武功、物品和剧情事件，客户端提供武侠风网页 UI。当前可玩闭环包含移动、查看房间、NPC 交互、线性剧情推进、战斗、剧情完成、掉落物、秘籍物品、使用秘籍学习武功、背包/任务显示和基础玩家存档。本地开发支持 `MUD_DEV_MODE=1` + `?test=1` 自动登录并重置测试角色。
 
 ## 关键源码入口
 

@@ -20,10 +20,10 @@ resources/scripts/
 ## 后端职责
 
 - [app/Main.hs](../app/Main.hs)：加载 `resources/scripts`，创建 `MVar GameState`，启动 game tick 线程和 WebSocket server。
-- [src/Server.hs](../src/Server.hs)：处理登录、连接表、消息循环、响应分发、自动保存。
+- [src/Server.hs](../src/Server.hs)：处理登录、dev-mode 测试重置、连接表、消息循环、响应分发、自动保存。
 - [src/GameState.hs](../src/GameState.hs)：定义全局 `GameState` 和主游戏 Monad。
 - [src/GamePlay.hs](../src/GamePlay.hs)：玩家动作、移动、查看、对话、剧情、物品使用、主动招式施展、战斗结算。
-- [src/Game/Combat.hs](../src/Game/Combat.hs)：战斗内部状态、AP/Qi tick、普通攻击、主动技能、状态效果。
+- [src/Game/Combat.hs](../src/Game/Combat.hs)：战斗内部状态、AP/Qi tick、普通攻击、主动招式、状态效果。
 - [src/Game/World.hs](../src/Game/World.hs)：加载 YAML 内容，构造 `World`，做跨资源引用校验。
 - [src/Database.hs](../src/Database.hs)：JSON 玩家存档。
 

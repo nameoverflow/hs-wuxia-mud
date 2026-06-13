@@ -1,18 +1,19 @@
 # Wuxia MUD Web Client
 
-A web-based client for the Wuxia MUD game featuring a modern dark theme UI with real-time combat tracking.
+A native web client for the Wuxia MUD game, styled as a dark Wuxia scene UI rather than a dashboard.
 
 ## Features
 
 - **WebSocket Connection** - Real-time communication with game server
-- **Three-Panel Layout** - Player status, game display, and room info
-- **Resource Bars** - Visual HP, Qi, and AP bars with color gradients
-- **Battle Panel** - Animated combat indicator with player vs enemy display
-- **Martial Arts Panel** - Learned martial arts outside combat and active skill cards during combat
-- **Room Panel** - Clickable map nodes and character names
+- **Scene Layout** - Player state, local room scene, message history, and martial arts panels
+- **Resource Bars** - Visual health, inner power, and action bars using localized UI labels
+- **Battle Scene** - Dedicated silhouette combat view with player/enemy resources and queued action playback
+- **Martial Arts Panel** - Learned martial arts outside combat and active move cards during combat
+- **Room Panel** - Clickable relative-position map nodes and character names
 - **Combat Log** - Collapsible log of combat events
 - **Message Display** - Color-coded messages with timestamps
 - **NPC Popup** - Talk and attack actions for the selected character
+- **Dev Test Entry** - Optional URL-based auto-login/reset for repeated local flow testing
 
 ## How to Use
 
@@ -79,9 +80,9 @@ The test entry auto-connects as `tester` and requests a fresh save reset. Use `?
 |  Location:    |  | Click character names to open popup        |  |
 |  Status:      |  +--------------------------------------------+  |
 |               |  +--------------------------------------------+  |
-|  HP [====   ] |  | Message history                            |  |
-|  Qi [======  ]|  +--------------------------------------------+  |
-|  AP [==      ]|  +--------------------------------------------+  |
+|  Health       |  | Message history                            |  |
+|  Inner Power  |  +--------------------------------------------+  |
+|  Action       |  +--------------------------------------------+  |
 |               |  | Martial arts / active skills               |  |
 |  LOGIN        |  +--------------------------------------------+  |
 |  [Username]   |                                                  |
@@ -102,10 +103,11 @@ The test entry auto-connects as `tester` and requests a fresh save reset. Use `?
 - Clicking Talk closes the popup and appends dialogue/story text to message history.
 - Attack is started from the same popup when the character exposes that action.
 
-**Active Skills (In Combat):**
-- Click active skill cards to use prepared martial arts
-- Active skills show Qi cost, AP requirement, and effects
-- Grayed out active skills are on cooldown or missing requirements
+**Active moves (in combat):**
+- Click active move cards to use unlocked moves from prepared martial arts.
+- Active move cards show inner power cost, action requirement, cooldown, and status requirements.
+- Disabled cards are on cooldown or missing action/inner-power/status requirements.
+- Combat messages and silhouette actions are queued so simultaneous server actions play in order.
 
 ## Message Types
 
@@ -121,17 +123,15 @@ Messages are color-coded:
 | Say | Yellow | Player chat |
 | Error | Red bg | Error messages |
 
-## Active Skills
+## Martial Arts Data
 
-Available active skills:
+The client does not hard-code available martial arts or move names. It renders `ArtsMsg` outside combat and `BattleStateMsg.battleSnapshotActiveSkills` during combat.
 
-| Active Skill | Qi Cost | AP Req | Effect |
-|-------|---------|--------|--------|
-| 断雨一击 | 30 | 60 | 35 damage |
-| 回灯掌 | 50 | 40 | 40 heal (self) |
-| 铁衣 | 40 | 50 | DEF +5 buff |
-| 听雨势 | 40 | 50 | Enables 伞骨八刺 |
-| 伞骨八刺 | 80 | 100 | 120 damage (requires 听雨势) |
+Current content examples include:
+
+- `无名试刀`: starter fist art with `断雨一击` and `回灯掌`.
+- `冷雨短打`: fist art with staged active move unlocks.
+- `听雨残谱`: sword art learned by using the manual item from the cold-rain chapter.
 
 ## Technical Details
 
@@ -148,13 +148,15 @@ The client connects to `ws://127.0.0.1:9160` and uses JSON messages:
 ```json
 {"tag": "NetPlayerAction", "contents": {"go": "North"}}
 {"tag": "NetPlayerAction", "contents": {"attack": "char_id"}}
-{"tag": "NetPlayerAction", "contents": {"perform": "power_strike"}}
+{"tag": "NetPlayerAction", "contents": {"perform": "lamp_cut"}}
+{"tag": "NetPlayerAction", "contents": {"train": "cold_rain_secret"}}
+{"tag": "NetPlayerAction", "contents": {"use": "cold_rain_manual"}}
 ```
 
 **Server Responses:**
 ```json
 {"tag": "MoveMsg", "contents": "Room Name"}
-{"tag": "ViewMsg", "contents": ["Room", "Desc", ["char1"], ["North"]]}
+{"tag": "ViewMsg", "contents": ["Room", "Desc", [{"id":"npc","name":"NPC","desc":"...","actions":["talk"]}], [{"direction":"North","roomId":"next","roomName":"Next","position":[0,1]}]]}
 {"tag": "CombatNormalMsg", "contents": ["Attacker", "Defender", {"kind": "script", "text": "msg"}, 35]}
 {"tag": "PlayerStatsMsg", "contents": [100, 100, 80, 100, 45, "in_battle"]}
 ```
@@ -172,11 +174,12 @@ The client connects to `ws://127.0.0.1:9160` and uses JSON messages:
 - Check browser console for WebSocket errors
 - Try using `python3 -m http.server` instead of file://
 
-**Active skills not working?**
-- Active skills only work during combat
-- Check if you have enough Qi and AP
-- Some active skills require specific buffs (e.g., 伞骨八刺 needs 听雨势)
+**Active moves not working?**
+- Active moves only work during combat
+- Check if you have enough inner power and action
+- Some active moves require a status effect, such as `伞骨八刺` requiring `听雨势`
 
 **Buttons not responding?**
 - Make sure you're connected first
-- Check that username was entered and "Connect" was clicked
+- For normal entry, check that username was entered and "Connect" was clicked
+- For test entry, start the server with `MUD_DEV_MODE=1` and open `?test=1`
