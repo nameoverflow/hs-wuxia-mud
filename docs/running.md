@@ -33,15 +33,16 @@ MUD_DEV_MODE=1 stack exec mud-hs-exe
 
 ```bash
 cd client
-python3 -m http.server 8080
+npm install
+npm run dev
 ```
 
-然后访问 `http://localhost:8080`。直接打开 `client/index.html` 通常也能工作，但用本地 HTTP server 更接近浏览器正常加载资源的路径。
+然后访问 `http://127.0.0.1:8080`。客户端现在是 Vite/Svelte 应用，不能再通过直接打开 `client/index.html` 或普通静态 HTTP server 获得开发体验。
 
 测试专用入口：
 
 ```text
-http://localhost:8080/?test=1
+http://127.0.0.1:8080/?test=1
 ```
 
 这个入口会自动用 `tester` 登录，不需要点登录按钮；默认会请求 server 重置 `tester` 的存档并从完整新流程开始。server 必须用 `MUD_DEV_MODE=1` 启动，否则会拒绝重置请求。

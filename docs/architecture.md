@@ -89,7 +89,7 @@ WebSocket
   -> GamePlay.processPlayerAction
   -> GameStateT 修改状态并写出 PlayerResp
   -> Server.dispatchResp
-  -> client/app.js 渲染
+  -> Svelte client state/components 渲染
 ```
 
 game tick：
