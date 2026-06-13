@@ -1,3 +1,5 @@
 .stack-work/
 saves/
 *~
+client/node_modules/
+client/dist/
