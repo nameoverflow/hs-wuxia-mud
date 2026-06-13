@@ -28,6 +28,7 @@ main = do
   testMoveUpdatesRoomOccupancy
   testCrossMapExitMovesPlayerBetweenMaps
   testCannotAttackAcrossRooms
+  testNpcBattleLockBlocksConcurrentAttackAndRespawns
   testDefeatDoesNotKillNpc
   testBattleSettlementMarksPlayerDirty
   testActiveSkillFailureIsSpecific
@@ -225,6 +226,53 @@ testCannotAttackAcrossRooms = do
     Left (UnableToInteract _ Attacking) -> pure ()
     Left err -> fail $ "expected UnableToInteract Attacking, got: " <> show err
     Right _ -> fail "player attacked an NPC from a different room"
+
+testNpcBattleLockBlocksConcurrentAttackAndRespawns :: IO ()
+testNpcBattleLockBlocksConcurrentAttackAndRespawns = do
+  gs <- loadFreshState
+  (_, withTester) <- runOk "create tester" gs (createDefaultPlayer "tester" "resources/scripts/default_player.yaml")
+  (_, withRival) <- runOk "create rival" withTester (createDefaultPlayer "rival" "resources/scripts/default_player.yaml")
+  (_, testerAtWoodshed) <- runOk "move tester to woodshed" withRival (playerMove "tester" West)
+  (_, bothAtWoodshed) <- runOk "move rival to woodshed" testerAtWoodshed (playerMove "rival" West)
+  (_, locked) <- runOk "tester starts npc battle" bothAtWoodshed (playerAttack "tester" "char_in_test")
+  npcLocked <- getNpc locked
+  assert ((npcLocked ^. charStatus) == CharBattle) "NPC was not locked when battle started"
+
+  concurrentAttack <- runGameState locked (playerAttack "rival" "char_in_test")
+  case concurrentAttack of
+    Left (UnableToInteract _ Attacking) -> pure ()
+    Left err -> fail $ "expected concurrent NPC attack to be blocked, got: " <> show err
+    Right _ -> fail "second player started a battle against a locked NPC"
+
+  let defeatedPlayer =
+        locked
+          & battles . ix "tester" . battleState . battleChar . charHP .~ 0
+  (_, released) <- runOk "tester loses and releases npc" defeatedPlayer (updateBattle 0 "tester")
+  npcReleased <- getNpc released
+  assert ((npcReleased ^. charStatus) == CharAlive) "NPC lock was not released after player defeat"
+
+  (_, rivalBattle) <- runOk "rival starts npc battle after release" released (playerAttack "rival" "char_in_test")
+  npcLockedAgain <- getNpc rivalBattle
+  assert ((npcLockedAgain ^. charStatus) == CharBattle) "NPC was not locked for the second battle"
+
+  let defeatedEnemy =
+        rivalBattle
+          & battles . ix "rival" . battleEnemyState . battleChar . charHP .~ 0
+  (_, dead) <- runOk "rival kills npc" defeatedEnemy (updateBattle 0 "rival")
+  npcDead <- getNpc dead
+  assert ((npcDead ^. charStatus) == CharDead) "NPC did not stay dead after being killed"
+
+  attackDeadNpc <- runGameState dead (playerAttack "tester" "char_in_test")
+  case attackDeadNpc of
+    Left (UnableToInteract _ Attacking) -> pure ()
+    Left err -> fail $ "expected dead NPC attack to be blocked, got: " <> show err
+    Right _ -> fail "player attacked a dead NPC before respawn"
+
+  (_, respawned) <- runOk "respawn locked npc" dead (tickRespawns 5)
+  npcRespawned <- getNpc respawned
+  assert ((npcRespawned ^. charStatus) == CharAlive) "NPC did not respawn as alive"
+  assert ((npcRespawned ^. charHP) == npcRespawned ^. charMaxHP) "NPC did not respawn at full HP"
+  assert ((npcRespawned ^. charQi) == npcRespawned ^. charMaxQi) "NPC did not respawn at full Qi"
 
 testDefeatDoesNotKillNpc :: IO ()
 testDefeatDoesNotKillNpc = do

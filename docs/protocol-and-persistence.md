@@ -173,13 +173,14 @@ dev reset 登录流程：
 1. client 发送 `Login.password = "__dev_reset"`。
 2. server 检查 `MUD_DEV_MODE`。
 3. 删除 `saves/<player>.json`。
-4. 清理内存中的玩家、battle、story 和所有房间内的该玩家占位。
-5. 用 `default_player.yaml` 创建同名玩家，不再加载旧存档。
+4. 如果该玩家正在战斗，先释放被锁定的 NPC encounter。
+5. 清理内存中的玩家、battle、story 和所有房间内的该玩家占位。
+6. 用 `default_player.yaml` 创建同名玩家，不再加载旧存档。
 
 保存时机：
 
 - `runAndResponse` 执行出非空响应后调用 `saveAllPlayerSaves`。
-- 玩家断线时清除 battle、把状态置为 normal，并保存该玩家。
+- 玩家断线时释放被锁定的 NPC encounter、清除 battle、把状态置为 normal，并保存该玩家。
 
 ## 当前未保存内容
 
@@ -187,7 +188,7 @@ dev reset 登录流程：
 
 - 当前房间位置没有写入 `PlayerSave`。
 - 进行中的 battle 不保存。
-- NPC 全局死亡/复活倒计时不保存。
+- NPC 全局战斗锁、HP/Qi 运行态、死亡状态和复活倒计时不保存。
 - 世界内容来自 YAML，每次 server 启动重新加载。
 
 当前角色成长已保存武功等级/熟练度、潜能、实战经验和 HP/Qi/MaxQi。后续如果增加更复杂的门派贡献、装备耐久或属性点，需要继续沿用 `PlayerSave.version` 做迁移。

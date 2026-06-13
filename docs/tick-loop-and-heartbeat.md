@@ -121,10 +121,15 @@ updateBattle
 - 移除 battle。
 - 玩家回到 `PlayerNormal`。
 - 回写玩家 HP/Qi 到运行时角色。
-- 若玩家获胜，标记 NPC 死亡并设置 respawn。
+- 若玩家获胜，回写敌方 NPC 的最终 HP/Qi，标记 NPC 死亡并设置 respawn。
+- 若玩家战败，回写敌方 NPC 的最终 HP/Qi，并把 NPC 从战斗锁释放回可交互状态。
 - 触发 kill 剧情。
 - 发送结算和玩家状态。
 - 标记玩家 dirty，等待 tick 保存策略写盘。
+
+非结算 tick 会把 `Battle` 内敌方状态同步回 `world.chars`，并维持 `CharBattle` 锁。这样同一个 NPC 在战斗中不会被第二名玩家同时攻击。当前实现选择“锁 NPC，不支持多人围攻”；后续多人围攻需要先引入共享 encounter id，再让多个玩家引用同一个 encounter。
+
+`tickRespawns` 到点后会把 NPC 从 `CharDead` 恢复为 `CharAlive`，并重置 HP/Qi 到上限。
 
 ## 普通攻击流水线
 
@@ -187,6 +192,7 @@ busyReason    :: Text
 - server tick 已使用 `SaveDirtyPlayers`，不再因为每秒战斗快照触发全员存档。
 - `GameState` 已增加 `dirtyPlayers`。
 - 战斗结算后会 `markPlayerDirty`。
+- 开战时会锁定全局 NPC，战斗 tick 同步敌方 HP/Qi，断线或战败释放锁，击杀后等待 respawn。
 - 普通攻击已拆为接近传统 MUD 的命中/闪避/招架/伤害流水线。
 - `PlayerSave` 已增加 `version`、潜能、实战经验、HP/Qi/MaxQi 和 `enabled`。
 - 战斗胜利已接入实战经验和潜能奖励。

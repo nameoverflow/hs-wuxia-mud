@@ -2,7 +2,7 @@
 
 ## 战斗模型
 
-战斗是一对一 `Battle`，以玩家 id 作为 battle id 存在 `GameState.battles` 中。
+战斗是一对一 `Battle`，以玩家 id 作为 battle id 存在 `GameState.battles` 中。NPC 本体状态仍然放在全局 `world.chars`，开战时会把目标 NPC 标记为 `CharBattle`，其他玩家不能再对同一个 NPC 发起攻击。当前先不实现多人围攻。
 
 每个战斗方有 `BattleState`：
 
@@ -21,6 +21,15 @@ tick 时：
 5. 双方按 `agility * dt` 增加 AP。
 6. AP 到 `100` 的一方自动普通攻击。
 7. 任一方 HP 小于等于 0 时结算。
+
+进行中的战斗会把敌方战斗快照同步回全局 NPC：
+
+- 非结算 tick 或主动招式命中后，NPC 保持 `CharBattle`，HP/Qi 使用战斗内最新值。
+- 玩家战败或断线时，battle 被清理，NPC 从 `CharBattle` 释放回 `CharAlive`，保留战斗中已变化的 HP/Qi。
+- 玩家获胜时，NPC 写回 `CharDead` 并启动 respawn 计时。
+- respawn 到点后，NPC 恢复 `CharAlive`，HP/Qi 回满。
+
+这套机制让同一个 NPC 在同一时间只有一个权威运行态，避免多个玩家各自持有一份互不相干的 NPC 副本。后续如果要支持多人围攻，需要把 `Battle` 从“玩家 id -> 单挑”升级为独立 encounter id，并让多名玩家共享同一个敌方状态和结算归属。
 
 ## 普通攻击
 

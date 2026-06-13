@@ -48,6 +48,8 @@ resources/scripts/
 
 注意：`world.chars.charStatus` 是全局 NPC 状态；剧情中的 `storyHiddenNpcs` 是每个玩家自己的可见性状态。剧情人物完成后消失主要靠 `HideNpc` 写入玩家故事状态，而不是只依赖全局死亡状态。
 
+NPC encounter 当前也通过 `world.chars` 共享运行态：开战时目标 NPC 会进入 `CharBattle`，正在战斗的敌方 HP/Qi 会从 `Battle` 回写到全局 NPC，战败或断线释放为 `CharAlive`，击杀后进入 `CharDead` 等待 respawn。这是“单 NPC 单 battle”的锁模型，尚不是多人围攻模型。
+
 ## Monad 结构
 
 主游戏 Monad：

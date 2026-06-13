@@ -183,6 +183,7 @@ playerAttack pid target = do
   npc <- getsRoomCharacter pid target Attacking
   unless (charAttackable npc) $ throwError $ UnableToInteract npc Attacking
   let battle = newBattle player npc
+  world . chars . ix target . charStatus .= CharBattle
   battles . at pid .= Just battle
   players . ix pid . playerStatus .= PlayerInBattle
   tell [(pid, AttackMsg (player ^. playerCharacter . charName) (npc ^. charName))]
@@ -865,6 +866,7 @@ playerPerformActiveSkill pid targetActiveSkillId = do
           if enemyDefeated || playerDefeated
             then battleSettlement enemyDefeated battle'
             else do
+              syncBattleEnemyToWorld battle'
               battles . at pid .= Just battle'
               sendBattleSnapshot pid battle'
 
@@ -947,7 +949,14 @@ tickRespawns dt = do
   let (toRespawn, toRemove) = M.partition (> 0) respawn'
   respawn .= toRespawn
   forM_ (M.keys toRemove) $ \charId -> do
-    world . chars . ix charId . charStatus .= CharAlive
+    world . chars . ix charId %= reviveCharacter
+
+reviveCharacter :: Character -> Character
+reviveCharacter char =
+  char
+    & charStatus .~ CharAlive
+    & charHP .~ char ^. charMaxHP
+    & charQi .~ char ^. charMaxQi
 
 -- | Update the battle state
 sendBattleStats :: PlayerId -> Battle -> GameStateT ()
@@ -1057,6 +1066,7 @@ updateBattle dt bId = do
       battleSettlement (not playerDefeated) battle'
     else do
       -- Update battle state
+      syncBattleEnemyToWorld battle'
       battles . at bId .= Just battle'
 
 battleSettlement :: Bool -> Battle -> GameStateT ()
@@ -1071,8 +1081,11 @@ battleSettlement won battle = do
   players . ix player . playerCharacter . charHP .= max 1 (pChar ^. charHP)
   players . ix player . playerCharacter . charQi .= battle ^. battleState . battleQi
 
+  if won
+    then writeBattleEnemyToWorld CharDead battle
+    else writeBattleEnemyToWorld CharAlive battle
+
   when won $ do
-    world . chars . ix (eChar ^. charId) . charStatus .= CharDead
     -- set respawn time
     respawn . at (eChar ^. charId) .= Just (fromIntegral (eChar ^. charRespawn))
     grantBattleGrowthReward player eChar
@@ -1085,6 +1098,30 @@ battleSettlement won battle = do
   sendPlayerStats player
   markPlayerDirty player
   return ()
+
+syncBattleEnemyToWorld :: Battle -> GameStateT ()
+syncBattleEnemyToWorld = writeBattleEnemyToWorld CharBattle
+
+writeBattleEnemyToWorld :: CharStatus -> Battle -> GameStateT ()
+writeBattleEnemyToWorld status battle =
+  world . chars . ix (enemy ^. charId) .= enemy
+  where
+    enemy =
+      battleEnemyCharacter battle
+        & charStatus .~ status
+
+battleEnemyCharacter :: Battle -> Character
+battleEnemyCharacter battle =
+  battle ^. battleEnemyState . battleChar
+    & charQi .~ battle ^. battleEnemyState . battleQi
+
+releasePlayerBattleLock :: PlayerId -> GameState -> GameState
+releasePlayerBattleLock pid gs =
+  case M.lookup pid (gs ^. battles) of
+    Nothing -> gs
+    Just battle ->
+      let battleEnemy = battleEnemyCharacter battle & charStatus .~ CharAlive
+       in gs & world . chars . ix (battleEnemy ^. charId) .~ battleEnemy
 
 grantBattleGrowthReward :: PlayerId -> Character -> GameStateT ()
 grantBattleGrowthReward pid enemy = do

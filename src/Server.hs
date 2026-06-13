@@ -46,12 +46,13 @@ isDevModeEnabled = do
   return $ mode `elem` [Just "1", Just "true", Just "TRUE"]
 
 clearPlayerRuntimeState :: PlayerId -> GameState -> GameState
-clearPlayerRuntimeState uid =
-  (players . at uid .~ Nothing)
-    . (battles . at uid .~ Nothing)
-    . (stories . at uid .~ Nothing)
-    . (dirtyPlayers %~ S.delete uid)
-    . (world . maps . traversed . mapRooms . traversed . roomPlayer %~ S.delete uid)
+clearPlayerRuntimeState uid gs =
+  releasePlayerBattleLock uid gs
+    & players . at uid .~ Nothing
+    & battles . at uid .~ Nothing
+    & stories . at uid .~ Nothing
+    & dirtyPlayers %~ S.delete uid
+    & world . maps . traversed . mapRooms . traversed . roomPlayer %~ S.delete uid
 
 loadOrCreatePlayer :: Bool -> PlayerId -> GameState -> IO GameState
 loadOrCreatePlayer resetPlayer uid gs = do
@@ -148,7 +149,7 @@ disconnectClient user conns state = do
   modifyMVar_ state $ \gs ->
     do
       let gs' =
-            gs
+            releasePlayerBattleLock user gs
               & battles . at user .~ Nothing
               & players . ix user . playerStatus .~ PlayerNormal
       savePlayerState saveDir user gs'
