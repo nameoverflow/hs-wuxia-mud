@@ -52,7 +52,7 @@ dirtyPlayers :: Set PlayerId
 - 背包、金钱、武功等奖励。
 - 已完成剧情任务。
 
-注意：当前玩家 HP/Qi 尚未进入 `PlayerSave`，所以战斗结算保存的主要价值是剧情、背包、金钱和武功等已有存档字段。HP/Qi 是否持久化仍属于后续存档范围决策。
+当前玩家 HP/Qi/MaxQi 已进入 `PlayerSave`，战斗结算和打坐后的长期资源变化都会跟随玩家存档保存。
 
 ## 从传统 MUD 借鉴的心跳原则
 
@@ -126,11 +126,9 @@ updateBattle
 - 发送结算和玩家状态。
 - 标记玩家 dirty，等待 tick 保存策略写盘。
 
-## 后续战斗流水线规划
+## 普通攻击流水线
 
-当前普通攻击仍较简单：从 prepared art 中随机取一个已解锁招式，然后造成固定伤害。
-
-后续应把普通攻击拆成流水线：
+普通攻击已经不再是固定伤害。当前流程：
 
 ```text
 selectAttackMove
@@ -143,11 +141,15 @@ applyDamageAndEffects
 emitCombatEvents
 ```
 
-这样可以逐步接入：
+当前已接入：
 
 - 命中。
 - 闪避。
 - 招架。
+- 基于 `str`、`agi`、`vit`、武功等级和招式基础伤害的伤害计算。
+
+仍预留后续接入：
+
 - 护甲。
 - 武器。
 - 暴击。
@@ -185,14 +187,16 @@ busyReason    :: Text
 - server tick 已使用 `SaveDirtyPlayers`，不再因为每秒战斗快照触发全员存档。
 - `GameState` 已增加 `dirtyPlayers`。
 - 战斗结算后会 `markPlayerDirty`。
+- 普通攻击已拆为接近传统 MUD 的命中/闪避/招架/伤害流水线。
+- `PlayerSave` 已增加 `version`、潜能、实战经验、HP/Qi/MaxQi 和 `enabled`。
+- 战斗胜利已接入实战经验和潜能奖励。
 
 ## 下一步
 
 优先级建议：
 
-1. 给 `PlayerSave` 增加 save version 和迁移层。
-2. 让 HP/Qi 是否持久化形成明确决策。
-3. 增加 `tickConditions`，把战斗内外 condition 统一。
-4. 增加 battle attack pipeline。
-5. 增加 busy 机制。
-6. 引入慢速 tick phase，处理 NPC AI、动态任务和世界事件。
+1. 增加 `tickConditions`，把战斗内外 condition 统一。
+2. 增加 busy 机制，让 learn/practice/study/research/meditate 走耗时动作。
+3. 为普通攻击流水线接入装备、护甲、暴击和技能 hook。
+4. 引入慢速 tick phase，处理 NPC AI、动态任务和世界事件。
+5. 在 `PlayerSave.version` 基础上补显式迁移函数。

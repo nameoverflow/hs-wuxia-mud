@@ -40,7 +40,25 @@ attack_moves:
 - `Sword`
 - `Fist`
 
-普通攻击当前只造成固定伤害，没有命中、闪避、护甲或属性缩放。
+普通攻击已拆成接近传统 MUD 的流水线：
+
+```text
+selectPreparedAttack
+  -> rollHit against dodge
+  -> rollParry
+  -> computeDamage
+  -> applyCombatHooks
+  -> apply damage and emit combat message
+```
+
+当前命中、闪避和招架使用 `A/(A+B)` 风格的对抗判定：
+
+- 攻击侧主要参考招式基础伤害、武功等级、`str` 和 `agi`。
+- 闪避侧主要参考 `agi`、`vit` 和准备的轻功等级。
+- 招架侧主要参考 `vit`、`str` 和准备的拳/剑武功等级。
+- 伤害参考招式基础伤害、武功等级、攻击方 `str` 和防守方 `vit`。
+
+护甲、武器、暴击、内功反震和技能 hook 还只是预留点，尚未接入具体数据。
 
 ## 主动招式
 
@@ -52,6 +70,7 @@ attack_moves:
 
 server 会在当前准备的武功中查找已解锁 `ActiveSkill`，并检查：
 
+- 玩家是否满足主动招式的 `req_arts`。
 - AP 是否达到 `ap_req`。
 - Qi 是否足够 `cost`。
 - 是否不在 cooldown。
@@ -108,6 +127,9 @@ effect:
 
 - `charArt`: 已学武功，按 `ArtType` 分组。
 - `charPrepare`: 当前准备的武功，按 `ArtType` 分组。
+- `charEnabled`: 当前启用的武功，按 `ArtType` 分组。
+- `Player.potential`: 潜能，供学习和自研消耗。
+- `Player.combatExp`: 实战经验，用于限制武功可提升等级。
 
 当前支持的 `ArtType`：
 
@@ -122,15 +144,22 @@ effect:
 - 先检查目标武功的 `requires` 是否满足。
 - 如果未学过该武功，加入 `charArt`。
 - 如果已学过，保留更高等级。
-- 非基础功会自动把该武功设为对应类型的 prepared art。
+- 非基础功会自动把该武功设为对应类型的 prepared/enabled art。
 - 发出 `RewardMsg`，kind 为 `martial_art`。
 
-训练已学武功时：
+升级和养成动作：
 
 - 客户端发送 `{"train":"art_id"}`。
+- 新客户端也可以发送 `{"practice":"art_id"}`，二者当前等价。
 - 基础功不能直接训练。
 - 等级不能超过 `max_level`。
+- 实战经验必须满足目标等级门槛。
 - 若武功声明了 `foundation`，训练后同步提升该基础功等级。
+- `{"learn":{"teacher":"npc_id","art":"art_id","times":1}}` 向同房间 NPC 学习，消耗潜能，NPC 必须在 `teaches` 中声明可教武功。
+- `{"study":"item_id"}` 研读秘籍；未学会时学习，已学会后推进熟练度。
+- `{"research":"art_id"}` 自研已学武功，消耗潜能。
+- `{"meditate":40}` 消耗当前 Qi 提升 `charMaxQi`。
+- `{"enable":{"type":"sword","art":"art_id"}}` 与 `{"prepare":{"type":"sword","art":"art_id"}}` 分别切换启用/准备武功。
 
 ## 物品和秘籍
 
@@ -162,11 +191,16 @@ use:
 - `money`
 - `item`
 - `martial_art`
+- `combat_exp`
+- `potential`
+- `max_qi`
 
 当前有两类来源：
 
 - `complete_quest`: 发 quest reward 中的 money/items。
 - 剧情 action：`give_item`, `give_money`, `learn_art`。
+- 战斗胜利：发实战经验和潜能。
+- 打坐：发内力上限成长。
 
 冷雨客栈当前设计：
 

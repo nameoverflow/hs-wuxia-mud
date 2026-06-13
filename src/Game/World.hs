@@ -90,6 +90,7 @@ validateWorld wrld =
     validationErrors =
       validateMapCharacters
         <> concatMap validateItemUse (M.elems $ wrld ^. items)
+        <> concatMap validateCharacter (M.elems $ wrld ^. chars)
         <> concatMap validateMartialArt (M.elems $ wrld ^. martialArts)
         <> concatMap validateQuestRefs (M.elems $ wrld ^. quests)
 
@@ -113,6 +114,20 @@ validateWorld wrld =
                  | level <= 0
                ]
             <> validateLearnArtLevel ("item " <> item ^. itemId <> " use learn_art") artId level
+
+    validateCharacter char =
+      [ "character " <> char ^. charId <> " teaches missing martial art " <> artId
+        | artId <- M.keys $ char ^. charTeaches,
+          M.notMember artId (wrld ^. martialArts)
+      ]
+        <> [ "character " <> char ^. charId <> " teaches non-positive max level for " <> artId
+             | (artId, level) <- M.toList $ char ^. charTeaches,
+               level <= 0
+           ]
+        <> concat
+          [ validateLearnArtLevel ("character " <> char ^. charId <> " teaches") artId level
+            | (artId, level) <- M.toList $ char ^. charTeaches
+          ]
 
     validateMartialArt martialArt =
       [ "martial art " <> artId' <> " has non-positive max_level"
@@ -158,6 +173,10 @@ validateWorld wrld =
       ]
         <> [ "martial art " <> ownerArtId <> " active skill " <> activeSkill ^. activeSkillId <> " unlock_level exceeds max_level"
              | activeSkill ^. activeSkillUnlockLevel > maxLevel
+           ]
+        <> [ "martial art " <> ownerArtId <> " active skill " <> activeSkill ^. activeSkillId <> " requires missing martial art " <> reqArt
+             | reqArt <- activeSkill ^. activeSkillReqArts,
+               M.notMember reqArt (wrld ^. martialArts)
            ]
 
     validateLearnArtLevel label artId level =

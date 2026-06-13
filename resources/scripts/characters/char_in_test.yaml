@@ -10,6 +10,9 @@ prepared:
   fist:
     id: nameless_trial_fist
     level: 1
+teaches:
+  cold_rain_secret: 5
+  nameless_trial_fist: 5
 dialogue:
   - "木人沉默不语，雨水沿着刀痕往下流。"
 respawn: 5

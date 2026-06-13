@@ -30,8 +30,10 @@ main = do
   testBattleSettlementMarksPlayerDirty
   testActiveSkillFailureIsSpecific
   testActiveSkillConsumesApAndSendsSnapshot
+  testNormalAttackUsesCombatPipeline
   testDotEffectTicks
   testTrainRaisesFoundationAndUnlocksActiveSkills
+  testProgressionActions
   testLearningRequirementFailure
   testArtsQuery
   testColdRainChapterFlow
@@ -109,6 +111,10 @@ preparedArtIn :: ArtType -> ArtId -> Player -> Bool
 preparedArtIn artType' expectedId player =
   maybe False ((== expectedId) . view artDef) (player ^. playerCharacter . charPrepare . at artType')
 
+enabledArtIn :: ArtType -> ArtId -> Player -> Bool
+enabledArtIn artType' expectedId player =
+  maybe False ((== expectedId) . view artDef) (player ^. playerCharacter . charEnabled . at artType')
+
 testEffectsLoad :: IO ()
 testEffectsLoad = do
   gs <- loadFreshState
@@ -157,7 +163,10 @@ testDefaultFoundationArts = do
       assert (knowsArtAt "basic_fist" 1 player) "default player is missing basic_fist"
       assert (knowsArtAt "nameless_trial_fist" 1 player) "default player is missing the starter fist art"
       assert (preparedArtIn Fist "nameless_trial_fist" player) "default player did not prepare the starter fist art"
+      assert (enabledArtIn Fist "nameless_trial_fist" player) "default player did not enable the starter fist art"
       assert ((player ^. playerCharacter . charPrepare . at Foundation) == Nothing) "foundation art should not be prepared"
+      assert ((player ^. playerPotential) == 20) "default player potential did not load"
+      assert ((player ^. playerCombatExp) == 1000) "default player combat exp did not load"
 
 testMoveUpdatesRoomOccupancy :: IO ()
 testMoveUpdatesRoomOccupancy = do
@@ -232,6 +241,26 @@ testActiveSkillConsumesApAndSendsSnapshot = do
     isBattleStateMsg (BattleStateMsg _) = True
     isBattleStateMsg _ = False
 
+testNormalAttackUsesCombatPipeline :: IO ()
+testNormalAttackUsesCombatPipeline = do
+  gs <- newTestPlayerState
+  (_, inBattle) <- startTrainingBattle gs
+  let ready =
+        inBattle
+          & battles . ix "tester" . battleState . battleAp .~ 100
+          & battles . ix "tester" . battleState . battleChar . charStrength .~ 410
+          & battles . ix "tester" . battleEnemyState . battleChar . charAgility .~ 0
+          & battles . ix "tester" . battleEnemyState . battleChar . charVitality .~ 0
+          & battles . ix "tester" . battleEnemyState . battleChar . charStrength .~ 0
+          & battles . ix "tester" . battleEnemyState . battleChar . charPrepare .~ M.empty
+  (responses, afterTick) <- runOk "normal attack pipeline tick" ready (updateBattle 0 "tester")
+  case [dmg | (_, CombatNormalMsg "无名客" "沉默木人" _ dmg) <- responses, dmg > 0] of
+    [] -> fail "normal attack pipeline did not emit a damaging combat message"
+    damage : _ -> do
+      assert (damage >= 15 && damage <= 16) "normal attack damage did not include the strength-based pipeline bonus"
+      battle <- getBattle afterTick
+      assert ((battle ^. battleEnemyState . battleChar . charHP) == 114 - damage) "normal attack damage was not applied to the enemy"
+
 testDotEffectTicks :: IO ()
 testDotEffectTicks = do
   gs <- newTestPlayerState
@@ -281,6 +310,33 @@ testTrainRaisesFoundationAndUnlocksActiveSkills = do
         | (_, BattleStateMsg snapshot) <- responses,
           activeSkill <- battleSnapshotActiveSkills snapshot
       ]
+
+testProgressionActions :: IO ()
+testProgressionActions = do
+  gs <- newTestPlayerState
+  (_, learned) <- runOk "learn from teacher" gs (playerLearnArt "tester" "cold_rain_innkeeper" "cold_rain_secret" 2)
+  case M.lookup "tester" (learned ^. players) of
+    Nothing -> fail "tester missing after teacher learning"
+    Just player -> do
+      assert (knowsArtAt "cold_rain_secret" 2 player) "teacher learning did not raise cold_rain_secret to level 2"
+      assert (knowsArtAt "basic_sword" 2 player) "teacher learning did not sync foundation art"
+      assert (preparedArtIn Sword "cold_rain_secret" player) "teacher learning did not prepare learned art"
+      assert (enabledArtIn Sword "cold_rain_secret" player) "teacher learning did not enable learned art"
+      assert ((player ^. playerPotential) == 18) "teacher learning did not consume potential"
+
+  (_, researched) <- runOk "research learned art" learned (playerResearchArt "tester" "cold_rain_secret")
+  case M.lookup "tester" (researched ^. players) of
+    Nothing -> fail "tester missing after research"
+    Just player -> do
+      assert (knowsArtAt "cold_rain_secret" 3 player) "research did not improve the learned art"
+      assert ((player ^. playerPotential) == 17) "research did not consume potential"
+
+  (_, meditated) <- runOk "meditate for max qi" researched (playerMeditate "tester" 40)
+  case M.lookup "tester" (meditated ^. players) of
+    Nothing -> fail "tester missing after meditation"
+    Just player -> do
+      assert ((player ^. playerCharacter . charQi) == 60) "meditation did not consume qi"
+      assert ((player ^. playerCharacter . charMaxQi) == 102) "meditation did not raise max qi"
 
 testLearningRequirementFailure :: IO ()
 testLearningRequirementFailure = do
@@ -472,11 +528,16 @@ testPlayerSaveRoundTrip = do
   let rewarded =
         accepted
           & players . ix "tester" . playerMoney .~ 80
+          & players . ix "tester" . playerPotential .~ 12
+          & players . ix "tester" . playerCombatExp .~ 345
           & players . ix "tester" . playerInventory . at "cold_rain_token" .~ Just 1
           & players . ix "tester" . playerInventory . at "cold_rain_manual" .~ Just 1
-          & players . ix "tester" . playerCharacter . charArt . at Foundation .~ Just [ArtEntity "basic_sword" 5]
-          & players . ix "tester" . playerCharacter . charArt . at Sword .~ Just [ArtEntity "cold_rain_secret" 5]
-          & players . ix "tester" . playerCharacter . charPrepare . at Sword .~ Just (ArtEntity "cold_rain_secret" 5)
+          & players . ix "tester" . playerCharacter . charQi .~ 72
+          & players . ix "tester" . playerCharacter . charMaxQi .~ 123
+          & players . ix "tester" . playerCharacter . charArt . at Foundation .~ Just [ArtEntity "basic_sword" 5 0]
+          & players . ix "tester" . playerCharacter . charArt . at Sword .~ Just [ArtEntity "cold_rain_secret" 5 0]
+          & players . ix "tester" . playerCharacter . charPrepare . at Sword .~ Just (ArtEntity "cold_rain_secret" 5 0)
+          & players . ix "tester" . playerCharacter . charEnabled . at Sword .~ Just (ArtEntity "cold_rain_secret" 5 0)
   savePlayerState ".stack-work/test-saves" "tester" rewarded
   saveResult <- loadPlayerSave ".stack-work/test-saves" "tester"
   save <- case saveResult of
@@ -490,8 +551,13 @@ testPlayerSaveRoundTrip = do
     Nothing -> fail "tester missing after save restore"
     Just player -> do
       assert ((player ^. playerMoney) == 80) "saved money was not restored"
+      assert ((player ^. playerPotential) == 12) "saved potential was not restored"
+      assert ((player ^. playerCombatExp) == 345) "saved combat exp was not restored"
       assert ((player ^. playerInventory . at "cold_rain_token") == Just 1) "saved inventory was not restored"
       assert ((player ^. playerInventory . at "cold_rain_manual") == Just 1) "saved manual inventory was not restored"
-      assert ((player ^. playerCharacter . charArt . at Foundation) == Just [ArtEntity "basic_sword" 5]) "saved foundation art was not restored"
-      assert ((player ^. playerCharacter . charArt . at Sword) == Just [ArtEntity "cold_rain_secret" 5]) "saved learned martial art was not restored"
-      assert ((player ^. playerCharacter . charPrepare . at Sword) == Just (ArtEntity "cold_rain_secret" 5)) "saved prepared martial art was not restored"
+      assert ((player ^. playerCharacter . charQi) == 72) "saved qi was not restored"
+      assert ((player ^. playerCharacter . charMaxQi) == 123) "saved max qi was not restored"
+      assert ((player ^. playerCharacter . charArt . at Foundation) == Just [ArtEntity "basic_sword" 5 0]) "saved foundation art was not restored"
+      assert ((player ^. playerCharacter . charArt . at Sword) == Just [ArtEntity "cold_rain_secret" 5 0]) "saved learned martial art was not restored"
+      assert ((player ^. playerCharacter . charPrepare . at Sword) == Just (ArtEntity "cold_rain_secret" 5 0)) "saved prepared martial art was not restored"
+      assert ((player ^. playerCharacter . charEnabled . at Sword) == Just (ArtEntity "cold_rain_secret" 5 0)) "saved enabled martial art was not restored"

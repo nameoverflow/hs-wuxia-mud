@@ -31,34 +31,58 @@ import System.Directory (createDirectoryIfMissing, doesFileExist, removeFile)
 import System.FilePath ((</>))
 
 data PlayerSave = PlayerSave
-  { savePlayerId :: PlayerId,
+  { saveVersion :: Int,
+    savePlayerId :: PlayerId,
     saveStory :: PlayerStoryState,
     saveInventory :: M.Map ItemId Int,
     saveMoney :: Int,
+    savePotential :: Int,
+    saveCombatExp :: Int,
+    saveHp :: Maybe Int,
+    saveMaxHp :: Maybe Int,
+    saveQi :: Maybe Int,
+    saveMaxQi :: Maybe Int,
     saveArts :: M.Map ArtType [ArtEntity],
-    savePrepared :: M.Map ArtType ArtEntity
+    savePrepared :: M.Map ArtType ArtEntity,
+    saveEnabled :: M.Map ArtType ArtEntity
   }
   deriving (Show, Eq, Generic)
 
 instance FromJSON PlayerSave where
   parseJSON = withObject "PlayerSave" $ \o -> do
+    saveVersion <- o .:? "version" .!= 1
     savePlayerId <- o .: "player_id"
     saveStory <- o .:? "story" .!= newPlayerStoryState
     saveInventory <- o .:? "inventory" .!= M.empty
     saveMoney <- o .:? "money" .!= 0
+    savePotential <- o .:? "potential" .!= 0
+    saveCombatExp <- o .:? "combat_exp" .!= 0
+    saveHp <- o .:? "hp"
+    saveMaxHp <- o .:? "max_hp"
+    saveQi <- o .:? "qi"
+    saveMaxQi <- o .:? "max_qi"
     saveArts <- o .:? "arts" .!= M.empty
     savePrepared <- o .:? "prepared" .!= M.empty
+    saveEnabled <- o .:? "enabled" .!= savePrepared
     pure PlayerSave {..}
 
 instance ToJSON PlayerSave where
   toJSON PlayerSave {..} =
     object
-      [ "player_id" .= savePlayerId,
+      [ "version" .= saveVersion,
+        "player_id" .= savePlayerId,
         "story" .= saveStory,
         "inventory" .= saveInventory,
         "money" .= saveMoney,
+        "potential" .= savePotential,
+        "combat_exp" .= saveCombatExp,
+        "hp" .= saveHp,
+        "max_hp" .= saveMaxHp,
+        "qi" .= saveQi,
+        "max_qi" .= saveMaxQi,
         "arts" .= saveArts,
-        "prepared" .= savePrepared
+        "prepared" .= savePrepared,
+        "enabled" .= saveEnabled
       ]
 
 loadPlayerSave :: FilePath -> PlayerId -> IO (Either Text (Maybe PlayerSave))
@@ -95,19 +119,34 @@ applyPlayerSaveToGameState :: PlayerSave -> GameState -> GameState
 applyPlayerSaveToGameState PlayerSave {..} =
   (players . ix savePlayerId . playerInventory .~ saveInventory)
     . (players . ix savePlayerId . playerMoney .~ saveMoney)
+    . (players . ix savePlayerId . playerPotential .~ savePotential)
+    . (players . ix savePlayerId . playerCombatExp .~ saveCombatExp)
     . (players . ix savePlayerId . playerCharacter . charArt .~ saveArts)
     . (players . ix savePlayerId . playerCharacter . charPrepare .~ savePrepared)
+    . (players . ix savePlayerId . playerCharacter . charEnabled .~ saveEnabled)
+    . maybe id (\hp -> players . ix savePlayerId . playerCharacter . charHP .~ hp) saveHp
+    . maybe id (\maxHp -> players . ix savePlayerId . playerCharacter . charMaxHP .~ maxHp) saveMaxHp
+    . maybe id (\qi -> players . ix savePlayerId . playerCharacter . charQi .~ qi) saveQi
+    . maybe id (\maxQi -> players . ix savePlayerId . playerCharacter . charMaxQi .~ maxQi) saveMaxQi
     . (stories . at savePlayerId ?~ saveStory)
 
 playerSaveFromGameState :: PlayerId -> GameState -> Maybe PlayerSave
 playerSaveFromGameState pid gs = do
   player <- M.lookup pid (gs ^. players)
   let savePlayerId = pid
+      saveVersion = 2
       saveStory = fromMaybe newPlayerStoryState $ M.lookup pid (gs ^. stories)
       saveInventory = player ^. playerInventory
       saveMoney = player ^. playerMoney
+      savePotential = player ^. playerPotential
+      saveCombatExp = player ^. playerCombatExp
+      saveHp = Just $ player ^. playerCharacter . charHP
+      saveMaxHp = Just $ player ^. playerCharacter . charMaxHP
+      saveQi = Just $ player ^. playerCharacter . charQi
+      saveMaxQi = Just $ player ^. playerCharacter . charMaxQi
       saveArts = player ^. playerCharacter . charArt
       savePrepared = player ^. playerCharacter . charPrepare
+      saveEnabled = player ^. playerCharacter . charEnabled
   pure PlayerSave {..}
 
 playerSavePath :: FilePath -> PlayerId -> FilePath

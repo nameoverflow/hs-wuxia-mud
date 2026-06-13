@@ -43,6 +43,7 @@ window.MUD_I18N = {
         'message.move': 'You moved to: {room}',
         'message.attack': '{attacker} attacks {defender}!',
         'message.combat.damage': '{attacker} {action} -> {defender} (-{damage} health)',
+        'message.combat.no_damage': '{attacker} {action} -> {defender} (no damage)',
         'message.combat.victory': 'Victory. Battle with {enemy} ended.',
         'message.combat.defeat': 'Defeat. Battle with {enemy} ended.',
         'message.combat.effect.dot': '{effect} deals {amount} damage',
@@ -77,6 +78,8 @@ window.MUD_I18N = {
         'battle.enemy': 'Enemy',
         'battle.vs': 'VS',
         'battle.damage_tag': 'Hit',
+        'battle.miss_tag': 'Miss',
+        'battle.parry_tag': 'Parry',
         'battle.skill_tag': 'Move',
         'battle.start_tag': 'Start',
 
@@ -166,6 +169,7 @@ window.MUD_I18N = {
         'active_skill.use.need_ap': 'Need {required} action.',
 
         'art.level': 'Level {level}/{max}',
+        'art.progress': 'Progress {progress}/{next}',
         'art.foundation': 'Foundation: {value}',
         'art.requires': 'Requires: {value}',
         'art.unlocked': 'Unlocked: {value}',
@@ -241,6 +245,7 @@ window.MUD_I18N = {
         'message.move': '你进入了【{room}】。',
         'message.attack': '{attacker}攻击{defender}！',
         'message.combat.damage': '{attacker}{action}，击向{defender}（-{damage} 气血）',
+        'message.combat.no_damage': '{attacker}{action}，击向{defender}，未能造成伤害',
         'message.combat.victory': '胜。与{enemy}的战斗结束了。',
         'message.combat.defeat': '败。与{enemy}的战斗结束了。',
         'message.combat.effect.dot': '{effect}造成{amount}点伤害',
@@ -275,6 +280,8 @@ window.MUD_I18N = {
         'battle.enemy': '敌人',
         'battle.vs': '对',
         'battle.damage_tag': '伤',
+        'battle.miss_tag': '闪',
+        'battle.parry_tag': '架',
         'battle.skill_tag': '出招',
         'battle.start_tag': '开战',
 
@@ -364,6 +371,7 @@ window.MUD_I18N = {
         'active_skill.use.need_ap': '需要 {required} 点行动。',
 
         'art.level': '等级 {level}/{max}',
+        'art.progress': '熟练 {progress}/{next}',
         'art.foundation': '基础：{value}',
         'art.requires': '要求：{value}',
         'art.unlocked': '已解锁：{value}',
