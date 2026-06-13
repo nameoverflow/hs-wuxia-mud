@@ -156,7 +156,7 @@ The client connects to `ws://127.0.0.1:9160` and uses JSON messages:
 **Server Responses:**
 ```json
 {"tag": "MoveMsg", "contents": "Room Name"}
-{"tag": "ViewMsg", "contents": ["Room", "Desc", [{"id":"npc","name":"NPC","desc":"...","actions":["talk"]}], [{"direction":"North","roomId":"next","roomName":"Next","position":[0,1]}]]}
+{"tag": "ViewMsg", "contents": ["Room", "Desc", [{"id":"npc","name":"NPC","desc":"...","actions":["talk"]}], [{"direction":"North","mapId":"next_map","roomId":"next","roomName":"Next","position":[0,1]}]]}
 {"tag": "CombatNormalMsg", "contents": ["Attacker", "Defender", {"kind": "script", "text": "msg"}, 35]}
 {"tag": "PlayerStatsMsg", "contents": [100, 100, 80, 100, 45, "in_battle"]}
 ```

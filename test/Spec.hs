@@ -22,9 +22,11 @@ main = do
   testEffectsLoad
   testQuestLoad
   testWorldValidationCatchesBrokenQuestRefs
+  testWorldValidationCatchesBrokenRoomExit
   testRandomSelectEmpty
   testDefaultFoundationArts
   testMoveUpdatesRoomOccupancy
+  testCrossMapExitMovesPlayerBetweenMaps
   testCannotAttackAcrossRooms
   testDefeatDoesNotKillNpc
   testBattleSettlementMarksPlayerDirty
@@ -61,11 +63,14 @@ newTestPlayerState = do
   gs <- loadFreshState
   snd <$> runOk "create default player" gs (createDefaultPlayer "tester" "resources/scripts/default_player.yaml")
 
-roomPlayersAt :: GameState -> (Int, Int) -> S.Set PlayerId
-roomPlayersAt gs pos =
-  case M.lookup "test_map" (gs ^. world . maps) >>= M.lookup pos . view mapRooms of
+roomPlayersAtMap :: MapId -> GameState -> (Int, Int) -> S.Set PlayerId
+roomPlayersAtMap targetMapId gs pos =
+  case M.lookup targetMapId (gs ^. world . maps) >>= M.lookup pos . view mapRooms of
     Nothing -> S.empty
     Just room -> room ^. roomPlayer
+
+roomPlayersAt :: GameState -> (Int, Int) -> S.Set PlayerId
+roomPlayersAt = roomPlayersAtMap "test_map"
 
 getNpc :: GameState -> IO Character
 getNpc gs =
@@ -140,6 +145,18 @@ testWorldValidationCatchesBrokenQuestRefs = do
       assert ("missing_npc" `T.isInfixOf` err) "world validation error did not identify the missing NPC"
     Right _ -> fail "world validation accepted a quest with a missing NPC reference"
 
+testWorldValidationCatchesBrokenRoomExit :: IO ()
+testWorldValidationCatchesBrokenRoomExit = do
+  gs <- loadFreshState
+  let broken =
+        gs
+          ^. world
+          & maps . ix "test_map" . mapRooms . ix (2, 3) . roomExits . ix North . roomRefMapId .~ "missing_map"
+  case validateWorld broken of
+    Left err ->
+      assert ("missing_map" `T.isInfixOf` err) "world validation error did not identify the missing exit map"
+    Right _ -> fail "world validation accepted an exit to a missing room"
+
 testRandomSelectEmpty :: IO ()
 testRandomSelectEmpty = do
   let (selected, _) = runRand (randomSelect ([] :: [Int])) (mkStdGen 1)
@@ -165,6 +182,30 @@ testMoveUpdatesRoomOccupancy = do
   (_, moved) <- runOk "move north" gs (playerMove "tester" North)
   assert (not $ S.member "tester" (roomPlayersAt moved (3, 3))) "player remained in the old room after moving"
   assert (S.member "tester" (roomPlayersAt moved (3, 4))) "player was not added to the new room after moving"
+
+testCrossMapExitMovesPlayerBetweenMaps :: IO ()
+testCrossMapExitMovesPlayerBetweenMaps = do
+  gs <- newTestPlayerState
+  (_, atWoodshed) <- runOk "move west to woodshed" gs (playerMove "tester" West)
+  (responses, inMountainPass) <- runOk "move north to mountain pass" atWoodshed (playerMove "tester" North)
+  case M.lookup "tester" (inMountainPass ^. players) of
+    Nothing -> fail "tester missing after cross-map movement"
+    Just player ->
+      assert ((player ^. playerPosition) == ("mountain_pass", (0, 0))) "player position did not switch to the target map"
+  assert (not $ S.member "tester" (roomPlayersAt inMountainPass (2, 3))) "player remained in the source map room"
+  assert (S.member "tester" (roomPlayersAtMap "mountain_pass" inMountainPass (0, 0))) "player was not added to the target map room"
+  case [exits | (_, ViewMsg _ _ _ exits) <- responses] of
+    [] -> fail "cross-map movement did not send a room view"
+    exits : _ ->
+      assert
+        (any (\exit -> roomExitSummaryMapId exit == "test_map" && roomExitSummaryPosition exit == (2, 3)) exits)
+        "target room view did not preserve the cross-map return exit"
+
+  (_, returned) <- runOk "return south to test map" inMountainPass (playerMove "tester" South)
+  case M.lookup "tester" (returned ^. players) of
+    Nothing -> fail "tester missing after returning from cross-map movement"
+    Just player ->
+      assert ((player ^. playerPosition) == ("test_map", (2, 3))) "player did not return to the source map"
 
 testCannotAttackAcrossRooms :: IO ()
 testCannotAttackAcrossRooms = do

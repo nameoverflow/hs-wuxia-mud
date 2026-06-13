@@ -1,0 +1,12 @@
+id: mountain_pass
+name: "荒山小径"
+desc: "客栈北面的山路，雨水顺着青石一路流向渡口。"
+rooms:
+  - position: [0, 0]
+    id: mountain_pass_gate
+    name: "荒山小径入口"
+    desc: "山风从林间穿过，回头还能看见冷雨客栈柴棚的檐角。"
+    exits:
+      south:
+        map: test_map
+        position: [2, 3]

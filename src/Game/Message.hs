@@ -152,6 +152,7 @@ instance ToJSON RoomCharacterSummary where
 
 data RoomExitSummary = RoomExitSummary
   { roomExitSummaryDirection :: Direction,
+    roomExitSummaryMapId :: MapId,
     roomExitSummaryRoomId :: RoomId,
     roomExitSummaryRoomName :: T.Text,
     roomExitSummaryPosition :: (Int, Int)
@@ -162,6 +163,7 @@ instance ToJSON RoomExitSummary where
   toJSON RoomExitSummary {..} =
     object
       [ "direction" .= roomExitSummaryDirection,
+        "mapId" .= roomExitSummaryMapId,
         "roomId" .= roomExitSummaryRoomId,
         "roomName" .= roomExitSummaryRoomName,
         "position" .= roomExitSummaryPosition

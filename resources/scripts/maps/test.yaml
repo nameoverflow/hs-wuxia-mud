@@ -41,3 +41,6 @@ rooms:
       - char_in_test
     exits:
       east: [3, 3]
+      north:
+        map: mountain_pass
+        position: [0, 0]
