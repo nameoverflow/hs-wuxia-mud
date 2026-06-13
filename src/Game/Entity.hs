@@ -9,7 +9,7 @@
 module Game.Entity where
 
 import Control.Applicative ((<|>))
-import Control.Lens (makeLenses, (^.))
+import Control.Lens (makeLenses, (&), (.~), (%~), (^.))
 import Data.Aeson (FromJSON (..), FromJSONKey (..), FromJSONKeyFunction (..), ToJSON (..), ToJSONKey (..), Value (..), object, withObject, (.:), (.:?), (.=))
 -- import Data.Yaml (FromJSON, ParseException, decodeEither', decodeFileEither, withObject, (.:), (.:?))
 -- import Data.Yaml.Aeson (FromJSON (..), Value (..))
@@ -23,6 +23,7 @@ import Data.Serialize (Serialize)
 import Data.Serialize.Text ()
 import qualified Data.Set as S
 import Data.Text (Text, pack)
+import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
 import qualified Data.Text.IO
 import GHC.Generics (Generic)
@@ -560,7 +561,43 @@ instance ToJSONKey Direction where
     SouthEast -> "southeast"
     SouthWest -> "southwest"
 
+type MapId = Text
+
 type RoomId = Text
+
+data RoomRef = RoomRef
+  { _roomRefMapId :: MapId,
+    _roomRefPos :: (Int, Int)
+  }
+  deriving (Show, Eq, Ord, Generic)
+
+makeLenses ''RoomRef
+
+instance ToJSON RoomRef where
+  toJSON RoomRef {..} =
+    object
+      [ "map" .= _roomRefMapId,
+        "position" .= _roomRefPos
+      ]
+
+data RoomExitConfig
+  = LocalRoomExit (Int, Int)
+  | CrossMapRoomExit RoomRef
+  deriving (Show, Eq, Generic)
+
+instance FromJSON RoomExitConfig where
+  parseJSON value =
+    parseCrossMapExit value <|> parseLocalExit value
+    where
+      parseCrossMapExit = withObject "RoomExit" $ \o ->
+        CrossMapRoomExit <$> (RoomRef <$> o .: "map" <*> o .: "position")
+
+      parseLocalExit = fmap LocalRoomExit . parseJSON
+
+roomExitConfigToRef :: MapId -> RoomExitConfig -> RoomRef
+roomExitConfigToRef currentMapId = \case
+  LocalRoomExit pos -> RoomRef currentMapId pos
+  CrossMapRoomExit roomRef -> roomRef
 
 data Room = Room
   { _roomId :: RoomId,
@@ -568,7 +605,7 @@ data Room = Room
     _roomName :: Text,
     _roomDesc :: Text,
     _roomScript :: Maybe Text, -- Change this to store the Lua script content
-    _roomExits :: M.Map Direction (Int, Int),
+    _roomExits :: M.Map Direction RoomRef,
     _roomChar :: [CharId],
     _roomPlayer :: S.Set PlayerId
   }
@@ -583,7 +620,8 @@ instance FromJSON Room where
     _roomName <- o .: "name"
     _roomDesc <- o .: "desc"
     _roomScript <- o .:? "script"
-    _roomExits <- o .: "exits"
+    exitConfigs <- o .: "exits"
+    let _roomExits = M.map (roomExitConfigToRef "") exitConfigs
     _roomChar <- o .:? "char" .!= []
     let _roomPlayer = S.empty
     return Room {..}
@@ -598,8 +636,6 @@ instance ToJSON Room where
         "exits" .= _roomExits,
         "char" .= _roomChar
       ]
-
-type MapId = Text
 
 data Map = Map
   { _mapId :: Text,
@@ -617,8 +653,13 @@ instance FromJSON Map where
     _mapName <- o .: "name"
     _mapDesc <- o .: "desc"
     -- _mapRooms <- o .: "rooms"
-    rs <- o.: "rooms"
-    let _mapRooms = M.fromList $ map (\r -> (r ^. roomPos, r)) rs
+    rs <- o .: "rooms"
+    let rsWithResolvedExits = map (roomExits %~ M.map (fillLocalExitMap _mapId)) rs
+        fillLocalExitMap targetMapId roomRef =
+          if T.null (roomRef ^. roomRefMapId)
+            then roomRef & roomRefMapId .~ targetMapId
+            else roomRef
+        _mapRooms = M.fromList $ map (\r -> (r ^. roomPos, r)) rsWithResolvedExits
     return Map {..}
 
 instance Configurable Map

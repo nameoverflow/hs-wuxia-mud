@@ -36,6 +36,22 @@ resources/scripts/
 - `north`, `south`, `east`, `west`
 - `northeast`, `northwest`, `southeast`, `southwest`
 
+出口支持两种写法。当前地图内移动可以直接写坐标：
+
+```yaml
+exits:
+  north: [3, 4]
+```
+
+跨地图移动写目标地图和坐标：
+
+```yaml
+exits:
+  north:
+    map: mountain_pass
+    position: [0, 0]
+```
+
 客户端会根据 server 返回的 `RoomExitSummary` 画出当前位置和出口节点，点击节点会直接移动。
 
 ## NPC

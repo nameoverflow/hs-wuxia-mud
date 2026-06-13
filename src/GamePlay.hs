@@ -74,14 +74,16 @@ playerMove pid direction = do
   case currentRoom ^. roomExits . at direction of
     Nothing -> throwError $ UnableToMove direction currentRoom
     Just dst -> do
-      newRoom <- liftWorld $ getsMapRoom curMapId dst
-      players . at pid . _Just . playerPosition .= (curMapId, dst)
+      newRoom <- liftWorld $ getsRoomRef dst
+      let dstMapId = dst ^. roomRefMapId
+          dstPos = dst ^. roomRefPos
+      players . at pid . _Just . playerPosition .= (dstMapId, dstPos)
       -- broadcastMessage $ T.concat [playerId, " has entered ", newRoom ^. roomName]
       world . maps . ix curMapId . mapRooms . ix curPos . roomPlayer %= S.delete pid
-      world . maps . ix curMapId . mapRooms . ix dst . roomPlayer %= S.insert pid
+      world . maps . ix dstMapId . mapRooms . ix dstPos . roomPlayer %= S.insert pid
       tell [(pid, MoveMsg $ newRoom ^. roomName)]
       playerView pid
-      _ <- runStoryTrigger pid (TriggerEnterRoom curMapId dst)
+      _ <- runStoryTrigger pid (TriggerEnterRoom dstMapId dstPos)
       return ()
 
 
@@ -107,7 +109,7 @@ playerView pid = do
   (curMapId, curPos) <- (^. playerPosition) <$> getsPlayer pid
   curRoom <- liftWorld $ getsMapRoom curMapId curPos
   allChars <- use $ world . chars
-  curMapRooms <- use $ world . maps . ix curMapId . mapRooms
+  worldMaps <- use $ world . maps
   let roomChar' = curRoom ^. roomChar
   visibleRoomCharIds <- filterM (npcVisibleToPlayer pid) roomChar'
   let curRoomChars = catMaybes $ flip map visibleRoomCharIds $ \cid ->
@@ -126,15 +128,16 @@ playerView pid = do
               else Nothing
   let curRoomExits = catMaybes $
         flip map (M.toList $ curRoom ^. roomExits) $ \(direction, dst) ->
-          case M.lookup dst curMapRooms of
+          case M.lookup (dst ^. roomRefMapId) worldMaps >>= M.lookup (dst ^. roomRefPos) . view mapRooms of
             Nothing -> Nothing
             Just dstRoom ->
               Just $
                 RoomExitSummary
                   { roomExitSummaryDirection = direction,
+                    roomExitSummaryMapId = dst ^. roomRefMapId,
                     roomExitSummaryRoomId = dstRoom ^. roomId,
                     roomExitSummaryRoomName = dstRoom ^. roomName,
-                    roomExitSummaryPosition = dst
+                    roomExitSummaryPosition = dst ^. roomRefPos
                   }
   let curRoomName = curRoom ^. roomName
   let curRoomDesc = curRoom ^. roomDesc

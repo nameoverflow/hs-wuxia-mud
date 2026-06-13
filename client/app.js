@@ -2240,6 +2240,7 @@ class MUDClient {
                 if (typeof exit === 'string') {
                     return {
                         direction: this.normalizeDirection(exit),
+                        mapId: null,
                         roomId: null,
                         roomName: null,
                         position: null
@@ -2249,6 +2250,7 @@ class MUDClient {
                 if (!exit || typeof exit !== 'object') return null;
                 return {
                     direction: this.normalizeDirection(exit.direction || exit.roomExitSummaryDirection),
+                    mapId: exit.mapId || exit.roomExitSummaryMapId || null,
                     roomId: exit.roomId || exit.roomExitSummaryRoomId || null,
                     roomName: exit.roomName || exit.roomExitSummaryRoomName || null,
                     position: exit.position || exit.roomExitSummaryPosition || null

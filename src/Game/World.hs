@@ -89,6 +89,7 @@ validateWorld wrld =
   where
     validationErrors =
       validateMapCharacters
+        <> validateMapExits
         <> concatMap validateItemUse (M.elems $ wrld ^. items)
         <> concatMap validateMartialArt (M.elems $ wrld ^. martialArts)
         <> concatMap validateQuestRefs (M.elems $ wrld ^. quests)
@@ -100,6 +101,23 @@ validateWorld wrld =
           cid <- room ^. roomChar,
           M.notMember cid (wrld ^. chars),
           let roomId' = room ^. roomId
+      ]
+
+    validateMapExits =
+      [ "map "
+          <> mid
+          <> " room "
+          <> room ^. roomId
+          <> " exit "
+          <> toText (Prelude.show direction)
+          <> " references missing room "
+          <> target ^. roomRefMapId
+          <> " "
+          <> toText (Prelude.show $ target ^. roomRefPos)
+        | (mid, mp) <- M.toList $ wrld ^. maps,
+          room <- M.elems $ mp ^. mapRooms,
+          (direction, target) <- M.toList $ room ^. roomExits,
+          isNothing $ M.lookup (target ^. roomRefMapId) (wrld ^. maps) >>= M.lookup (target ^. roomRefPos) . view mapRooms
       ]
 
     validateItemUse item =
@@ -260,6 +278,9 @@ getsMapRoom mId pos = do
   case M.lookup pos $ m ^. mapRooms of
     Nothing -> throwError $ RoomNotFound mId pos
     Just room -> return room
+
+getsRoomRef :: RoomRef -> WorldStateT Room
+getsRoomRef roomRef = getsMapRoom (roomRef ^. roomRefMapId) (roomRef ^. roomRefPos)
 
 getsCharacter :: CharId -> WorldStateT Character
 getsCharacter cId = getsL chars cId $ CharNotFound cId
