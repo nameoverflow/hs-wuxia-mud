@@ -683,14 +683,17 @@ generateId playerId = do
 
 onGameTick :: Double -> GameStateT ()
 onGameTick dt = do
+  tickBattles dt
+  tickRespawns dt
 
-  -- Update all battles
+tickBattles :: Double -> GameStateT ()
+tickBattles dt = do
   battles' <- use battles
   forM_ (M.keys battles') $ updateBattle dt
 
-  -- Update character respawn
+tickRespawns :: Double -> GameStateT ()
+tickRespawns dt = do
   respawn . traverse %= subtract dt
-  -- remove chars with respawn time <= 0 and update status to CharAlive
   respawn' <- use respawn
   let (toRespawn, toRemove) = M.partition (> 0) respawn'
   respawn .= toRespawn
@@ -832,4 +835,5 @@ battleSettlement won battle = do
     _ <- runStoryTrigger player (TriggerKill (eChar ^. charId))
     return ()
   sendPlayerStats player
+  markPlayerDirty player
   return ()

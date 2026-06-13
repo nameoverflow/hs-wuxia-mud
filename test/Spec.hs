@@ -27,6 +27,7 @@ main = do
   testMoveUpdatesRoomOccupancy
   testCannotAttackAcrossRooms
   testDefeatDoesNotKillNpc
+  testBattleSettlementMarksPlayerDirty
   testActiveSkillFailureIsSpecific
   testActiveSkillConsumesApAndSendsSnapshot
   testDotEffectTicks
@@ -192,6 +193,18 @@ testDefeatDoesNotKillNpc = do
     Just player -> do
       assert ((player ^. playerStatus) == PlayerNormal) "player was not returned to normal status after defeat"
       assert ((player ^. playerCharacter . charHP) == 1) "defeated player should be left at 1 HP"
+
+testBattleSettlementMarksPlayerDirty :: IO ()
+testBattleSettlementMarksPlayerDirty = do
+  gs <- newTestPlayerState
+  (_, inBattle) <- startTrainingBattle gs
+  (_, ticking) <- runOk "ordinary battle tick" inBattle (updateBattle 0 "tester")
+  assert (S.notMember "tester" (ticking ^. dirtyPlayers)) "ordinary battle tick should not mark the player dirty"
+  let defeatedEnemy =
+        inBattle
+          & battles . ix "tester" . battleEnemyState . battleChar . charHP .~ 0
+  (_, settled) <- runOk "settle won battle" defeatedEnemy (updateBattle 0 "tester")
+  assert (S.member "tester" (settled ^. dirtyPlayers)) "battle settlement did not mark the player dirty"
 
 testActiveSkillFailureIsSpecific :: IO ()
 testActiveSkillFailureIsSpecific = do

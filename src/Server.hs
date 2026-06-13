@@ -30,6 +30,10 @@ import System.Environment (lookupEnv)
 
 type ServerMap = M.Map PlayerId Connection
 
+data PersistencePolicy
+  = SaveOnAnyResponse
+  | SaveDirtyPlayers
+
 saveDir :: FilePath
 saveDir = "saves"
 
@@ -46,6 +50,7 @@ clearPlayerRuntimeState uid =
   (players . at uid .~ Nothing)
     . (battles . at uid .~ Nothing)
     . (stories . at uid .~ Nothing)
+    . (dirtyPlayers %~ S.delete uid)
     . (world . maps . traversed . mapRooms . traversed . roomPlayer %~ S.delete uid)
 
 loadOrCreatePlayer :: Bool -> PlayerId -> GameState -> IO GameState
@@ -152,7 +157,11 @@ disconnectClient user conns state = do
   broadcastResp (SystemMsg $ SystemMessage "user_disconnected" $ M.singleton "user" user) s
 
 runAndResponse :: MVar GameState -> MVar ServerMap -> GameStateT a -> (GameException -> IO ()) -> IO ()
-runAndResponse state conns gameM onError = do
+runAndResponse =
+  runAndResponseWithPersistence SaveOnAnyResponse
+
+runAndResponseWithPersistence :: PersistencePolicy -> MVar GameState -> MVar ServerMap -> GameStateT a -> (GameException -> IO ()) -> IO ()
+runAndResponseWithPersistence policy state conns gameM onError = do
   modifyMVar_ state $ \s -> do
     runGameState s gameM >>= \case
       Left err -> do
@@ -161,9 +170,21 @@ runAndResponse state conns gameM onError = do
       Right (resp, s') -> do
         TIO.putStrLn $ "runAndResponse: dispatching " <> toText (show (length resp)) <> " responses"
         withMVar conns $ dispatchResp resp
-        unless (Prelude.null resp) $
-          saveAllPlayerSaves saveDir s'
-        return s'
+        saveGameState policy resp s'
+
+saveGameState :: PersistencePolicy -> [PlayerResp] -> GameState -> IO GameState
+saveGameState policy resp s = do
+  let dirty = s ^. dirtyPlayers
+      clearDirty = dirtyPlayers .~ S.empty
+  case policy of
+    SaveOnAnyResponse -> do
+      unless (Prelude.null resp && S.null dirty) $
+        saveAllPlayerSaves saveDir s
+      return $ clearDirty s
+    SaveDirtyPlayers -> do
+      forM_ dirty $ \pid ->
+        savePlayerState saveDir pid s
+      return $ clearDirty s
 
 dispatchResp :: Foldable m => m PlayerResp -> ServerMap -> IO ()
 dispatchResp rsp conns = do
@@ -222,7 +243,7 @@ gameTickLoop cs gs = do
       let diff = diffUTCTime currentTime lastTime
       -- Run the game tick
       let gsm = onGameTick $ realToFrac diff
-      runAndResponse gs cs gsm $ \err -> do
+      runAndResponseWithPersistence SaveDirtyPlayers gs cs gsm $ \err -> do
         putStrLn $ "Error: " <> show err
       threadDelay interval
       -- Loop again
