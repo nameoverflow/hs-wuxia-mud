@@ -1,0 +1,23 @@
+- id: basic_internal
+  name: "基础内功"
+  type: foundation
+  desc: "气从丹田起，先求不断。"
+  max_level: 100
+
+- id: basic_lightness
+  name: "基础轻功"
+  type: foundation
+  desc: "脚下留一分，身前便多一线生路。"
+  max_level: 100
+
+- id: basic_sword
+  name: "基础剑法"
+  type: foundation
+  desc: "剑未必快，先要稳。"
+  max_level: 100
+
+- id: basic_fist
+  name: "基础拳法"
+  type: foundation
+  desc: "拳从身上来，也从胆里来。"
+  max_level: 100

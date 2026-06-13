@@ -22,8 +22,6 @@ type QuestStage = Text
 
 type FlagId = Text
 
-type ChoiceId = Text
-
 data Quest = Quest
   { _questId :: QuestId,
     _questName :: Text,
@@ -75,15 +73,8 @@ data StoryCondition
   | NpcAlive CharId
   deriving (Show, Eq, Generic)
 
-data StoryChoice = StoryChoice
-  { _storyChoiceId :: ChoiceId,
-    _storyChoiceText :: Text,
-    _storyChoiceActions :: [StoryAction]
-  }
-  deriving (Show, Eq, Generic)
-
 data StoryAction
-  = StoryMessage Text Text [StoryChoice]
+  = StoryMessage Text Text
   | SetQuestStage QuestId QuestStage
   | CompleteQuest QuestId
   | SetFlag FlagId
@@ -98,20 +89,18 @@ data StoryAction
 data PlayerStoryState = PlayerStoryState
   { _storyQuestStages :: M.Map QuestId QuestStage,
     _storyFlags :: S.Set FlagId,
-    _storyHiddenNpcs :: S.Set CharId,
-    _storyPendingChoices :: M.Map ChoiceId [StoryAction]
+    _storyHiddenNpcs :: S.Set CharId
   }
   deriving (Show, Eq, Generic)
 
 newPlayerStoryState :: PlayerStoryState
-newPlayerStoryState = PlayerStoryState M.empty S.empty S.empty M.empty
+newPlayerStoryState = PlayerStoryState M.empty S.empty S.empty
 
 makeLenses ''Quest
 makeLenses ''QuestObjective
 makeLenses ''QuestReward
 makeLenses ''QuestRewardItem
 makeLenses ''QuestEvent
-makeLenses ''StoryChoice
 makeLenses ''PlayerStoryState
 
 instance FromJSON Quest where
@@ -174,25 +163,10 @@ instance FromJSON StoryCondition where
       "npc_alive" -> NpcAlive <$> o .: "npc"
       _ -> fail $ "Invalid story condition type: " <> show typ
 
-instance FromJSON StoryChoice where
-  parseJSON = withObject "StoryChoice" $ \o -> do
-    _storyChoiceId <- o .: "id"
-    _storyChoiceText <- o .: "text"
-    _storyChoiceActions <- o .:? "actions" .!= []
-    pure StoryChoice {..}
-
-instance ToJSON StoryChoice where
-  toJSON StoryChoice {..} =
-    object
-      [ "id" .= _storyChoiceId,
-        "text" .= _storyChoiceText,
-        "actions" .= _storyChoiceActions
-      ]
-
 instance FromJSON StoryAction where
   parseJSON = withTypedObject "StoryAction" $ \typ o ->
     case typ of
-      "message" -> StoryMessage <$> o .: "speaker" <*> o .: "text" <*> (o .:? "choices" .!= [])
+      "message" -> StoryMessage <$> o .: "speaker" <*> o .: "text"
       "set_stage" -> SetQuestStage <$> o .: "quest" <*> o .: "stage"
       "complete_quest" -> CompleteQuest <$> o .: "quest"
       "set_flag" -> SetFlag <$> o .: "flag"
@@ -206,8 +180,8 @@ instance FromJSON StoryAction where
 
 instance ToJSON StoryAction where
   toJSON = \case
-    StoryMessage speaker text choices ->
-      object ["type" .= ("message" :: Text), "speaker" .= speaker, "text" .= text, "choices" .= choices]
+    StoryMessage speaker text ->
+      object ["type" .= ("message" :: Text), "speaker" .= speaker, "text" .= text]
     SetQuestStage quest stage ->
       object ["type" .= ("set_stage" :: Text), "quest" .= quest, "stage" .= stage]
     CompleteQuest quest ->
@@ -232,7 +206,6 @@ instance FromJSON PlayerStoryState where
     _storyQuestStages <- o .:? "quest_stages" .!= M.empty
     _storyFlags <- o .:? "flags" .!= S.empty
     _storyHiddenNpcs <- o .:? "hidden_npcs" .!= S.empty
-    _storyPendingChoices <- o .:? "pending_choices" .!= M.empty
     pure PlayerStoryState {..}
 
 instance ToJSON PlayerStoryState where
@@ -240,8 +213,7 @@ instance ToJSON PlayerStoryState where
     object
       [ "quest_stages" .= _storyQuestStages,
         "flags" .= _storyFlags,
-        "hidden_npcs" .= _storyHiddenNpcs,
-        "pending_choices" .= _storyPendingChoices
+        "hidden_npcs" .= _storyHiddenNpcs
       ]
 
 withTypedObject :: String -> (Text -> Object -> Parser a) -> Value -> Parser a

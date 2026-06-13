@@ -6,7 +6,7 @@
 
 每个战斗方有 `BattleState`：
 
-- `battleSkillCd`: 技能冷却。
+- `battleActiveSkillCooldowns`: 主动招式冷却。
 - `battleAp`: 行动点。
 - `battleQi`: 当前内力。
 - `battleChar`: 战斗中的角色快照。
@@ -14,7 +14,7 @@
 
 tick 时：
 
-1. 技能冷却减少。
+1. 主动招式冷却减少。
 2. DoT/HoT 生效。
 3. 过期状态移除。
 4. 双方恢复 Qi，封顶到 `charMaxQi`。
@@ -24,43 +24,56 @@ tick 时：
 
 ## 普通攻击
 
-普通攻击从角色当前准备的 `Technique` 武功中随机选一个 `moves` 条目：
+普通攻击从角色当前准备的近战武功中随机选一个已解锁 `attack_moves` 条目：
 
 ```yaml
-moves:
+attack_moves:
   - id: cold_rain_cut
     name: "雨后一刀"
+    unlock_level: 1
     msg: "在雨声一断时出刀"
     damage: 14
 ```
 
+近战武功类型按顺序包括：
+
+- `Sword`
+- `Fist`
+
 普通攻击当前只造成固定伤害，没有命中、闪避、护甲或属性缩放。
 
-## 主动技能
+## 主动招式
 
-主动技能由客户端发送：
+主动招式由客户端发送：
 
 ```json
 {"perform":"power_strike"}
 ```
 
-server 会在当前准备的 `Technique` 武功里查找该 skill，并检查：
+server 会在当前准备的武功中查找已解锁 `ActiveSkill`，并检查：
 
 - AP 是否达到 `ap_req`。
 - Qi 是否足够 `cost`。
 - 是否不在 cooldown。
 - 是否拥有 `req_status` 中列出的状态。
 
+主动武功类型包括：
+
+- `Internal`
+- `Lightness`
+- `Sword`
+- `Fist`
+
 成功后：
 
 - 消耗 AP 和 Qi。
 - 设置 cooldown。
 - 根据 `target` 对自己或目标施加伤害、治疗、状态。
-- 发送 `SkillMsg`、伤害消息和 `BattleStateMsg`。
+- 发送 `ActiveSkillMsg`、伤害消息和 `BattleStateMsg`。
 
 失败后：
 
-- 发送 `SkillFailureMsg`，包含具体原因。
+- 发送 `ActiveSkillFailureMsg`，包含具体原因。
 - 同时发送当前 `BattleStateMsg`，让 UI 保持同步。
 
 ## 状态效果
@@ -69,10 +82,10 @@ server 会在当前准备的 `Technique` 武功里查找该 skill，并检查：
 
 - `dot`: tick 伤害。
 - `hot`: tick 治疗。
-- `buff`: 当前主要用于作为技能前置状态。
+- `buff`: 当前主要用于作为主动招式前置状态。
 - `debuff`: 当前主要用于展示/扩展。
 
-技能通过：
+主动招式通过：
 
 ```yaml
 effect:
@@ -87,6 +100,8 @@ effect:
 
 ## 武功学习与准备
 
+更完整的角色养成规则见 [角色养成系统设计](./character-progression.md)。本节只记录当前战斗系统如何消费武功数据。
+
 玩家角色有：
 
 - `charArt`: 已学武功，按 `ArtType` 分组。
@@ -94,16 +109,26 @@ effect:
 
 当前支持的 `ArtType`：
 
-- `Technique`
-- `Cultivation`
+- `Foundation`
+- `Internal`
 - `Lightness`
+- `Sword`
+- `Fist`
 
 使用秘籍学习武功时：
 
+- 先检查目标武功的 `requires` 是否满足。
 - 如果未学过该武功，加入 `charArt`。
 - 如果已学过，保留更高等级。
-- 自动把该武功设为对应类型的 prepared art。
+- 非基础功会自动把该武功设为对应类型的 prepared art。
 - 发出 `RewardMsg`，kind 为 `martial_art`。
+
+训练已学武功时：
+
+- 客户端发送 `{"train":"art_id"}`。
+- 基础功不能直接训练。
+- 等级不能超过 `max_level`。
+- 若武功声明了 `foundation`，训练后同步提升该基础功等级。
 
 ## 物品和秘籍
 

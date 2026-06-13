@@ -155,57 +155,58 @@ data ActiveEffect = ActiveEffect
 makeLenses ''Effect
 makeLenses ''ActiveEffect
 
--- | Skills are active skills that can be used in battle, bind to a tech
-type SkillId = Text
+type ActiveSkillId = Text
 
-data SkillTarget = Single | All | Self
+data ActiveSkillTarget = Single | All | Self
   deriving (Generic, Show, Eq)
 
-instance FromJSON SkillTarget
+instance FromJSON ActiveSkillTarget
 
-data Skill = Skill
-  { _skillId :: SkillId,
-    _skillName :: Text,
-    _skillDesc :: Text,
-    _skillMsg :: Text,
-    _skillCooldown :: Double,
-    _skillTarget :: SkillTarget,
-    _skillCost :: Int,
-    _skillApReq :: Int,
-    _skillReqStatus :: [EffectId],
-    _skillHeal :: Maybe Int,
-    _skillDamage :: Maybe Int,
-    _skillEffSelf :: [(EffectId, Double, Int)],
-    _skillEffTarget :: [(EffectId, Double, Int)]
+data ActiveSkill = ActiveSkill
+  { _activeSkillId :: ActiveSkillId,
+    _activeSkillName :: Text,
+    _activeSkillDesc :: Text,
+    _activeSkillMsg :: Text,
+    _activeSkillUnlockLevel :: Int,
+    _activeSkillCooldown :: Double,
+    _activeSkillTarget :: ActiveSkillTarget,
+    _activeSkillCost :: Int,
+    _activeSkillApReq :: Int,
+    _activeSkillReqStatus :: [EffectId],
+    _activeSkillHeal :: Maybe Int,
+    _activeSkillDamage :: Maybe Int,
+    _activeSkillEffSelf :: [(EffectId, Double, Int)],
+    _activeSkillEffTarget :: [(EffectId, Double, Int)]
   }
   deriving (Generic, Show, Eq)
 
-data SkillEntity = SkillEntity
-  { _skillDef :: SkillId,
-    _skillLevel :: Int
+data ActiveSkillEntity = ActiveSkillEntity
+  { _activeSkillDef :: ActiveSkillId,
+    _activeSkillLevel :: Int
   }
   deriving (Generic, Show, Eq)
 
-makeLenses ''Skill
-makeLenses ''SkillEntity
+makeLenses ''ActiveSkill
+makeLenses ''ActiveSkillEntity
 
-instance FromJSON Skill where
-  parseJSON = withObject "Skill" $ \o -> do
-    _skillId <- o .: "id"
-    _skillName <- o .: "name"
-    _skillDesc <- o .: "desc"
-    _skillMsg <- o .: "msg"
-    _skillCooldown <- o .: "cd"
-    _skillTarget <- o .: "target"
-    _skillCost <- o .: "cost"
-    _skillApReq <- o .:? "ap_req" .!= 0
-    _skillReqStatus <- o .:? "req_status" .!= []
-    _skillHeal <- o .:? "heal"
-    _skillDamage <- o .:? "damage"
+instance FromJSON ActiveSkill where
+  parseJSON = withObject "ActiveSkill" $ \o -> do
+    _activeSkillId <- o .: "id"
+    _activeSkillName <- o .: "name"
+    _activeSkillDesc <- o .: "desc"
+    _activeSkillMsg <- o .: "msg"
+    _activeSkillUnlockLevel <- o .:? "unlock_level" .!= 1
+    _activeSkillCooldown <- o .: "cd"
+    _activeSkillTarget <- o .: "target"
+    _activeSkillCost <- o .: "cost"
+    _activeSkillApReq <- o .:? "ap_req" .!= 0
+    _activeSkillReqStatus <- o .:? "req_status" .!= []
+    _activeSkillHeal <- o .:? "heal"
+    _activeSkillDamage <- o .:? "damage"
     eff <- o .: "effect"
-    _skillEffSelf <- parseEffectList <$> (eff .:? "self" .!= [])
-    _skillEffTarget <- parseEffectList <$> (eff .:? "target" .!= [])
-    pure Skill {..}
+    _activeSkillEffSelf <- parseEffectList <$> (eff .:? "self" .!= [])
+    _activeSkillEffTarget <- parseEffectList <$> (eff .:? "target" .!= [])
+    pure ActiveSkill {..}
     where
       parseEffectList :: [Value] -> [(EffectId, Double, Int)]
       parseEffectList = map parseEffectItem
@@ -224,65 +225,91 @@ instance FromJSON Skill where
         in (effId, duration, value)
       parseEffectItem _ = ("", 0.0, 0)
 
-instance Configurable Skill
+instance Configurable ActiveSkill
 
--- | Moves are normal attacks that bind to a tech
-data Move = Move
-  { _moveId :: SkillId,
-    _moveName :: Text,
-    _moveDesc :: Text,
-    _moveMsg :: Text,
-    _moveDamage :: Int
+type AttackMoveId = Text
+
+data AttackMove = AttackMove
+  { _attackMoveId :: AttackMoveId,
+    _attackMoveName :: Text,
+    _attackMoveDesc :: Text,
+    _attackMoveMsg :: Text,
+    _attackMoveUnlockLevel :: Int,
+    _attackMoveDamage :: Int
   }
   deriving (Generic, Show, Eq)
 
-makeLenses ''Move
+makeLenses ''AttackMove
 
-instance FromJSON Move where
-  parseJSON = withObject "Move" $ \o -> do
-    _moveId <- o .: "id"
-    _moveName <- o .: "name"
-    _moveDesc <- o .: "desc"
-    _moveMsg <- o .: "msg"
-    _moveDamage <- o .: "damage"
-    pure Move {..}
+instance FromJSON AttackMove where
+  parseJSON = withObject "AttackMove" $ \o -> do
+    _attackMoveId <- o .: "id"
+    _attackMoveName <- o .: "name"
+    _attackMoveDesc <- o .: "desc"
+    _attackMoveMsg <- o .: "msg"
+    _attackMoveUnlockLevel <- o .:? "unlock_level" .!= 1
+    _attackMoveDamage <- o .: "damage"
+    pure AttackMove {..}
 
-data ArtType = Technique | Cultivation | Lightness
+data ArtType = Foundation | Internal | Lightness | Sword | Fist
   deriving (Generic, Show, Eq, Ord)
+
+artTypeToText :: ArtType -> Text
+artTypeToText = \case
+  Foundation -> "foundation"
+  Internal -> "internal"
+  Lightness -> "lightness"
+  Sword -> "sword"
+  Fist -> "fist"
+
+artTypeFromText :: Text -> Maybe ArtType
+artTypeFromText = \case
+  "foundation" -> Just Foundation
+  "internal" -> Just Internal
+  "lightness" -> Just Lightness
+  "sword" -> Just Sword
+  "fist" -> Just Fist
+  _ -> Nothing
 
 instance FromJSON ArtType where
   parseJSON p = case p of
-    String "technique" -> pure Technique
-    String "cultivation" -> pure Cultivation
-    String "lightness" -> pure Lightness
+    String artTypeText | Just artType' <- artTypeFromText artTypeText -> pure artType'
     _ -> fail "Invalid ArtType in MartialArt"
 
 instance ToJSON ArtType where
-  toJSON = \case
-    Technique -> String "technique"
-    Cultivation -> String "cultivation"
-    Lightness -> String "lightness"
+  toJSON = String . artTypeToText
 
 instance FromJSONKey ArtType where
-  fromJSONKey = FromJSONKeyTextParser $ \case
-    "technique" -> pure Technique
-    "cultivation" -> pure Cultivation
-    "lightness" -> pure Lightness
-    _ -> fail "Invalid ArtType in MartialArt"
+  fromJSONKey = FromJSONKeyTextParser $ \artTypeText ->
+    case artTypeFromText artTypeText of
+      Just artType' -> pure artType'
+      Nothing -> fail "Invalid ArtType in MartialArt"
 
 instance ToJSONKey ArtType where
-  toJSONKey = toJSONKeyText $ \case
-    Technique -> "technique"
-    Cultivation -> "cultivation"
-    Lightness -> "lightness"
+  toJSONKey = toJSONKeyText artTypeToText
+
+data ArtRequirement = ArtRequirement
+  { _artRequirementArt :: ArtId,
+    _artRequirementLevel :: Int
+  }
+  deriving (Generic, Show, Eq)
+
+instance FromJSON ArtRequirement where
+  parseJSON = withObject "ArtRequirement" $ \o -> do
+    _artRequirementArt <- o .: "art"
+    _artRequirementLevel <- o .: "level"
+    pure ArtRequirement {..}
 
 data MartialArt = MartialArt
   { _artId :: ArtId,
     _artType :: ArtType,
     _artName :: Text,
     _artDesc :: Text,
-    _artMoves :: [Move],
-    _artSkills :: [Skill]
+    _artFoundation :: Maybe ArtId,
+    _artRequires :: [ArtRequirement],
+    _artMaxLevel :: Int,
+    _artAttackMoves :: [AttackMove],
+    _artActiveSkills :: [ActiveSkill]
   }
   deriving (Generic, Show, Eq)
 
@@ -298,8 +325,11 @@ instance FromJSON MartialArt where
     _artType <- o .: "type"
     _artName <- o .: "name"
     _artDesc <- o .: "desc"
-    _artMoves <- o .:? "moves" .!= []
-    _artSkills <- o .:? "skills" .!= []
+    _artFoundation <- o .:? "foundation"
+    _artRequires <- o .:? "requires" .!= []
+    _artMaxLevel <- o .:? "max_level" .!= 100
+    _artAttackMoves <- o .:? "attack_moves" .!= []
+    _artActiveSkills <- o .:? "active_skills" .!= []
     pure MartialArt {..}
 
 instance Configurable MartialArt
@@ -317,6 +347,7 @@ instance ToJSON ArtEntity where
         "level" .= _artLevel
       ]
 
+makeLenses ''ArtRequirement
 makeLenses ''MartialArt
 makeLenses ''ArtEntity
 
@@ -412,7 +443,7 @@ instance FromJSON Character where
     _charAgility <- attr .: "agi"
     _charVitality <- attr .: "vit"
 
-    _charArt <- o .: "skills"
+    _charArt <- o .: "martial_arts"
     _charPrepare <- o .: "prepared"
     -- _charItems <- o .: "items"
     -- _charRoutine <- o .: "routine"

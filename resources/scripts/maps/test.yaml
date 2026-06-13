@@ -21,7 +21,7 @@ rooms:
       - qingyi_guest
     exits:
       south: [3, 3]
-      northeast: [4, 4]
+      east: [4, 4]
 
   - position: [4, 4]
     id: cold_rain_courtyard
@@ -31,7 +31,7 @@ rooms:
       - paper_umbrella_killer
     exits:
       southwest: [3, 3]
-      south: [3, 4]
+      west: [3, 4]
   
   - position: [2, 3]
     id: cold_rain_woodshed

@@ -22,7 +22,7 @@ resources/scripts/
 - [app/Main.hs](../app/Main.hs)：加载 `resources/scripts`，创建 `MVar GameState`，启动 game tick 线程和 WebSocket server。
 - [src/Server.hs](../src/Server.hs)：处理登录、连接表、消息循环、响应分发、自动保存。
 - [src/GameState.hs](../src/GameState.hs)：定义全局 `GameState` 和主游戏 Monad。
-- [src/GamePlay.hs](../src/GamePlay.hs)：玩家动作、移动、查看、对话、剧情、物品使用、技能施放、战斗结算。
+- [src/GamePlay.hs](../src/GamePlay.hs)：玩家动作、移动、查看、对话、剧情、物品使用、主动招式施展、战斗结算。
 - [src/Game/Combat.hs](../src/Game/Combat.hs)：战斗内部状态、AP/Qi tick、普通攻击、主动技能、状态效果。
 - [src/Game/World.hs](../src/Game/World.hs)：加载 YAML 内容，构造 `World`，做跨资源引用校验。
 - [src/Database.hs](../src/Database.hs)：JSON 玩家存档。
@@ -44,7 +44,7 @@ resources/scripts/
 - `chars`
 - `effects`
 - `quests`
-- `skills`
+- `martialArts`
 
 注意：`world.chars.charStatus` 是全局 NPC 状态；剧情中的 `storyHiddenNpcs` 是每个玩家自己的可见性状态。剧情人物完成后消失主要靠 `HideNpc` 写入玩家故事状态，而不是只依赖全局死亡状态。
 

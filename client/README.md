@@ -8,11 +8,11 @@ A web-based client for the Wuxia MUD game featuring a modern dark theme UI with 
 - **Three-Panel Layout** - Player status, game display, and room info
 - **Resource Bars** - Visual HP, Qi, and AP bars with color gradients
 - **Battle Panel** - Animated combat indicator with player vs enemy display
-- **Skills Panel** - Clickable skill cards with cost, AP requirements, and cooldown tracking
-- **Room Panel** - Interactive character list and exit buttons
+- **Martial Arts Panel** - Learned martial arts outside combat and active skill cards during combat
+- **Room Panel** - Clickable map nodes and character names
 - **Combat Log** - Collapsible log of combat events
 - **Message Display** - Color-coded messages with timestamps
-- **Command Input** - Text input with shortcut support (n/s/e/w for directions)
+- **NPC Popup** - Talk and attack actions for the selected character
 
 ## How to Use
 
@@ -21,7 +21,7 @@ A web-based client for the Wuxia MUD game featuring a modern dark theme UI with 
 First, make sure the game server is running:
 
 ```bash
-cd /home/nomofu/code/hs-wuxia-mud
+cd /Users/nomofu/code/hs-wuxia-mud
 stack exec mud-hs-exe
 ```
 
@@ -47,7 +47,7 @@ python3 -m http.server 8080
 
 1. Enter your username in the login panel
 2. Click "Connect"
-3. Use the action buttons or type commands manually
+3. Click map nodes and character names to interact
 4. Explore the world!
 
 ## UI Layout
@@ -55,75 +55,41 @@ python3 -m http.server 8080
 ```
 +------------------------------------------------------------------+
 |  Header: Wuxia MUD                           [Connection Status] |
-+---------------+----------------------------+---------------------+
-|  PLAYER       |  GAME DISPLAY              |  LOCATION           |
-|  STATUS       |  +----------------------+  |                     |
-|               |  | Battle Panel         |  |  Room Name          |
-|  Name: xxx    |  | [IN COMBAT]          |  |  Room description   |
-|  Location:    |  | Player VS Enemy      |  |                     |
-|  Status:      |  +----------------------+  |  CHARACTERS HERE    |
-|               |                            |  - Character 1      |
-|  HP [====   ] |  +----------------------+  |  - Character 2      |
-|  Qi [======  ]|  | Message Area         |  |                     |
-|  AP [==      ]|  | (scrollable)         |  |  EXITS              |
-|               |  +----------------------+  |  - North            |
-|  ACTIVE       |                            |  - South            |
-|  EFFECTS      |  [Command Input] [Send]    |                     |
-|  - None       |                            |                     |
-|               |  +----------------------+  |                     |
-|  LOGIN        |  | Action Buttons:      |  |                     |
-|  [Username]   |  | Movement | Interact  |  |                     |
-|  [Connect]    |  | Skills Panel         |  |                     |
-+---------------+----------------------------+---------------------+
++---------------+--------------------------------------------------+
+|  PLAYER       |  GAME DISPLAY                                    |
+|  STATUS       |  +--------------------------------------------+  |
+|               |  | Local map / room scene                     |  |
+|  Name: xxx    |  | Click room nodes to move                   |  |
+|  Location:    |  | Click character names to open popup        |  |
+|  Status:      |  +--------------------------------------------+  |
+|               |  +--------------------------------------------+  |
+|  HP [====   ] |  | Message history                            |  |
+|  Qi [======  ]|  +--------------------------------------------+  |
+|  AP [==      ]|  +--------------------------------------------+  |
+|               |  | Martial arts / active skills               |  |
+|  LOGIN        |  +--------------------------------------------+  |
+|  [Username]   |                                                  |
+|  [Connect]    |                                                  |
++---------------+--------------------------------------------------+
 |  Combat Log (collapsible)                                        |
 +------------------------------------------------------------------+
 ```
 
-## Commands
+## UI Interactions
 
-### Using Buttons
+**Movement:**
+- Click a room node in the local map.
+- Exit names are a fallback for the same movement action.
 
-**Movement Grid:**
-- Click directional buttons (N, S, E, W, NE, NW, SE, SW)
-- Or click "Look" to view current location
+**NPCs and story:**
+- Click a character name to open the interaction popup.
+- Clicking Talk closes the popup and appends dialogue/story text to message history.
+- Attack is started from the same popup when the character exposes that action.
 
-**Interactions:**
-- Talk: Click, enter character ID to start dialogue
-- Attack: Click, enter character ID to start combat
-- Say: Click, enter message to say
-
-**Skills (In Combat):**
-- Click skill cards to use martial arts
-- Skills show Qi cost, AP requirement, and effects
-- Grayed out skills are on cooldown or missing requirements
-
-**Room Panel:**
-- Click character names for quick interact menu
-- Click exits to move in that direction
-
-### Manual Commands
-
-Type commands in the input field:
-
-```
-# Movement (multiple formats)
-go north              # Move north
-north                 # Move north
-n                     # Move north
-
-# Combat
-attack char_in_test   # Attack an NPC
-perform power_strike  # Use a skill
-
-# Interaction
-talk char_in_test     # Talk to an NPC
-say Hello everyone!   # Say something
-
-# View
-look                  # View current room
-view                  # View current room
-l                     # View current room
-```
+**Active Skills (In Combat):**
+- Click active skill cards to use prepared martial arts
+- Active skills show Qi cost, AP requirement, and effects
+- Grayed out active skills are on cooldown or missing requirements
 
 ## Message Types
 
@@ -134,16 +100,16 @@ Messages are color-coded:
 | System | Gray | General messages |
 | Move | Blue | Movement messages |
 | Combat | Red | Combat actions and damage |
-| Skill | Purple | Skill usage |
+| Active Skill | Purple | Active skill usage |
 | Dialogue | Green | NPC conversations |
 | Say | Yellow | Player chat |
 | Error | Red bg | Error messages |
 
-## Skills
+## Active Skills
 
-Available martial arts skills:
+Available active skills:
 
-| Skill | Qi Cost | AP Req | Effect |
+| Active Skill | Qi Cost | AP Req | Effect |
 |-------|---------|--------|--------|
 | 断雨一击 | 30 | 60 | 35 damage |
 | 回灯掌 | 50 | 40 | 40 heal (self) |
@@ -173,8 +139,8 @@ The client connects to `ws://127.0.0.1:9160` and uses JSON messages:
 ```json
 {"tag": "MoveMsg", "contents": "Room Name"}
 {"tag": "ViewMsg", "contents": ["Room", "Desc", ["char1"], ["North"]]}
-{"tag": "CombatNormalMsg", "contents": ["Attacker", "Defender", "msg", 35]}
-{"tag": "PlayerStatsMsg", "contents": [100, 100, 80, 100, 45, "In Battle"]}
+{"tag": "CombatNormalMsg", "contents": ["Attacker", "Defender", {"kind": "script", "text": "msg"}, 35]}
+{"tag": "PlayerStatsMsg", "contents": [100, 100, 80, 100, 45, "in_battle"]}
 ```
 
 ### Browser Compatibility
@@ -190,10 +156,10 @@ The client connects to `ws://127.0.0.1:9160` and uses JSON messages:
 - Check browser console for WebSocket errors
 - Try using `python3 -m http.server` instead of file://
 
-**Skills not working?**
-- Skills only work during combat
+**Active skills not working?**
+- Active skills only work during combat
 - Check if you have enough Qi and AP
-- Some skills require specific buffs (e.g., 伞骨八刺 needs 听雨势)
+- Some active skills require specific buffs (e.g., 伞骨八刺 needs 听雨势)
 
 **Buttons not responding?**
 - Make sure you're connected first

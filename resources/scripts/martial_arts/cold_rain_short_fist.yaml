@@ -1,18 +1,25 @@
-id: basic_techniques
+id: cold_rain_short_fist
 name: "冷雨短打"
-type: technique
+type: fist
 desc: "没有门派。只有活下来的手。"
-moves:
+foundation: basic_fist
+requires:
+  - art: basic_fist
+    level: 1
+max_level: 20
+attack_moves:
   - id: basic_punch
     name: "一拳"
     desc: "很直的一拳。直得像一句不肯回头的话。"
     msg: "只出一拳"
+    unlock_level: 1
     damage: 10
-skills:
+active_skills:
   - id: power_strike
     name: "断雨一击"
     desc: "气沉拳锋，出手只在一瞬。"
     msg: "将一口气压到拳上，一击断雨"
+    unlock_level: 1
     cd: 5.0
     target: Single
     cost: 30
@@ -27,6 +34,7 @@ skills:
     name: "回灯掌"
     desc: "把将熄的气息，从伤口边缘拉回来。"
     msg: "一掌按下，气息像残灯又亮"
+    unlock_level: 2
     cd: 8.0
     target: Self
     cost: 50
@@ -41,6 +49,7 @@ skills:
     name: "铁衣"
     desc: "不求不伤，只求伤得慢一点。"
     msg: "气入皮骨，像披了一件看不见的铁衣"
+    unlock_level: 3
     cd: 15.0
     target: Self
     cost: 40
@@ -57,6 +66,7 @@ skills:
     name: "听雨势"
     desc: "先听雨，再听风，最后听杀意。"
     msg: "微微侧身，像在听雨里的刀声"
+    unlock_level: 4
     cd: 20.0
     target: Self
     cost: 40
@@ -73,6 +83,7 @@ skills:
     name: "伞骨八刺"
     desc: "须先入听雨势。出手时，影子比人更快。"
     msg: "身影一折，八点寒光从雨里同时刺出"
+    unlock_level: 5
     cd: 20.0
     target: Single
     cost: 80

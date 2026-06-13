@@ -42,18 +42,20 @@ processNormalAction pid action = case action of
   Go direction -> playerMove pid direction
   Attack (target :: CharId) -> playerAttack pid target
   Talk (target :: CharId) -> playerTalk pid target
-  Choose choiceId -> playerChooseStory pid choiceId
   Use itemId -> playerUseItem pid itemId
+  Train artId -> playerTrainArt pid artId
   Other "quests" -> playerQuestLog pid
   Other "inventory" -> sendPlayerInventory pid
+  Other "arts" -> playerArts pid
   Other "view" -> playerView pid
   _ -> return ()
 
 processBattleAction :: PlayerId -> PlayerAction -> GameStateT ()
 processBattleAction pid action = case action of
-  Perform skillId -> playerPerformSkill pid skillId
+  Perform activeSkillId -> playerPerformActiveSkill pid activeSkillId
   Other "quests" -> playerQuestLog pid
   Other "inventory" -> sendPlayerInventory pid
+  Other "arts" -> playerArts pid
   -- Use item -> do
   --   -- Update player's inventory and apply item effects
   --   players . ix playerId %= updatePlayerAfterUsingItem item
@@ -94,9 +96,10 @@ sendPlayerStats pid = do
   -- AP is only available during battle
   let ap = 0  -- Default, will be updated in battle
   let status = case player ^. playerStatus of
-        PlayerNormal -> "Normal"
-        PlayerInBattle -> "In Battle"
-        _ -> "Unknown"
+        PlayerNormal -> "normal"
+        PlayerInBattle -> "in_battle"
+        PlayerDead -> "dead"
+        PlayerBanned -> "banned"
   tell [(pid, PlayerStatsMsg hp maxHp qi maxQi ap status)]
 
 playerView :: PlayerId -> GameStateT ()
@@ -177,16 +180,6 @@ playerAttack pid target = do
     charAttackable :: Character -> Bool
     charAttackable char = isJust (char ^. charActions . at Attacking) && char ^. charStatus == CharAlive
 
-playerChooseStory :: PlayerId -> ChoiceId -> GameStateT ()
-playerChooseStory pid choiceId = do
-  storyState <- ensureStoryState pid
-  case M.lookup choiceId (storyState ^. storyPendingChoices) of
-    Nothing ->
-      tell [(pid, StoryMsg "旁白" "这个选择已经随雨声散了。" [])]
-    Just actions -> do
-      stories . ix pid . storyPendingChoices .= M.empty
-      executeStoryActions pid actions
-
 runStoryTrigger :: PlayerId -> StoryTrigger -> GameStateT Bool
 runStoryTrigger pid trigger = do
   _ <- ensureStoryState pid
@@ -246,11 +239,8 @@ executeStoryActions pid actions = do
       _ -> False
 
     execute = \case
-      StoryMessage speaker text choices -> do
-        let choiceResponses = map (\choice -> StoryChoiceResp (choice ^. storyChoiceId) (choice ^. storyChoiceText)) choices
-            pendingChoices = M.fromList $ map (\choice -> (choice ^. storyChoiceId, choice ^. storyChoiceActions)) choices
-        stories . ix pid . storyPendingChoices .= pendingChoices
-        tell [(pid, StoryMsg speaker text choiceResponses)]
+      StoryMessage speaker text ->
+        tell [(pid, StoryMsg speaker text)]
       SetQuestStage quest stage ->
         stories . ix pid . storyQuestStages . at quest .= Just stage
       CompleteQuest quest -> do
@@ -304,11 +294,11 @@ playerUseItem pid itemId = do
     Just amount | amount > 0 -> do
       item <- liftWorld $ getsItem itemId
       case item ^. itemUse of
-        Nothing -> throwError $ OtherException $ "Item cannot be used: " <> item ^. itemName
+        Nothing -> throwStructured "item_cannot_be_used" [("item", item ^. itemName)]
         Just itemUse' -> do
           applyItemUse pid player item itemUse'
           sendPlayerInventory pid
-    _ -> throwError $ OtherException $ "Item not in inventory: " <> itemId
+    _ -> throwStructured "item_not_in_inventory" [("itemId", itemId)]
 
 applyItemUse :: PlayerId -> Player -> Item -> ItemUse -> GameStateT ()
 applyItemUse pid player item itemUse' =
@@ -330,7 +320,7 @@ grantQuestReward :: PlayerId -> QuestId -> GameStateT ()
 grantQuestReward pid qid = do
   questMap <- use $ world . quests
   case M.lookup qid questMap of
-    Nothing -> throwError $ OtherException $ "Quest not found for reward: " <> qid
+    Nothing -> throwStructured "quest_reward_not_found" [("questId", qid)]
     Just quest -> do
       let reward = quest ^. questReward
       when (reward ^. questRewardMoney > 0) $
@@ -357,25 +347,112 @@ grantMoney pid amount =
 grantArt :: PlayerId -> ArtId -> Int -> GameStateT ()
 grantArt pid artId level =
   when (level > 0) $ do
-    skillMap <- use $ world . skills
-    case M.lookup artId skillMap of
-      Nothing -> throwError $ OtherException $ "Martial art not found for learning: " <> artId
+    martialArtMap <- use $ world . martialArts
+    case M.lookup artId martialArtMap of
+      Nothing -> throwStructured "martial_art_not_found_learning" [("artId", artId)]
       Just martialArt -> do
-        current <- use $ players . ix pid . playerCharacter . charArt . at (martialArt ^. artType)
-        let artType' = martialArt ^. artType
-            bestKnownLevel [] = level
-            bestKnownLevel (known : rest)
-              | known ^. artDef == artId = max level (known ^. artLevel)
-              | otherwise = bestKnownLevel rest
-            learnedLevel = bestKnownLevel $ fromMaybe [] current
-            preparedArt = ArtEntity artId learnedLevel
-            upsertArt [] = [preparedArt]
-            upsertArt (known : rest)
-              | known ^. artDef == artId = (known & artLevel .~ learnedLevel) : rest
-              | otherwise = known : upsertArt rest
-        players . ix pid . playerCharacter . charArt . at artType' .= Just (upsertArt $ fromMaybe [] current)
-        players . ix pid . playerCharacter . charPrepare . at artType' .= Just preparedArt
-        tell [(pid, RewardMsg [martialArtRewardSummary martialArt level])]
+        when (level > martialArt ^. artMaxLevel) $
+          throwStructured
+            "learning_level_exceeds_max"
+            [ ("art", martialArt ^. artName),
+              ("max", showText $ martialArt ^. artMaxLevel)
+            ]
+        ensureArtRequirements pid martialArtMap martialArt
+        player <- getsPlayer pid
+        let currentLevel = fromMaybe 0 $ playerKnownArtLevel player artId
+            learnedLevel = max level currentLevel
+            artType' = martialArt ^. artType
+            learnedArt = ArtEntity artId learnedLevel
+        upsertKnownArt pid artType' artId learnedLevel
+        when (artType' /= Foundation) $
+          players . ix pid . playerCharacter . charPrepare . at artType' .= Just learnedArt
+        tell [(pid, RewardMsg [martialArtRewardSummary martialArt learnedLevel])]
+
+playerTrainArt :: PlayerId -> ArtId -> GameStateT ()
+playerTrainArt pid artId = do
+  martialArtMap <- use $ world . martialArts
+  case M.lookup artId martialArtMap of
+    Nothing -> throwStructured "martial_art_not_found_training" [("artId", artId)]
+    Just martialArt -> do
+      when (martialArt ^. artType == Foundation) $
+        throwStructured "foundation_art_cannot_train" [("art", martialArt ^. artName)]
+      player <- getsPlayer pid
+      currentLevel <- case playerKnownArtLevel player artId of
+        Nothing -> throwStructured "art_not_learned" [("art", martialArt ^. artName)]
+        Just knownLevel -> return knownLevel
+      when (currentLevel >= martialArt ^. artMaxLevel) $
+        throwStructured "art_already_max" [("art", martialArt ^. artName)]
+      let newLevel = currentLevel + 1
+          artType' = martialArt ^. artType
+      upsertKnownArt pid artType' artId newLevel
+      players . ix pid . playerCharacter . charPrepare . at artType' .= Just (ArtEntity artId newLevel)
+      foundationRewards <- syncFoundationArt pid martialArtMap martialArt newLevel
+      tell [(pid, RewardMsg (martialArtRewardSummary martialArt newLevel : foundationRewards))]
+      playerArts pid
+
+syncFoundationArt :: PlayerId -> M.Map ArtId MartialArt -> MartialArt -> Int -> GameStateT [RewardSummary]
+syncFoundationArt pid martialArtMap martialArt newLevel =
+  case martialArt ^. artFoundation of
+    Nothing -> return []
+    Just foundationId ->
+      case M.lookup foundationId martialArtMap of
+        Nothing -> throwStructured "foundation_art_not_found" [("artId", foundationId)]
+        Just foundationArt -> do
+          player <- getsPlayer pid
+          let currentFoundationLevel = fromMaybe 0 $ playerKnownArtLevel player foundationId
+          if currentFoundationLevel >= newLevel
+            then return []
+            else do
+              upsertKnownArt pid (foundationArt ^. artType) foundationId newLevel
+              return [martialArtRewardSummary foundationArt newLevel]
+
+upsertKnownArt :: PlayerId -> ArtType -> ArtId -> Int -> GameStateT ()
+upsertKnownArt pid artType' artId level = do
+  current <- use $ players . ix pid . playerCharacter . charArt . at artType'
+  players . ix pid . playerCharacter . charArt . at artType' .= Just (upsertArtEntity artId level $ fromMaybe [] current)
+
+upsertArtEntity :: ArtId -> Int -> [ArtEntity] -> [ArtEntity]
+upsertArtEntity artId level [] = [ArtEntity artId level]
+upsertArtEntity artId level (known : rest)
+  | known ^. artDef == artId = (known & artLevel .~ level) : rest
+  | otherwise = known : upsertArtEntity artId level rest
+
+ensureArtRequirements :: PlayerId -> M.Map ArtId MartialArt -> MartialArt -> GameStateT ()
+ensureArtRequirements pid martialArtMap martialArt = do
+  player <- getsPlayer pid
+  let missing = missingArtRequirements martialArtMap player (martialArt ^. artRequires)
+  unless (null missing) $
+    throwStructured
+      "cannot_learn_art"
+      [ ("art", martialArt ^. artName),
+        ("requirements", T.intercalate ", " missing)
+      ]
+
+missingArtRequirements :: M.Map ArtId MartialArt -> Player -> [ArtRequirement] -> [T.Text]
+missingArtRequirements martialArtMap player =
+  catMaybes . map missingRequirement
+  where
+    missingRequirement req =
+      let requiredArt = req ^. artRequirementArt
+          requiredLevel = req ^. artRequirementLevel
+          currentLevel = fromMaybe 0 $ playerKnownArtLevel player requiredArt
+          requiredArtName = maybe requiredArt (^. artName) $ M.lookup requiredArt martialArtMap
+       in if currentLevel >= requiredLevel
+            then Nothing
+            else Just $ requiredArtName <> " " <> showText currentLevel <> "/" <> showText requiredLevel
+
+playerKnownArtLevel :: Player -> ArtId -> Maybe Int
+playerKnownArtLevel player artId =
+  case levels of
+    [] -> Nothing
+    _ -> Just $ maximum levels
+  where
+    levels =
+      [ known ^. artLevel
+        | knownArts <- M.elems $ player ^. playerCharacter . charArt,
+          known <- knownArts,
+          known ^. artDef == artId
+      ]
 
 addInventoryItem :: PlayerId -> ItemId -> Int -> GameStateT ()
 addInventoryItem pid itemId amount = do
@@ -390,17 +467,68 @@ consumeInventoryItem pid itemId amount = do
 
 playerKnowsArtAtLeast :: PlayerId -> ArtId -> Int -> GameStateT Bool
 playerKnowsArtAtLeast pid artId level = do
-  skillMap <- use $ world . skills
-  case M.lookup artId skillMap of
-    Nothing -> throwError $ OtherException $ "Martial art not found for learning: " <> artId
-    Just martialArt -> do
+  martialArtMap <- use $ world . martialArts
+  case M.lookup artId martialArtMap of
+    Nothing -> throwStructured "martial_art_not_found_learning" [("artId", artId)]
+    Just _ -> do
       player <- getsPlayer pid
-      let artType' = martialArt ^. artType
-      return $
-        maybe
-          False
-          (any (\known -> known ^. artDef == artId && known ^. artLevel >= level))
-          (player ^. playerCharacter . charArt . at artType')
+      return $ fromMaybe 0 (playerKnownArtLevel player artId) >= level
+
+playerArts :: PlayerId -> GameStateT ()
+playerArts pid = do
+  player <- getsPlayer pid
+  martialArtMap <- use $ world . martialArts
+  tell [(pid, ArtsMsg $ knownArtSummaries martialArtMap player)]
+
+knownArtSummaries :: M.Map ArtId MartialArt -> Player -> [ArtSummary]
+knownArtSummaries martialArtMap player =
+  [ artToSummary martialArtMap known martialArt
+    | knownArts <- M.elems $ player ^. playerCharacter . charArt,
+      known <- knownArts,
+      Just martialArt <- [M.lookup (known ^. artDef) martialArtMap]
+  ]
+
+artToSummary :: M.Map ArtId MartialArt -> ArtEntity -> MartialArt -> ArtSummary
+artToSummary martialArtMap known martialArt =
+  ArtSummary
+    { artSummaryId = martialArt ^. artId,
+      artSummaryName = martialArt ^. artName,
+      artSummaryType = artTypeToText $ martialArt ^. artType,
+      artSummaryLevel = level,
+      artSummaryMaxLevel = martialArt ^. artMaxLevel,
+      artSummaryIsFoundation = martialArt ^. artType == Foundation,
+      artSummaryFoundation = martialArt ^. artFoundation,
+      artSummaryRequirements = map (artRequirementToSummary martialArtMap) (martialArt ^. artRequires),
+      artSummaryUnlockedAttackMoves = [move ^. attackMoveName | move <- martialArt ^. artAttackMoves, move ^. attackMoveUnlockLevel <= level],
+      artSummaryUnlockedActiveSkills = [activeSkill ^. activeSkillName | activeSkill <- martialArt ^. artActiveSkills, activeSkill ^. activeSkillUnlockLevel <= level],
+      artSummaryNextUnlocks = nextUnlocks level martialArt
+    }
+  where
+    level = known ^. artLevel
+
+artRequirementToSummary :: M.Map ArtId MartialArt -> ArtRequirement -> ArtRequirementSummary
+artRequirementToSummary martialArtMap req =
+  ArtRequirementSummary
+    { artRequirementSummaryId = req ^. artRequirementArt,
+      artRequirementSummaryName = maybe (req ^. artRequirementArt) (^. artName) $ M.lookup (req ^. artRequirementArt) martialArtMap,
+      artRequirementSummaryLevel = req ^. artRequirementLevel
+    }
+
+nextUnlocks :: Int -> MartialArt -> [T.Text]
+nextUnlocks level martialArt =
+  case [unlockLevel | (unlockLevel, _) <- unlockEntries, unlockLevel > level] of
+    [] -> []
+    levels ->
+      let nextLevel = minimum levels
+       in [name | (unlockLevel, name) <- unlockEntries, unlockLevel == nextLevel]
+  where
+    unlockEntries =
+      [ (move ^. attackMoveUnlockLevel, move ^. attackMoveName)
+        | move <- martialArt ^. artAttackMoves
+      ]
+        <> [ (activeSkill ^. activeSkillUnlockLevel, activeSkill ^. activeSkillName)
+             | activeSkill <- martialArt ^. artActiveSkills
+           ]
 
 questLogEntry :: M.Map ItemId Item -> Quest -> QuestStage -> QuestLogEntry
 questLogEntry itemMap quest stage =
@@ -450,6 +578,12 @@ moneyRewardSummary amount = RewardSummary "money" Nothing "铜钱" amount
 martialArtRewardSummary :: MartialArt -> Int -> RewardSummary
 martialArtRewardSummary martialArt level = RewardSummary "martial_art" (Just $ martialArt ^. artId) (martialArt ^. artName) level
 
+showText :: Show a => a -> T.Text
+showText = T.pack . show
+
+throwStructured :: T.Text -> [(T.Text, T.Text)] -> GameStateT a
+throwStructured code params = throwError $ StructuredException $ ErrorSummary code $ M.fromList params
+
 ensureStoryState :: PlayerId -> GameStateT PlayerStoryState
 ensureStoryState pid = do
   maybeState <- use $ stories . at pid
@@ -476,60 +610,62 @@ getsRoomCharacter pid target action = do
     throwError $ UnableToInteract npc action
   return npc
 
--- Player performs a skill during battle
-playerPerformSkill :: PlayerId -> SkillId -> GameStateT ()
-playerPerformSkill pid targetSkillId = do
+-- Player performs an active skill during battle
+playerPerformActiveSkill :: PlayerId -> ActiveSkillId -> GameStateT ()
+playerPerformActiveSkill pid targetActiveSkillId = do
   wrld <- use world
   battle <- getsBattle pid
   player <- getsPlayer pid
 
-  -- Get prepared technique and find the skill
-  let preparedTech = player ^. playerCharacter . charPrepare . at Technique
-  case preparedTech of
-    Nothing -> throwError $ OtherException "No technique prepared"
-    Just artEntity -> do
-      let artId = artEntity ^. artDef
-      case M.lookup artId (wrld ^. skills) of
-        Nothing -> throwError $ OtherException $ "Martial art not found: " <> artId
-        Just martialArt -> do
-          -- Find the skill in the martial art
-          let skillList = martialArt ^. artSkills
-              maybeSkill = find (\s -> s ^. skillId == targetSkillId) skillList
-          case maybeSkill of
-            Nothing -> throwError $ OtherException $ "Skill not found in prepared technique: " <> targetSkillId
-            Just skill -> do
-              case skillCastFailure skill (battle ^. battleState) of
-                Just reason -> do
-                  tell [(pid, SkillFailureMsg reason)]
-                  sendBattleSnapshot pid battle
-                Nothing -> do
-                  randG <- newStdGen
-                  (_, battle', skillMsg) <- runCombat randG ExceptionInCombat wrld battle $ do
-                    castSkill skill battleState battleEnemyState
+  case find (\s -> s ^. activeSkillId == targetActiveSkillId) (preparedActiveSkills wrld player) of
+    Nothing -> do
+      tell [(pid, ActiveSkillFailureMsg $ ActiveSkillUnavailable targetActiveSkillId)]
+      sendBattleSnapshot pid battle
+    Just activeSkill -> do
+      case activeSkillUseFailure activeSkill (battle ^. battleState) of
+        Just reason -> do
+          tell [(pid, ActiveSkillFailureMsg reason)]
+          sendBattleSnapshot pid battle
+        Nothing -> do
+          randG <- newStdGen
+          (_, battle', activeSkillMsg) <- runCombat randG ExceptionInCombat wrld battle $ do
+            useActiveSkill activeSkill battleState battleEnemyState
 
-                  tell skillMsg
-                  let enemyDefeated = battle' ^. battleEnemyState . battleChar . charHP <= 0
-                      playerDefeated = battle' ^. battleState . battleChar . charHP <= 0
-                  if enemyDefeated || playerDefeated
-                    then battleSettlement enemyDefeated battle'
-                    else do
-                      battles . at pid .= Just battle'
-                      sendBattleSnapshot pid battle'
+          tell activeSkillMsg
+          let enemyDefeated = battle' ^. battleEnemyState . battleChar . charHP <= 0
+              playerDefeated = battle' ^. battleState . battleChar . charHP <= 0
+          if enemyDefeated || playerDefeated
+            then battleSettlement enemyDefeated battle'
+            else do
+              battles . at pid .= Just battle'
+              sendBattleSnapshot pid battle'
 
-skillCastFailure :: Skill -> BattleState -> Maybe T.Text
-skillCastFailure skill state
-  | state ^. battleAp < skill ^. skillApReq =
-      Just $ "Need " <> showText (skill ^. skillApReq) <> " AP; current AP is " <> showText (state ^. battleAp)
-  | state ^. battleQi < skill ^. skillCost =
-      Just $ "Need " <> showText (skill ^. skillCost) <> " Qi; current Qi is " <> showText (state ^. battleQi)
-  | Just remaining <- state ^. battleSkillCd . at (skill ^. skillId) =
-      Just $ "Skill is on cooldown for " <> showText (ceiling remaining :: Int) <> "s"
-  | not $ all (`M.member` (state ^. battleEffects)) (skill ^. skillReqStatus) =
-      Just $ "Missing required status: " <> T.intercalate ", " missingReqs
+preparedActiveSkills :: World -> Player -> [ActiveSkill]
+preparedActiveSkills wrld player =
+  [ activeSkill
+    | artType' <- activeSkillArtTypes,
+      Just artEntity <- [player ^. playerCharacter . charPrepare . at artType'],
+      Just martialArt <- [M.lookup (artEntity ^. artDef) (wrld ^. martialArts)],
+      activeSkill <- martialArt ^. artActiveSkills,
+      activeSkill ^. activeSkillUnlockLevel <= artEntity ^. artLevel
+  ]
+
+activeSkillArtTypes :: [ArtType]
+activeSkillArtTypes = [Internal, Lightness, Sword, Fist]
+
+activeSkillUseFailure :: ActiveSkill -> BattleState -> Maybe ActiveSkillFailureReason
+activeSkillUseFailure activeSkill state
+  | state ^. battleAp < activeSkill ^. activeSkillApReq =
+      Just $ ActiveSkillNeedAp (activeSkill ^. activeSkillApReq) (state ^. battleAp)
+  | state ^. battleQi < activeSkill ^. activeSkillCost =
+      Just $ ActiveSkillNeedQi (activeSkill ^. activeSkillCost) (state ^. battleQi)
+  | Just remaining <- state ^. battleActiveSkillCooldowns . at (activeSkill ^. activeSkillId) =
+      Just $ ActiveSkillOnCooldown (ceiling remaining)
+  | not $ all (`M.member` (state ^. battleEffects)) (activeSkill ^. activeSkillReqStatus) =
+      Just $ ActiveSkillMissingStatus missingReqs
   | otherwise = Nothing
   where
-    missingReqs = filter (not . (`M.member` (state ^. battleEffects))) (skill ^. skillReqStatus)
-    showText = T.pack . show
+    missingReqs = filter (not . (`M.member` (state ^. battleEffects))) (activeSkill ^. activeSkillReqStatus)
 
 -- handlePlayerInput :: T.Text -> T.Text -> GameStateT ()
 -- handlePlayerInput playerId input = do
@@ -571,7 +707,7 @@ sendBattleStats pid battle = do
   let qi = pState ^. battleQi
   let maxQi = char ^. charMaxQi
   let ap = pState ^. battleAp
-  let status = "In Battle"
+  let status = "in_battle"
   tell [(pid, PlayerStatsMsg hp maxHp qi maxQi ap status)]
   sendBattleSnapshot pid battle
 
@@ -580,24 +716,21 @@ sendBattleSnapshot pid battle = do
   wrld <- use world
   player <- getsPlayer pid
   let effectDefs = wrld ^. effects
-      preparedTech = player ^. playerCharacter . charPrepare . at Technique
-      preparedSkills =
-        case preparedTech >>= \artEntity -> M.lookup (artEntity ^. artDef) (wrld ^. skills) of
-          Nothing -> []
-          Just martialArt -> map (skillToSummary effectDefs) (martialArt ^. artSkills)
+      availableActiveSkills = map (activeSkillToSummary effectDefs) $ preparedActiveSkills wrld player
       snapshot =
         BattleSnapshot
           { battleSnapshotPlayer = battleStateToSnapshot effectDefs (battle ^. battleState),
             battleSnapshotEnemy = battleStateToSnapshot effectDefs (battle ^. battleEnemyState),
-            battleSnapshotCooldowns = map cooldownToSummary . M.toList $ battle ^. battleState . battleSkillCd,
-            battleSnapshotSkills = preparedSkills
+            battleSnapshotActiveSkillCooldowns = map cooldownToSummary . M.toList $ battle ^. battleState . battleActiveSkillCooldowns,
+            battleSnapshotActiveSkills = availableActiveSkills
           }
   tell [(pid, BattleStateMsg snapshot)]
   where
     battleStateToSnapshot effectDefs state =
       let char = state ^. battleChar
        in CombatantSnapshot
-            { combatantSnapshotName = char ^. charName,
+            { combatantSnapshotId = char ^. charId,
+              combatantSnapshotName = char ^. charName,
               combatantSnapshotHp = char ^. charHP,
               combatantSnapshotMaxHp = char ^. charMaxHP,
               combatantSnapshotQi = state ^. battleQi,
@@ -626,23 +759,24 @@ sendBattleSnapshot pid battle = do
             }
 
     cooldownToSummary (sid, remaining) =
-      CooldownSummary
-        { cooldownSummarySkillId = sid,
-          cooldownSummaryRemaining = remaining
+      ActiveSkillCooldownSummary
+        { activeSkillCooldownSummaryActiveSkillId = sid,
+          activeSkillCooldownSummaryRemaining = remaining
         }
 
-    skillToSummary effectDefs skill =
-      SkillSummary
-        { skillSummaryId = skill ^. skillId,
-          skillSummaryName = skill ^. skillName,
-          skillSummaryDesc = skill ^. skillDesc,
-          skillSummaryCost = skill ^. skillCost,
-          skillSummaryApReq = skill ^. skillApReq,
-          skillSummaryCooldown = skill ^. skillCooldown,
-          skillSummaryReqStatus = skill ^. skillReqStatus,
-          skillSummaryReqStatusNames = map (effectNameFor effectDefs) (skill ^. skillReqStatus),
-          skillSummaryDamage = skill ^. skillDamage,
-          skillSummaryHeal = skill ^. skillHeal
+    activeSkillToSummary effectDefs activeSkill =
+      ActiveSkillSummary
+        { activeSkillSummaryId = activeSkill ^. activeSkillId,
+          activeSkillSummaryName = activeSkill ^. activeSkillName,
+          activeSkillSummaryDesc = activeSkill ^. activeSkillDesc,
+          activeSkillSummaryCost = activeSkill ^. activeSkillCost,
+          activeSkillSummaryApReq = activeSkill ^. activeSkillApReq,
+          activeSkillSummaryUnlockLevel = activeSkill ^. activeSkillUnlockLevel,
+          activeSkillSummaryCooldown = activeSkill ^. activeSkillCooldown,
+          activeSkillSummaryReqStatus = activeSkill ^. activeSkillReqStatus,
+          activeSkillSummaryReqStatusNames = map (effectNameFor effectDefs) (activeSkill ^. activeSkillReqStatus),
+          activeSkillSummaryDamage = activeSkill ^. activeSkillDamage,
+          activeSkillSummaryHeal = activeSkill ^. activeSkillHeal
         }
 
     effectNameFor effectDefs effectId =

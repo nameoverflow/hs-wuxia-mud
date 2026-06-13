@@ -2,13 +2,13 @@
   name: "冷雨掌柜"
   desc: "掌柜的眼睛总看着门外，好像雨里藏着账，也藏着命。"
   actions: [dialogue]
-  skills:
-    technique:
-      - id: test
+  martial_arts:
+    fist:
+      - id: nameless_trial_fist
         level: 1
   prepared:
-    technique:
-      id: test
+    fist:
+      id: nameless_trial_fist
       level: 1
   dialogue:
     - "酒在桌上，人在雨里。客官若要问事，先问自己的胆。"
@@ -26,13 +26,13 @@
   name: "青衣客"
   desc: "青衣客的剑很旧，旧得像一段无人敢提的往事。"
   actions: [dialogue]
-  skills:
-    technique:
-      - id: test
+  martial_arts:
+    fist:
+      - id: nameless_trial_fist
         level: 1
   prepared:
-    technique:
-      id: test
+    fist:
+      id: nameless_trial_fist
       level: 1
   dialogue:
     - "雨越大，脚步声越清楚。"
@@ -50,13 +50,13 @@
   name: "纸伞客"
   desc: "他撑着一柄干净的纸伞，伞骨细得像暗器。"
   actions: [dialogue, attacking]
-  skills:
-    technique:
-      - id: test
+  martial_arts:
+    fist:
+      - id: nameless_trial_fist
         level: 1
   prepared:
-    technique:
-      id: test
+    fist:
+      id: nameless_trial_fist
       level: 1
   dialogue:
     - "伞是用来遮雨的，也是用来遮眼的。"

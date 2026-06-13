@@ -5,6 +5,7 @@
 module Game.Message where
 
 import Game.Entity
+import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 import GHC.Generics (Generic)
 import Data.Aeson
@@ -17,8 +18,8 @@ data PlayerAction
   = Go Direction
   | Talk CharId
   | Attack CharId
-  | Perform SkillId
-  | Choose T.Text
+  | Perform ActiveSkillId
+  | Train ArtId
   | Use T.Text
   | Say T.Text
   | Other T.Text
@@ -29,7 +30,7 @@ instance FromJSON PlayerAction where
     (Go <$> o .: "go")
       <|> (Attack <$> o .: "attack")
       <|> (Perform <$> o .: "perform")
-      <|> (Choose <$> o .: "choose")
+      <|> (Train <$> o .: "train")
       <|> (Use <$> o .: "use")
       <|> (Say <$> o .: "say")
       <|> (Other <$> o .: "other")
@@ -39,28 +40,55 @@ instance FromJSON PlayerAction where
 instance ToJSON PlayerAction where
   toJSON (Go dir) = object ["go" .= dir]
   toJSON (Attack targetId) = object ["attack" .= targetId]
-  toJSON (Perform targetSkillId) = object ["perform" .= targetSkillId]
-  toJSON (Choose choiceId) = object ["choose" .= choiceId]
+  toJSON (Perform targetActiveSkillId) = object ["perform" .= targetActiveSkillId]
+  toJSON (Train targetArtId) = object ["train" .= targetArtId]
   toJSON (Use usedItemId) = object ["use" .= usedItemId]
   toJSON (Say msg) = object ["say" .= msg]
   toJSON (Other msg) = object ["other" .= msg]
   toJSON (Talk targetId) = object ["talk" .= targetId]
 
-data SkillSummary = SkillSummary
-  { skillSummaryId :: SkillId,
-    skillSummaryName :: T.Text,
-    skillSummaryDesc :: T.Text,
-    skillSummaryCost :: Int,
-    skillSummaryApReq :: Int,
-    skillSummaryCooldown :: Double,
-    skillSummaryReqStatus :: [EffectId],
-    skillSummaryReqStatusNames :: [T.Text],
-    skillSummaryDamage :: Maybe Int,
-    skillSummaryHeal :: Maybe Int
+data ActiveSkillSummary = ActiveSkillSummary
+  { activeSkillSummaryId :: ActiveSkillId,
+    activeSkillSummaryName :: T.Text,
+    activeSkillSummaryDesc :: T.Text,
+    activeSkillSummaryCost :: Int,
+    activeSkillSummaryApReq :: Int,
+    activeSkillSummaryUnlockLevel :: Int,
+    activeSkillSummaryCooldown :: Double,
+    activeSkillSummaryReqStatus :: [EffectId],
+    activeSkillSummaryReqStatusNames :: [T.Text],
+    activeSkillSummaryDamage :: Maybe Int,
+    activeSkillSummaryHeal :: Maybe Int
   }
   deriving (Show, Eq, Generic)
 
-instance ToJSON SkillSummary
+instance ToJSON ActiveSkillSummary
+
+data ArtRequirementSummary = ArtRequirementSummary
+  { artRequirementSummaryId :: ArtId,
+    artRequirementSummaryName :: T.Text,
+    artRequirementSummaryLevel :: Int
+  }
+  deriving (Show, Eq, Generic)
+
+instance ToJSON ArtRequirementSummary
+
+data ArtSummary = ArtSummary
+  { artSummaryId :: ArtId,
+    artSummaryName :: T.Text,
+    artSummaryType :: T.Text,
+    artSummaryLevel :: Int,
+    artSummaryMaxLevel :: Int,
+    artSummaryIsFoundation :: Bool,
+    artSummaryFoundation :: Maybe ArtId,
+    artSummaryRequirements :: [ArtRequirementSummary],
+    artSummaryUnlockedAttackMoves :: [T.Text],
+    artSummaryUnlockedActiveSkills :: [T.Text],
+    artSummaryNextUnlocks :: [T.Text]
+  }
+  deriving (Show, Eq, Generic)
+
+instance ToJSON ArtSummary
 
 data EffectSummary = EffectSummary
   { effectSummaryId :: EffectId,
@@ -73,16 +101,17 @@ data EffectSummary = EffectSummary
 
 instance ToJSON EffectSummary
 
-data CooldownSummary = CooldownSummary
-  { cooldownSummarySkillId :: SkillId,
-    cooldownSummaryRemaining :: Double
+data ActiveSkillCooldownSummary = ActiveSkillCooldownSummary
+  { activeSkillCooldownSummaryActiveSkillId :: ActiveSkillId,
+    activeSkillCooldownSummaryRemaining :: Double
   }
   deriving (Show, Eq, Generic)
 
-instance ToJSON CooldownSummary
+instance ToJSON ActiveSkillCooldownSummary
 
 data CombatantSnapshot = CombatantSnapshot
-  { combatantSnapshotName :: T.Text,
+  { combatantSnapshotId :: CharId,
+    combatantSnapshotName :: T.Text,
     combatantSnapshotHp :: Int,
     combatantSnapshotMaxHp :: Int,
     combatantSnapshotQi :: Int,
@@ -97,20 +126,12 @@ instance ToJSON CombatantSnapshot
 data BattleSnapshot = BattleSnapshot
   { battleSnapshotPlayer :: CombatantSnapshot,
     battleSnapshotEnemy :: CombatantSnapshot,
-    battleSnapshotCooldowns :: [CooldownSummary],
-    battleSnapshotSkills :: [SkillSummary]
+    battleSnapshotActiveSkillCooldowns :: [ActiveSkillCooldownSummary],
+    battleSnapshotActiveSkills :: [ActiveSkillSummary]
   }
   deriving (Show, Eq, Generic)
 
 instance ToJSON BattleSnapshot
-
-data StoryChoiceResp = StoryChoiceResp
-  { storyChoiceRespId :: T.Text,
-    storyChoiceRespText :: T.Text
-  }
-  deriving (Show, Eq, Generic)
-
-instance ToJSON StoryChoiceResp
 
 data RoomCharacterSummary = RoomCharacterSummary
   { roomCharacterSummaryId :: CharId,
@@ -178,6 +199,79 @@ data QuestLogEntry = QuestLogEntry
 
 instance ToJSON QuestLogEntry
 
+data SystemMessage = SystemMessage
+  { systemMessageKey :: T.Text,
+    systemMessageParams :: M.Map T.Text T.Text
+  }
+  deriving (Show, Eq, Generic)
+
+instance ToJSON SystemMessage
+
+data ErrorSummary = ErrorSummary
+  { errorSummaryCode :: T.Text,
+    errorSummaryParams :: M.Map T.Text T.Text
+  }
+  deriving (Show, Eq, Generic)
+
+instance ToJSON ErrorSummary
+
+data CombatMessage
+  = CombatScriptText T.Text
+  | CombatEffectTick EffectId T.Text T.Text Int
+  deriving (Show, Eq, Generic)
+
+instance ToJSON CombatMessage where
+  toJSON (CombatScriptText text) =
+    object
+      [ "kind" .= ("script" :: T.Text),
+        "text" .= text
+      ]
+  toJSON (CombatEffectTick effId effName effKind effAmount) =
+    object
+      [ "kind" .= ("effect_tick" :: T.Text),
+        "effectId" .= effId,
+        "effectName" .= effName,
+        "effectKind" .= effKind,
+        "amount" .= effAmount
+      ]
+
+data ActiveSkillFailureReason
+  = ActiveSkillNeedAp Int Int
+  | ActiveSkillNeedQi Int Int
+  | ActiveSkillOnCooldown Int
+  | ActiveSkillMissingStatus [EffectId]
+  | ActiveSkillUnavailable ActiveSkillId
+  deriving (Show, Eq, Generic)
+
+instance ToJSON ActiveSkillFailureReason where
+  toJSON (ActiveSkillNeedAp required current) =
+    object
+      [ "reason" .= ("need_ap" :: T.Text),
+        "required" .= required,
+        "current" .= current
+      ]
+  toJSON (ActiveSkillNeedQi required current) =
+    object
+      [ "reason" .= ("need_qi" :: T.Text),
+        "required" .= required,
+        "current" .= current
+      ]
+  toJSON (ActiveSkillOnCooldown remaining) =
+    object
+      [ "reason" .= ("cooldown" :: T.Text),
+        "remaining" .= remaining
+      ]
+  toJSON (ActiveSkillMissingStatus missing) =
+    object
+      [ "reason" .= ("missing_status" :: T.Text),
+        "statuses" .= missing
+      ]
+  toJSON (ActiveSkillUnavailable sid) =
+    object
+      [ "reason" .= ("unavailable" :: T.Text),
+        "activeSkillId" .= sid
+      ]
+
 data ActionResp
   -- | dst room name
   = MoveMsg T.Text
@@ -185,10 +279,10 @@ data ActionResp
   | ViewMsg T.Text T.Text [RoomCharacterSummary] [RoomExitSummary]
   -- | attacker, defender
   | AttackMsg T.Text T.Text
-  -- | attacker, defender, skill desc
-  | SkillMsg T.Text T.Text T.Text
-  -- | attacker, defender, skill desc, damage
-  | CombatNormalMsg T.Text T.Text T.Text Int
+  -- | attacker, defender, active skill message
+  | ActiveSkillMsg T.Text T.Text CombatMessage
+  -- | attacker, defender, attack move or active skill message, damage
+  | CombatNormalMsg T.Text T.Text CombatMessage Int
   -- | attacker, defender, win
   | CombatSettlementMsg T.Text T.Text Bool
   -- | applier, item desc
@@ -199,12 +293,15 @@ data ActionResp
   | DialogueMsg T.Text T.Text
   -- | hp, maxHp, qi, maxQi, ap, status
   | PlayerStatsMsg Int Int Int Int Int T.Text
-  | SkillFailureMsg T.Text
+  | ActiveSkillFailureMsg ActiveSkillFailureReason
   | BattleStateMsg BattleSnapshot
-  | StoryMsg T.Text T.Text [StoryChoiceResp]
+  | StoryMsg T.Text T.Text
   | QuestLogMsg [QuestLogEntry]
   | InventoryMsg Int [InventoryItemSummary]
+  | ArtsMsg [ArtSummary]
   | RewardMsg [RewardSummary]
+  | SystemMsg SystemMessage
+  | ErrorMsg ErrorSummary
   deriving (Show, Eq, Generic)
 
 instance ToJSON ActionResp

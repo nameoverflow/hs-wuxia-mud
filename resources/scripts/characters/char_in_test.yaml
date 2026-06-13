@@ -2,13 +2,13 @@ id: char_in_test
 name: "沉默木人"
 desc: "一具给客人试招的旧木人，刀痕纵横。"
 actions: [dialogue, attacking, sparring]
-skills:
-  technique:
-    - id: test
+martial_arts:
+  fist:
+    - id: nameless_trial_fist
       level: 1
 prepared:
-  technique:
-    id: test
+  fist:
+    id: nameless_trial_fist
     level: 1
 dialogue:
   - "木人沉默不语，雨水沿着刀痕往下流。"

@@ -1,23 +1,31 @@
-id: test
+id: nameless_trial_fist
 name: "无名试刀"
-type: technique
+type: fist
 desc: "用来试招。也用来试胆。"
-moves:
-  - id: test_move1
+foundation: basic_fist
+requires:
+  - art: basic_fist
+    level: 1
+max_level: 10
+attack_moves:
+  - id: straight_trial_punch
     name: "试手一拳"
     desc: "拳很普通。普通得足够伤人。"
     msg: "以拳试人"
+    unlock_level: 1
     damage: 10
-  - id: test_move2
+  - id: rainstep_kick
     name: "雨脚一踢"
     desc: "脚从雨线里来。"
     msg: "一脚踢进雨声里"
+    unlock_level: 1
     damage: 11
-skills:
+active_skills:
   - id: power_strike
     name: "断雨一击"
     desc: "气沉拳锋，出手只在一瞬。"
     msg: "将一口气压到拳上，一击断雨"
+    unlock_level: 1
     cd: 5.0
     target: Single
     cost: 30
@@ -31,6 +39,7 @@ skills:
     name: "回灯掌"
     desc: "把将熄的气息，从伤口边缘拉回来。"
     msg: "一掌按下，气息像残灯又亮"
+    unlock_level: 1
     cd: 8.0
     target: Self
     cost: 50

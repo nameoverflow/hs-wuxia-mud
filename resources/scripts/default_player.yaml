@@ -9,13 +9,22 @@ char:
   actions: []
   dialogue: []
   respawn: 0
-  skills:
-    technique:
-      - id: test
+  martial_arts:
+    foundation:
+      - id: basic_internal
+        level: 1
+      - id: basic_lightness
+        level: 1
+      - id: basic_sword
+        level: 1
+      - id: basic_fist
+        level: 1
+    fist:
+      - id: nameless_trial_fist
         level: 1
   prepared:
-    technique:
-      id: test
+    fist:
+      id: nameless_trial_fist
       level: 1
   attr:
     hp: 114

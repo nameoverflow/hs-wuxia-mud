@@ -48,8 +48,14 @@ loadOrCreatePlayer uid gs = do
         Right (Just save) ->
           return $ applyPlayerSaveToGameState save gs'
 
-broadcast :: Text -> ServerMap -> IO ()
-broadcast message clients = do
+sendResp :: Connection -> ActionResp -> IO ()
+sendResp conn resp = do
+  msg <- formatResp resp
+  sendTextData conn msg
+
+broadcastResp :: ActionResp -> ServerMap -> IO ()
+broadcastResp resp clients = do
+  message <- formatResp resp
   TIO.putStrLn message
   forM_ clients $ \conn -> do
     sendTextData conn message
@@ -57,19 +63,19 @@ broadcast message clients = do
 userLogin :: PlayerId -> Connection -> MVar ServerMap -> MVar GameState -> IO ()
 userLogin user conn cm s = do
   modifyMVar_ cm $ \c -> do
-    broadcast (user <> " joined") c
-    sendTextData conn $
-      "Welcome! Users: "
-        <> T.intercalate
-          ", "
-          (keys c)
+    broadcastResp (SystemMsg $ SystemMessage "user_joined" $ M.singleton "user" user) c
+    sendResp conn $
+      SystemMsg $
+        SystemMessage
+          "welcome"
+          (M.singleton "users" $ T.intercalate ", " (keys c))
     return $ M.insert user conn c
   modifyMVar_ s $ \ss -> do
     s' <- loadOrCreatePlayer user ss
     TIO.putStrLn $ "players: " <> toText (show (keys . view players $ s'))
     return s'
   runAndResponse s cm (playerView user) $ \err -> do
-    sendTextData conn $ "Error: " <> toText (show err)
+    sendResp conn $ ErrorMsg $ gameExceptionToSummary err
 
 
 serverApplication :: MVar ServerMap -> MVar GameState -> ServerApp
@@ -82,13 +88,13 @@ serverApplication conns state pending = do
     case decode msg :: Maybe NetEvent of
       Just Login {username = un}
         | member un c -> do
-          sendTextData conn ("User already exists" :: Text)
+          sendResp conn $ ErrorMsg $ ErrorSummary "user_exists" $ M.singleton "user" un
           fail "User already exists"
         | otherwise -> flip finally (disconnectClient un conns state) $ do
           userLogin un conn conns state
           runGameLoop un conns state
       _ -> do
-        sendTextData conn ("Not Logged In" :: Text)
+        sendResp conn $ ErrorMsg $ ErrorSummary "not_logged_in" M.empty
         return ()
 
 disconnectClient :: Text -> MVar ServerMap -> MVar GameState -> IO ()
@@ -106,7 +112,7 @@ disconnectClient user conns state = do
       savePlayerState saveDir user gs'
       return gs'
   TIO.putStrLn $ user <> " disconnected"
-  broadcast (user <> " disconnected") s
+  broadcastResp (SystemMsg $ SystemMessage "user_disconnected" $ M.singleton "user" user) s
 
 runAndResponse :: MVar GameState -> MVar ServerMap -> GameStateT a -> (GameException -> IO ()) -> IO ()
 runAndResponse state conns gameM onError = do
@@ -161,7 +167,7 @@ runGameLoop user conns state = do
       let gameM = processPlayerAction user action
       runAndResponse state conns gameM $ \err -> do
         TIO.putStrLn $ user <> " ERROR: " <> toText (show err)
-        sendTextData conn $ "Error: " <> toText (show err)
+        sendResp conn $ ErrorMsg $ gameExceptionToSummary err
 
 gameTickLoop :: MVar ServerMap -> MVar GameState -> IO ()
 gameTickLoop cs gs = do

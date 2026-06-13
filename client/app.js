@@ -8,27 +8,48 @@ class MUDClient {
         this.connected = false;
         this.inBattle = false;
         this.currentEnemy = null;
+        this.currentEnemyId = null;
+        this.battlePlayerIdentity = { id: null, name: null };
+        this.battleEnemyIdentity = { id: null, name: null };
         this.playerStatusRaw = null;
         this.playerStats = {
             hp: 100, maxHp: 100,
             qi: 100, maxQi: 100,
             ap: 0
         };
-        this.skillCooldowns = {};
+        this.apDisplayValue = 0;
+        this.apTargetValue = 0;
+        this.apAnimationFrame = null;
+        this.lastApSnapshotAt = 0;
+        this.enemyApDisplayValue = 0;
+        this.enemyApTargetValue = 0;
+        this.enemyApAnimationFrame = null;
+        this.lastEnemyApSnapshotAt = 0;
+        this.activeSkillCooldowns = {};
         this.activeEffects = [];
-        this.currentSkills = [];
+        this.currentActiveSkills = [];
+        this.artsState = [];
         this.currentRoom = { name: null, desc: null, characters: [], exits: [] };
         this.questEntries = [];
         this.inventoryState = { money: 0, items: [] };
-        this.lastStoryChoices = [];
         this.activeNpc = null;
+        this.currentRoomKey = null;
+        this.pendingMapMove = null;
+        this.mapMoveTimeout = null;
+        this.mapAnimationCleanup = null;
+        this.battleAnimationTimer = null;
+        this.combatEventQueue = [];
+        this.combatEventPlaying = false;
+        this.combatEventTimer = null;
+        this.battleExitPending = false;
+        this.preBattleFilter = 'all';
         this.soundEnabled = false;
         this.audioContext = null;
 
         // DOM Elements
+        this.mainContent = document.querySelector('.main-content');
+        this.gamePanel = document.querySelector('.game-panel');
         this.messageDisplay = document.getElementById('message-display');
-        this.commandInput = document.getElementById('command-input');
-        this.sendBtn = document.getElementById('send-btn');
         this.usernameInput = document.getElementById('username-input');
         this.loginBtn = document.getElementById('login-btn');
         this.connectionStatus = document.getElementById('connection-status');
@@ -59,6 +80,23 @@ class MUDClient {
         this.battleEnemyName = document.getElementById('battle-enemy-name');
         this.battlePlayerHp = document.getElementById('battle-player-hp');
         this.battleEnemyHp = document.getElementById('battle-enemy-hp');
+        this.battlePlayerHpText = document.getElementById('battle-player-hp-text');
+        this.battleEnemyHpText = document.getElementById('battle-enemy-hp-text');
+        this.battlePlayerQi = document.getElementById('battle-player-qi');
+        this.battleEnemyQi = document.getElementById('battle-enemy-qi');
+        this.battlePlayerQiText = document.getElementById('battle-player-qi-text');
+        this.battleEnemyQiText = document.getElementById('battle-enemy-qi-text');
+        this.battlePlayerAp = document.getElementById('battle-player-ap');
+        this.battleEnemyAp = document.getElementById('battle-enemy-ap');
+        this.battlePlayerApText = document.getElementById('battle-player-ap-text');
+        this.battleEnemyApText = document.getElementById('battle-enemy-ap-text');
+        this.battleStage = document.getElementById('battle-stage');
+        this.battlePlayerFigure = document.getElementById('battle-player-figure');
+        this.battleEnemyFigure = document.getElementById('battle-enemy-figure');
+        this.battleStrike = document.getElementById('battle-strike');
+        this.battleFloatDamage = document.getElementById('battle-float-damage');
+        this.battleEffectLabel = document.getElementById('battle-effect-label');
+        this.setBattleCombatantAvatars(null, null);
 
         // Room elements
         this.roomName = document.getElementById('room-name');
@@ -180,13 +218,15 @@ class MUDClient {
         this.renderActiveEffects();
         this.renderQuestLog();
         this.renderInventory();
-        if (this.currentSkills.length > 0) {
-            this.renderSkillPanel(this.currentSkills);
+        if (this.inBattle) {
+            this.renderActiveSkillPanel(this.currentActiveSkills);
+        } else {
+            this.renderArtsPanel();
         }
         if (this.activeNpc) {
             this.renderNpcModal(this.activeNpc);
         }
-        this.updateSkillAvailability();
+        this.updateActiveSkillAvailability();
         this.updateStoryGuide();
     }
 
@@ -201,20 +241,9 @@ class MUDClient {
             if (e.key === 'Enter') this.connect();
         });
 
-        // Command input
-        this.sendBtn.addEventListener('click', () => this.sendCommand());
-        this.commandInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.sendCommand();
-        });
-
-        // Action buttons
-        document.querySelectorAll('.btn-action').forEach(btn => {
-            btn.addEventListener('click', () => this.handleActionButton(btn));
-        });
-
-        // Skill cards
-        document.querySelectorAll('.skill-card').forEach(card => {
-            card.addEventListener('click', () => this.handleSkillClick(card));
+        // Active skill cards
+        document.querySelectorAll('.active-skill-card').forEach(card => {
+            card.addEventListener('click', () => this.handleActiveSkillClick(card));
         });
 
         // Combat log toggle
@@ -275,13 +304,7 @@ class MUDClient {
         this.currentFilter = 'all';
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                // Update active state
-                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-
-                // Apply filter
-                this.currentFilter = btn.dataset.filter;
-                this.applyMessageFilter();
+                this.setMessageFilter(btn.dataset.filter || 'all');
             });
         });
 
@@ -314,7 +337,7 @@ class MUDClient {
                 oscillator.type = 'square';
                 gainNode.gain.value = 0.1;
                 break;
-            case 'skill':
+            case 'active-skill':
                 oscillator.frequency.value = 400;
                 oscillator.type = 'sine';
                 gainNode.gain.value = 0.15;
@@ -352,7 +375,10 @@ class MUDClient {
                 msg.classList.remove('filtered');
             } else {
                 // Determine message category
-                const isCombat = msg.classList.contains('message-combat') || msg.classList.contains('message-skill');
+                const isCombat =
+                    msg.classList.contains('message-combat')
+                    || msg.classList.contains('message-active-skill')
+                    || msg.classList.contains('message-battle-error');
                 const isDialogue = msg.classList.contains('message-dialogue') || msg.classList.contains('message-story') || msg.classList.contains('message-say');
                 const isSystem = msg.classList.contains('message-system') || msg.classList.contains('message-move') || msg.classList.contains('message-error');
 
@@ -369,15 +395,23 @@ class MUDClient {
         });
     }
 
+    setMessageFilter(filter) {
+        this.currentFilter = filter || 'all';
+        document.querySelectorAll('.filter-btn').forEach(button => {
+            button.classList.toggle('active', button.dataset.filter === this.currentFilter);
+        });
+        this.applyMessageFilter();
+    }
+
     connect() {
         const username = this.usernameInput.value.trim();
         if (!username) {
-            this.displayMessage('Please enter a username', 'error');
+            this.displayMessage(this.t('error.username_required'), 'error');
             return;
         }
 
         this.username = username;
-        this.displayMessage(`Connecting as ${username}...`, 'system');
+        this.displayMessage(this.t('connection.connecting', { user: username }), 'system');
 
         try {
             this.ws = new WebSocket('ws://127.0.0.1:9160');
@@ -385,7 +419,7 @@ class MUDClient {
             this.ws.onopen = () => {
                 this.connected = true;
                 this.updateConnectionStatus(true);
-                this.displayMessage('Connected to server!', 'system');
+                this.displayMessage(this.t('connection.connected'), 'system');
 
                 // Send login event as JSON with tag
                 const loginEvent = JSON.stringify({
@@ -395,19 +429,21 @@ class MUDClient {
                 });
                 this.ws.send(loginEvent);
 
-                // Enable UI
-                this.commandInput.disabled = false;
-                this.sendBtn.disabled = false;
                 this.loginBtn.disabled = true;
                 this.usernameInput.disabled = true;
 
                 // Update player name
                 this.playerName.textContent = username;
                 this.battlePlayerName.textContent = username;
+                this.battlePlayerIdentity = {
+                    id: `player$char$${username}`,
+                    name: username
+                };
 
                 // Request initial view
                 setTimeout(() => {
                     this.sendAction({ other: "view" });
+                    this.sendAction({ other: "arts" });
                 }, 500);
             };
 
@@ -416,25 +452,22 @@ class MUDClient {
             };
 
             this.ws.onerror = (error) => {
-                this.displayMessage('Connection error!', 'error');
+                this.displayMessage(this.t('connection.error'), 'error');
                 console.error('WebSocket error:', error);
             };
 
             this.ws.onclose = () => {
                 this.connected = false;
                 this.updateConnectionStatus(false);
-                this.displayMessage('Disconnected from server', 'system');
+                this.displayMessage(this.t('connection.disconnected'), 'system');
                 this.updateStoryGuide();
 
-                // Disable UI
-                this.commandInput.disabled = true;
-                this.sendBtn.disabled = true;
                 this.loginBtn.disabled = false;
                 this.usernameInput.disabled = false;
             };
 
         } catch (error) {
-            this.displayMessage(`Failed to connect: ${error.message}`, 'error');
+            this.displayMessage(this.t('connection.failed', { detail: error.message }), 'error');
         }
     }
 
@@ -473,8 +506,8 @@ class MUDClient {
                 case 'CombatSettlementMsg':
                     this.handleCombatSettlementMsg(contents);
                     break;
-                case 'SkillMsg':
-                    this.handleSkillMsg(contents);
+                case 'ActiveSkillMsg':
+                    this.handleActiveSkillMsg(contents);
                     break;
                 case 'DialogueMsg':
                     this.handleDialogueMsg(contents);
@@ -485,8 +518,8 @@ class MUDClient {
                 case 'BattleStateMsg':
                     this.handleBattleStateMsg(contents);
                     break;
-                case 'SkillFailureMsg':
-                    this.handleSkillFailureMsg(contents);
+                case 'ActiveSkillFailureMsg':
+                    this.handleActiveSkillFailureMsg(contents);
                     break;
                 case 'StoryMsg':
                     this.handleStoryMsg(contents);
@@ -497,6 +530,9 @@ class MUDClient {
                 case 'InventoryMsg':
                     this.handleInventoryMsg(contents);
                     break;
+                case 'ArtsMsg':
+                    this.handleArtsMsg(contents);
+                    break;
                 case 'RewardMsg':
                     this.handleRewardMsg(contents);
                     break;
@@ -506,6 +542,12 @@ class MUDClient {
                 case 'UseItemMsg':
                     this.handleUseItemMsg(contents);
                     break;
+                case 'SystemMsg':
+                    this.handleSystemMsg(contents);
+                    break;
+                case 'ErrorMsg':
+                    this.handleErrorMsg(contents);
+                    break;
                 default:
                     // Fallback: display as JSON string
                     this.displayMessage(JSON.stringify(message, null, 2), 'system');
@@ -514,7 +556,7 @@ class MUDClient {
     }
 
     handleMoveMsg(contents) {
-        this.displayMessage(`You moved to: ${contents}`, 'move');
+        this.displayMessage(this.t('message.move', { room: contents }), 'move');
         this.playerLocation.textContent = contents;
     }
 
@@ -538,11 +580,19 @@ class MUDClient {
                 : { name: text, id: null, desc: '', actions: [] };
         });
 
+        const normalizedExits = this.normalizeExitSummaries(exits || []);
+        this.currentRoomKey = this.resolveCurrentRoomKey(roomName);
+        this.pendingMapMove = null;
+        if (this.mapMoveTimeout) {
+            clearTimeout(this.mapMoveTimeout);
+            this.mapMoveTimeout = null;
+        }
+
         this.currentRoom = {
             name: roomName,
             desc: roomDesc,
             characters: parsedChars,
-            exits: this.normalizeExitSummaries(exits || [])
+            exits: normalizedExits
         };
 
         this.renderRoom();
@@ -554,7 +604,7 @@ class MUDClient {
         if (!this.roomName || !this.roomDesc || !this.roomCharacters || !this.roomExits) return;
         const { name, desc, characters, exits } = this.currentRoom;
 
-        if (this.activeNpc && !characters.some(char => char.id === this.activeNpc.id)) {
+        if (this.activeNpc && this.activeNpc.id && !characters.some(char => char.id === this.activeNpc.id)) {
             this.closeNpcModal();
         }
 
@@ -679,6 +729,10 @@ class MUDClient {
         }
     }
 
+    findCharacterByName(name) {
+        return (this.currentRoom.characters || []).find(char => char.name === name) || null;
+    }
+
     createNpcActionButton(label, kind, onClick, disabledReason = null) {
         const button = document.createElement('button');
         button.type = 'button';
@@ -688,7 +742,7 @@ class MUDClient {
         if (disabledReason) {
             button.disabled = true;
             button.title = disabledReason;
-            button.setAttribute('aria-label', `${label}: ${disabledReason}`);
+            button.setAttribute('aria-label', this.t('ui.label_reason', { label, reason: disabledReason }));
         } else if (onClick) {
             button.addEventListener('click', onClick);
         }
@@ -699,13 +753,56 @@ class MUDClient {
     renderRoomMap(exits) {
         if (!this.roomMap) return;
 
+        const previousRects = this.captureMapNodeRects();
         this.roomMap.textContent = '';
+        this.roomMap.classList.remove('map-moving');
+        const currentPoint = { x: 50, y: 56 };
+        const currentPosition = this.inferCurrentMapPosition(exits);
+        const exitPoints = exits
+            .map(exit => {
+                const direction = this.getExitDirection(exit);
+                const label = this.getExitLabel(exit);
+                if (!direction) return null;
+
+                const targetPosition = this.getExitPosition(exit);
+                const fallbackVector = this.directionVector(direction);
+                const dx = targetPosition ? targetPosition.x - currentPosition.x : fallbackVector.x;
+                const dy = targetPosition ? targetPosition.y - currentPosition.y : fallbackVector.y;
+                const vector = (dx === 0 && dy === 0) ? fallbackVector : { x: dx, y: dy };
+
+                return {
+                    direction,
+                    label,
+                    roomKey: this.getExitRoomKey(exit, label),
+                    x: this.clamp(50 + vector.x * 28, 14, 86),
+                    y: this.clamp(56 - vector.y * 30, 18, 88)
+                };
+            })
+            .filter(Boolean);
+
+        const links = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        links.classList.add('map-links-svg');
+        links.setAttribute('viewBox', '0 0 100 100');
+        links.setAttribute('preserveAspectRatio', 'none');
+        exitPoints.forEach(point => {
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', String(currentPoint.x));
+            line.setAttribute('y1', String(currentPoint.y));
+            line.setAttribute('x2', String(point.x));
+            line.setAttribute('y2', String(point.y));
+            links.appendChild(line);
+        });
+        this.roomMap.appendChild(links);
+
         const currentNode = document.createElement('div');
         currentNode.className = 'map-node map-node-current';
+        currentNode.dataset.roomKey = this.currentRoomKey || this.getRoomNameKey(this.currentRoom.name);
         currentNode.textContent = this.currentRoom.name || this.t('map.current_position');
+        currentNode.style.left = `${currentPoint.x}%`;
+        currentNode.style.top = `${currentPoint.y}%`;
         this.roomMap.appendChild(currentNode);
 
-        if (exits.length === 0) {
+        if (exitPoints.length === 0) {
             const empty = document.createElement('div');
             empty.className = 'map-empty';
             empty.textContent = this.t('map.no_exits');
@@ -713,26 +810,157 @@ class MUDClient {
             return;
         }
 
-        exits.forEach(exit => {
-            const direction = this.getExitDirection(exit);
-            const label = this.getExitLabel(exit);
-            if (!direction) return;
-
-            const link = document.createElement('span');
-            link.className = `map-link map-link-${direction}`;
-            this.roomMap.appendChild(link);
-
+        exitPoints.forEach(point => {
             const node = document.createElement('button');
             node.type = 'button';
-            node.className = `map-node map-node-exit map-node-${direction}`;
-            node.dataset.direction = direction;
-            node.textContent = label;
-            node.title = this.t('map.move_to', { value: label });
-            node.setAttribute('aria-label', this.t('map.move_to', { value: label }));
+            node.className = 'map-node map-node-exit';
+            node.dataset.direction = point.direction;
+            node.dataset.roomKey = point.roomKey;
+            node.textContent = point.label;
+            node.style.left = `${point.x}%`;
+            node.style.top = `${point.y}%`;
+            node.title = this.t('map.move_to', { value: point.label });
+            node.setAttribute('aria-label', this.t('map.move_to', { value: point.label }));
             node.disabled = !this.connected;
-            node.addEventListener('click', () => this.goDirection(direction));
+            node.addEventListener('click', () => this.goDirection(point.direction));
             this.roomMap.appendChild(node);
         });
+
+        this.animateMapTransition(previousRects);
+    }
+
+    captureMapNodeRects() {
+        const rects = new Map();
+        if (!this.roomMap) return rects;
+
+        this.roomMap.querySelectorAll('.map-node[data-room-key]').forEach(node => {
+            const key = node.dataset.roomKey;
+            if (!key) return;
+            rects.set(key, node.getBoundingClientRect());
+        });
+        return rects;
+    }
+
+    animateMapTransition(previousRects) {
+        if (!this.roomMap || previousRects.size === 0) return;
+
+        const animatedNodes = [];
+        this.roomMap.querySelectorAll('.map-node[data-room-key]').forEach(node => {
+            const previous = previousRects.get(node.dataset.roomKey);
+            if (!previous) return;
+
+            const next = node.getBoundingClientRect();
+            const dx = previous.left - next.left;
+            const dy = previous.top - next.top;
+            if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+
+            node.classList.add('map-node-animating');
+            node.style.setProperty('--move-x', `${dx}px`);
+            node.style.setProperty('--move-y', `${dy}px`);
+            animatedNodes.push(node);
+        });
+
+        if (animatedNodes.length === 0) return;
+        void this.roomMap.offsetWidth;
+
+        animatedNodes.forEach(node => {
+            node.classList.remove('map-node-animating');
+            node.classList.add('map-node-settling');
+            node.style.setProperty('--move-x', '0px');
+            node.style.setProperty('--move-y', '0px');
+        });
+
+        if (this.mapAnimationCleanup) {
+            clearTimeout(this.mapAnimationCleanup);
+        }
+        this.mapAnimationCleanup = setTimeout(() => {
+            animatedNodes.forEach(node => {
+                node.classList.remove('map-node-settling');
+                node.style.removeProperty('--move-x');
+                node.style.removeProperty('--move-y');
+            });
+            this.mapAnimationCleanup = null;
+        }, 240);
+    }
+
+    resolveCurrentRoomKey(roomName) {
+        const pending = this.pendingMapMove;
+        if (pending && (!pending.roomName || pending.roomName === roomName)) {
+            return pending.roomKey;
+        }
+        if (this.currentRoom.name === roomName && this.currentRoomKey) {
+            return this.currentRoomKey;
+        }
+        return this.getRoomNameKey(roomName);
+    }
+
+    getExitRoomKey(exit, label) {
+        if (exit && typeof exit === 'object' && exit.roomId) {
+            return `id:${exit.roomId}`;
+        }
+        if (exit && typeof exit === 'object' && exit.roomName) {
+            return this.getRoomNameKey(exit.roomName);
+        }
+        return this.getRoomNameKey(label || this.getExitDirection(exit));
+    }
+
+    getRoomNameKey(name) {
+        return `name:${name || 'current'}`;
+    }
+
+    inferCurrentMapPosition(exits) {
+        const candidates = exits
+            .map(exit => {
+                const position = this.getExitPosition(exit);
+                const vector = this.directionVector(this.getExitDirection(exit));
+                if (!position) return null;
+                return {
+                    x: position.x - vector.x,
+                    y: position.y - vector.y
+                };
+            })
+            .filter(Boolean);
+
+        if (candidates.length === 0) return { x: 0, y: 0 };
+
+        const counts = new Map();
+        candidates.forEach(candidate => {
+            const key = `${candidate.x},${candidate.y}`;
+            counts.set(key, (counts.get(key) || 0) + 1);
+        });
+
+        const [bestKey] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+        const [x, y] = bestKey.split(',').map(Number);
+        return { x, y };
+    }
+
+    getExitPosition(exit) {
+        const raw = exit && exit.position;
+        if (Array.isArray(raw) && raw.length >= 2) {
+            return { x: Number(raw[0]), y: Number(raw[1]) };
+        }
+        if (raw && typeof raw === 'object' && Number.isFinite(Number(raw.x)) && Number.isFinite(Number(raw.y))) {
+            return { x: Number(raw.x), y: Number(raw.y) };
+        }
+        return null;
+    }
+
+    directionVector(direction) {
+        const vectors = {
+            North: { x: 0, y: 1 },
+            South: { x: 0, y: -1 },
+            East: { x: 1, y: 0 },
+            West: { x: -1, y: 0 },
+            NorthEast: { x: 1, y: 1 },
+            NorthWest: { x: -1, y: 1 },
+            SouthEast: { x: 1, y: -1 },
+            SouthWest: { x: -1, y: -1 }
+        };
+        return vectors[direction] || { x: 0, y: 0 };
+    }
+
+    clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     displayViewMessage() {
@@ -753,56 +981,103 @@ class MUDClient {
 
     handleAttackMsg(contents) {
         const [attacker, defender] = contents;
-        const msg = `${attacker} attacks ${defender}!`;
+        const defenderCharacter = this.findCharacterByName(defender);
+        const msg = this.t('message.attack', { attacker, defender });
+        this.clearCombatEventQueue();
         this.displayMessage(msg, 'combat');
         this.addCombatLog(msg);
         this.playSound('attack');
 
         // Enter battle mode
-        this.setBattleMode(true, defender);
+        this.setBattleMode(true, defender, defenderCharacter && defenderCharacter.id);
     }
 
     handleCombatNormalMsg(contents) {
-        const [attacker, defender, skillMsg, damage] = contents;
-        const msg = `${attacker} ${skillMsg} -> ${defender} (-${damage} HP)`;
-        this.displayMessage(msg, 'combat');
-        this.addCombatLog(msg);
-        this.playSound('damage');
+        const [attacker, defender, combatMessage, damage] = contents;
+        const actionText = this.formatCombatMessage(combatMessage);
+        const msg = this.t('message.combat.damage', {
+            attacker,
+            defender,
+            action: actionText,
+            damage
+        });
+        this.enqueueCombatEvent({
+            type: 'motion',
+            message: msg,
+            messageType: 'combat',
+            sound: 'damage',
+            attacker,
+            defender,
+            damage,
+            label: this.t('battle.damage_tag'),
+            duration: 460,
+            motionOptions: {
+                attackerMotion: 'attack',
+                defenderMotion: this.classifyDefenseMotion(actionText, damage)
+            }
+        });
     }
 
     handleCombatSettlementMsg(contents) {
         const [player, enemy, won] = contents;
-        const result = won ? 'Victory!' : 'Defeat';
-        const msg = `${result} Battle with ${enemy} ended.`;
-        this.displayMessage(msg, 'combat');
-        this.addCombatLog(msg);
-        this.playSound(won ? 'victory' : 'defeat');
-
-        // Exit battle mode
-        this.setBattleMode(false);
+        const msg = this.t(won ? 'message.combat.victory' : 'message.combat.defeat', { player, enemy });
+        this.enqueueCombatEvent({
+            type: 'settlement',
+            message: msg,
+            messageType: 'combat',
+            sound: won ? 'victory' : 'defeat',
+            won,
+            duration: 520
+        });
     }
 
-    handleSkillMsg(contents) {
-        const [caster, target, skillDesc] = contents;
-        const msg = `${caster} -> ${target}: ${skillDesc}`;
-        this.displayMessage(msg, 'skill');
-        this.addCombatLog(msg);
-        this.playSound('skill');
+    handleActiveSkillMsg(contents) {
+        const [caster, target, activeSkillMessage] = contents;
+        const actionText = this.formatCombatMessage(activeSkillMessage);
+        const msg = this.t('message.active_skill', {
+            caster,
+            target,
+            action: actionText
+        });
+        const motion = this.classifyActiveSkillMotion(actionText, caster, target);
+        this.enqueueCombatEvent({
+            type: 'motion',
+            message: msg,
+            messageType: 'active-skill',
+            sound: 'active-skill',
+            attacker: caster,
+            defender: target,
+            damage: 0,
+            label: this.t('battle.skill_tag'),
+            duration: 460,
+            motionOptions: {
+                attackerMotion: motion,
+                defenderMotion: caster === target ? null : undefined
+            }
+        });
     }
 
-    handleSkillFailureMsg(contents) {
-        this.displayMessage(contents, 'error');
-        this.addCombatLog(`Skill failed: ${contents}`);
+    handleActiveSkillFailureMsg(contents) {
+        const msg = this.formatActiveSkillFailure(contents);
+        this.displayMessage(msg, 'battle-error');
+        this.addCombatLog(this.t('message.active_skill_failed', { reason: msg }));
     }
 
     handleDialogueMsg(contents) {
         const [charName, dialogue] = contents;
-        this.displayMessage(`${charName}: "${dialogue}"`, 'dialogue');
+        this.displayMessage(this.t('message.dialogue', { speaker: charName, text: dialogue }), 'dialogue');
     }
 
     handleStoryMsg(contents) {
-        const [speaker, text, choices] = contents;
-        this.lastStoryChoices = choices || [];
+        const [speaker, text] = contents;
+        const messageDiv = this.createStoryHistoryMessage(speaker, text);
+        this.messageDisplay.appendChild(messageDiv);
+        this.messageDisplay.scrollTop = this.messageDisplay.scrollHeight;
+        this.applyMessageFilter();
+        this.updateStoryGuide();
+    }
+
+    createStoryHistoryMessage(speaker, text) {
         const messageDiv = document.createElement('div');
         messageDiv.className = 'message message-story';
 
@@ -821,34 +1096,7 @@ class MUDClient {
         textSpan.textContent = text;
         messageDiv.appendChild(textSpan);
 
-        if (choices && choices.length > 0) {
-            const choicesDiv = document.createElement('div');
-            choicesDiv.className = 'story-choices';
-
-            choices.forEach(choice => {
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.className = 'story-choice-btn';
-                button.textContent = choice.storyChoiceRespText;
-                button.title = `choose ${choice.storyChoiceRespId}`;
-                button.addEventListener('click', () => {
-                    this.sendAction({ choose: choice.storyChoiceRespId });
-                    this.lastStoryChoices = [];
-                    this.updateStoryGuide();
-                    choicesDiv.querySelectorAll('.story-choice-btn').forEach(btn => {
-                        btn.disabled = true;
-                    });
-                });
-                choicesDiv.appendChild(button);
-            });
-
-            messageDiv.appendChild(choicesDiv);
-        }
-
-        this.messageDisplay.appendChild(messageDiv);
-        this.messageDisplay.scrollTop = this.messageDisplay.scrollHeight;
-        this.applyMessageFilter();
-        this.updateStoryGuide();
+        return messageDiv;
     }
 
     handleQuestLogMsg(entries) {
@@ -956,6 +1204,16 @@ class MUDClient {
     handleRewardMsg(rewards) {
         if (!rewards || rewards.length === 0) return;
         this.displayMessage(this.t('quest.reward', { value: rewards.map(r => this.formatReward(r)).join(', ') }), 'system');
+        if (this.connected && rewards.some(reward => reward.rewardSummaryKind === 'martial_art')) {
+            this.sendAction({ other: 'arts' });
+        }
+    }
+
+    handleArtsMsg(arts) {
+        this.artsState = arts || [];
+        if (!this.inBattle) {
+            this.renderArtsPanel();
+        }
     }
 
     handlePlayerStatsMsg(contents) {
@@ -972,10 +1230,14 @@ class MUDClient {
         this.playerStatus.textContent = this.formatPlayerStatus(status);
 
         // Update battle mode based on status
-        if (status === 'In Battle' && !this.inBattle) {
+        if (status === 'in_battle' && !this.inBattle) {
             this.setBattleMode(true);
-        } else if (status !== 'In Battle' && this.inBattle) {
-            this.setBattleMode(false);
+        } else if (status !== 'in_battle' && this.inBattle) {
+            if (this.hasPendingCombatEvents()) {
+                this.battleExitPending = true;
+            } else {
+                this.setBattleMode(false);
+            }
         }
         this.updateStoryGuide();
     }
@@ -983,8 +1245,8 @@ class MUDClient {
     handleBattleStateMsg(snapshot) {
         const player = snapshot.battleSnapshotPlayer;
         const enemy = snapshot.battleSnapshotEnemy;
-        const cooldowns = snapshot.battleSnapshotCooldowns || [];
-        const skills = snapshot.battleSnapshotSkills || [];
+        const cooldowns = snapshot.battleSnapshotActiveSkillCooldowns || [];
+        const activeSkills = snapshot.battleSnapshotActiveSkills || [];
 
         this.playerStats = {
             hp: player.combatantSnapshotHp,
@@ -1002,27 +1264,38 @@ class MUDClient {
             value: effect.effectSummaryValue
         }));
 
-        this.skillCooldowns = {};
+        this.activeSkillCooldowns = {};
         cooldowns.forEach(cd => {
-            this.skillCooldowns[cd.cooldownSummarySkillId] = cd.cooldownSummaryRemaining;
+            this.activeSkillCooldowns[cd.activeSkillCooldownSummaryActiveSkillId] = cd.activeSkillCooldownSummaryRemaining;
         });
 
-        if (skills.length > 0) {
-            this.currentSkills = skills;
-            this.renderSkillPanel(skills);
+        this.currentActiveSkills = activeSkills;
+        this.renderActiveSkillPanel(activeSkills);
+
+        this.battlePlayerIdentity = {
+            id: player.combatantSnapshotId || this.battlePlayerIdentity.id,
+            name: player.combatantSnapshotName || this.battlePlayerIdentity.name
+        };
+        this.battleEnemyIdentity = {
+            id: enemy.combatantSnapshotId || this.battleEnemyIdentity.id,
+            name: enemy.combatantSnapshotName || this.battleEnemyIdentity.name
+        };
+        if (this.battlePlayerName && this.battlePlayerIdentity.name) {
+            this.battlePlayerName.textContent = this.battlePlayerIdentity.name;
         }
 
-        this.setBattleMode(true, enemy.combatantSnapshotName);
+        this.setBattleMode(true, enemy.combatantSnapshotName, enemy.combatantSnapshotId);
         this.updateResourceBars();
+        this.setBattleCombatantAvatars(player.combatantSnapshotId, enemy.combatantSnapshotId);
         this.updateBattleEnemy(enemy);
         this.renderActiveEffects();
-        this.updateSkillAvailability();
+        this.updateActiveSkillAvailability();
         this.updateStoryGuide();
     }
 
     handleSayMsg(contents) {
         const [speaker, message] = contents;
-        this.displayMessage(`${speaker} says: "${message}"`, 'say');
+        this.displayMessage(this.t('message.say', { speaker, text: message }), 'say');
     }
 
     handleUseItemMsg(contents) {
@@ -1030,67 +1303,262 @@ class MUDClient {
         this.displayMessage(itemDesc, 'system');
     }
 
+    handleSystemMsg(contents) {
+        const key = contents && contents.systemMessageKey;
+        const params = this.normalizeMessageParams(contents && contents.systemMessageParams);
+        const i18nKey = `system.${key}`;
+        const msg = this.hasTranslation(i18nKey)
+            ? this.t(i18nKey, params)
+            : this.t('system.unknown', { code: key || 'unknown' });
+        this.displayMessage(msg, 'system');
+    }
+
+    handleErrorMsg(contents) {
+        const code = contents && contents.errorSummaryCode;
+        const params = this.localizeErrorParams(this.normalizeMessageParams(contents && contents.errorSummaryParams));
+        const i18nKey = `error.${code}`;
+        const msg = this.hasTranslation(i18nKey)
+            ? this.t(i18nKey, params)
+            : this.t('error.unknown', { code: code || 'unknown', detail: params.detail || '' });
+        this.displayMessage(msg, 'error');
+    }
+
+    localizeErrorParams(params) {
+        const localized = { ...params };
+        if (localized.action) {
+            const key = `action.${localized.action}`;
+            localized.action = this.hasTranslation(key) ? this.t(key) : localized.action;
+        }
+        if (localized.direction) {
+            localized.direction = this.formatDirection(localized.direction);
+        }
+        return localized;
+    }
+
+    normalizeMessageParams(params) {
+        if (!params || typeof params !== 'object') return {};
+        return Object.fromEntries(
+            Object.entries(params).map(([key, value]) => [key, value === null || value === undefined ? '' : value])
+        );
+    }
+
+    formatCombatMessage(combatMessage) {
+        if (!combatMessage || typeof combatMessage !== 'object') return '';
+        if (combatMessage.kind === 'script') {
+            return combatMessage.text || '';
+        }
+        if (combatMessage.kind === 'effect_tick') {
+            const effect = combatMessage.effectName || combatMessage.effectId || '';
+            const amount = combatMessage.amount || 0;
+            const key = `message.combat.effect.${combatMessage.effectKind}`;
+            return this.hasTranslation(key)
+                ? this.t(key, { effect, amount })
+                : this.t('message.combat.effect.unknown', { effect, amount });
+        }
+        return '';
+    }
+
+    formatActiveSkillFailure(reason) {
+        if (!reason || typeof reason !== 'object') {
+            return this.t('active_skill.failure.unknown');
+        }
+
+        switch (reason.reason) {
+            case 'need_ap':
+                return this.t('active_skill.failure.need_ap', {
+                    required: reason.required,
+                    current: reason.current
+                });
+            case 'need_qi':
+                return this.t('active_skill.failure.need_qi', {
+                    required: reason.required,
+                    current: reason.current
+                });
+            case 'cooldown':
+                return this.t('active_skill.failure.cooldown', {
+                    seconds: reason.remaining
+                });
+            case 'missing_status':
+                return this.t('active_skill.failure.missing_status', {
+                    value: (reason.statuses || []).map(status => this.formatEffectName(status)).join(', ')
+                });
+            case 'unavailable':
+                return this.t('active_skill.failure.unavailable', {
+                    activeSkill: reason.activeSkillId || ''
+                });
+            default:
+                return this.t('active_skill.failure.unknown');
+        }
+    }
+
     updateResourceBars() {
         const { hp, maxHp, qi, maxQi, ap } = this.playerStats;
 
-        // HP bar
+        // Health bar
         const hpPercent = this.percent(hp, maxHp);
         this.hpBarFill.style.width = `${hpPercent}%`;
         this.hpText.textContent = `${hp}/${maxHp}`;
 
-        // Qi bar
+        // Inner power bar
         const qiPercent = this.percent(qi, maxQi);
         this.qiBarFill.style.width = `${qiPercent}%`;
         this.qiText.textContent = `${qi}/${maxQi}`;
 
-        // AP bar (max 100 for display purposes)
-        const apPercent = Math.min(ap, 100);
-        this.apBarFill.style.width = `${apPercent}%`;
-        this.apText.textContent = Math.round(ap);
+        this.animatePlayerApTo(ap);
 
-        // Update battle panel HP
+        // Update battle health bar
         this.battlePlayerHp.style.width = `${hpPercent}%`;
+        if (this.battlePlayerHpText) {
+            this.battlePlayerHpText.textContent = `${hp}/${maxHp}`;
+        }
+        if (this.battlePlayerQi) {
+            this.battlePlayerQi.style.width = `${qiPercent}%`;
+        }
+        if (this.battlePlayerQiText) {
+            this.battlePlayerQiText.textContent = `${qi}/${maxQi}`;
+        }
 
-        // Update skill availability based on resources
-        this.updateSkillAvailability();
+        // Update active skill availability based on resources
+        this.updateActiveSkillAvailability();
     }
 
-    updateSkillAvailability() {
+    animatePlayerApTo(target) {
+        this.animateBattleApTo({
+            target,
+            getDisplay: () => this.apDisplayValue,
+            setDisplay: value => { this.apDisplayValue = value; },
+            getTarget: () => this.apTargetValue,
+            setTarget: value => { this.apTargetValue = value; },
+            getFrame: () => this.apAnimationFrame,
+            setFrame: value => { this.apAnimationFrame = value; },
+            getLastSnapshotAt: () => this.lastApSnapshotAt,
+            setLastSnapshotAt: value => { this.lastApSnapshotAt = value; },
+            render: value => this.renderPlayerApValue(value)
+        });
+    }
+
+    animateEnemyApTo(target) {
+        this.animateBattleApTo({
+            target,
+            getDisplay: () => this.enemyApDisplayValue,
+            setDisplay: value => { this.enemyApDisplayValue = value; },
+            getTarget: () => this.enemyApTargetValue,
+            setTarget: value => { this.enemyApTargetValue = value; },
+            getFrame: () => this.enemyApAnimationFrame,
+            setFrame: value => { this.enemyApAnimationFrame = value; },
+            getLastSnapshotAt: () => this.lastEnemyApSnapshotAt,
+            setLastSnapshotAt: value => { this.lastEnemyApSnapshotAt = value; },
+            render: value => this.renderBattleAp(this.battleEnemyAp, this.battleEnemyApText, value)
+        });
+    }
+
+    animateBattleApTo(config) {
+        const targetValue = Number.isFinite(Number(config.target)) ? Number(config.target) : 0;
+        const currentDisplay = config.getDisplay();
+        const currentValue = Number.isFinite(currentDisplay) ? currentDisplay : targetValue;
+        const sameTarget = Math.abs(targetValue - config.getTarget()) < 0.01;
+
+        if (sameTarget && config.getFrame() !== null) {
+            return;
+        }
+
+        if (sameTarget && Math.abs(currentValue - targetValue) < 0.01) {
+            config.setDisplay(targetValue);
+            config.render(targetValue);
+            return;
+        }
+
+        if (config.getFrame() !== null) {
+            window.cancelAnimationFrame(config.getFrame());
+            config.setFrame(null);
+        }
+
+        const now = window.performance.now();
+        const lastSnapshotAt = config.getLastSnapshotAt();
+        const snapshotGap = lastSnapshotAt > 0 ? now - lastSnapshotAt : 650;
+        config.setLastSnapshotAt(now);
+        config.setTarget(targetValue);
+
+        const decreasing = targetValue < currentValue;
+        const duration = decreasing ? 140 : Math.max(240, Math.min(950, snapshotGap));
+        const startTime = now;
+        config.setDisplay(currentValue);
+        config.render(currentValue);
+
+        const step = (frameTime) => {
+            const progress = Math.max(0, Math.min(1, (frameTime - startTime) / duration));
+            const easedProgress = decreasing ? 1 - Math.pow(1 - progress, 3) : progress;
+            const nextValue = currentValue + (targetValue - currentValue) * easedProgress;
+            config.setDisplay(nextValue);
+            config.render(nextValue);
+
+            if (progress < 1) {
+                config.setFrame(window.requestAnimationFrame(step));
+                return;
+            }
+
+            config.setDisplay(targetValue);
+            config.render(targetValue);
+            config.setFrame(null);
+        };
+
+        config.setFrame(window.requestAnimationFrame(step));
+    }
+
+    renderPlayerApValue(value) {
+        const displayValue = Number.isFinite(value) ? Math.max(0, value) : 0;
+        this.apDisplayValue = displayValue;
+        this.apBarFill.style.width = `${Math.min(displayValue, 100)}%`;
+        this.apText.textContent = String(Math.round(displayValue));
+        this.renderBattleAp(this.battlePlayerAp, this.battlePlayerApText, displayValue);
+    }
+
+    renderBattleAp(bar, text, value) {
+        const displayValue = Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
+        if (bar) {
+            bar.style.width = `${Math.min(displayValue, 100)}%`;
+        }
+        if (text) {
+            text.textContent = `${this.t('resource.ap')} ${Math.round(displayValue)}`;
+        }
+    }
+
+    updateActiveSkillAvailability() {
         const { qi, ap } = this.playerStats;
 
-        document.querySelectorAll('.skill-card').forEach(card => {
-            const skillId = card.dataset.skillId;
+        document.querySelectorAll('.active-skill-card').forEach(card => {
+            const activeSkillId = card.dataset.activeSkillId;
             const requires = (card.dataset.requires || '').split(',').filter(Boolean);
             const cost = Number(card.dataset.cost || 0);
             const apReq = Number(card.dataset.apReq || 0);
 
-            // Check if skill is locked due to missing buff
+            // Check if the active skill is locked due to missing buff/resources.
             const hasRequirements = requires.every(req => this.activeEffects.some(e => e.id === req));
             const hasResources = qi >= cost && ap >= apReq;
-            card.classList.toggle('skill-locked', !hasRequirements || !hasResources);
+            card.classList.toggle('active-skill-locked', !hasRequirements || !hasResources);
 
             // Check cooldown
-            const remaining = this.skillCooldowns[skillId] || 0;
+            const remaining = this.activeSkillCooldowns[activeSkillId] || 0;
             card.classList.toggle('on-cooldown', remaining > 0);
-            card.classList.toggle('skill-ready', hasRequirements && hasResources && remaining <= 0);
-            const cooldownBar = card.querySelector('.skill-cooldown');
+            card.classList.toggle('active-skill-ready', hasRequirements && hasResources && remaining <= 0);
+            const cooldownBar = card.querySelector('.active-skill-cooldown');
             if (cooldownBar) {
                 const cooldown = Number(card.dataset.cooldown || remaining || 1);
                 cooldownBar.style.width = remaining > 0 ? `${this.percent(remaining, cooldown)}%` : '0%';
             }
 
-            const status = card.querySelector('.skill-status');
+            const status = card.querySelector('.active-skill-status');
             if (status) {
                 if (remaining > 0) {
-                    status.textContent = this.t('skill.status.cd', { seconds: Math.ceil(remaining) });
+                    status.textContent = this.t('active_skill.status.cd', { seconds: Math.ceil(remaining) });
                 } else if (!hasRequirements) {
-                    status.textContent = this.t('skill.status.need', { value: this.getRequirementLabels(card, requires).join(', ') });
+                    status.textContent = this.t('active_skill.status.need', { value: this.getRequirementLabels(card, requires).join(', ') });
                 } else if (qi < cost) {
-                    status.textContent = this.t('skill.status.qi', { current: qi, required: cost });
+                    status.textContent = this.t('active_skill.status.qi', { current: qi, required: cost });
                 } else if (ap < apReq) {
-                    status.textContent = this.t('skill.status.ap', { current: Math.round(ap), required: apReq });
+                    status.textContent = this.t('active_skill.status.ap', { current: Math.round(ap), required: apReq });
                 } else {
-                    status.textContent = this.t('skill.status.ready');
+                    status.textContent = this.t('active_skill.status.ready');
                 }
             }
         });
@@ -1098,8 +1566,242 @@ class MUDClient {
 
     updateBattleEnemy(enemy) {
         const hpPercent = this.percent(enemy.combatantSnapshotHp, enemy.combatantSnapshotMaxHp);
+        const qiPercent = this.percent(enemy.combatantSnapshotQi, enemy.combatantSnapshotMaxQi);
         this.battleEnemyName.textContent = enemy.combatantSnapshotName;
         this.battleEnemyHp.style.width = `${hpPercent}%`;
+        if (this.battleEnemyHpText) {
+            this.battleEnemyHpText.textContent = `${enemy.combatantSnapshotHp}/${enemy.combatantSnapshotMaxHp}`;
+        }
+        if (this.battleEnemyQi) {
+            this.battleEnemyQi.style.width = `${qiPercent}%`;
+        }
+        if (this.battleEnemyQiText) {
+            this.battleEnemyQiText.textContent = `${enemy.combatantSnapshotQi}/${enemy.combatantSnapshotMaxQi}`;
+        }
+        this.animateEnemyApTo(enemy.combatantSnapshotAp);
+        this.battleEnemyFigure?.classList.toggle('fighter-defeated', enemy.combatantSnapshotHp <= 0);
+    }
+
+    enqueueCombatEvent(event) {
+        if (!event) return;
+        this.combatEventQueue.push(event);
+        this.playNextCombatEvent();
+    }
+
+    hasPendingCombatEvents() {
+        return this.combatEventPlaying || this.combatEventQueue.length > 0;
+    }
+
+    playNextCombatEvent() {
+        if (this.combatEventPlaying) return;
+        const event = this.combatEventQueue.shift();
+        if (!event) {
+            if (this.battleExitPending && this.inBattle) {
+                this.setBattleMode(false);
+            }
+            return;
+        }
+
+        this.combatEventPlaying = true;
+        if (event.type === 'settlement') {
+            this.playQueuedCombatSettlement(event);
+        } else {
+            this.playQueuedCombatMotion(event);
+        }
+    }
+
+    playQueuedCombatMotion(event) {
+        this.displayMessage(event.message, event.messageType || 'combat');
+        this.addCombatLog(event.logMessage || event.message);
+        if (event.sound) {
+            this.playSound(event.sound);
+        }
+
+        const duration = event.duration || 460;
+        this.playBattleMotion(event.attacker, event.defender, event.damage, event.label, {
+            ...(event.motionOptions || {}),
+            duration
+        });
+        this.finishCombatEventAfter(duration + 90);
+    }
+
+    playQueuedCombatSettlement(event) {
+        this.displayMessage(event.message, event.messageType || 'combat');
+        this.addCombatLog(event.logMessage || event.message);
+        if (event.sound) {
+            this.playSound(event.sound);
+        }
+        this.playBattleSettlement(event.won);
+        this.battleExitPending = false;
+
+        this.finishCombatEventAfter(event.duration || 520, () => {
+            this.combatEventQueue = [];
+            this.setBattleMode(false);
+        });
+    }
+
+    finishCombatEventAfter(delay, afterFinish = null) {
+        if (this.combatEventTimer) {
+            clearTimeout(this.combatEventTimer);
+        }
+        this.combatEventTimer = setTimeout(() => {
+            this.combatEventTimer = null;
+            this.combatEventPlaying = false;
+            if (afterFinish) {
+                afterFinish();
+            } else {
+                this.playNextCombatEvent();
+            }
+        }, delay);
+    }
+
+    clearCombatEventQueue() {
+        if (this.combatEventTimer) {
+            clearTimeout(this.combatEventTimer);
+            this.combatEventTimer = null;
+        }
+        this.combatEventQueue = [];
+        this.combatEventPlaying = false;
+        this.battleExitPending = false;
+    }
+
+    playBattleMotion(attacker, defender, damage = 0, label = null, options = {}) {
+        if (!this.battleStage || !this.inBattle) return;
+
+        if (this.battleAnimationTimer) {
+            clearTimeout(this.battleAnimationTimer);
+            this.battleAnimationTimer = null;
+        }
+
+        const resolvedAttackerSlot = options.attackerSlot || this.resolveCombatantSlot(attacker);
+        const resolvedDefenderSlot = options.defenderSlot || this.resolveCombatantSlot(defender);
+        const attackerSlot = resolvedAttackerSlot
+            || (resolvedDefenderSlot === 'enemy' ? 'player' : resolvedDefenderSlot === 'player' ? 'enemy' : 'player');
+        const defenderSlot = resolvedDefenderSlot
+            || (attackerSlot === 'player' ? 'enemy' : 'player');
+        const attackerFigure = this.battleFigureForSlot(attackerSlot);
+        const defenderFigure = this.battleFigureForSlot(defenderSlot);
+        const sideClass = attackerSlot === 'player' ? 'battle-action-player' : 'battle-action-enemy';
+        const floatSideClass = defenderSlot === 'player' ? 'battle-float-player' : 'battle-float-enemy';
+        const attackerMotion = options.attackerMotion || 'attack';
+        const defenderMotion = options.defenderMotion === undefined
+            ? (damage > 0 ? 'hit' : null)
+            : options.defenderMotion;
+        const showStrike = attackerMotion === 'attack' || attackerMotion === 'parry';
+
+        this.clearBattleMotionClasses();
+        this.battleStage.classList.add(sideClass);
+        this.applyFighterMotion(attackerFigure, attackerMotion);
+        if (defenderFigure && defenderFigure !== attackerFigure && defenderMotion) {
+            this.applyFighterMotion(defenderFigure, defenderMotion);
+        }
+        if (showStrike) {
+            this.battleStrike?.classList.add('battle-strike-visible', sideClass);
+        }
+
+        if (this.battleEffectLabel) {
+            this.battleEffectLabel.textContent = label || this.t('battle.damage_tag');
+            this.battleEffectLabel.classList.add('battle-effect-visible', floatSideClass);
+        }
+
+        if (this.battleFloatDamage) {
+            this.battleFloatDamage.textContent = damage > 0 ? `-${damage}` : '';
+            this.battleFloatDamage.classList.toggle('battle-float-visible', damage > 0);
+            this.battleFloatDamage.classList.add(floatSideClass);
+        }
+
+        this.battleAnimationTimer = setTimeout(() => {
+            this.clearBattleMotionClasses();
+            this.battleAnimationTimer = null;
+        }, options.duration || 460);
+    }
+
+    applyFighterMotion(figure, motion) {
+        if (!figure || !motion) return;
+        const className = {
+            attack: 'fighter-attacking',
+            hit: 'fighter-hit',
+            dodge: 'fighter-dodge',
+            parry: 'fighter-parry'
+        }[motion];
+        if (className) {
+            figure.classList.add(className);
+        }
+    }
+
+    classifyDefenseMotion(actionText, damage) {
+        const text = String(actionText || '');
+        if (/[挡架格拦封]/.test(text)) return 'parry';
+        if (/[闪避躲让侧身折身]/.test(text) || damage <= 0) return 'dodge';
+        return 'hit';
+    }
+
+    classifyActiveSkillMotion(actionText, caster, target) {
+        const text = String(actionText || '');
+        if (/[挡架格拦封]/.test(text)) return 'parry';
+        if (/[闪避躲让侧身折身]/.test(text)) return 'dodge';
+        if (caster === target || /气入|一掌按下|恢复|回复|疗/.test(text)) return 'parry';
+        return 'attack';
+    }
+
+    playBattleSettlement(won) {
+        const target = won ? this.battleEnemyFigure : this.battlePlayerFigure;
+        target?.classList.add('fighter-defeated');
+    }
+
+    clearBattleMotionClasses() {
+        this.battleStage?.classList.remove('battle-action-player', 'battle-action-enemy');
+        this.battlePlayerFigure?.classList.remove('fighter-attacking', 'fighter-hit', 'fighter-dodge', 'fighter-parry');
+        this.battleEnemyFigure?.classList.remove('fighter-attacking', 'fighter-hit', 'fighter-dodge', 'fighter-parry');
+        this.battleStrike?.classList.remove('battle-strike-visible', 'battle-action-player', 'battle-action-enemy');
+        this.battleEffectLabel?.classList.remove('battle-effect-visible', 'battle-float-player', 'battle-float-enemy');
+        this.battleFloatDamage?.classList.remove('battle-float-visible', 'battle-float-player', 'battle-float-enemy');
+    }
+
+    battleFigureForSlot(slot) {
+        return slot === 'player' ? this.battlePlayerFigure : this.battleEnemyFigure;
+    }
+
+    resolveCombatantSlot(raw) {
+        const values = this.combatantValues(raw);
+        if (this.matchesCombatant(values, this.battlePlayerIdentity, [
+            this.username,
+            this.battlePlayerName?.textContent
+        ])) {
+            return 'player';
+        }
+        if (this.matchesCombatant(values, this.battleEnemyIdentity, [
+            this.currentEnemy,
+            this.currentEnemyId,
+            this.battleEnemyName?.textContent
+        ])) {
+            return 'enemy';
+        }
+        return null;
+    }
+
+    combatantValues(raw) {
+        if (!raw) return [];
+        if (typeof raw === 'object') {
+            return [
+                raw.id,
+                raw.name,
+                raw.combatantSnapshotId,
+                raw.combatantSnapshotName,
+                raw.combatantRefId,
+                raw.combatantRefName
+            ].filter(Boolean).map(value => String(value));
+        }
+        return [String(raw)];
+    }
+
+    matchesCombatant(values, identity, fallbacks = []) {
+        const candidates = [
+            identity && identity.id,
+            identity && identity.name,
+            ...fallbacks
+        ].filter(Boolean).map(value => String(value));
+        return values.some(value => candidates.includes(value));
     }
 
     renderActiveEffects() {
@@ -1121,76 +1823,182 @@ class MUDClient {
         });
     }
 
-    renderSkillPanel(skills) {
-        const panel = document.getElementById('skills-panel');
+    renderActiveSkillPanel(activeSkills) {
+        const panel = document.getElementById('martial-arts-panel');
         panel.textContent = '';
 
-        skills.forEach(skill => {
+        if (!activeSkills || activeSkills.length === 0) {
+            const empty = document.createElement('span');
+            empty.className = 'empty-list';
+            empty.textContent = this.t('ui.none');
+            panel.appendChild(empty);
+            return;
+        }
+
+        activeSkills.forEach(activeSkill => {
             const card = document.createElement('div');
-            card.className = 'skill-card';
-            if ((skill.skillSummaryDamage || 0) >= 100) {
-                card.classList.add('skill-ultimate');
+            card.className = 'active-skill-card';
+            card.setAttribute('role', 'button');
+            card.tabIndex = 0;
+            if ((activeSkill.activeSkillSummaryDamage || 0) >= 100) {
+                card.classList.add('active-skill-ultimate');
             }
-            card.dataset.skillId = skill.skillSummaryId;
-            card.dataset.cost = String(skill.skillSummaryCost);
-            card.dataset.apReq = String(skill.skillSummaryApReq);
-            card.dataset.cooldown = String(skill.skillSummaryCooldown);
-            card.dataset.requires = (skill.skillSummaryReqStatus || []).join(',');
-            card.dataset.requiresLabel = (skill.skillSummaryReqStatusNames || []).join(',');
-            card.title = skill.skillSummaryDesc || '';
+            card.dataset.activeSkillId = activeSkill.activeSkillSummaryId;
+            card.dataset.cost = String(activeSkill.activeSkillSummaryCost);
+            card.dataset.apReq = String(activeSkill.activeSkillSummaryApReq);
+            card.dataset.cooldown = String(activeSkill.activeSkillSummaryCooldown);
+            card.dataset.requires = (activeSkill.activeSkillSummaryReqStatus || []).join(',');
+            card.dataset.requiresLabel = (activeSkill.activeSkillSummaryReqStatusNames || []).join(',');
+            card.title = activeSkill.activeSkillSummaryDesc || '';
 
             const header = document.createElement('div');
-            header.className = 'skill-header';
+            header.className = 'active-skill-header';
             const name = document.createElement('span');
-            name.className = 'skill-name';
-            name.textContent = this.formatSkillName(skill.skillSummaryId, skill.skillSummaryName);
+            name.className = 'active-skill-name';
+            name.textContent = this.formatActiveSkillName(activeSkill.activeSkillSummaryId, activeSkill.activeSkillSummaryName);
             const cost = document.createElement('span');
-            cost.className = 'skill-cost';
-            cost.textContent = this.t('skill.cost.qi', { value: skill.skillSummaryCost });
+            cost.className = 'active-skill-cost';
+            cost.textContent = this.t('active_skill.cost.qi', { value: activeSkill.activeSkillSummaryCost });
             header.appendChild(name);
             header.appendChild(cost);
 
             const info = document.createElement('div');
-            info.className = 'skill-info';
+            info.className = 'active-skill-info';
             const ap = document.createElement('span');
-            ap.className = 'skill-ap';
-            ap.textContent = this.t('skill.ap', { value: skill.skillSummaryApReq });
+            ap.className = 'active-skill-ap';
+            ap.textContent = this.t('active_skill.ap', { value: activeSkill.activeSkillSummaryApReq });
             info.appendChild(ap);
-            if (skill.skillSummaryDamage !== null && skill.skillSummaryDamage !== undefined) {
+            if (activeSkill.activeSkillSummaryDamage !== null && activeSkill.activeSkillSummaryDamage !== undefined) {
                 const damage = document.createElement('span');
-                damage.className = 'skill-damage';
-                damage.textContent = this.t('skill.damage', { value: skill.skillSummaryDamage });
+                damage.className = 'active-skill-damage';
+                damage.textContent = this.t('active_skill.damage', { value: activeSkill.activeSkillSummaryDamage });
                 info.appendChild(damage);
             }
-            if (skill.skillSummaryHeal !== null && skill.skillSummaryHeal !== undefined) {
+            if (activeSkill.activeSkillSummaryHeal !== null && activeSkill.activeSkillSummaryHeal !== undefined) {
                 const heal = document.createElement('span');
-                heal.className = 'skill-heal';
-                heal.textContent = this.t('skill.heal', { value: skill.skillSummaryHeal });
+                heal.className = 'active-skill-heal';
+                heal.textContent = this.t('active_skill.heal', { value: activeSkill.activeSkillSummaryHeal });
                 info.appendChild(heal);
             }
 
             card.appendChild(header);
             card.appendChild(info);
 
-            if (skill.skillSummaryReqStatus && skill.skillSummaryReqStatus.length > 0) {
+            if (activeSkill.activeSkillSummaryReqStatus && activeSkill.activeSkillSummaryReqStatus.length > 0) {
                 const requirement = document.createElement('div');
-                requirement.className = 'skill-requirement';
-                requirement.textContent = this.t('skill.requires', {
-                    value: (skill.skillSummaryReqStatusNames || skill.skillSummaryReqStatus.map(req => this.formatEffectName(req))).join(', ')
+                requirement.className = 'active-skill-requirement';
+                requirement.textContent = this.t('active_skill.requires', {
+                    value: (activeSkill.activeSkillSummaryReqStatusNames || activeSkill.activeSkillSummaryReqStatus.map(req => this.formatEffectName(req))).join(', ')
                 });
                 card.appendChild(requirement);
             }
 
             const status = document.createElement('div');
-            status.className = 'skill-status';
-            status.textContent = this.t('skill.status.waiting');
+            status.className = 'active-skill-status';
+            status.textContent = this.t('active_skill.status.waiting');
             card.appendChild(status);
 
             const cooldown = document.createElement('div');
-            cooldown.className = 'skill-cooldown';
+            cooldown.className = 'active-skill-cooldown';
             card.appendChild(cooldown);
 
-            card.addEventListener('click', () => this.handleSkillClick(card));
+            card.addEventListener('click', () => this.handleActiveSkillClick(card));
+            card.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    this.handleActiveSkillClick(card);
+                }
+            });
+            panel.appendChild(card);
+        });
+    }
+
+    renderArtsPanel() {
+        const panel = document.getElementById('martial-arts-panel');
+        if (!panel || this.inBattle) return;
+
+        panel.textContent = '';
+        const arts = this.artsState || [];
+        if (arts.length === 0) {
+            const empty = document.createElement('span');
+            empty.className = 'empty-list';
+            empty.textContent = this.t('ui.none');
+            panel.appendChild(empty);
+            return;
+        }
+
+        arts.forEach(art => {
+            const card = document.createElement('div');
+            card.className = 'art-card';
+            if (art.artSummaryIsFoundation) {
+                card.classList.add('art-foundation');
+            }
+
+            const header = document.createElement('div');
+            header.className = 'art-header';
+            const name = document.createElement('span');
+            name.className = 'art-name';
+            name.textContent = art.artSummaryName || art.artSummaryId;
+            const type = document.createElement('span');
+            type.className = 'art-type';
+            type.textContent = this.formatArtType(art.artSummaryType);
+            header.appendChild(name);
+            header.appendChild(type);
+            card.appendChild(header);
+
+            const level = document.createElement('div');
+            level.className = 'art-line';
+            level.textContent = this.t('art.level', {
+                level: art.artSummaryLevel,
+                max: art.artSummaryMaxLevel
+            });
+            card.appendChild(level);
+
+            if (art.artSummaryFoundation) {
+                const foundation = document.createElement('div');
+                foundation.className = 'art-line';
+                foundation.textContent = this.t('art.foundation', { value: art.artSummaryFoundation });
+                card.appendChild(foundation);
+            }
+
+            const requirements = art.artSummaryRequirements || [];
+            if (requirements.length > 0) {
+                const req = document.createElement('div');
+                req.className = 'art-line';
+                req.textContent = this.t('art.requires', {
+                    value: requirements
+                        .map(item => `${item.artRequirementSummaryName || item.artRequirementSummaryId} ${item.artRequirementSummaryLevel}`)
+                        .join(', ')
+                });
+                card.appendChild(req);
+            }
+
+            const unlocked = [...(art.artSummaryUnlockedAttackMoves || []), ...(art.artSummaryUnlockedActiveSkills || [])];
+            if (unlocked.length > 0) {
+                const unlockedLine = document.createElement('div');
+                unlockedLine.className = 'art-line art-unlocked';
+                unlockedLine.textContent = this.t('art.unlocked', { value: unlocked.join(', ') });
+                card.appendChild(unlockedLine);
+            }
+
+            const next = art.artSummaryNextUnlocks || [];
+            if (next.length > 0) {
+                const nextLine = document.createElement('div');
+                nextLine.className = 'art-line art-next';
+                nextLine.textContent = this.t('art.next', { value: next.join(', ') });
+                card.appendChild(nextLine);
+            }
+
+            if (!art.artSummaryIsFoundation && art.artSummaryLevel < art.artSummaryMaxLevel) {
+                const train = document.createElement('button');
+                train.type = 'button';
+                train.className = 'art-train-btn';
+                train.textContent = this.t('action.train');
+                train.disabled = !this.connected || this.inBattle;
+                train.addEventListener('click', () => this.sendAction({ train: art.artSummaryId }));
+                card.appendChild(train);
+            }
+
             panel.appendChild(card);
         });
     }
@@ -1200,25 +2008,115 @@ class MUDClient {
         return Math.max(0, Math.min(100, (value / max) * 100));
     }
 
-    setBattleMode(active, enemyName = null) {
+    setBattleMode(active, enemyName = null, enemyId = null) {
+        const wasInBattle = this.inBattle;
         this.inBattle = active;
+        document.body.classList.toggle('in-combat-view', active);
+        this.mainContent?.classList.toggle('battle-active', active);
+        this.gamePanel?.classList.toggle('battle-active', active);
 
         if (active) {
-            this.battlePanel.classList.remove('hidden');
-            if (enemyName) {
-                this.currentEnemy = enemyName;
-                this.battleEnemyName.textContent = enemyName;
-                this.battleEnemyHp.style.width = '100%';
+            if (!wasInBattle) {
+                this.preBattleFilter = this.currentFilter || 'all';
+                this.battleExitPending = false;
             }
+            this.battlePanel.classList.remove('hidden');
+            this.showCombatMessages();
+            if (enemyName) {
+                const enemyChanged = !wasInBattle || enemyName !== this.currentEnemy || (enemyId && enemyId !== this.currentEnemyId);
+                this.currentEnemy = enemyName;
+                this.currentEnemyId = enemyId || this.resolveCombatantIdByName(enemyName) || this.currentEnemyId;
+                this.battleEnemyIdentity = {
+                    id: this.currentEnemyId,
+                    name: enemyName
+                };
+                this.battleEnemyName.textContent = enemyName;
+                if (enemyChanged) {
+                    this.resetEnemyApHud();
+                    this.battleEnemyHp.style.width = '100%';
+                    this.battleEnemyHpText.textContent = '-/-';
+                    this.battleEnemyQiText.textContent = '-/-';
+                }
+            }
+            this.setBattleCombatantAvatars(null, this.currentEnemyId);
         } else {
+            this.clearCombatEventQueue();
+            if (this.battleAnimationTimer) {
+                clearTimeout(this.battleAnimationTimer);
+                this.battleAnimationTimer = null;
+            }
             this.battlePanel.classList.add('hidden');
             this.currentEnemy = null;
+            this.currentEnemyId = null;
+            this.battleEnemyIdentity = { id: null, name: null };
             this.activeEffects = [];
-            this.skillCooldowns = {};
+            this.activeSkillCooldowns = {};
+            this.clearBattleMotionClasses();
+            this.battlePlayerFigure?.classList.remove('fighter-defeated');
+            this.battleEnemyFigure?.classList.remove('fighter-defeated');
+            this.setBattleCombatantAvatars(null, null);
+            this.resetEnemyApHud();
             this.renderActiveEffects();
-            this.updateSkillAvailability();
+            this.updateActiveSkillAvailability();
+            this.renderArtsPanel();
+            if (wasInBattle) {
+                this.setMessageFilter(this.preBattleFilter || 'all');
+            }
         }
         this.updateStoryGuide();
+    }
+
+    resetEnemyApHud() {
+        if (this.enemyApAnimationFrame !== null) {
+            window.cancelAnimationFrame(this.enemyApAnimationFrame);
+            this.enemyApAnimationFrame = null;
+        }
+        this.enemyApDisplayValue = 0;
+        this.enemyApTargetValue = 0;
+        this.lastEnemyApSnapshotAt = 0;
+        if (this.battleEnemyAp) {
+            this.battleEnemyAp.style.width = '0%';
+        }
+        if (this.battleEnemyApText) {
+            this.battleEnemyApText.textContent = '-';
+        }
+    }
+
+    setBattleCombatantAvatars(playerId, enemyId) {
+        this.setFighterAvatar(this.battlePlayerFigure, this.getCombatantAvatar(playerId, true), playerId);
+        this.setFighterAvatar(this.battleEnemyFigure, this.getCombatantAvatar(enemyId, false), enemyId);
+    }
+
+    setFighterAvatar(figure, avatar, combatantId) {
+        if (!figure) return;
+        [...figure.classList]
+            .filter(className => className.startsWith('fighter-avatar-'))
+            .forEach(className => figure.classList.remove(className));
+        figure.classList.add(`fighter-avatar-${avatar}`);
+        if (combatantId) {
+            figure.dataset.combatantId = combatantId;
+        } else {
+            delete figure.dataset.combatantId;
+        }
+    }
+
+    getCombatantAvatar(combatantId, isPlayerSlot) {
+        if (isPlayerSlot) return 'player';
+        switch (combatantId) {
+            case 'paper_umbrella_killer':
+                return 'paper-umbrella';
+            default:
+                return 'opponent';
+        }
+    }
+
+    resolveCombatantIdByName(name) {
+        const roomCharacter = this.findCharacterByName(name);
+        return roomCharacter && roomCharacter.id;
+    }
+
+    showCombatMessages() {
+        this.setMessageFilter('combat');
     }
 
     addCombatLog(text) {
@@ -1227,84 +2125,6 @@ class MUDClient {
         entry.textContent = `[${this.getTimeString()}] ${text}`;
         this.combatLog.appendChild(entry);
         this.combatLog.scrollTop = this.combatLog.scrollHeight;
-    }
-
-    sendCommand() {
-        const command = this.commandInput.value.trim();
-        if (!command || !this.connected) return;
-
-        this.displayMessage(`> ${command}`, 'system');
-        this.commandInput.value = '';
-
-        // Parse command and convert to JSON
-        const action = this.parseCommand(command);
-        if (action) {
-            this.sendAction(action);
-        } else {
-            this.displayMessage('Unknown command format', 'error');
-        }
-    }
-
-    parseCommand(command) {
-        const parts = command.toLowerCase().split(' ');
-        const action = parts[0];
-        const param = parts.slice(1).join(' ');
-
-        // Direction mapping
-        const dirMap = {
-            'north': 'North', 'south': 'South', 'east': 'East', 'west': 'West',
-            'northeast': 'NorthEast', 'northwest': 'NorthWest',
-            'southeast': 'SouthEast', 'southwest': 'SouthWest',
-            'ne': 'NorthEast', 'nw': 'NorthWest', 'se': 'SouthEast', 'sw': 'SouthWest',
-            'n': 'North', 's': 'South', 'e': 'East', 'w': 'West'
-        };
-
-        switch (action) {
-            case 'go':
-            case 'move':
-                return param ? { go: dirMap[param] || param } : null;
-            case 'n':
-            case 'north':
-                return { go: 'North' };
-            case 's':
-            case 'south':
-                return { go: 'South' };
-            case 'e':
-            case 'east':
-                return { go: 'East' };
-            case 'w':
-            case 'west':
-                return { go: 'West' };
-            case 'attack':
-                return param ? { attack: param } : null;
-            case 'talk':
-                return param ? { talk: param } : null;
-            case 'perform':
-            case 'skill':
-            case 'cast':
-                return param ? { perform: param } : null;
-            case 'say':
-                return param ? { say: param } : null;
-            case 'choose':
-            case 'choice':
-                return param ? { choose: param } : null;
-            case 'use':
-                return param ? { use: param } : null;
-            case 'look':
-            case 'view':
-            case 'l':
-                return { other: 'view' };
-            case 'quests':
-            case 'quest':
-            case 'q':
-                return { other: 'quests' };
-            case 'inventory':
-            case 'inv':
-            case 'i':
-                return { other: 'inventory' };
-            default:
-                return { other: command };
-        }
     }
 
     formatReward(reward) {
@@ -1321,7 +2141,7 @@ class MUDClient {
         return fallback;
     }
 
-    formatSkillName(skillId, fallback) {
+    formatActiveSkillName(activeSkillId, fallback) {
         return fallback;
     }
 
@@ -1329,9 +2149,18 @@ class MUDClient {
         return effectId;
     }
 
+    formatArtType(type) {
+        const key = `art.type.${type}`;
+        return this.hasTranslation(key) ? this.t(key) : type;
+    }
+
     getRequirementLabels(card, requires) {
         const explicit = (card.dataset.requiresLabel || '').split(',').map(label => label.trim()).filter(Boolean);
-        return requires.map((req, index) => explicit[index] || this.formatEffectName(req));
+        const allRequires = (card.dataset.requires || '').split(',').filter(Boolean);
+        return requires.map((req, index) => {
+            const originalIndex = allRequires.indexOf(req);
+            return explicit[originalIndex >= 0 ? originalIndex : index] || this.formatEffectName(req);
+        });
     }
 
     formatQuestName(entry) {
@@ -1349,10 +2178,10 @@ class MUDClient {
 
     formatPlayerStatus(status) {
         const map = {
-            'Normal': 'player_status.normal',
-            'In Battle': 'player_status.in_battle',
-            'Dead': 'player_status.dead',
-            'Banned': 'player_status.banned'
+            normal: 'player_status.normal',
+            in_battle: 'player_status.in_battle',
+            dead: 'player_status.dead',
+            banned: 'player_status.banned'
         };
         return this.t(map[status] || 'player_status.unknown');
     }
@@ -1421,29 +2250,13 @@ class MUDClient {
             return;
         }
 
-        if (this.lastStoryChoices.length > 0) {
-            this.guideObjective.textContent = this.t('guide.make_choice');
-            this.lastStoryChoices.forEach(choice => {
-                this.guideActions.appendChild(
-                    this.createGuideAction(choice.storyChoiceRespText, { choose: choice.storyChoiceRespId }, 'choice')
-                );
-            });
-            return;
-        }
-
         if (this.inBattle) {
-            const readySkill = this.getReadySkill();
+            const readyActiveSkill = this.getReadyActiveSkill();
             this.guideObjective.textContent = this.currentEnemy
                 ? this.t('guide.defeat_enemy', { enemy: this.currentEnemy })
                 : this.t('guide.defeat_current_enemy');
-            if (readySkill) {
-                this.guideActions.appendChild(
-                    this.createGuideAction(
-                        this.t('guide.use_skill', { skill: this.formatSkillName(readySkill.skillSummaryId, readySkill.skillSummaryName) }),
-                        { perform: readySkill.skillSummaryId },
-                        'combat'
-                    )
-                );
+            if (readyActiveSkill) {
+                this.guideActions.appendChild(this.createGuideNote(this.t('guide.use_skill_panel')));
             } else {
                 this.guideActions.appendChild(this.createGuideNote(this.t('guide.wait_ap')));
             }
@@ -1453,9 +2266,7 @@ class MUDClient {
         if (!quest) {
             this.guideObjective.textContent = this.currentRoom.name ? '雨夜渡口，先问掌柜。' : '等待房间信息。';
             if (this.hasCharacter('cold_rain_innkeeper')) {
-                this.guideActions.appendChild(
-                    this.createGuideAction('询问冷雨掌柜', { talk: 'cold_rain_innkeeper' }, 'talk')
-                );
+                this.guideActions.appendChild(this.createGuideCharacterNote('cold_rain_innkeeper'));
             }
             return;
         }
@@ -1464,11 +2275,9 @@ class MUDClient {
 
         if (quest.questLogEntryCompleted) {
             if (this.hasCharacter('qingyi_guest')) {
-                this.guideActions.appendChild(
-                    this.createGuideAction('听青衣客道别', { talk: 'qingyi_guest' }, 'talk')
-                );
+                this.guideActions.appendChild(this.createGuideCharacterNote('qingyi_guest'));
             } else if (this.hasExit('South')) {
-                this.guideActions.appendChild(this.createGuideAction('回客栈大堂', { go: 'South' }, 'move'));
+                this.guideActions.appendChild(this.createGuideExitNote('South'));
             }
             return;
         }
@@ -1476,27 +2285,23 @@ class MUDClient {
         switch (quest.questLogEntryStage) {
             case 'accepted':
                 if (this.hasCharacter('qingyi_guest')) {
-                    this.guideActions.appendChild(
-                        this.createGuideAction('把冷酒交给青衣客', { talk: 'qingyi_guest' }, 'talk')
-                    );
+                    this.guideActions.appendChild(this.createGuideCharacterNote('qingyi_guest'));
                 } else if (this.hasExit('North')) {
-                    this.guideActions.appendChild(this.createGuideAction('进客栈大堂', { go: 'North' }, 'move'));
+                    this.guideActions.appendChild(this.createGuideExitNote('North'));
                 }
                 break;
             case 'witness':
                 if (this.hasCharacter('paper_umbrella_killer')) {
-                    this.guideActions.appendChild(
-                        this.createGuideAction('直面纸伞客', { talk: 'paper_umbrella_killer' }, 'talk')
-                    );
-                } else if (this.hasExit('NorthEast')) {
-                    this.guideActions.appendChild(this.createGuideAction('去后院天井', { go: 'NorthEast' }, 'move'));
+                    this.guideActions.appendChild(this.createGuideCharacterNote('paper_umbrella_killer'));
+                } else if (this.hasExit('East')) {
+                    this.guideActions.appendChild(this.createGuideExitNote('East'));
                 }
                 break;
             case 'duel':
                 if (this.hasCharacter('paper_umbrella_killer')) {
-                    this.guideActions.appendChild(
-                        this.createGuideAction('迎战纸伞客', { attack: 'paper_umbrella_killer' }, 'combat')
-                    );
+                    this.guideActions.appendChild(this.createGuideNote(
+                        this.t('guide.attack_in_popup', { name: this.getCharacterDisplayName('paper_umbrella_killer') })
+                    ));
                 }
                 break;
             default:
@@ -1506,16 +2311,6 @@ class MUDClient {
         }
     }
 
-    createGuideAction(label, action, kind = 'default') {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = `guide-action guide-action-${kind}`;
-        button.textContent = label;
-        button.disabled = !this.connected;
-        button.addEventListener('click', () => this.sendAction(action));
-        return button;
-    }
-
     createGuideNote(label) {
         const note = document.createElement('span');
         note.className = 'guide-note';
@@ -1523,8 +2318,24 @@ class MUDClient {
         return note;
     }
 
+    createGuideCharacterNote(charId) {
+        return this.createGuideNote(this.t('guide.click_character', { name: this.getCharacterDisplayName(charId) }));
+    }
+
+    createGuideExitNote(direction) {
+        return this.createGuideNote(this.t('guide.click_map_node', { name: this.getExitDisplayName(direction) }));
+    }
+
     hasCharacter(charId) {
         return this.currentRoom.characters.some(char => char.id === charId);
+    }
+
+    findCharacterById(charId) {
+        return this.currentRoom.characters.find(char => char.id === charId) || null;
+    }
+
+    getCharacterDisplayName(charId) {
+        return this.findCharacterById(charId)?.name || charId;
     }
 
     hasExit(direction) {
@@ -1532,25 +2343,27 @@ class MUDClient {
         return this.currentRoom.exits.some(exit => this.getExitDirection(exit) === normalized);
     }
 
-    getReadySkill() {
+    getExitDisplayName(direction) {
+        const normalized = this.normalizeDirection(direction);
+        const exit = this.currentRoom.exits.find(candidate => this.getExitDirection(candidate) === normalized);
+        return exit ? this.getExitLabel(exit) : this.formatDirection(normalized);
+    }
+
+    getReadyActiveSkill() {
         const { qi, ap } = this.playerStats;
-        return this.currentSkills.find(skill => {
-            const cooldown = this.skillCooldowns[skill.skillSummaryId] || 0;
-            const requires = skill.skillSummaryReqStatus || [];
+        return this.currentActiveSkills.find(activeSkill => {
+            const cooldown = this.activeSkillCooldowns[activeSkill.activeSkillSummaryId] || 0;
+            const requires = activeSkill.activeSkillSummaryReqStatus || [];
             const hasRequirements = requires.every(req => this.activeEffects.some(effect => effect.id === req));
             return hasRequirements
                 && cooldown <= 0
-                && qi >= skill.skillSummaryCost
-                && ap >= skill.skillSummaryApReq;
+                && qi >= activeSkill.activeSkillSummaryCost
+                && ap >= activeSkill.activeSkillSummaryApReq;
         });
     }
 
     sendAction(action) {
         if (this.connected && this.ws) {
-            if (action.choose) {
-                this.lastStoryChoices = [];
-                this.updateStoryGuide();
-            }
             // Wrap action in NetPlayerAction NetEvent
             const netEvent = {
                 tag: "NetPlayerAction",
@@ -1562,93 +2375,76 @@ class MUDClient {
         }
     }
 
-    handleActionButton(btn) {
-        if (!this.connected) return;
-
-        const action = btn.dataset.action;
-        let param = btn.dataset.param;
-        const paramPromptKey = btn.dataset.paramPromptKey;
-
-        // Capitalize directions for go command
-        if (action === 'go' && param) {
-            const dirMap = {
-                'north': 'North', 'south': 'South', 'east': 'East', 'west': 'West',
-                'northeast': 'NorthEast', 'northwest': 'NorthWest',
-                'southeast': 'SouthEast', 'southwest': 'SouthWest'
-            };
-            param = dirMap[param.toLowerCase()] || param;
-        }
-
-        let actionObj;
-
-        if (paramPromptKey) {
-            // Button needs user input
-            const userInput = prompt(this.t(paramPromptKey));
-            if (!userInput) return;
-            actionObj = { [action]: userInput };
-        } else if (param) {
-            // Button has predefined parameter
-            actionObj = { [action]: param };
-        } else if (action === 'view') {
-            // Special case for view
-            actionObj = { other: "view" };
-        } else {
-            actionObj = { [action]: "" };
-        }
-
-        this.sendAction(actionObj);
-    }
-
-    handleSkillClick(card) {
+    handleActiveSkillClick(card) {
         if (!this.connected || !this.inBattle) {
-            this.displayMessage('Skills can only be used in combat', 'error');
+            this.displayMessage(this.t('active_skill.use.combat_only'), 'error');
             return;
         }
 
-        const skillId = card.dataset.skillId;
+        const activeSkillId = card.dataset.activeSkillId;
 
         // Check if on cooldown
         if (card.classList.contains('on-cooldown')) {
-            this.displayMessage('Skill is on cooldown', 'error');
+            this.displayMessage(this.t('active_skill.use.cooldown'), 'error');
             return;
         }
 
         // Check if locked
-        if (card.classList.contains('skill-locked')) {
+        if (card.classList.contains('active-skill-locked')) {
             const requires = (card.dataset.requires || '').split(',').filter(Boolean);
             const missing = requires.filter(req => !this.activeEffects.some(e => e.id === req));
             const cost = Number(card.dataset.cost || 0);
             const apReq = Number(card.dataset.apReq || 0);
             if (missing.length > 0) {
-                this.displayMessage(`Requires ${missing.join(', ')} to be active`, 'error');
+                this.displayMessage(this.t('active_skill.use.requires', {
+                    value: this.getRequirementLabels(card, missing).join(', ')
+                }), 'error');
             } else if (this.playerStats.qi < cost) {
-                this.displayMessage(`Need ${cost} Qi`, 'error');
+                this.displayMessage(this.t('active_skill.use.need_qi', { required: cost }), 'error');
             } else if (this.playerStats.ap < apReq) {
-                this.displayMessage(`Need ${apReq} AP`, 'error');
+                this.displayMessage(this.t('active_skill.use.need_ap', { required: apReq }), 'error');
             }
             return;
         }
 
-        this.sendAction({ perform: skillId });
-    }
-
-    // Quick interact with character
-    quickInteract(charId) {
-        if (!this.connected) return;
-
-        // Show simple menu
-        const action = confirm(`Interact with ${charId}?\n\nOK = Talk\nCancel = Attack`);
-        if (action) {
-            this.sendAction({ talk: charId });
-        } else {
-            this.sendAction({ attack: charId });
-        }
+        this.sendAction({ perform: activeSkillId });
     }
 
     // Quick direction movement
     goDirection(direction) {
         if (!this.connected) return;
+        this.markMapMove(direction);
         this.sendAction({ go: direction });
+    }
+
+    markMapMove(direction) {
+        const normalized = this.normalizeDirection(direction);
+        const targetExit = this.currentRoom.exits.find(exit => this.getExitDirection(exit) === normalized);
+        const targetLabel = targetExit ? this.getExitLabel(targetExit) : this.formatDirection(normalized);
+        this.pendingMapMove = {
+            direction: normalized,
+            roomName: targetExit && typeof targetExit === 'object' ? targetExit.roomName : targetLabel,
+            roomKey: this.getExitRoomKey(targetExit, targetLabel)
+        };
+
+        if (!this.roomMap) return;
+        this.roomMap.classList.add('map-moving');
+        const selected = this.roomMap.querySelector(`.map-node-exit[data-direction="${normalized}"]`);
+        if (selected) {
+            selected.classList.add('map-node-selected');
+        }
+
+        if (this.mapMoveTimeout) {
+            clearTimeout(this.mapMoveTimeout);
+        }
+        this.mapMoveTimeout = setTimeout(() => {
+            this.roomMap?.classList.remove('map-moving');
+            this.roomMap?.querySelectorAll('.map-node-selected').forEach(node => {
+                node.classList.remove('map-node-selected');
+            });
+            this.pendingMapMove = null;
+            this.mapMoveTimeout = null;
+        }, 900);
     }
 
     displayMessage(text, type = 'system') {

@@ -23,7 +23,7 @@ data World = World
     _chars :: M.Map CharId Character,
     _effects :: M.Map EffectId Effect,
     _quests :: M.Map T.Text Quest,
-    _skills :: M.Map ArtId MartialArt
+    _martialArts :: M.Map ArtId MartialArt
   }
   deriving (Eq, Show, Generic)
 
@@ -33,7 +33,7 @@ data WorldException
   = MapNotFound MapId
   | RoomNotFound MapId (Int, Int)
   | ItemNotFound ItemId
-  | SkillNotFound ArtId
+  | MartialArtNotFound ArtId
   | QuestNotFound T.Text
   | CharNotFound CharId
   deriving (Eq, Show, Generic)
@@ -44,7 +44,7 @@ instance ToText WorldException where
     MapNotFound mid -> "Map not found: " <> toText mid
     RoomNotFound mid (x, y) -> "Room not found: " <> toText mid <> " " <> toText (show (x, y))
     ItemNotFound iid -> "Item not found: " <> toText iid
-    SkillNotFound sid -> "Skill not found: " <> toText sid
+    MartialArtNotFound aid -> "Martial art not found: " <> toText aid
     QuestNotFound qid -> "Quest not found: " <> toText qid
     CharNotFound cid -> "Character not found: " <> toText cid
 
@@ -53,14 +53,14 @@ type WorldStateT = StateT World (ExceptT WorldException IO)
 loadAllAssets :: FilePath -> IO (Either T.Text World)
 loadAllAssets basePath = do
   itemResult <- loadConfigFromDir _itemId $ basePath </> "items"
-  skillResult <- loadConfigFromDir _artId $ basePath </> "skills"
+  martialArtResult <- loadConfigFromDir _artId $ basePath </> "martial_arts"
   effectResult <- loadConfigFromDir _effectId $ basePath </> "effects"
   charResult <- loadConfigFromDir _charId $ basePath </> "characters"
   questResult <- loadConfigFromDir _questId $ basePath </> "quests"
   mapResult <- loadConfigFromDir _mapId $ basePath </> "maps"
 
-  return $ case (itemResult, charResult, mapResult, skillResult, effectResult, questResult) of
-    (Right items, Right chars, Right maps, Right skills, Right effects, Right quests) ->
+  return $ case (itemResult, charResult, mapResult, martialArtResult, effectResult, questResult) of
+    (Right items, Right chars, Right maps, Right martialArts', Right effects, Right quests) ->
       validateWorld
         World
           { _items = items,
@@ -68,14 +68,14 @@ loadAllAssets basePath = do
             _chars = chars,
             _effects = effects,
             _quests = quests,
-            _skills = skills
+            _martialArts = martialArts'
           }
     _ ->
       Left $
         T.unlines
           [ fromMaybe "" $ leftToMaybe itemResult,
             fromMaybe "" $ leftToMaybe mapResult,
-            fromMaybe "" $ leftToMaybe skillResult,
+            fromMaybe "" $ leftToMaybe martialArtResult,
             fromMaybe "" $ leftToMaybe effectResult,
             fromMaybe "" $ leftToMaybe questResult,
             fromMaybe "" $ leftToMaybe charResult
@@ -90,6 +90,7 @@ validateWorld wrld =
     validationErrors =
       validateMapCharacters
         <> concatMap validateItemUse (M.elems $ wrld ^. items)
+        <> concatMap validateMartialArt (M.elems $ wrld ^. martialArts)
         <> concatMap validateQuestRefs (M.elems $ wrld ^. quests)
 
     validateMapCharacters =
@@ -106,11 +107,66 @@ validateWorld wrld =
         Nothing -> []
         Just (LearnArtUse artId level _ _ _) ->
           [ "item " <> item ^. itemId <> " use learn_art references missing martial art " <> artId
-            | M.notMember artId (wrld ^. skills)
+            | M.notMember artId (wrld ^. martialArts)
           ]
             <> [ "item " <> item ^. itemId <> " learns non-positive art level for " <> artId
                  | level <= 0
                ]
+            <> validateLearnArtLevel ("item " <> item ^. itemId <> " use learn_art") artId level
+
+    validateMartialArt martialArt =
+      [ "martial art " <> artId' <> " has non-positive max_level"
+        | martialArt ^. artMaxLevel <= 0
+      ]
+        <> validateFoundationRef martialArt
+        <> concatMap (validateArtRequirement artId') (martialArt ^. artRequires)
+        <> concatMap (validateAttackMoveUnlock artId' $ martialArt ^. artMaxLevel) (martialArt ^. artAttackMoves)
+        <> concatMap (validateActiveSkillUnlock artId' $ martialArt ^. artMaxLevel) (martialArt ^. artActiveSkills)
+      where
+        artId' = martialArt ^. artId
+
+    validateFoundationRef martialArt =
+      case martialArt ^. artFoundation of
+        Nothing -> []
+        Just foundationId ->
+          case M.lookup foundationId (wrld ^. martialArts) of
+            Nothing -> ["martial art " <> martialArt ^. artId <> " references missing foundation " <> foundationId]
+            Just foundationArt ->
+              [ "martial art " <> martialArt ^. artId <> " foundation " <> foundationId <> " is not type foundation"
+                | foundationArt ^. artType /= Foundation
+              ]
+
+    validateArtRequirement ownerArtId req =
+      [ "martial art " <> ownerArtId <> " requires missing martial art " <> req ^. artRequirementArt
+        | M.notMember (req ^. artRequirementArt) (wrld ^. martialArts)
+      ]
+        <> [ "martial art " <> ownerArtId <> " has non-positive requirement level for " <> req ^. artRequirementArt
+             | req ^. artRequirementLevel <= 0
+           ]
+
+    validateAttackMoveUnlock ownerArtId maxLevel attackMove =
+      [ "martial art " <> ownerArtId <> " attack move " <> attackMove ^. attackMoveId <> " has non-positive unlock_level"
+        | attackMove ^. attackMoveUnlockLevel <= 0
+      ]
+        <> [ "martial art " <> ownerArtId <> " attack move " <> attackMove ^. attackMoveId <> " unlock_level exceeds max_level"
+             | attackMove ^. attackMoveUnlockLevel > maxLevel
+           ]
+
+    validateActiveSkillUnlock ownerArtId maxLevel activeSkill =
+      [ "martial art " <> ownerArtId <> " active skill " <> activeSkill ^. activeSkillId <> " has non-positive unlock_level"
+        | activeSkill ^. activeSkillUnlockLevel <= 0
+      ]
+        <> [ "martial art " <> ownerArtId <> " active skill " <> activeSkill ^. activeSkillId <> " unlock_level exceeds max_level"
+             | activeSkill ^. activeSkillUnlockLevel > maxLevel
+           ]
+
+    validateLearnArtLevel label artId level =
+      case M.lookup artId (wrld ^. martialArts) of
+        Nothing -> []
+        Just martialArt ->
+          [ label <> " level exceeds max_level for " <> artId
+            | level > martialArt ^. artMaxLevel
+          ]
 
     validateQuestRefs quest =
       concatMap (validateQuestEvent $ quest ^. questId) (quest ^. questEvents)
@@ -143,7 +199,7 @@ validateWorld wrld =
       NpcAlive cid -> requireChar qid eid "condition" cid
 
     validateAction qid eid = \case
-      StoryMessage _ _ choices -> concatMap (validateChoice qid eid) choices
+      StoryMessage _ _ -> []
       SetQuestStage ref _ -> requireQuest qid eid "set_stage action" ref
       CompleteQuest ref -> requireQuest qid eid "complete_quest action" ref
       SetFlag _ -> []
@@ -163,13 +219,8 @@ validateWorld wrld =
           <> [ "quest " <> qid <> " event " <> eid <> " learns non-positive art level for " <> artId
                | level <= 0
              ]
+          <> validateLearnArtLevel ("quest " <> qid <> " event " <> eid <> " learn_art action") artId level
       StartBattle cid -> requireChar qid eid "start_battle action" cid
-
-    validateChoice qid eid choice =
-      [ "quest " <> qid <> " event " <> eid <> " has an empty choice id"
-        | T.null $ choice ^. storyChoiceId
-      ]
-        <> concatMap (validateAction qid eid) (choice ^. storyChoiceActions)
 
     validateQuestReward qid reward =
       concatMap validateRewardItem (reward ^. questRewardItems)
@@ -197,7 +248,7 @@ validateWorld wrld =
 
     requireArt qid eid label artId =
       [ "quest " <> qid <> " event " <> eid <> " " <> label <> " references missing martial art " <> artId
-        | M.notMember artId (wrld ^. skills)
+        | M.notMember artId (wrld ^. martialArts)
       ]
 
 getsMap :: T.Text -> WorldStateT Map
@@ -217,4 +268,4 @@ getsItem :: ItemId -> WorldStateT Item
 getsItem iId = getsL items iId $ ItemNotFound iId
 
 getsMartialArt :: ArtId -> WorldStateT MartialArt
-getsMartialArt rId = getsL skills rId $ SkillNotFound rId
+getsMartialArt rId = getsL martialArts rId $ MartialArtNotFound rId

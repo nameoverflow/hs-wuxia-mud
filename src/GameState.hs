@@ -50,6 +50,7 @@ data GameException
   | UnableToMove Direction Room
   | ExceptionInWorld WorldException
   | ExceptionInCombat CombatException
+  | StructuredException ErrorSummary
   | OtherException Text
   deriving (Show, Eq, Generic)
 
@@ -61,7 +62,39 @@ instance ToText GameException where
     UnableToMove dir room -> "Unable to move " <> toText (Prelude.show dir) <> " in " <> toText (_roomName room)
     ExceptionInWorld err -> "Exception in world: " <> toText err
     ExceptionInCombat err -> "Exception in combat: " <> toText err
+    StructuredException summary -> "Structured exception: " <> errorSummaryCode summary
     OtherException err -> "Other exception: " <> err
+
+gameExceptionToSummary :: GameException -> ErrorSummary
+gameExceptionToSummary = \case
+  PlayerNotFound pid ->
+    ErrorSummary "player_not_found" $ M.fromList [("playerId", pid)]
+  BattleNotFound bid ->
+    ErrorSummary "battle_not_found" $ M.fromList [("battleId", bid)]
+  UnableToInteract char act ->
+    ErrorSummary "unable_to_interact" $
+      M.fromList
+        [ ("target", _charName char),
+          ("action", charActionCode act)
+        ]
+  UnableToMove dir room ->
+    ErrorSummary "unable_to_move" $
+      M.fromList
+        [ ("direction", pack $ Prelude.show dir),
+          ("room", _roomName room)
+        ]
+  ExceptionInWorld err ->
+    ErrorSummary "world_exception" $ M.fromList [("detail", toText err)]
+  ExceptionInCombat err ->
+    ErrorSummary "combat_exception" $ M.fromList [("detail", toText err)]
+  StructuredException summary ->
+    summary
+  OtherException err ->
+    ErrorSummary "other" $ M.fromList [("detail", err)]
+  where
+    charActionCode Attacking = "attack"
+    charActionCode Dialogue = "talk"
+    charActionCode Sparring = "spar"
 
 newtype GameStateT a = GameStateT
   { unGameStateT :: WriterT [PlayerResp] (StateT GameState (Control.Monad.Except.ExceptT GameException IO)) a

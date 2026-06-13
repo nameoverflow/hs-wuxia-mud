@@ -10,15 +10,16 @@
 - 房间查看，包含可见 NPC 和出口 summary。
 - NPC 对话和攻击交互。
 - 一对一战斗。
-- AP/Qi/cooldown/status requirement 技能系统。
+- AP/Qi/cooldown/status requirement 主动招式系统。
 - DoT/HoT/buff/debuff 基础状态。
 - 战斗快照推送给 UI。
-- 剧情事件系统：trigger、condition、action、choice。
+- 剧情事件系统：trigger、condition、线性 action 编排。
 - 章节目标/任务列表。
 - 奖励消息、背包消息。
 - 剧情杀敌后隐藏 NPC。
 - 剧情掉落物。
 - 可使用秘籍物品，使用后学习并准备武功。
+- 角色养成系统：角色无等级，武功有等级，基础功由具体武功升级带动。
 - 玩家 story/inventory/money/arts/prepared JSON 存档。
 - 原生 Web 客户端。
 - 武侠风房间 UI、方位图移动、NPC 弹框、背包使用按钮。
@@ -55,9 +56,9 @@
 - 角色位置、HP/Qi、长期属性成长尚未持久化。
 - 物品系统只有背包数量和 `learn_art` 使用效果，没有装备、消耗品、交易、掉落表。
 - `learn_art` 会自动准备武功，还没有玩家主动切换 prepared art 的 UI/命令。
-- 经验、等级、属性成长、技能熟练度尚未实现。
+- 经验、等级、属性成长、武功熟练度尚未实现。
 - 多人同房间广播、聊天可见范围、PVP 规则尚未完善。
-- NPC AI 仍很简单：普通攻击来自准备武功 moves，主动技能 AI 尚未成体系。
+- NPC AI 仍很简单：普通攻击来自准备武功 attack_moves，主动招式 AI 尚未成体系。
 - 战斗数值还没有防御、命中、闪避、暴击、属性缩放。
 - 剧情事件是线性匹配第一个可用事件，没有优先级、冷却、复杂变量或表达式系统。
 - Lua 依赖在 package 中存在，但当前主线剧情没有使用 Lua。

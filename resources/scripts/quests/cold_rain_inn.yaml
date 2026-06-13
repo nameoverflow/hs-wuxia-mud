@@ -24,24 +24,14 @@ events:
       - type: message
         speaker: "冷雨掌柜"
         text: "这杯酒已经冷了三次。第一次等一个人，第二次等一柄剑，第三次，等一个肯把它端进去的旁观者。客官，你只需把酒送到堂前，不必替任何人拔刀。"
-        choices:
-          - id: cold_rain_accept_wine
-            text: "接过冷酒，进客栈大堂"
-            actions:
-              - type: set_stage
-                quest: cold_rain_inn
-                stage: accepted
-              - type: set_flag
-                flag: cold_rain.has_wine
-              - type: message
-                speaker: "旁白"
-                text: "酒杯入手很轻，杯底却像压着一场旧案。北面的门虚掩着，灯影从门缝里漏出来。"
-          - id: cold_rain_decline_wine
-            text: "只问雨声，不接这杯酒"
-            actions:
-              - type: message
-                speaker: "冷雨掌柜"
-                text: "江湖事从不勉强人。只是有些雨，避得过一时，避不过一夜。"
+      - type: set_stage
+        quest: cold_rain_inn
+        stage: accepted
+      - type: set_flag
+        flag: cold_rain.has_wine
+      - type: message
+        speaker: "旁白"
+        text: "酒杯入手很轻，杯底却像压着一场旧案。北面的门虚掩着，灯影从门缝里漏出来。"
 
   - id: qingyi_receives_wine
     trigger:
@@ -57,24 +47,14 @@ events:
       - type: message
         speaker: "青衣客"
         text: "酒不是给我喝的。三年前，这里也下这样的雨。有人用一把很快的刀杀了我师兄，却把刀名留给了我。今晚他会来。你若愿意，只需看清一件事：伞下的人，鞋上没有泥。"
-        choices:
-          - id: cold_rain_watch_duel
-            text: "留下，看清伞下的人"
-            actions:
-              - type: set_stage
-                quest: cold_rain_inn
-                stage: witness
-              - type: clear_flag
-                flag: cold_rain.has_wine
-              - type: message
-                speaker: "旁白"
-                text: "青衣客没有碰那杯酒。他只是把剑向桌边推了一寸。东北边的后院里，忽然有纸伞轻轻一响。"
-          - id: cold_rain_walk_away
-            text: "放下酒杯，退到门边"
-            actions:
-              - type: message
-                speaker: "青衣客"
-                text: "能退一步的人，往往比拔刀的人活得久。但今晚，门外也未必安全。"
+      - type: set_stage
+        quest: cold_rain_inn
+        stage: witness
+      - type: clear_flag
+        flag: cold_rain.has_wine
+      - type: message
+        speaker: "旁白"
+        text: "青衣客没有碰那杯酒。他只是把剑向桌边推了一寸。东北边的后院里，忽然有纸伞轻轻一响。"
 
   - id: first_courtyard_sight
     trigger:
@@ -106,26 +86,16 @@ events:
       - type: message
         speaker: "纸伞客"
         text: "旁观者最安全，也最危险。因为旁观者若看见了不该看见的影子，就只好变成死人。"
-        choices:
-          - id: cold_rain_tip_lantern
-            text: "打翻檐下灯笼，让伞影现形"
-            actions:
-              - type: set_stage
-                quest: cold_rain_inn
-                stage: duel
-              - type: set_flag
-                flag: cold_rain.lantern_fallen
-              - type: message
-                speaker: "旁白"
-                text: "灯笼落地，火光从水洼里反上来。纸伞的影子裂成八根细刺，刺尖正对着青衣客的背心。你这一动，便不再只是旁观者。"
-              - type: start_battle
-                target: paper_umbrella_killer
-          - id: cold_rain_keep_watching
-            text: "按住刀柄，继续等"
-            actions:
-              - type: message
-                speaker: "旁白"
-                text: "你没有动。纸伞客也没有动。可雨声里已有一点杀意，像针一样扎进耳中。"
+      - type: set_stage
+        quest: cold_rain_inn
+        stage: duel
+      - type: set_flag
+        flag: cold_rain.lantern_fallen
+      - type: message
+        speaker: "旁白"
+        text: "灯笼落地，火光从水洼里反上来。纸伞的影子裂成八根细刺，刺尖正对着青衣客的背心。你这一动，便不再只是旁观者。"
+      - type: start_battle
+        target: paper_umbrella_killer
 
   - id: umbrella_killer_defeated
     trigger:

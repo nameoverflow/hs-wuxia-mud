@@ -16,9 +16,8 @@ WIP
 
 - Role playing
 
-  - [ ] Battle skills
+  - [ ] Martial arts combat
 
   - [ ] Items and concurrency
   
   - [ ] Character building
-
