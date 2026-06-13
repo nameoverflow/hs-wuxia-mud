@@ -1,6 +1,6 @@
 # 角色养成系统设计
 
-本文定义当前角色养成模型。核心原则：角色本身没有等级，成长全部落在武功等级上。
+本文定义当前角色养成模型。核心原则：角色本身没有等级，长期成长主要落在武功等级、武功熟练度、潜能、实战经验和内力上限上。
 
 ## 目标
 
@@ -19,6 +19,9 @@
 - 学习具体武功需要对应基础功达到门槛。
 - 基础功不能直接修炼升级，而是由具体武功升级自动带动。
 - 武功可定义招式；招式按武功等级解锁。
+- 潜能用于向师父学习和自研。
+- 实战经验用于限制可提升的武功等级。
+- 打坐会消耗当前 Qi 并提升 `charMaxQi`。
 
 ## 分类模型
 
@@ -51,6 +54,18 @@ active_skills: []
 - `max_level` 可选，默认 100。
 - `attack_moves` 是普通攻击招式。
 - `active_skills` 是玩家可主动 `perform` 的招式。
+
+玩家已学武功记录为 `ArtEntity`：
+
+```yaml
+id: cold_rain_secret
+level: 3
+progress: 0
+```
+
+- `level` 是当前等级。
+- `progress` 是通往下一等级的熟练度。
+- 下一等级所需熟练度当前为 `targetLevel * targetLevel * 10`。
 
 ## 基础功
 
@@ -101,7 +116,7 @@ max_level: 20
 
 - 新武功加入角色 `charArt`。
 - 初始等级为奖励/秘籍声明的等级，通常为 1。
-- 非基础功会自动设为对应类型的 prepared art。
+- 非基础功会自动设为对应类型的 `prepared` 和 `enabled` art。
 
 ## 基础功升级规则
 
@@ -128,12 +143,16 @@ max_level: 20
 
 后续如果需要更慢节奏，可以把规则替换成“基础功经验/熟练度累计”，但外部学习门槛仍然不变。
 
-## 武功升级
+## 武功升级与养成动作
 
-玩家通过动作升级已学武功：
+`train` 是旧客户端兼容入口，服务端等价处理为 `practice`：
 
 ```json
 {"train":"cold_rain_secret"}
+```
+
+```json
+{"practice":"cold_rain_secret"}
 ```
 
 规则：
@@ -141,16 +160,36 @@ max_level: 20
 - 必须已经学会该武功。
 - 基础功不能直接训练。
 - 达到 `max_level` 后不能继续提升。
-- 升级后发送武功奖励/提示消息。
+- 实战经验必须达到目标等级要求。
+- 当前第一版中每次 `practice/train` 会给足够熟练度，使武功提升一级。
 - 若该武功有 `foundation`，同步提升对应基础功。
-
-当前不引入角色经验、潜能、银两或时间消耗；后续可以在 `train` 前增加资源检查。
+- 升级后同步刷新对应 `prepared/enabled` 中的等级快照。
 
 训练响应：
 
 - 训练成功后发送 `RewardMsg`，`kind = martial_art`，`amount` 为新等级。
 - 如果同步提升了基础功，也在同一批奖励里返回基础功的新等级。
 - 训练失败用普通错误返回，例如未学会、基础功不能训练、已到上限。
+
+额外养成动作：
+
+```json
+{"learn":{"teacher":"cold_rain_innkeeper","art":"cold_rain_secret","times":2}}
+{"study":"cold_rain_manual"}
+{"research":"cold_rain_secret"}
+{"meditate":40}
+{"enable":{"type":"sword","art":"cold_rain_secret"}}
+{"prepare":{"type":"sword","art":"cold_rain_secret"}}
+```
+
+- `learn` 需要 NPC 在同房间且 `Character.teaches` 声明可教该武功，消耗潜能。
+- `study` 读取物品 `use.learn_art` 配置，未学会时学习，已学会时推进熟练度。
+- `research` 对已学武功自研，消耗 1 点潜能并推进熟练度。
+- `meditate` 消耗指定数量当前 Qi，按 `max 1 (amount / 20)` 提升 `charMaxQi`。
+- `enable` 用于把已学非基础功启用到对应类型，主动招式会从 `prepared + enabled` 合并暴露。
+- `prepare` 用于把已学非基础功准备到对应类型，普通攻击流水线仍主要消费 `prepared`。
+
+战斗胜利会按敌人 HP 和基础属性给少量 `combat_exp` 与 `potential` 奖励。
 
 ## 招式解锁
 
@@ -176,6 +215,7 @@ active_skills:
 - 普通攻击只会从已解锁的 `attack_moves` 中随机选择。
 - 客户端战斗主动招式列表只展示已解锁的主动招式。
 - 手动 `perform` 未解锁招式会失败。
+- 主动招式可选声明 `req_arts`，要求玩家已学指定武功。
 
 ## 秘籍学习
 
@@ -196,6 +236,11 @@ use:
 3. 未满足门槛则返回明确错误。
 4. 满足后学习武功。
 5. 重复使用不会重复学习，显示 `repeat_message`。
+
+`study` 与 `use` 的差异：
+
+- `use` 保持原语义：用于物品效果，重复使用只显示重复文案。
+- `study` 把同一份秘籍作为研读材料，已学会后会继续推进对应武功熟练度。
 
 ## 玩家查询
 
@@ -228,6 +273,8 @@ use:
   "artSummaryName": "听雨残谱",
   "artSummaryType": "sword",
   "artSummaryLevel": 3,
+  "artSummaryProgress": 0,
+  "artSummaryNextProgress": 160,
   "artSummaryMaxLevel": 20,
   "artSummaryFoundation": "basic_sword",
   "artSummaryRequirements": [
@@ -250,15 +297,31 @@ server 启动时应拒绝不一致的武功配置：
 - `requires.art` 必须存在，`requires.level` 必须为正。
 - `attack_moves[].unlock_level` 和 `active_skills[].unlock_level` 必须为正。
 - `unlock_level` 不应超过该武功 `max_level`。
+- `active_skills[].req_arts` 必须引用存在的武功。
+- `Character.teaches` 必须引用存在的武功，且可教上限必须为正、不能超过武功 `max_level`。
 - 物品和剧情 `learn_art` 的等级必须为正，且不能超过目标武功 `max_level`。
 
 ## 存档影响
 
-当前存档已经保存 `charArt` 和 `charPrepare`，等级字段在 `ArtEntity` 内，不需要新增顶层存档字段。旧存档若仍引用旧分类或旧武功 id，应视为不可兼容，需要迁移或重建。
+当前存档保存：
+
+- `version`
+- `story`
+- `inventory`
+- `money`
+- `potential`
+- `combat_exp`
+- `hp/max_hp`
+- `qi/max_qi`
+- `arts`
+- `prepared`
+- `enabled`
+
+旧存档缺少的新字段会以默认值读取；旧存档若仍引用旧分类或旧武功 id，应视为不可兼容，需要迁移或重建。
 
 ## 高优后续
 
-- 增加训练消耗：潜能、阅历、银两或时间。
 - 增加武功切换 UI。
 - 增加已学/可学/未满足门槛的武学面板。
 - 增加秘籍阅读失败的客户端专门提示样式。
+- 增加 busy 机制，让 learn/practice/study/research/meditate 不再是瞬时动作。

@@ -163,7 +163,7 @@ char.heart_beat
 - 防御类武功可以提供 `valid_damage()` 改写伤害。
 - 武器和护甲也能参与伤害流程。
 
-当前项目已经有 AP、Qi、cooldown、effect，结构更现代。但普通攻击仍偏简单。建议后续把普通攻击扩展为：
+当前项目已经有 AP、Qi、cooldown、effect，结构更现代。普通攻击已扩展为命中/闪避/招架/伤害流水线，后续还可以继续接入：
 
 ```text
 attacker prepared art
@@ -355,7 +355,7 @@ QuestRuntimeInstance  某个玩家或世界中的运行时任务实例
 
 并且常有一个全局更新 daemon 修正老玩家数据，例如字段迁移、上限修正、非法技能清理。
 
-当前项目现在只有 JSON 玩家存档，已保存 story、inventory、money、arts、prepared 等核心字段。后续如果继续 JSON，也建议增加版本字段：
+当前项目现在只有 JSON 玩家存档，已保存 story、inventory、money、potential、combat_exp、HP/Qi、arts、prepared、enabled 等核心字段，并已增加 `version`。后续如果继续 JSON，建议补显式迁移函数：
 
 ```json
 {
@@ -376,7 +376,7 @@ QuestRuntimeInstance  某个玩家或世界中的运行时任务实例
 | 命令 | 文本命令动态分发 | JSON action | 建 command/action registry |
 | 房间 | 可执行对象，局部 action | 静态 YAML 房间 | 增加局部动作和房间规则 |
 | 战斗 | 心跳驱动，公式和 hook 丰富 | 显式 Battle，AP/Qi/effect | 保留 Battle，补命中/闪避/招架/装备/技能 hook |
-| 技能 | learn/practice/enable/prepare/study/dazuo/tuna | 学习、训练、准备、招式解锁 | 引入潜能、师父、读书、打坐、吐纳 |
+| 技能 | learn/practice/enable/prepare/study/dazuo/tuna | 学习、训练、准备、招式解锁 | learn/practice/train/study/research/meditate/enable/prepare 已有服务端第一版，后续补 busy、吐纳和 UI |
 | 任务 | 固定任务 + 动态任务对象 | YAML 剧情事件 | 增加 job template 和 runtime instance |
 | 存档 | 玩家对象持久化，多字段 | JSON 玩家存档 | 加 saveVersion 和迁移层 |
 

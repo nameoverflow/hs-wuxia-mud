@@ -20,6 +20,13 @@ data PlayerAction
   | Attack CharId
   | Perform ActiveSkillId
   | Train ArtId
+  | Practice ArtId
+  | Learn CharId ArtId Int
+  | Study ItemId
+  | Research ArtId
+  | Meditate Int
+  | EnableArt ArtType ArtId
+  | PrepareArt ArtType ArtId
   | Use T.Text
   | Say T.Text
   | Other T.Text
@@ -31,10 +38,36 @@ instance FromJSON PlayerAction where
       <|> (Attack <$> o .: "attack")
       <|> (Perform <$> o .: "perform")
       <|> (Train <$> o .: "train")
+      <|> (Practice <$> o .: "practice")
+      <|> parseLearn o
+      <|> (Study <$> o .: "study")
+      <|> (Research <$> o .: "research")
+      <|> (Meditate <$> o .: "meditate")
+      <|> parseEnable o
+      <|> parsePrepare o
       <|> (Use <$> o .: "use")
       <|> (Say <$> o .: "say")
       <|> (Other <$> o .: "other")
       <|> (Talk <$> o .: "talk")
+    where
+      parseLearn o = do
+        learnObj <- o .: "learn"
+        Learn
+          <$> learnObj .: "teacher"
+          <*> learnObj .: "art"
+          <*> learnObj .:? "times" .!= 1
+
+      parseEnable o = do
+        enableObj <- o .: "enable"
+        EnableArt
+          <$> enableObj .: "type"
+          <*> enableObj .: "art"
+
+      parsePrepare o = do
+        prepareObj <- o .: "prepare"
+        PrepareArt
+          <$> prepareObj .: "type"
+          <*> prepareObj .: "art"
 
 
 instance ToJSON PlayerAction where
@@ -42,6 +75,14 @@ instance ToJSON PlayerAction where
   toJSON (Attack targetId) = object ["attack" .= targetId]
   toJSON (Perform targetActiveSkillId) = object ["perform" .= targetActiveSkillId]
   toJSON (Train targetArtId) = object ["train" .= targetArtId]
+  toJSON (Practice targetArtId) = object ["practice" .= targetArtId]
+  toJSON (Learn teacherId targetArtId times) =
+    object ["learn" .= object ["teacher" .= teacherId, "art" .= targetArtId, "times" .= times]]
+  toJSON (Study itemId) = object ["study" .= itemId]
+  toJSON (Research targetArtId) = object ["research" .= targetArtId]
+  toJSON (Meditate amount) = object ["meditate" .= amount]
+  toJSON (EnableArt artType' targetArtId) = object ["enable" .= object ["type" .= artType', "art" .= targetArtId]]
+  toJSON (PrepareArt artType' targetArtId) = object ["prepare" .= object ["type" .= artType', "art" .= targetArtId]]
   toJSON (Use usedItemId) = object ["use" .= usedItemId]
   toJSON (Say msg) = object ["say" .= msg]
   toJSON (Other msg) = object ["other" .= msg]
@@ -78,6 +119,8 @@ data ArtSummary = ArtSummary
     artSummaryName :: T.Text,
     artSummaryType :: T.Text,
     artSummaryLevel :: Int,
+    artSummaryProgress :: Int,
+    artSummaryNextProgress :: Int,
     artSummaryMaxLevel :: Int,
     artSummaryIsFoundation :: Bool,
     artSummaryFoundation :: Maybe ArtId,

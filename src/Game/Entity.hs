@@ -173,6 +173,7 @@ data ActiveSkill = ActiveSkill
     _activeSkillTarget :: ActiveSkillTarget,
     _activeSkillCost :: Int,
     _activeSkillApReq :: Int,
+    _activeSkillReqArts :: [ArtId],
     _activeSkillReqStatus :: [EffectId],
     _activeSkillHeal :: Maybe Int,
     _activeSkillDamage :: Maybe Int,
@@ -201,6 +202,7 @@ instance FromJSON ActiveSkill where
     _activeSkillTarget <- o .: "target"
     _activeSkillCost <- o .: "cost"
     _activeSkillApReq <- o .:? "ap_req" .!= 0
+    _activeSkillReqArts <- o .:? "req_arts" .!= []
     _activeSkillReqStatus <- o .:? "req_status" .!= []
     _activeSkillHeal <- o .:? "heal"
     _activeSkillDamage <- o .:? "damage"
@@ -316,7 +318,8 @@ data MartialArt = MartialArt
 
 data ArtEntity = ArtEntity
   { _artDef :: ArtId,
-    _artLevel :: Int
+    _artLevel :: Int,
+    _artProgress :: Int
   }
   deriving (Generic, Show, Eq)
 
@@ -339,13 +342,15 @@ instance FromJSON ArtEntity where
   parseJSON = withObject "ArtEntity" $ \o -> do
     _artDef <- o .: "id"
     _artLevel <- o .: "level"
+    _artProgress <- o .:? "progress" .!= 0
     pure ArtEntity {..}
 
 instance ToJSON ArtEntity where
   toJSON ArtEntity {..} =
     object
       [ "id" .= _artDef,
-        "level" .= _artLevel
+        "level" .= _artLevel,
+        "progress" .= _artProgress
       ]
 
 makeLenses ''ArtRequirement
@@ -393,6 +398,8 @@ data Character = Character
     _charVitality :: Int,
     -- Equipment
     _charPrepare :: M.Map ArtType ArtEntity,
+    _charEnabled :: M.Map ArtType ArtEntity,
+    _charTeaches :: M.Map ArtId Int,
     _charItems :: S.Set ItemEntity,
     _charArt :: M.Map ArtType [ArtEntity],
     -- Status
@@ -420,6 +427,8 @@ newCharacter cid cname =
       _charAgility = 0,
       _charVitality = 0,
       _charPrepare = M.empty,
+      _charEnabled = M.empty,
+      _charTeaches = M.empty,
       _charItems = S.empty,
       _charArt = M.empty,
       _charStatus = CharAlive
@@ -446,6 +455,8 @@ instance FromJSON Character where
 
     _charArt <- o .: "martial_arts"
     _charPrepare <- o .: "prepared"
+    _charEnabled <- o .:? "enabled" .!= _charPrepare
+    _charTeaches <- o .:? "teaches" .!= M.empty
     -- _charItems <- o .: "items"
     -- _charRoutine <- o .: "routine"
     let _charItems = S.empty
@@ -490,6 +501,8 @@ data Player = Player
     _playerStatus :: PlayerStatus,
     _playerInventory :: M.Map ItemId Int,
     _playerMoney :: Int,
+    _playerPotential :: Int,
+    _playerCombatExp :: Int,
     _playerCharacter :: Character
   }
   deriving (Show, Eq, Generic)
@@ -504,6 +517,8 @@ instance FromJSON Player where
     _playerStatus <- o .: "status"
     _playerInventory <- o .:? "inventory" .!= M.empty
     _playerMoney <- o .:? "money" .!= 0
+    _playerPotential <- o .:? "potential" .!= 0
+    _playerCombatExp <- o .:? "combat_exp" .!= 0
     _playerCharacter <- o .: "char"
     return Player {..}
 
@@ -518,6 +533,8 @@ newPlayer pid cname =
       _playerStatus = PlayerNormal,
       _playerInventory = M.empty,
       _playerMoney = 0,
+      _playerPotential = 0,
+      _playerCombatExp = 0,
       _playerCharacter = newCharacter cid cname
     }
   where

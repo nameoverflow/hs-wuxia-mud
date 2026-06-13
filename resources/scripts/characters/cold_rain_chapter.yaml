@@ -10,6 +10,8 @@
     fist:
       id: nameless_trial_fist
       level: 1
+  teaches:
+    cold_rain_secret: 5
   dialogue:
     - "酒在桌上，人在雨里。客官若要问事，先问自己的胆。"
   respawn: 0

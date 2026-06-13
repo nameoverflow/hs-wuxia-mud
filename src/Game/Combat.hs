@@ -51,6 +51,12 @@ data Battle = Battle
   }
   deriving (Show, Eq, Generic)
 
+data PreparedAttack = PreparedAttack
+  { preparedAttackArt :: ArtEntity,
+    preparedAttackMove :: AttackMove
+  }
+  deriving (Show, Eq, Generic)
+
 makeLenses ''Battle
 
 makeLenses ''BattleState
@@ -178,35 +184,102 @@ checkApAndAttack left right = do
 battleAttack :: Lens' Battle Character -> Lens' Battle Character -> Combat ()
 battleAttack left right = do
   attacker <- use left
-  martialArtMap <- view martialArts
-  let eqMoves = unlockedAttackMoves martialArtMap attacker
-
-  -- randomly select a move
-  move <- randomSelect eqMoves
-  case move of
+  defender <- use right
+  attack <- selectPreparedAttack attacker
+  case attack of
     Nothing -> do
       throwError $ CombatException $ pack $ "No unlocked move selected, prepared arts: " <> show (attacker ^. charPrepare)
-    Just mv -> do
-      -- apply damage
-      let damage = mv ^. attackMoveDamage
-      right . charHP -= damage
+    Just preparedAttack -> runAttackPipeline left right preparedAttack attacker defender
 
-      -- write attack message
-      uid <- use battleOwner
-      leftName <- use $ left . charName
-      rightName <- use $ right . charName
-      let mvMsg = mv ^. attackMoveMsg
-      tell [(uid, CombatNormalMsg leftName rightName (CombatScriptText mvMsg) damage)]
+runAttackPipeline :: Lens' Battle Character -> Lens' Battle Character -> PreparedAttack -> Character -> Character -> Combat ()
+runAttackPipeline left right preparedAttack attacker defender = do
+  let attackScore = attackPower attacker preparedAttack
+      dodgeScore = dodgePower defender
+      parryScore = parryPower defender
+      move = preparedAttackMove preparedAttack
+      moveText = move ^. attackMoveMsg
+  hit <- contest attackScore dodgeScore
+  uid <- use battleOwner
+  attackerName <- use $ left . charName
+  defenderName <- use $ right . charName
+  if not hit
+    then tell [(uid, CombatNormalMsg attackerName defenderName (CombatScriptText $ moveText <> "，却被侧身闪避") 0)]
+    else do
+      parryFailed <- contest attackScore parryScore
+      if not parryFailed
+        then tell [(uid, CombatNormalMsg attackerName defenderName (CombatScriptText $ moveText <> "，被抬手格开") 0)]
+        else do
+          let damage = applyCombatHooks attacker defender preparedAttack $ computeDamage attacker defender preparedAttack
+          right . charHP -= damage
+          tell [(uid, CombatNormalMsg attackerName defenderName (CombatScriptText moveText) damage)]
 
-unlockedAttackMoves :: M.Map ArtId MartialArt -> Character -> [AttackMove]
-unlockedAttackMoves martialArtMap char =
-  [ move
+selectPreparedAttack :: Character -> Combat (Maybe PreparedAttack)
+selectPreparedAttack char = do
+  martialArtMap <- view martialArts
+  randomSelect $ unlockedPreparedAttacks martialArtMap char
+
+unlockedPreparedAttacks :: M.Map ArtId MartialArt -> Character -> [PreparedAttack]
+unlockedPreparedAttacks martialArtMap char =
+  [ PreparedAttack artEntity move
     | artType' <- [Sword, Fist],
       Just artEntity <- [char ^. charPrepare . at artType'],
       Just martialArt <- [M.lookup (artEntity ^. artDef) martialArtMap],
       move <- martialArt ^. artAttackMoves,
       move ^. attackMoveUnlockLevel <= artEntity ^. artLevel
   ]
+
+contest :: Int -> Int -> Combat Bool
+contest attack defense
+  | attack <= 0 = return False
+  | defense <= 0 = return True
+  | otherwise = do
+      roll <- getRandomR (1, attack + defense)
+      return $ roll <= attack
+
+attackPower :: Character -> PreparedAttack -> Int
+attackPower attacker preparedAttack =
+  max 1 $
+    20
+      + (preparedAttackMove preparedAttack ^. attackMoveDamage) * 4
+      + (preparedAttackArt preparedAttack ^. artLevel) * 8
+      + (attacker ^. charStrength) `div` 4
+      + (attacker ^. charAgility) `div` 2
+
+dodgePower :: Character -> Int
+dodgePower defender =
+  max 0 $
+    (defender ^. charAgility) * 5
+      + (defender ^. charVitality) * 2
+      + preparedLevelBonus defender Lightness 8
+
+parryPower :: Character -> Int
+parryPower defender =
+  max 0 $
+    (defender ^. charVitality) * 4
+      + (defender ^. charStrength) `div` 12
+      + preparedLevelBonus defender Sword 8
+      + preparedLevelBonus defender Fist 8
+
+computeDamage :: Character -> Character -> PreparedAttack -> Int
+computeDamage attacker defender preparedAttack =
+  max 1 $
+    baseDamage
+      + artBonus
+      + strengthBonus
+      - vitalityMitigation
+  where
+    baseDamage = preparedAttackMove preparedAttack ^. attackMoveDamage
+    artBonus = (preparedAttackArt preparedAttack ^. artLevel) `div` 3
+    strengthBonus = max 0 ((attacker ^. charStrength) - 10) `div` 80
+    vitalityMitigation = max 0 ((defender ^. charVitality) - 10) `div` 20
+
+applyCombatHooks :: Character -> Character -> PreparedAttack -> Int -> Int
+applyCombatHooks _ _ _ =
+  max 1
+
+preparedLevelBonus :: Character -> ArtType -> Int -> Int
+preparedLevelBonus char artType' multiplier =
+  maybe 0 ((* multiplier) . view artLevel) $ char ^. charPrepare . at artType'
 
 canUseActiveSkill :: ActiveSkill -> Lens' Battle BattleState -> Combat Bool
 canUseActiveSkill activeSkill state = do

@@ -1024,25 +1024,26 @@ class MUDClient {
     handleCombatNormalMsg(contents) {
         const [attacker, defender, combatMessage, damage] = contents;
         const actionText = this.formatCombatMessage(combatMessage);
-        const msg = this.t('message.combat.damage', {
+        const damageValue = Number(damage) || 0;
+        const msg = this.t(damageValue > 0 ? 'message.combat.damage' : 'message.combat.no_damage', {
             attacker,
             defender,
             action: actionText,
-            damage
+            damage: damageValue
         });
         this.enqueueCombatEvent({
             type: 'motion',
             message: msg,
             messageType: 'combat',
-            sound: 'damage',
+            sound: damageValue > 0 ? 'damage' : 'attack',
             attacker,
             defender,
-            damage,
-            label: this.t('battle.damage_tag'),
+            damage: damageValue,
+            label: this.combatResultLabel(actionText, damageValue),
             duration: 460,
             motionOptions: {
                 attackerMotion: 'attack',
-                defenderMotion: this.classifyDefenseMotion(actionText, damage)
+                defenderMotion: this.classifyDefenseMotion(actionText, damageValue)
             }
         });
     }
@@ -1765,6 +1766,13 @@ class MUDClient {
         return 'hit';
     }
 
+    combatResultLabel(actionText, damage) {
+        if (damage > 0) return this.t('battle.damage_tag');
+        const text = String(actionText || '');
+        if (/[挡架格拦封]/.test(text)) return this.t('battle.parry_tag');
+        return this.t('battle.miss_tag');
+    }
+
     classifyActiveSkillMotion(actionText, caster, target) {
         const text = String(actionText || '');
         if (/[挡架格拦封]/.test(text)) return 'parry';
@@ -1983,6 +1991,16 @@ class MUDClient {
             });
             card.appendChild(level);
 
+            if (art.artSummaryNextProgress > 0) {
+                const progress = document.createElement('div');
+                progress.className = 'art-line';
+                progress.textContent = this.t('art.progress', {
+                    progress: art.artSummaryProgress || 0,
+                    next: art.artSummaryNextProgress
+                });
+                card.appendChild(progress);
+            }
+
             if (art.artSummaryFoundation) {
                 const foundation = document.createElement('div');
                 foundation.className = 'art-line';
@@ -2162,6 +2180,9 @@ class MUDClient {
         }
         if (reward.rewardSummaryKind === 'martial_art') {
             return reward.rewardSummaryName;
+        }
+        if (['combat_exp', 'potential', 'max_qi'].includes(reward.rewardSummaryKind)) {
+            return `${reward.rewardSummaryAmount} ${reward.rewardSummaryName}`;
         }
         return `${this.formatItemName(reward.rewardSummaryId, reward.rewardSummaryName)} x${reward.rewardSummaryAmount}`;
     }

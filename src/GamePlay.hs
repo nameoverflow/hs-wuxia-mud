@@ -14,9 +14,10 @@ import Control.Monad.Except
   )
 import Control.Monad.RWS (tell)
 import Control.Monad.Random (getStdGen, MonadIO (liftIO), newStdGen, runRand)
-import Data.List (find)
+import Data.List (find, maximumBy)
 import qualified Data.Map.Strict as M
 import Data.Maybe (catMaybes, fromMaybe, isJust)
+import Data.Ord (comparing)
 import qualified Data.Set as S
 import qualified Data.Text as T
 import Data.Time.Clock.POSIX (POSIXTime, getPOSIXTime)
@@ -44,6 +45,13 @@ processNormalAction pid action = case action of
   Talk (target :: CharId) -> playerTalk pid target
   Use itemId -> playerUseItem pid itemId
   Train artId -> playerTrainArt pid artId
+  Practice artId -> playerPracticeArt pid artId
+  Learn teacherId artId times -> playerLearnArt pid teacherId artId times
+  Study itemId -> playerStudyItem pid itemId
+  Research artId -> playerResearchArt pid artId
+  Meditate amount -> playerMeditate pid amount
+  EnableArt artType' artId -> playerEnableArt pid artType' artId
+  PrepareArt artType' artId -> playerPrepareArt pid artType' artId
   Other "quests" -> playerQuestLog pid
   Other "inventory" -> sendPlayerInventory pid
   Other "arts" -> playerArts pid
@@ -365,14 +373,20 @@ grantArt pid artId level =
         let currentLevel = fromMaybe 0 $ playerKnownArtLevel player artId
             learnedLevel = max level currentLevel
             artType' = martialArt ^. artType
-            learnedArt = ArtEntity artId learnedLevel
-        upsertKnownArt pid artType' artId learnedLevel
+            learnedArt = ArtEntity artId learnedLevel 0
+        upsertKnownArtEntity pid artType' learnedArt
         when (artType' /= Foundation) $
           players . ix pid . playerCharacter . charPrepare . at artType' .= Just learnedArt
-        tell [(pid, RewardMsg [martialArtRewardSummary martialArt learnedLevel])]
+        when (artType' /= Foundation) $
+          players . ix pid . playerCharacter . charEnabled . at artType' .= Just learnedArt
+        foundationRewards <- syncFoundationArt pid martialArtMap martialArt learnedLevel
+        tell [(pid, RewardMsg (martialArtRewardSummary martialArt learnedLevel : foundationRewards))]
 
 playerTrainArt :: PlayerId -> ArtId -> GameStateT ()
-playerTrainArt pid artId = do
+playerTrainArt = playerPracticeArt
+
+playerPracticeArt :: PlayerId -> ArtId -> GameStateT ()
+playerPracticeArt pid artId = do
   martialArtMap <- use $ world . martialArts
   case M.lookup artId martialArtMap of
     Nothing -> throwStructured "martial_art_not_found_training" [("artId", artId)]
@@ -385,13 +399,130 @@ playerTrainArt pid artId = do
         Just knownLevel -> return knownLevel
       when (currentLevel >= martialArt ^. artMaxLevel) $
         throwStructured "art_already_max" [("art", martialArt ^. artName)]
-      let newLevel = currentLevel + 1
-          artType' = martialArt ^. artType
-      upsertKnownArt pid artType' artId newLevel
-      players . ix pid . playerCharacter . charPrepare . at artType' .= Just (ArtEntity artId newLevel)
-      foundationRewards <- syncFoundationArt pid martialArtMap martialArt newLevel
-      tell [(pid, RewardMsg (martialArtRewardSummary martialArt newLevel : foundationRewards))]
+      let gain = artProgressRequired (currentLevel + 1)
+      (_, rewards) <- improveKnownArt pid martialArt gain
+      unless (null rewards) $
+        tell [(pid, RewardMsg rewards)]
       playerArts pid
+
+playerLearnArt :: PlayerId -> CharId -> ArtId -> Int -> GameStateT ()
+playerLearnArt pid teacherId artId times = do
+  when (times <= 0) $
+    throwStructured "learn_times_must_be_positive" [("times", showText times)]
+  teacher <- getsRoomCharacter pid teacherId Dialogue
+  teacherMaxLevel <- case teacher ^. charTeaches . at artId of
+    Nothing -> throwStructured "teacher_cannot_teach_art" [("teacher", teacher ^. charName), ("artId", artId)]
+    Just maxLevel -> return maxLevel
+  martialArtMap <- use $ world . martialArts
+  martialArt <- case M.lookup artId martialArtMap of
+    Nothing -> throwStructured "martial_art_not_found_learning" [("artId", artId)]
+    Just martialArt -> return martialArt
+  ensureArtRequirements pid martialArtMap martialArt
+  player <- getsPlayer pid
+  when (player ^. playerPotential < times) $
+    throwStructured "not_enough_potential" [("required", showText times), ("current", showText $ player ^. playerPotential)]
+  forM_ [1 .. times] $ \_ -> do
+    currentPlayer <- getsPlayer pid
+    let currentLevel = fromMaybe 0 $ playerKnownArtLevel currentPlayer artId
+        targetLevel = if currentLevel <= 0 then 1 else currentLevel + 1
+    when (currentLevel >= teacherMaxLevel) $
+      throwStructured "teacher_art_level_cap" [("teacher", teacher ^. charName), ("art", martialArt ^. artName), ("max", showText teacherMaxLevel)]
+    ensureCombatExpForLevel pid targetLevel
+    players . ix pid . playerPotential -= 1
+    if currentLevel <= 0
+      then grantArt pid artId 1
+      else do
+        (_, rewards) <- improveKnownArt pid martialArt (artProgressRequired targetLevel)
+        unless (null rewards) $
+          tell [(pid, RewardMsg rewards)]
+  playerArts pid
+
+playerStudyItem :: PlayerId -> ItemId -> GameStateT ()
+playerStudyItem pid itemId = do
+  player <- getsPlayer pid
+  case player ^. playerInventory . at itemId of
+    Just amount | amount > 0 -> do
+      item <- liftWorld $ getsItem itemId
+      case item ^. itemUse of
+        Just (LearnArtUse artId level _ message _) -> do
+          martialArtMap <- use $ world . martialArts
+          martialArt <- case M.lookup artId martialArtMap of
+            Nothing -> throwStructured "martial_art_not_found_learning" [("artId", artId)]
+            Just martialArt -> return martialArt
+          ensureArtRequirements pid martialArtMap martialArt
+          currentPlayer <- getsPlayer pid
+          let currentLevel = fromMaybe 0 $ playerKnownArtLevel currentPlayer artId
+          if currentLevel < level
+            then do
+              ensureCombatExpForLevel pid level
+              grantArt pid artId level
+            else do
+              when (currentLevel >= martialArt ^. artMaxLevel) $
+                throwStructured "art_already_max" [("art", martialArt ^. artName)]
+              ensureCombatExpForLevel pid (currentLevel + 1)
+              (_, rewards) <- improveKnownArt pid martialArt (artProgressRequired (currentLevel + 1))
+              unless (null rewards) $
+                tell [(pid, RewardMsg rewards)]
+          tell [(pid, UseItemMsg (player ^. playerCharacter . charName) (fromMaybe ("你研读了" <> item ^. itemName <> "。") message))]
+          playerArts pid
+        Nothing -> throwStructured "item_cannot_be_studied" [("item", item ^. itemName)]
+    _ -> throwStructured "item_not_in_inventory" [("itemId", itemId)]
+
+playerResearchArt :: PlayerId -> ArtId -> GameStateT ()
+playerResearchArt pid artId = do
+  martialArtMap <- use $ world . martialArts
+  martialArt <- case M.lookup artId martialArtMap of
+    Nothing -> throwStructured "martial_art_not_found_research" [("artId", artId)]
+    Just martialArt -> return martialArt
+  player <- getsPlayer pid
+  currentLevel <- case playerKnownArtLevel player artId of
+    Nothing -> throwStructured "art_not_learned" [("art", martialArt ^. artName)]
+    Just knownLevel -> return knownLevel
+  when (currentLevel >= martialArt ^. artMaxLevel) $
+    throwStructured "art_already_max" [("art", martialArt ^. artName)]
+  when (player ^. playerPotential <= 0) $
+    throwStructured "not_enough_potential" [("required", "1"), ("current", showText $ player ^. playerPotential)]
+  ensureCombatExpForLevel pid (currentLevel + 1)
+  players . ix pid . playerPotential -= 1
+  (_, rewards) <- improveKnownArt pid martialArt (artProgressRequired (currentLevel + 1))
+  unless (null rewards) $
+    tell [(pid, RewardMsg rewards)]
+  playerArts pid
+
+playerMeditate :: PlayerId -> Int -> GameStateT ()
+playerMeditate pid amount = do
+  when (amount <= 0) $
+    throwStructured "meditate_amount_must_be_positive" [("amount", showText amount)]
+  player <- getsPlayer pid
+  let qi = player ^. playerCharacter . charQi
+  when (qi < amount) $
+    throwStructured "not_enough_qi" [("required", showText amount), ("current", showText qi)]
+  let maxQiGain = max 1 (amount `div` 20)
+  players . ix pid . playerCharacter . charQi -= amount
+  players . ix pid . playerCharacter . charMaxQi += maxQiGain
+  tell [(pid, RewardMsg [resourceRewardSummary "max_qi" "真气上限" maxQiGain])]
+  sendPlayerStats pid
+  markPlayerDirty pid
+
+playerEnableArt :: PlayerId -> ArtType -> ArtId -> GameStateT ()
+playerEnableArt pid artType' artId = do
+  artEntity <- ensureKnownTypedArt pid artType' artId "enable_art_type_mismatch"
+  when (artType' == Foundation) $
+    throwStructured "foundation_art_cannot_enable" [("artId", artId)]
+  players . ix pid . playerCharacter . charEnabled . at artType' .= Just artEntity
+  tell [(pid, SystemMsg $ SystemMessage "art_enabled" (M.fromList [("type", artTypeToText artType'), ("artId", artId)]))]
+  playerArts pid
+  markPlayerDirty pid
+
+playerPrepareArt :: PlayerId -> ArtType -> ArtId -> GameStateT ()
+playerPrepareArt pid artType' artId = do
+  artEntity <- ensureKnownTypedArt pid artType' artId "prepare_art_type_mismatch"
+  when (artType' == Foundation) $
+    throwStructured "foundation_art_cannot_prepare" [("artId", artId)]
+  players . ix pid . playerCharacter . charPrepare . at artType' .= Just artEntity
+  tell [(pid, SystemMsg $ SystemMessage "art_prepared" (M.fromList [("type", artTypeToText artType'), ("artId", artId)]))]
+  playerArts pid
+  markPlayerDirty pid
 
 syncFoundationArt :: PlayerId -> M.Map ArtId MartialArt -> MartialArt -> Int -> GameStateT [RewardSummary]
 syncFoundationArt pid martialArtMap martialArt newLevel =
@@ -406,19 +537,92 @@ syncFoundationArt pid martialArtMap martialArt newLevel =
           if currentFoundationLevel >= newLevel
             then return []
             else do
-              upsertKnownArt pid (foundationArt ^. artType) foundationId newLevel
+              upsertKnownArtEntity pid (foundationArt ^. artType) (ArtEntity foundationId newLevel 0)
               return [martialArtRewardSummary foundationArt newLevel]
 
 upsertKnownArt :: PlayerId -> ArtType -> ArtId -> Int -> GameStateT ()
-upsertKnownArt pid artType' artId level = do
-  current <- use $ players . ix pid . playerCharacter . charArt . at artType'
-  players . ix pid . playerCharacter . charArt . at artType' .= Just (upsertArtEntity artId level $ fromMaybe [] current)
+upsertKnownArt pid artType' artId level =
+  upsertKnownArtEntity pid artType' (ArtEntity artId level 0)
 
-upsertArtEntity :: ArtId -> Int -> [ArtEntity] -> [ArtEntity]
-upsertArtEntity artId level [] = [ArtEntity artId level]
-upsertArtEntity artId level (known : rest)
-  | known ^. artDef == artId = (known & artLevel .~ level) : rest
-  | otherwise = known : upsertArtEntity artId level rest
+upsertKnownArtEntity :: PlayerId -> ArtType -> ArtEntity -> GameStateT ()
+upsertKnownArtEntity pid artType' artEntity = do
+  current <- use $ players . ix pid . playerCharacter . charArt . at artType'
+  players . ix pid . playerCharacter . charArt . at artType' .= Just (upsertArtEntity artEntity $ fromMaybe [] current)
+
+upsertArtEntity :: ArtEntity -> [ArtEntity] -> [ArtEntity]
+upsertArtEntity artEntity [] = [artEntity]
+upsertArtEntity artEntity (known : rest)
+  | known ^. artDef == artEntity ^. artDef = artEntity : rest
+  | otherwise = known : upsertArtEntity artEntity rest
+
+improveKnownArt :: PlayerId -> MartialArt -> Int -> GameStateT (ArtEntity, [RewardSummary])
+improveKnownArt pid martialArt progressGain = do
+  martialArtMap <- use $ world . martialArts
+  player <- getsPlayer pid
+  (artType', currentArt) <- case playerKnownArtEntity player (martialArt ^. artId) of
+    Nothing -> throwStructured "art_not_learned" [("art", martialArt ^. artName)]
+    Just known -> return known
+  let currentLevel = currentArt ^. artLevel
+      targetLevel = currentLevel + 1
+  when (currentLevel >= martialArt ^. artMaxLevel) $
+    throwStructured "art_already_max" [("art", martialArt ^. artName)]
+  ensureCombatExpForLevel pid targetLevel
+  let nextProgressRequired = artProgressRequired targetLevel
+      totalProgress = currentArt ^. artProgress + max 0 progressGain
+      (newLevel, newProgress) =
+        if totalProgress >= nextProgressRequired
+          then (targetLevel, 0)
+          else (currentLevel, totalProgress)
+      updatedArt = currentArt & artLevel .~ newLevel & artProgress .~ newProgress
+  upsertKnownArtEntity pid artType' updatedArt
+  refreshEquippedArt pid artType' updatedArt
+  foundationRewards <-
+    if newLevel > currentLevel
+      then syncFoundationArt pid martialArtMap martialArt newLevel
+      else return []
+  markPlayerDirty pid
+  return
+    ( updatedArt,
+      [martialArtRewardSummary martialArt newLevel | newLevel > currentLevel]
+        <> foundationRewards
+    )
+
+refreshEquippedArt :: PlayerId -> ArtType -> ArtEntity -> GameStateT ()
+refreshEquippedArt pid artType' artEntity =
+  when (artType' /= Foundation) $ do
+    prepared <- preuse $ players . ix pid . playerCharacter . charPrepare . ix artType'
+    when (maybe False ((== artEntity ^. artDef) . view artDef) prepared) $
+      players . ix pid . playerCharacter . charPrepare . at artType' .= Just artEntity
+    enabled <- preuse $ players . ix pid . playerCharacter . charEnabled . ix artType'
+    when (maybe False ((== artEntity ^. artDef) . view artDef) enabled) $
+      players . ix pid . playerCharacter . charEnabled . at artType' .= Just artEntity
+
+ensureKnownTypedArt :: PlayerId -> ArtType -> ArtId -> T.Text -> GameStateT ArtEntity
+ensureKnownTypedArt pid expectedArtType artId mismatchCode = do
+  martialArtMap <- use $ world . martialArts
+  martialArt <- case M.lookup artId martialArtMap of
+    Nothing -> throwStructured "martial_art_not_found" [("artId", artId)]
+    Just martialArt -> return martialArt
+  when (martialArt ^. artType /= expectedArtType) $
+    throwStructured mismatchCode [("art", martialArt ^. artName), ("expected", artTypeToText expectedArtType), ("actual", artTypeToText $ martialArt ^. artType)]
+  player <- getsPlayer pid
+  case playerKnownArtEntity player artId of
+    Nothing -> throwStructured "art_not_learned" [("art", martialArt ^. artName)]
+    Just (_, artEntity) -> return artEntity
+
+ensureCombatExpForLevel :: PlayerId -> Int -> GameStateT ()
+ensureCombatExpForLevel pid targetLevel = do
+  player <- getsPlayer pid
+  let required = combatExpRequiredForLevel targetLevel
+      current = player ^. playerCombatExp
+  when (current < required) $
+    throwStructured "combat_exp_too_low" [("required", showText required), ("current", showText current), ("level", showText targetLevel)]
+
+artProgressRequired :: Int -> Int
+artProgressRequired targetLevel = max 1 (targetLevel * targetLevel * 10)
+
+combatExpRequiredForLevel :: Int -> Int
+combatExpRequiredForLevel targetLevel = max 0 (targetLevel * targetLevel * 10)
 
 ensureArtRequirements :: PlayerId -> M.Map ArtId MartialArt -> MartialArt -> GameStateT ()
 ensureArtRequirements pid martialArtMap martialArt = do
@@ -453,6 +657,19 @@ playerKnownArtLevel player artId =
     levels =
       [ known ^. artLevel
         | knownArts <- M.elems $ player ^. playerCharacter . charArt,
+          known <- knownArts,
+          known ^. artDef == artId
+      ]
+
+playerKnownArtEntity :: Player -> ArtId -> Maybe (ArtType, ArtEntity)
+playerKnownArtEntity player artId =
+  case knownEntities of
+    [] -> Nothing
+    _ -> Just $ maximumBy (comparing (view (_2 . artLevel))) knownEntities
+  where
+    knownEntities =
+      [ (artType', known)
+        | (artType', knownArts) <- M.toList $ player ^. playerCharacter . charArt,
           known <- knownArts,
           known ^. artDef == artId
       ]
@@ -498,6 +715,11 @@ artToSummary martialArtMap known martialArt =
       artSummaryName = martialArt ^. artName,
       artSummaryType = artTypeToText $ martialArt ^. artType,
       artSummaryLevel = level,
+      artSummaryProgress = known ^. artProgress,
+      artSummaryNextProgress =
+        if level >= martialArt ^. artMaxLevel
+          then 0
+          else artProgressRequired (level + 1),
       artSummaryMaxLevel = martialArt ^. artMaxLevel,
       artSummaryIsFoundation = martialArt ^. artType == Foundation,
       artSummaryFoundation = martialArt ^. artFoundation,
@@ -578,6 +800,9 @@ itemRewardSummary itemId amount = do
 moneyRewardSummary :: Int -> RewardSummary
 moneyRewardSummary amount = RewardSummary "money" Nothing "铜钱" amount
 
+resourceRewardSummary :: T.Text -> T.Text -> Int -> RewardSummary
+resourceRewardSummary kind name amount = RewardSummary kind Nothing name amount
+
 martialArtRewardSummary :: MartialArt -> Int -> RewardSummary
 martialArtRewardSummary martialArt level = RewardSummary "martial_art" (Just $ martialArt ^. artId) (martialArt ^. artName) level
 
@@ -645,16 +870,37 @@ playerPerformActiveSkill pid targetActiveSkillId = do
 
 preparedActiveSkills :: World -> Player -> [ActiveSkill]
 preparedActiveSkills wrld player =
-  [ activeSkill
-    | artType' <- activeSkillArtTypes,
-      Just artEntity <- [player ^. playerCharacter . charPrepare . at artType'],
+  dedupeActiveSkills
+    [ activeSkill
+      | artEntity <- activeSkillArtEntities player,
       Just martialArt <- [M.lookup (artEntity ^. artDef) (wrld ^. martialArts)],
       activeSkill <- martialArt ^. artActiveSkills,
-      activeSkill ^. activeSkillUnlockLevel <= artEntity ^. artLevel
-  ]
+      activeSkill ^. activeSkillUnlockLevel <= artEntity ^. artLevel,
+      activeSkillReqArtsMet player activeSkill
+    ]
 
 activeSkillArtTypes :: [ArtType]
 activeSkillArtTypes = [Internal, Lightness, Sword, Fist]
+
+activeSkillArtEntities :: Player -> [ArtEntity]
+activeSkillArtEntities player =
+  [ artEntity
+    | artType' <- activeSkillArtTypes,
+      artEntity <-
+        catMaybes
+          [ player ^. playerCharacter . charPrepare . at artType',
+            player ^. playerCharacter . charEnabled . at artType'
+          ]
+  ]
+
+activeSkillReqArtsMet :: Player -> ActiveSkill -> Bool
+activeSkillReqArtsMet player activeSkill =
+  all (\reqArt -> fromMaybe 0 (playerKnownArtLevel player reqArt) > 0) (activeSkill ^. activeSkillReqArts)
+
+dedupeActiveSkills :: [ActiveSkill] -> [ActiveSkill]
+dedupeActiveSkills [] = []
+dedupeActiveSkills (activeSkill : rest) =
+  activeSkill : dedupeActiveSkills (filter ((/= activeSkill ^. activeSkillId) . view activeSkillId) rest)
 
 activeSkillUseFailure :: ActiveSkill -> BattleState -> Maybe ActiveSkillFailureReason
 activeSkillUseFailure activeSkill state
@@ -829,8 +1075,7 @@ battleSettlement won battle = do
     world . chars . ix (eChar ^. charId) . charStatus .= CharDead
     -- set respawn time
     respawn . at (eChar ^. charId) .= Just (fromIntegral (eChar ^. charRespawn))
-
-  -- TODO: battle rewards
+    grantBattleGrowthReward player eChar
 
   -- send message
   tell [(player, CombatSettlementMsg player (eChar ^. charName) won)]
@@ -840,3 +1085,18 @@ battleSettlement won battle = do
   sendPlayerStats player
   markPlayerDirty player
   return ()
+
+grantBattleGrowthReward :: PlayerId -> Character -> GameStateT ()
+grantBattleGrowthReward pid enemy = do
+  let combatExpGain = max 1 ((enemy ^. charMaxHP + enemy ^. charStrength + enemy ^. charAgility + enemy ^. charVitality) `div` 20)
+      potentialGain = max 1 (combatExpGain `div` 2)
+  players . ix pid . playerCombatExp += combatExpGain
+  players . ix pid . playerPotential += potentialGain
+  tell
+    [ ( pid,
+        RewardMsg
+          [ resourceRewardSummary "combat_exp" "实战经验" combatExpGain,
+            resourceRewardSummary "potential" "潜能" potentialGain
+          ]
+      )
+    ]
