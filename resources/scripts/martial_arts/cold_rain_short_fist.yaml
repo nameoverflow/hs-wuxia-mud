@@ -14,6 +14,9 @@ attack_moves:
     msg: "只出一拳"
     unlock_level: 1
     damage: 10
+    animation:
+      pool: "weapon.fist.basic"
+      tags: ["fist", "strike"]
 active_skills:
   - id: power_strike
     name: "断雨一击"
@@ -26,6 +29,9 @@ active_skills:
     ap_req: 60
     req_status: []
     damage: 35
+    animation:
+      pool: "weapon.fist.basic"
+      tags: ["fist", "heavy", "strike"]
     effect:
       self: []
       target: []
@@ -41,6 +47,10 @@ active_skills:
     ap_req: 40
     req_status: []
     heal: 40
+    animation:
+      pool: "skill.self_focus"
+      action: "skill.self_focus.palm"
+      tags: ["heal", "self"]
     effect:
       self: []
       target: []
@@ -55,6 +65,10 @@ active_skills:
     cost: 40
     ap_req: 50
     req_status: []
+    animation:
+      pool: "skill.self_focus"
+      action: "skill.self_focus.guard"
+      tags: ["buff", "self"]
     effect:
       self:
         - id: iron_body_buff
@@ -72,6 +86,10 @@ active_skills:
     cost: 40
     ap_req: 50
     req_status: []
+    animation:
+      pool: "skill.self_focus"
+      action: "skill.self_focus.guard"
+      tags: ["stance", "self"]
     effect:
       self:
         - id: dragon_stance
@@ -91,6 +109,9 @@ active_skills:
     req_status:
       - dragon_stance
     damage: 120
+    animation:
+      pool: "weapon.sword.basic"
+      tags: ["sword", "stab", "heavy"]
     effect:
       self: []
       target: []

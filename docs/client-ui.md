@@ -2,7 +2,7 @@
 
 客户端位于 [client/](../client)，是 Svelte + TypeScript + Vite WebSocket 客户端。
 
-界面风格是简洁框线式 MUD 控制台：暗色底、直线分区、状态色资源条，不依赖场景图或角色图片。
+界面风格是简洁框线式 MUD 控制台：暗色底、直线分区、状态色资源条。战斗面板使用少关键帧剪影 PNG、通用 motion/reaction/VFX primitive 和数据驱动 timeline。
 
 ## 当前职责
 
@@ -18,6 +18,7 @@
 - 非战斗状态显示已学武功、基础功等级、解锁招式和训练按钮。
 - 战斗中显示敌我状态、主动招式卡、冷却、前置状态需求。
 - 战斗消息进入消息历史，战斗快照驱动敌我资源和主动招式可用性。
+- 战斗剪影动画由 `CombatEventMsg`、animation catalog 和 resolver 驱动。
 - 支持中/英文 UI 固定字段 i18n。
 - 支持本地测试 URL 自动登录。
 
@@ -115,6 +116,8 @@ server 返回的 `UseItemMsg` 第二个字段是已由脚本定义的显示文�
 
 ## 战斗 UI
 
+战斗剪影动画的素材、事件队列、catalog 和 timeline 设计见 [半回合制战斗动画系统](./battle-animation.md)。本节只记录 client 和 server 消息的 UI 边界。
+
 server 通过 `BattleStateMsg` 提供：
 
 - 玩家/敌人气血、内力、行动。
@@ -129,14 +132,17 @@ client 负责：
 - 禁用行动/内力/cooldown/状态不满足的主动招式卡。
 - 点击主动招式卡发送 `perform`。
 - 显示 `ActiveSkillFailureMsg`。
+- 将 `CombatEventMsg` 解析成 `ResolvedBattleTimeline`，按队列播放 actor、target、VFX 和飘字。
 
 战斗消息播放策略：
 
 - `AttackMsg` 只表示进入战斗，不播放攻击动画。
-- `CombatNormalMsg` 和 `ActiveSkillMsg` 会进入前端战斗事件队列。
+- `CombatEventMsg` 会进入前端战斗事件队列；普通攻击、主动招式、DoT/HoT tick 都走这条路径。
 - 队列事件开始播放时才写入消息历史和战斗日志，并播放对应剪影动作。
 - `CombatSettlementMsg` 排在队列末尾，最后一击播完后再关闭战斗面板。
 - 如果 server 先发了非战斗 `PlayerStatsMsg`，client 会等队列清空后再退出战斗界面。
+
+`BattlePanel.svelte` 渲染 resolved timeline。素材和动作池在 `client/src/battle/animationCatalog.ts`，选择逻辑在 `client/src/battle/animationResolver.ts`。
 
 ## 武学面板
 

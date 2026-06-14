@@ -1,10 +1,14 @@
 import { writable } from "svelte/store";
+import { resolveCombatTimeline, resolveSettlementTimeline } from "./battle/animationResolver";
+import type { BattleSide, ResolvedBattleTimeline } from "./battle/animationTypes";
+export type { BattleSide } from "./battle/animationTypes";
 import { hasTranslation, translate, type Locale } from "./i18n";
 import type {
   ActiveSkillFailureReason,
   ActiveSkillSummary,
   ArtSummary,
   BattleSnapshot,
+  CombatEvent,
   CombatMessage,
   Direction,
   EffectSummary,
@@ -47,6 +51,12 @@ export interface BattleState {
   enemy: BattleSnapshot["battleSnapshotEnemy"] | null;
   cooldowns: Record<string, number>;
   activeSkills: ActiveSkillSummary[];
+  animation: BattleAnimationState;
+}
+
+export interface BattleAnimationState {
+  activeTimeline: ResolvedBattleTimeline | null;
+  queueDepth: number;
 }
 
 export interface GameState {
@@ -80,7 +90,14 @@ const initialState: GameState = {
   inventory: [],
   quests: [],
   arts: [],
-  battle: { active: false, player: null, enemy: null, cooldowns: {}, activeSkills: [] },
+  battle: {
+    active: false,
+    player: null,
+    enemy: null,
+    cooldowns: {},
+    activeSkills: [],
+    animation: { activeTimeline: null, queueDepth: 0 }
+  },
   messages: [{ id: 1, time: now(), type: "system", text: translate("zh", "message.initial") }],
   lastError: null
 };
@@ -88,8 +105,23 @@ const initialState: GameState = {
 let ws: WebSocket | null = null;
 let messageId = 1;
 let reconnectTimer: number | null = null;
+let latestState = initialState;
 
 export const game = writable<GameState>(initialState);
+game.subscribe((state) => {
+  latestState = state;
+});
+
+interface QueuedBattleTimeline {
+  timeline: ResolvedBattleTimeline;
+  messageType: MessageEntry["type"];
+  messageText: string;
+  after?: () => void;
+}
+
+const battleTimelineQueue: QueuedBattleTimeline[] = [];
+let battleAnimationId = 0;
+let battleAnimationTimer: number | null = null;
 
 function now() {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -108,6 +140,21 @@ function addMessage(type: MessageEntry["type"], text: string) {
   game.update((state) => ({
     ...state,
     messages: [...state.messages.slice(-179), { id: ++messageId, time: now(), type, text }]
+  }));
+}
+
+function clearBattleAnimationQueue() {
+  battleTimelineQueue.length = 0;
+  if (battleAnimationTimer !== null) {
+    window.clearTimeout(battleAnimationTimer);
+    battleAnimationTimer = null;
+  }
+  game.update((state) => ({
+    ...state,
+    battle: {
+      ...state.battle,
+      animation: { activeTimeline: null, queueDepth: 0 }
+    }
   }));
 }
 
@@ -138,6 +185,7 @@ export function connect(username: string, options: { reset?: boolean } = {}) {
     window.clearTimeout(reconnectTimer);
     reconnectTimer = null;
   }
+  clearBattleAnimationQueue();
 
   game.update((state) => ({ ...state, username: cleanName, connecting: true, lastError: null }));
   addMessage("system", withLocale((locale) => t(locale, "connection.connecting", { user: cleanName })));
@@ -179,11 +227,12 @@ export function connect(username: string, options: { reset?: boolean } = {}) {
   });
 
   ws.addEventListener("close", () => {
+    clearBattleAnimationQueue();
     game.update((state) => ({
       ...state,
       connected: false,
       connecting: false,
-      battle: { ...state.battle, active: false }
+      battle: { ...state.battle, active: false, animation: { activeTimeline: null, queueDepth: 0 } }
     }));
     addMessage("system", withLocale((locale) => t(locale, "connection.closed")));
     ws = null;
@@ -191,6 +240,7 @@ export function connect(username: string, options: { reset?: boolean } = {}) {
 }
 
 export function disconnect() {
+  clearBattleAnimationQueue();
   ws?.close();
   ws = null;
 }
@@ -212,14 +262,11 @@ export function processServerMessage(message: ServerMessage | { tag: string; con
     case "AttackMsg":
       handleAttack(message.contents as [string, string]);
       break;
-    case "CombatNormalMsg":
-      handleCombatNormal(message.contents as [string, string, CombatMessage, number]);
+    case "CombatEventMsg":
+      handleCombatEvent(message.contents as CombatEvent);
       break;
     case "CombatSettlementMsg":
       handleCombatSettlement(message.contents as [string, string, boolean]);
-      break;
-    case "ActiveSkillMsg":
-      handleActiveSkill(message.contents as [string, string, CombatMessage]);
       break;
     case "ActiveSkillFailureMsg":
       handleActiveSkillFailure(message.contents as ActiveSkillFailureReason);
@@ -312,26 +359,39 @@ function handleAttack([attacker, defender]: [string, string]) {
   addMessage("combat", withLocale((locale) => t(locale, "message.attack", { attacker, defender })));
 }
 
-function handleCombatNormal([attacker, defender, combatMessage, damage]: [string, string, CombatMessage, number]) {
-  const action = withLocale((locale) => formatCombatMessage(locale, combatMessage));
-  addMessage("combat", withLocale((locale) => t(locale, "message.combat.damage", { attacker, defender, action, damage })));
+function handleCombatEvent(event: CombatEvent) {
+  const text = withLocale((locale) => formatCombatEvent(locale, event));
+  const messageType: MessageEntry["type"] = event.kind === "active_skill" ? "skill" : "combat";
+  const { actorSide, targetSide } = sidesForCombatEvent(event);
+  queueBattleAnimation(resolveCombatTimeline(event, ++battleAnimationId, actorSide, targetSide, text), messageType, text);
 }
 
 function handleCombatSettlement([, enemy, won]: [string, string, boolean]) {
-  addMessage("combat", withLocale((locale) => t(locale, won ? "message.combat.victory" : "message.combat.defeat", { enemy })));
-  game.update((state) => ({
-    ...state,
-    battle: { ...state.battle, active: false, enemy: null, activeSkills: [], cooldowns: {} }
-  }));
-  sendAction({ other: "view" });
-  sendAction({ other: "quests" });
-  sendAction({ other: "inventory" });
-  sendAction({ other: "arts" });
-}
-
-function handleActiveSkill([caster, target, combatMessage]: [string, string, CombatMessage]) {
-  const action = withLocale((locale) => formatCombatMessage(locale, combatMessage));
-  addMessage("skill", withLocale((locale) => t(locale, "message.active_skill", { caster, target, action })));
+  const text = withLocale((locale) => t(locale, won ? "message.combat.victory" : "message.combat.defeat", { enemy }));
+  const actorSide: BattleSide = won ? "player" : "enemy";
+  const targetSide: BattleSide = actorSide === "player" ? "enemy" : "player";
+  queueBattleAnimation(
+    resolveSettlementTimeline(++battleAnimationId, actorSide, targetSide, text),
+    "combat",
+    text,
+    () => {
+      game.update((state) => ({
+        ...state,
+        battle: {
+          ...state.battle,
+          active: false,
+          enemy: null,
+          activeSkills: [],
+          cooldowns: {},
+          animation: { activeTimeline: null, queueDepth: 0 }
+        }
+      }));
+      sendAction({ other: "view" });
+      sendAction({ other: "quests" });
+      sendAction({ other: "inventory" });
+      sendAction({ other: "arts" });
+    }
+  );
 }
 
 function handleActiveSkillFailure(reason: ActiveSkillFailureReason) {
@@ -362,7 +422,8 @@ function handleBattleState(snapshot: BattleSnapshot) {
       player: snapshot.battleSnapshotPlayer,
       enemy: snapshot.battleSnapshotEnemy,
       cooldowns,
-      activeSkills: snapshot.battleSnapshotActiveSkills || []
+      activeSkills: snapshot.battleSnapshotActiveSkills || [],
+      animation: state.battle.animation
     }
   }));
 }
@@ -374,6 +435,96 @@ function handlePlayerStats([hp, maxHp, qi, maxQi, ap, status]: [number, number, 
     stats: { hp, maxHp, qi, maxQi, ap },
     battle: { ...state.battle, active: status === "in_battle" || state.battle.active }
   }));
+}
+
+function queueBattleAnimation(timeline: ResolvedBattleTimeline, messageType: MessageEntry["type"], messageText: string, after?: () => void) {
+  battleTimelineQueue.push({ timeline, messageType, messageText, after });
+  if (!latestState.battle.animation.activeTimeline && battleAnimationTimer === null) {
+    playNextBattleTimeline();
+  } else {
+    refreshBattleQueueDepth();
+  }
+}
+
+function playNextBattleTimeline() {
+  const next = battleTimelineQueue.shift();
+  if (!next) {
+    game.update((state) => ({
+      ...state,
+      battle: {
+        ...state.battle,
+        animation: { activeTimeline: null, queueDepth: 0 }
+      }
+    }));
+    return;
+  }
+
+  addMessage(next.messageType, next.messageText);
+  game.update((state) => ({
+    ...state,
+    battle: {
+      ...state.battle,
+      active: true,
+      animation: {
+        activeTimeline: next.timeline,
+        queueDepth: battleTimelineQueue.length + 1
+      }
+    }
+  }));
+
+  battleAnimationTimer = window.setTimeout(() => {
+    battleAnimationTimer = null;
+    next.after?.();
+    if (next.after) {
+      battleTimelineQueue.length = 0;
+      return;
+    }
+    game.update((state) => ({
+      ...state,
+      battle: {
+        ...state.battle,
+        animation: {
+          activeTimeline: null,
+          queueDepth: battleTimelineQueue.length
+        }
+      }
+    }));
+    playNextBattleTimeline();
+  }, next.timeline.durationMs);
+}
+
+function refreshBattleQueueDepth() {
+  game.update((state) => ({
+    ...state,
+    battle: {
+      ...state.battle,
+      animation: {
+        ...state.battle.animation,
+        queueDepth: battleTimelineQueue.length + (state.battle.animation.activeTimeline ? 1 : 0)
+      }
+    }
+  }));
+}
+
+function sidesForCombatEvent(event: CombatEvent): { actorSide: BattleSide; targetSide: BattleSide } {
+  if (event.kind === "effect_tick") {
+    const targetSide = sideForCombatant(event.targetName, "enemy");
+    return {
+      actorSide: targetSide === "player" ? "enemy" : "player",
+      targetSide
+    };
+  }
+
+  const actorSide = sideForCombatant(event.actorName, "player");
+  const targetSide = sideForCombatant(event.targetName, actorSide === "player" ? "enemy" : "player");
+  return { actorSide, targetSide };
+}
+
+function sideForCombatant(name: string, fallback: BattleSide = "enemy"): BattleSide {
+  const battle = latestState.battle;
+  if (name && (name === battle.player?.combatantSnapshotName || name === latestState.username)) return "player";
+  if (name && name === battle.enemy?.combatantSnapshotName) return "enemy";
+  return fallback;
 }
 
 function handleReward(rewards: RewardSummary[]) {
@@ -521,6 +672,37 @@ function formatCombatMessage(locale: Locale, combatMessage: CombatMessage) {
       : t(locale, "message.combat.effect.unknown", { effect, amount: combatMessage.amount });
   }
   return "";
+}
+
+function formatCombatEvent(locale: Locale, event: CombatEvent) {
+  const action = formatCombatMessage(locale, event.message);
+  if (event.kind === "effect_tick") return action;
+  if (event.kind === "active_skill") {
+    if ((event.damage || 0) > 0) {
+      return t(locale, "message.active_skill_damage", {
+        caster: event.actorName,
+        target: event.targetName,
+        action,
+        damage: event.damage || 0
+      });
+    }
+    if ((event.heal || 0) > 0) {
+      return t(locale, "message.active_skill_heal", {
+        caster: event.actorName,
+        target: event.targetName,
+        action,
+        heal: event.heal || 0
+      });
+    }
+    return t(locale, "message.active_skill", { caster: event.actorName, target: event.targetName, action });
+  }
+
+  return t(locale, "message.combat.damage", {
+    attacker: event.actorName,
+    defender: event.targetName,
+    action,
+    damage: event.damage || 0
+  });
 }
 
 function formatStoryMessage(speaker: string, text: string) {

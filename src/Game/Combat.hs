@@ -35,6 +35,15 @@ type BattleId = Text
 maxAp :: Int
 maxAp = 100
 
+targetCombatantActionSeconds :: Double
+targetCombatantActionSeconds = 2.0
+
+baselineAgility :: Double
+baselineAgility = 19.0
+
+apGainRate :: Double
+apGainRate = fromIntegral maxAp / (targetCombatantActionSeconds * baselineAgility)
+
 data BattleState = BattleState
   { _battleActiveSkillCooldowns :: M.Map ActiveSkillId Double,
     _battleAp :: Int,
@@ -134,8 +143,8 @@ flushBattleTick dt = do
       battleEnemyState . battleQi %= min (_charMaxQi enemy)
 
       -- Accumulate action points
-      battleState . battleAp += round (dt * fromIntegral (_charAgility char))
-      battleEnemyState . battleAp += round (dt * fromIntegral (_charAgility enemy))
+      battleState . battleAp += apGain dt char
+      battleEnemyState . battleAp += apGain dt enemy
 
       -- Check whether to attack the enemy
       checkApAndAttack battleState battleEnemyState
@@ -161,11 +170,37 @@ applyActiveEffects dt state = do
             case effect ^. effectType of
               DoT -> do
                 state . battleChar . charHP -= amount
-                tell [(uid, CombatNormalMsg (effect ^. effectName) targetName (CombatEffectTick (activeEffect ^. activeEffectDef) (effect ^. effectName) "dot" amount) amount)]
+                tell
+                  [
+                    ( uid,
+                      combatEventResp
+                        CombatEventEffectTick
+                        (effect ^. effectName)
+                        targetName
+                        (CombatEffectTick (activeEffect ^. activeEffectDef) (effect ^. effectName) "dot" amount)
+                        (Just amount)
+                        Nothing
+                        CombatHit
+                        (effectTickVisual "dot")
+                    )
+                  ]
               HoT -> do
                 maxHp <- use $ state . battleChar . charMaxHP
                 state . battleChar . charHP %= min maxHp . (+ amount)
-                tell [(uid, ActiveSkillMsg (effect ^. effectName) targetName (CombatEffectTick (activeEffect ^. activeEffectDef) (effect ^. effectName) "hot" amount))]
+                tell
+                  [
+                    ( uid,
+                      combatEventResp
+                        CombatEventEffectTick
+                        (effect ^. effectName)
+                        targetName
+                        (CombatEffectTick (activeEffect ^. activeEffectDef) (effect ^. effectName) "hot" amount)
+                        Nothing
+                        (Just amount)
+                        CombatEffect
+                        (effectTickVisual "hot")
+                    )
+                  ]
               Buff -> return ()
               DeBuff -> return ()
       _ -> return ()
@@ -180,6 +215,32 @@ checkApAndAttack left right = do
   when (leftAp >= maxAp) $ do
     left . battleAp .= 0
     (left . battleChar) `battleAttack` (right . battleChar)
+
+apGain :: Double -> Character -> Int
+apGain dt char =
+  round $ dt * fromIntegral (_charAgility char) * apGainRate
+
+combatEventResp :: CombatEventKind -> Text -> Text -> CombatMessage -> Maybe Int -> Maybe Int -> CombatResult -> CombatVisualHint -> ActionResp
+combatEventResp kind actorName targetName message damage heal result visual =
+  CombatEventMsg $
+    CombatEvent
+      { combatEventKind = kind,
+        combatEventActorName = actorName,
+        combatEventTargetName = targetName,
+        combatEventMessage = message,
+        combatEventDamage = damage,
+        combatEventHeal = heal,
+        combatEventResult = result,
+        combatEventVisual = visual
+      }
+
+effectTickVisual :: Text -> CombatVisualHint
+effectTickVisual effectKind =
+  CombatVisualHint
+    { _combatVisualPool = "effect.tick",
+      _combatVisualAction = Just $ "effect." <> effectKind,
+      _combatVisualTags = ["effect", effectKind]
+    }
 
 battleAttack :: Lens' Battle Character -> Lens' Battle Character -> Combat ()
 battleAttack left right = do
@@ -203,15 +264,53 @@ runAttackPipeline left right preparedAttack attacker defender = do
   attackerName <- use $ left . charName
   defenderName <- use $ right . charName
   if not hit
-    then tell [(uid, CombatNormalMsg attackerName defenderName (CombatScriptText $ moveText <> "，却被侧身闪避") 0)]
+    then
+      tell
+        [ ( uid,
+            combatEventResp
+              CombatEventNormal
+              attackerName
+              defenderName
+              (CombatScriptText $ moveText <> "，却被侧身闪避")
+              (Just 0)
+              Nothing
+              CombatDodge
+              (move ^. attackMoveAnimation)
+          )
+        ]
     else do
       parryFailed <- contest attackScore parryScore
       if not parryFailed
-        then tell [(uid, CombatNormalMsg attackerName defenderName (CombatScriptText $ moveText <> "，被抬手格开") 0)]
+        then
+          tell
+            [ ( uid,
+                combatEventResp
+                  CombatEventNormal
+                  attackerName
+                  defenderName
+                  (CombatScriptText $ moveText <> "，被抬手格开")
+                  (Just 0)
+                  Nothing
+                  CombatParry
+                  (move ^. attackMoveAnimation)
+              )
+            ]
         else do
           let damage = applyCombatHooks attacker defender preparedAttack $ computeDamage attacker defender preparedAttack
           right . charHP -= damage
-          tell [(uid, CombatNormalMsg attackerName defenderName (CombatScriptText moveText) damage)]
+          tell
+            [ ( uid,
+                combatEventResp
+                  CombatEventNormal
+                  attackerName
+                  defenderName
+                  (CombatScriptText moveText)
+                  (Just damage)
+                  Nothing
+                  CombatHit
+                  (move ^. attackMoveAnimation)
+              )
+            ]
 
 selectPreparedAttack :: Character -> Combat (Maybe PreparedAttack)
 selectPreparedAttack char = do
@@ -317,34 +416,41 @@ useActiveSkill activeSkill caster target = do
     Self   -> applyActiveSkillEffects activeSkill caster caster
     All    -> applyActiveSkillEffects activeSkill caster target  -- For now, same as Single
 
-  -- Generate active skill message
   uid <- use battleOwner
   casterName <- use $ caster . battleChar . charName
   targetName <- use $ effectiveTarget . battleChar . charName
-  tell [(uid, ActiveSkillMsg casterName targetName (CombatScriptText $ activeSkill ^. activeSkillMsg))]
+  tell
+    [ ( uid,
+        combatEventResp
+          CombatEventActiveSkill
+          casterName
+          targetName
+          (CombatScriptText $ activeSkill ^. activeSkillMsg)
+          (activeSkill ^. activeSkillDamage)
+          (activeSkill ^. activeSkillHeal)
+          activeSkillResult
+          (activeSkill ^. activeSkillAnimation)
+      )
+    ]
+  where
+    activeSkillResult =
+      case activeSkill ^. activeSkillDamage of
+        Just _ -> CombatHit
+        Nothing -> CombatEffect
 
 applyActiveSkillEffects :: ActiveSkill -> Lens' Battle BattleState -> Lens' Battle BattleState -> Combat ()
 applyActiveSkillEffects activeSkill caster target = do
-  uid <- use battleOwner
-  casterName <- use $ caster . battleChar . charName
-  targetName <- use $ target . battleChar . charName
-
-  -- Apply damage
   case activeSkill ^. activeSkillDamage of
     Just dmg -> do
       target . battleChar . charHP -= dmg
-      tell [(uid, CombatNormalMsg casterName targetName (CombatScriptText $ activeSkill ^. activeSkillMsg) dmg)]
     Nothing -> return ()
 
-  -- Apply healing
   case activeSkill ^. activeSkillHeal of
     Just heal -> do
       maxHp <- use $ target . battleChar . charMaxHP
       target . battleChar . charHP %= min maxHp . (+ heal)
-      -- TODO: Add proper healing message
     Nothing -> return ()
 
-  -- Apply effects to target
   forM_ (activeSkill ^. activeSkillEffTarget) $ \(effId, duration, value) -> do
     let activeEff = ActiveEffect
           { _activeEffectDef = effId,
@@ -353,7 +459,6 @@ applyActiveSkillEffects activeSkill caster target = do
           }
     target . battleEffects . at effId .= Just activeEff
 
-  -- Apply effects to caster (self-buffs)
   forM_ (activeSkill ^. activeSkillEffSelf) $ \(effId, duration, value) -> do
     let activeEff = ActiveEffect
           { _activeEffectDef = effId,

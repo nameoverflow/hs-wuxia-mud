@@ -81,9 +81,8 @@ server 监听：
 - `MoveMsg`
 - `ViewMsg`
 - `AttackMsg`
-- `CombatNormalMsg`
+- `CombatEventMsg`
 - `CombatSettlementMsg`
-- `ActiveSkillMsg`
 - `ActiveSkillFailureMsg`
 - `BattleStateMsg`
 - `StoryMsg`
@@ -109,14 +108,53 @@ server 不直接返回英文 UI 句子。固定系统文案使用结构化消息
 
 client 根据 `systemMessageKey` / `errorSummaryCode` 和参数做本地化。剧情文本、NPC 名字、房间描述、武功招式文案仍由脚本内容决定，不放进 UI i18n 表。
 
-战斗消息中的动作描述也已结构化：
+战斗事件使用统一的 `CombatEventMsg`。普通攻击、主动招式、DoT/HoT tick 都走这条消息。
+
+典型普通攻击事件：
+
+```json
+{
+  "tag": "CombatEventMsg",
+  "contents": {
+    "kind": "normal",
+    "actorName": "无名客",
+    "targetName": "沉默木人",
+    "message": { "kind": "script", "text": "以拳试人" },
+    "damage": 16,
+    "heal": null,
+    "result": "hit",
+    "visual": {
+      "pool": "weapon.fist.basic",
+      "action": null,
+      "tags": ["fist", "strike"]
+    }
+  }
+}
+```
+
+`contents.kind` 当前取值：
+
+- `normal`
+- `active_skill`
+- `effect_tick`
+
+`contents.result` 当前取值：
+
+- `hit`
+- `dodge`
+- `parry`
+- `effect`
+
+`message` 是战斗文本或效果 tick 描述：
 
 ```json
 {"kind":"script","text":"一剑刺出。"}
 {"kind":"effect_tick","effectId":"bleeding","effectName":"血痕","effectKind":"dot","amount":8}
 ```
 
-`CombatNormalMsg` 和 `ActiveSkillMsg` 使用这个对象，client 负责把持续伤害、恢复等固定句式格式化。`script` 类型的 `text` 是脚本内容，直接显示。
+`visual` 是表现提示，不是浏览器实现细节。server 只发送动作池、指定动作和语义 tag；图片路径、CSS class、VFX DOM 和具体时长由 client catalog/resolver 决定。
+
+`CombatSettlementMsg` 仍是独立消息。client 会把结算排在战斗动画队列末尾，最后一个 half-turn 播完后再显示胜负并关闭战斗面板。
 
 `ActiveSkillFailureMsg` 不再是文本，而是原因对象：
 

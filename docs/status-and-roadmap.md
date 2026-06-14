@@ -27,7 +27,8 @@
 - 玩家 story/inventory/money/potential/combat_exp/HP/Qi/arts/prepared/enabled JSON 存档。
 - 原生 Web 客户端。
 - 武侠风房间 UI、方位图移动、NPC 弹框、背包使用按钮。
-- 战斗专用剪影界面，敌我资源条、AP 平滑展示、战斗事件队列播放。
+- 战斗快照驱动的敌我资源条和主动招式 UI。
+- 数据驱动战斗剪影动画：`CombatEventMsg`、YAML `animation` hint、客户端 catalog/resolver、half-turn 队列。
 - UI 固定字段中/英文 i18n。
 - 本地 dev 测试入口：`?test=1` 自动登录，`MUD_DEV_MODE=1` 下重置同名测试存档。
 - 基础测试覆盖关键 gameplay flow。
@@ -68,6 +69,7 @@
 - 多人同房间广播、聊天可见范围、PVP 规则尚未完善；多人围攻同一个 NPC 尚未实现。
 - NPC AI 仍很简单：普通攻击来自准备武功 attack_moves，主动招式 AI 尚未成体系。
 - 普通攻击已有命中、闪避、招架和属性缩放；装备、防具、暴击和技能 hook 尚未接入。
+- 战斗剪影动画已有可运行的数据驱动骨架，但还缺素材 manifest、catalog validator、动画预览页和更多武功/技能专属素材。
 - 剧情事件是线性匹配第一个可用事件，没有优先级、冷却、复杂变量或表达式系统。
 - Lua 依赖在 package 中存在，但当前主线剧情没有使用 Lua。
 - 测试是自定义 `Spec.hs` 主程序，没有 Hspec/Tasty 结构。

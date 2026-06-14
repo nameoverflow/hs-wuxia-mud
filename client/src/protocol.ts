@@ -141,6 +141,27 @@ export type CombatMessage =
       amount: number;
     };
 
+export interface CombatVisualHint {
+  pool: string;
+  action: string | null;
+  tags: string[];
+}
+
+export type CombatEventKind = "normal" | "active_skill" | "effect_tick";
+
+export type CombatResult = "hit" | "dodge" | "parry" | "effect";
+
+export interface CombatEvent {
+  kind: CombatEventKind;
+  actorName: string;
+  targetName: string;
+  message: CombatMessage;
+  damage: number | null;
+  heal: number | null;
+  result: CombatResult;
+  visual: CombatVisualHint;
+}
+
 export type ActiveSkillFailureReason =
   | { reason: "need_ap"; required: number; current: number }
   | { reason: "need_qi"; required: number; current: number }
@@ -152,9 +173,8 @@ export type ServerMessage =
   | { tag: "MoveMsg"; contents: string }
   | { tag: "ViewMsg"; contents: [string, string, unknown[], unknown[]] }
   | { tag: "AttackMsg"; contents: [string, string] }
-  | { tag: "CombatNormalMsg"; contents: [string, string, CombatMessage, number] }
+  | { tag: "CombatEventMsg"; contents: CombatEvent }
   | { tag: "CombatSettlementMsg"; contents: [string, string, boolean] }
-  | { tag: "ActiveSkillMsg"; contents: [string, string, CombatMessage] }
   | { tag: "ActiveSkillFailureMsg"; contents: ActiveSkillFailureReason }
   | { tag: "BattleStateMsg"; contents: BattleSnapshot }
   | { tag: "StoryMsg"; contents: [string, string] }

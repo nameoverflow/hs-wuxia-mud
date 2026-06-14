@@ -18,7 +18,7 @@ tick 时：
 2. DoT/HoT 生效。
 3. 过期状态移除。
 4. 双方恢复 Qi，封顶到 `charMaxQi`。
-5. 双方按 `agility * dt` 增加 AP。
+5. 双方按 `agility * dt * apGainRate` 增加 AP。当前 `targetCombatantActionSeconds = 2.0`，基准敏捷约每 2 秒行动一次。
 6. AP 到 `100` 的一方自动普通攻击。
 7. 任一方 HP 小于等于 0 时结算。
 
@@ -42,6 +42,9 @@ attack_moves:
     unlock_level: 1
     msg: "在雨声一断时出刀"
     damage: 14
+    animation:
+      pool: "weapon.sword.basic"
+      tags: ["sword", "slash"]
 ```
 
 近战武功类型按顺序包括：
@@ -57,7 +60,7 @@ selectPreparedAttack
   -> rollParry
   -> computeDamage
   -> applyCombatHooks
-  -> apply damage and emit combat message
+  -> apply damage and emit CombatEventMsg
 ```
 
 当前命中、闪避和招架使用 `A/(A+B)` 风格的对抗判定：
@@ -97,14 +100,25 @@ server 会在当前准备的武功中查找已解锁 `ActiveSkill`，并检查�
 - 消耗 AP 和 Qi。
 - 设置 cooldown。
 - 根据 `target` 对自己或目标施加伤害、治疗、状态。
-- 发送 `ActiveSkillMsg`、伤害消息和 `BattleStateMsg`。
+- 发送一条 `CombatEventMsg kind=active_skill` 和 `BattleStateMsg`。该事件包含 `damage` 或 `heal`。
 
 失败后：
 
 - 发送 `ActiveSkillFailureMsg`，包含具体原因。
 - 同时发送当前 `BattleStateMsg`，让 UI 保持同步。
 
-server tick 中如果双方都满足行动条件，可能在一次响应批次里产生多条战斗行动消息。client 会把这些消息放入战斗事件队列顺序播放；这只是 UI 表现层，不改变 server 侧同 tick 结算结果。
+server tick 中如果双方都满足行动条件，可能在一次响应批次里产生多条 `CombatEventMsg`。client 会把这些消息放入 half-turn 动画队列顺序播放；这只是 UI 表现层，不改变 server 侧同 tick 结算结果。
+
+普通招式和主动招式都必须声明 `animation`。该字段只描述表现语义：
+
+```yaml
+animation:
+  pool: "weapon.fist.basic"
+  action: "skill.self_focus.palm" # 可选
+  tags: ["fist", "heavy", "strike"]
+```
+
+server 会把该字段作为 `CombatVisualHint` 放入 `CombatEventMsg.visual`。client 根据 catalog/resolver 选择具体素材、位移、目标反馈和 VFX。
 
 ## 状态效果
 

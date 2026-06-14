@@ -325,8 +325,17 @@ testActiveSkillConsumesApAndSendsSnapshot = do
   assert ((battle ^. battleState . battleAp) == 0) "active skill did not consume AP"
   assert ((battle ^. battleState . battleQi) == 70) "active skill did not consume Qi"
   assert ((battle ^. battleEnemyState . battleChar . charHP) == 79) "active skill did not damage the enemy"
+  assert (any isActiveSkillEvent responses) "active skill success did not emit a combat event"
   assert (any (isBattleStateMsg . snd) responses) "active skill success did not send a battle snapshot"
   where
+    isActiveSkillEvent (_, CombatEventMsg event) =
+      combatEventKind event == CombatEventActiveSkill
+        && combatEventActorName event == "无名客"
+        && combatEventTargetName event == "沉默木人"
+        && combatEventDamage event == Just 35
+        && combatEventVisual event ^. combatVisualPool == "weapon.fist.basic"
+    isActiveSkillEvent _ = False
+
     isBattleStateMsg (BattleStateMsg _) = True
     isBattleStateMsg _ = False
 
@@ -343,7 +352,15 @@ testNormalAttackUsesCombatPipeline = do
           & battles . ix "tester" . battleEnemyState . battleChar . charStrength .~ 0
           & battles . ix "tester" . battleEnemyState . battleChar . charPrepare .~ M.empty
   (responses, afterTick) <- runOk "normal attack pipeline tick" ready (updateBattle 0 "tester")
-  case [dmg | (_, CombatNormalMsg "无名客" "沉默木人" _ dmg) <- responses, dmg > 0] of
+  let combatDamages =
+        [ dmg
+          | (_, CombatEventMsg event) <- responses,
+            combatEventActorName event == "无名客",
+            combatEventTargetName event == "沉默木人",
+            Just dmg <- [combatEventDamage event],
+            dmg > 0
+        ]
+  case combatDamages of
     [] -> fail "normal attack pipeline did not emit a damaging combat message"
     damage : _ -> do
       assert (damage >= 15 && damage <= 16) "normal attack damage did not include the strength-based pipeline bonus"

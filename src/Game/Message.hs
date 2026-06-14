@@ -280,6 +280,55 @@ instance ToJSON CombatMessage where
         "amount" .= effAmount
       ]
 
+data CombatEventKind
+  = CombatEventNormal
+  | CombatEventActiveSkill
+  | CombatEventEffectTick
+  deriving (Show, Eq, Generic)
+
+combatEventKindText :: CombatEventKind -> T.Text
+combatEventKindText CombatEventNormal = "normal"
+combatEventKindText CombatEventActiveSkill = "active_skill"
+combatEventKindText CombatEventEffectTick = "effect_tick"
+
+data CombatResult
+  = CombatHit
+  | CombatDodge
+  | CombatParry
+  | CombatEffect
+  deriving (Show, Eq, Generic)
+
+combatResultText :: CombatResult -> T.Text
+combatResultText CombatHit = "hit"
+combatResultText CombatDodge = "dodge"
+combatResultText CombatParry = "parry"
+combatResultText CombatEffect = "effect"
+
+data CombatEvent = CombatEvent
+  { combatEventKind :: CombatEventKind,
+    combatEventActorName :: T.Text,
+    combatEventTargetName :: T.Text,
+    combatEventMessage :: CombatMessage,
+    combatEventDamage :: Maybe Int,
+    combatEventHeal :: Maybe Int,
+    combatEventResult :: CombatResult,
+    combatEventVisual :: CombatVisualHint
+  }
+  deriving (Show, Eq, Generic)
+
+instance ToJSON CombatEvent where
+  toJSON CombatEvent {..} =
+    object
+      [ "kind" .= combatEventKindText combatEventKind,
+        "actorName" .= combatEventActorName,
+        "targetName" .= combatEventTargetName,
+        "message" .= combatEventMessage,
+        "damage" .= combatEventDamage,
+        "heal" .= combatEventHeal,
+        "result" .= combatResultText combatEventResult,
+        "visual" .= combatEventVisual
+      ]
+
 data ActiveSkillFailureReason
   = ActiveSkillNeedAp Int Int
   | ActiveSkillNeedQi Int Int
@@ -324,10 +373,7 @@ data ActionResp
   | ViewMsg T.Text T.Text [RoomCharacterSummary] [RoomExitSummary]
   -- | attacker, defender
   | AttackMsg T.Text T.Text
-  -- | attacker, defender, active skill message
-  | ActiveSkillMsg T.Text T.Text CombatMessage
-  -- | attacker, defender, attack move or active skill message, damage
-  | CombatNormalMsg T.Text T.Text CombatMessage Int
+  | CombatEventMsg CombatEvent
   -- | attacker, defender, win
   | CombatSettlementMsg T.Text T.Text Bool
   -- | applier, item desc

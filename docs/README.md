@@ -11,6 +11,9 @@
 - [内容与剧情脚本](./content-scripting.md)：YAML 资源格式、剧情事件、物品使用、冷雨客栈章节。
 - [战斗、武功与物品](./gameplay-systems.md)：AP/Qi 战斗、主动招式、秘籍学习、奖励与掉落。
 - [角色养成系统设计](./character-progression.md)：无角色等级、基础功门槛、武功升级、招式解锁。
+- [角色头像立绘风格预设](./character-portrait-style.md)：粗线稿、低细节、老式武侠手游头像生成基准。
+- [半回合制战斗动画系统](./battle-animation.md)：`CombatEventMsg`、YAML animation hint、客户端 catalog/resolver 和剪影素材规范。
+- [战斗动画表现设计指南](./combat-animation-design-guide.md)：少关键帧战斗动画的节奏、位移、特效、结果反馈和 QA 判断标准。
 - [公开武侠 MUD 服务端源码调研](./public-mud-source-study.md)：xkx100、yhmud、es2 等公开 mudlib 的调研细节。
 - [《夺宝中华》WAP MUD 调研](./duobao-zhonghua-study.md)：玩法/养成建模、Redis/MySQL 同步和持久化细节。
 - [客户端 UI](./client-ui.md)：WebSocket 客户端、方位图、NPC 弹框、i18n 边界。
@@ -19,7 +22,7 @@
 
 ## 当前一句话概括
 
-这是一个 Haskell WebSocket MUD：后端以 YAML 加载地图、NPC、武功、物品和剧情事件，客户端提供武侠风网页 UI。当前可玩闭环包含移动、查看房间、NPC 交互、线性剧情推进、战斗、剧情完成、掉落物、秘籍物品、使用秘籍学习武功、背包/任务显示和基础玩家存档。本地开发支持 `MUD_DEV_MODE=1` + `?test=1` 自动登录并重置测试角色。
+这是一个 Haskell WebSocket MUD：后端以 YAML 加载地图、NPC、武功、物品和剧情事件，客户端提供武侠风网页 UI。当前可玩闭环包含移动、查看房间、NPC 交互、线性剧情推进、AP 战斗、数据驱动剪影战斗动画、剧情完成、掉落物、秘籍物品、使用秘籍学习武功、背包/任务显示和基础玩家存档。本地开发支持 `MUD_DEV_MODE=1` + `?test=1` 自动登录并重置测试角色。
 
 ## 关键源码入口
 

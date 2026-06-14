@@ -163,6 +163,30 @@ data ActiveSkillTarget = Single | All | Self
 
 instance FromJSON ActiveSkillTarget
 
+data CombatVisualHint = CombatVisualHint
+  { _combatVisualPool :: Text,
+    _combatVisualAction :: Maybe Text,
+    _combatVisualTags :: [Text]
+  }
+  deriving (Generic, Show, Eq)
+
+makeLenses ''CombatVisualHint
+
+instance FromJSON CombatVisualHint where
+  parseJSON = withObject "CombatVisualHint" $ \o -> do
+    _combatVisualPool <- o .: "pool"
+    _combatVisualAction <- o .:? "action"
+    _combatVisualTags <- o .:? "tags" .!= []
+    pure CombatVisualHint {..}
+
+instance ToJSON CombatVisualHint where
+  toJSON CombatVisualHint {..} =
+    object
+      [ "pool" .= _combatVisualPool,
+        "action" .= _combatVisualAction,
+        "tags" .= _combatVisualTags
+      ]
+
 data ActiveSkill = ActiveSkill
   { _activeSkillId :: ActiveSkillId,
     _activeSkillName :: Text,
@@ -177,6 +201,7 @@ data ActiveSkill = ActiveSkill
     _activeSkillReqStatus :: [EffectId],
     _activeSkillHeal :: Maybe Int,
     _activeSkillDamage :: Maybe Int,
+    _activeSkillAnimation :: CombatVisualHint,
     _activeSkillEffSelf :: [(EffectId, Double, Int)],
     _activeSkillEffTarget :: [(EffectId, Double, Int)]
   }
@@ -206,6 +231,7 @@ instance FromJSON ActiveSkill where
     _activeSkillReqStatus <- o .:? "req_status" .!= []
     _activeSkillHeal <- o .:? "heal"
     _activeSkillDamage <- o .:? "damage"
+    _activeSkillAnimation <- o .: "animation"
     eff <- o .: "effect"
     _activeSkillEffSelf <- parseEffectList <$> (eff .:? "self" .!= [])
     _activeSkillEffTarget <- parseEffectList <$> (eff .:? "target" .!= [])
@@ -238,7 +264,8 @@ data AttackMove = AttackMove
     _attackMoveDesc :: Text,
     _attackMoveMsg :: Text,
     _attackMoveUnlockLevel :: Int,
-    _attackMoveDamage :: Int
+    _attackMoveDamage :: Int,
+    _attackMoveAnimation :: CombatVisualHint
   }
   deriving (Generic, Show, Eq)
 
@@ -252,6 +279,7 @@ instance FromJSON AttackMove where
     _attackMoveMsg <- o .: "msg"
     _attackMoveUnlockLevel <- o .:? "unlock_level" .!= 1
     _attackMoveDamage <- o .: "damage"
+    _attackMoveAnimation <- o .: "animation"
     pure AttackMove {..}
 
 data ArtType = Foundation | Internal | Lightness | Sword | Fist
