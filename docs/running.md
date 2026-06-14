@@ -9,6 +9,37 @@
 
 ## 常用命令
 
+一条命令启动本地测试环境：
+
+```bash
+make dev-test
+```
+
+它会在需要时先执行 server build / client dependency install，然后启动：
+
+- `MUD_DEV_MODE=1 stack exec mud-hs-exe`
+- Vite/Svelte client dev server on `http://127.0.0.1:8080`
+- 测试入口 `http://127.0.0.1:8080/?test=1&user=tester`
+
+停止时按 `Ctrl-C`，脚本会同时清理 server 和 client 两个子进程。
+
+可用参数：
+
+```bash
+TEST_USER=story1 make dev-test
+TEST_RESET=0 make dev-test
+OPEN_BROWSER=0 make dev-test
+SKIP_BUILD=1 make dev-test
+```
+
+也可以直接调用脚本：
+
+```bash
+scripts/dev-test.sh --user story1 --no-reset --no-open
+```
+
+手动命令：
+
 ```bash
 stack build
 stack test

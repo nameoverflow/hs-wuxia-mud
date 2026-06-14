@@ -6,6 +6,14 @@ The UI is intentionally simple: dark background, crisp frame lines, dense text p
 
 ## Run
 
+From the repository root, the preferred local test command is:
+
+```bash
+make dev-test
+```
+
+It starts both the Haskell dev server and this Vite client, then opens the `?test=1` entry.
+
 Start the game server first:
 
 ```bash

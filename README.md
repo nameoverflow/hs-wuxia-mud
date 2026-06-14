@@ -9,10 +9,20 @@ The project is still WIP, but the current build already has a playable local flo
 - Haskell, GHC 9.10.3, Stack resolver `lts-24.19`
 - WebSocket server on `127.0.0.1:9160`
 - YAML content under `resources/scripts/`
-- Native HTML/CSS/JavaScript client under `client/`
+- Svelte + TypeScript client under `client/`
 - JSON player saves under `saves/`
 
 ## Run
+
+One-command local test mode:
+
+```bash
+make dev-test
+```
+
+This builds the server executable if needed, installs client dependencies if needed, starts the server with `MUD_DEV_MODE=1`, starts the Vite client dev server, and opens `http://127.0.0.1:8080/?test=1&user=tester`.
+
+Manual commands:
 
 ```bash
 stack build
