@@ -1,5 +1,6 @@
 import { writable } from "svelte/store";
 import { resolveCombatTimeline, resolveSettlementTimeline } from "./battle/animationResolver";
+import { combatStyleFromSnapshot, visualProfileFromGender } from "./battle/animationCatalog";
 import type { BattleSide, ResolvedBattleTimeline } from "./battle/animationTypes";
 export type { BattleSide } from "./battle/animationTypes";
 import { hasTranslation, translate, type Locale } from "./i18n";
@@ -16,6 +17,7 @@ import type {
   LoginEvent,
   NetPlayerAction,
   PlayerAction,
+  PlayerStatsPayload,
   QuestLogEntry,
   RewardSummary,
   RoomCharacterSummary,
@@ -28,7 +30,16 @@ export interface PlayerStats {
   maxHp: number;
   qi: number;
   maxQi: number;
+  jing: number;
+  maxJing: number;
   ap: number;
+  gender: string;
+  appearance: number;
+  appearanceText: string;
+  portraitKey: string;
+  strength: number;
+  agility: number;
+  vitality: number;
 }
 
 export interface MessageEntry {
@@ -84,7 +95,22 @@ const initialState: GameState = {
   username: "",
   playerStatus: "normal",
   money: 0,
-  stats: { hp: 100, maxHp: 100, qi: 100, maxQi: 100, ap: 0 },
+  stats: {
+    hp: 100,
+    maxHp: 100,
+    qi: 100,
+    maxQi: 100,
+    jing: 120,
+    maxJing: 120,
+    ap: 0,
+    gender: "unknown",
+    appearance: 5,
+    appearanceText: "",
+    portraitKey: "beauty-score-05",
+    strength: 18,
+    agility: 18,
+    vitality: 18
+  },
   room: { name: "", desc: "", characters: [], exits: [] },
   effects: [],
   inventory: [],
@@ -275,7 +301,7 @@ export function processServerMessage(message: ServerMessage | { tag: string; con
       handleBattleState(message.contents as BattleSnapshot);
       break;
     case "PlayerStatsMsg":
-      handlePlayerStats(message.contents as [number, number, number, number, number, string]);
+      handlePlayerStats(message.contents as PlayerStatsPayload);
       break;
     case "QuestLogMsg":
       game.update((state) => ({ ...state, quests: (message.contents as QuestLogEntry[]) || [] }));
@@ -363,7 +389,21 @@ function handleCombatEvent(event: CombatEvent) {
   const text = withLocale((locale) => formatCombatEvent(locale, event));
   const messageType: MessageEntry["type"] = event.kind === "active_skill" ? "skill" : "combat";
   const { actorSide, targetSide } = sidesForCombatEvent(event);
-  queueBattleAnimation(resolveCombatTimeline(event, ++battleAnimationId, actorSide, targetSide, text), messageType, text);
+  queueBattleAnimation(
+    resolveCombatTimeline(
+      event,
+      ++battleAnimationId,
+      actorSide,
+      targetSide,
+      text,
+      visualProfileForSide(actorSide),
+      visualProfileForSide(targetSide),
+      combatStyleForSide(actorSide),
+      combatStyleForSide(targetSide)
+    ),
+    messageType,
+    text
+  );
 }
 
 function handleCombatSettlement([, enemy, won]: [string, string, boolean]) {
@@ -371,7 +411,16 @@ function handleCombatSettlement([, enemy, won]: [string, string, boolean]) {
   const actorSide: BattleSide = won ? "player" : "enemy";
   const targetSide: BattleSide = actorSide === "player" ? "enemy" : "player";
   queueBattleAnimation(
-    resolveSettlementTimeline(++battleAnimationId, actorSide, targetSide, text),
+    resolveSettlementTimeline(
+      ++battleAnimationId,
+      actorSide,
+      targetSide,
+      text,
+      visualProfileForSide(actorSide),
+      visualProfileForSide(targetSide),
+      combatStyleForSide(actorSide),
+      combatStyleForSide(targetSide)
+    ),
     "combat",
     text,
     () => {
@@ -410,6 +459,7 @@ function handleBattleState(snapshot: BattleSnapshot) {
   game.update((state) => ({
     ...state,
     stats: {
+      ...state.stats,
       hp: snapshot.battleSnapshotPlayer.combatantSnapshotHp,
       maxHp: snapshot.battleSnapshotPlayer.combatantSnapshotMaxHp,
       qi: snapshot.battleSnapshotPlayer.combatantSnapshotQi,
@@ -428,13 +478,47 @@ function handleBattleState(snapshot: BattleSnapshot) {
   }));
 }
 
-function handlePlayerStats([hp, maxHp, qi, maxQi, ap, status]: [number, number, number, number, number, string]) {
-  game.update((state) => ({
-    ...state,
-    playerStatus: status,
-    stats: { hp, maxHp, qi, maxQi, ap },
-    battle: { ...state.battle, active: status === "in_battle" || state.battle.active }
-  }));
+function handlePlayerStats(payload: PlayerStatsPayload) {
+  game.update((state) => {
+    const { stats, status } = normalizePlayerStats(payload, state.stats, state.playerStatus);
+    return {
+      ...state,
+      playerStatus: status,
+      stats,
+      battle: { ...state.battle, active: status === "in_battle" || state.battle.active }
+    };
+  });
+}
+
+function normalizePlayerStats(payload: PlayerStatsPayload, current: PlayerStats, currentStatus: string) {
+  if (Array.isArray(payload)) {
+    const [hp, maxHp, qi, maxQi, ap, status] = payload;
+    return {
+      status,
+      stats: { ...current, hp, maxHp, qi, maxQi, ap }
+    };
+  }
+
+  const status = payload.playerStatsSummaryStatus || currentStatus;
+  return {
+    status,
+    stats: {
+      hp: payload.playerStatsSummaryHp ?? current.hp,
+      maxHp: payload.playerStatsSummaryMaxHp ?? current.maxHp,
+      qi: payload.playerStatsSummaryQi ?? current.qi,
+      maxQi: payload.playerStatsSummaryMaxQi ?? current.maxQi,
+      jing: payload.playerStatsSummaryJing ?? current.jing,
+      maxJing: payload.playerStatsSummaryMaxJing ?? current.maxJing,
+      ap: payload.playerStatsSummaryAp ?? current.ap,
+      gender: payload.playerStatsSummaryGender || current.gender,
+      appearance: payload.playerStatsSummaryAppearance ?? current.appearance,
+      appearanceText: payload.playerStatsSummaryAppearanceText || current.appearanceText,
+      portraitKey: payload.playerStatsSummaryPortraitKey || current.portraitKey,
+      strength: payload.playerStatsSummaryStrength ?? current.strength,
+      agility: payload.playerStatsSummaryAgility ?? current.agility,
+      vitality: payload.playerStatsSummaryVitality ?? current.vitality
+    }
+  };
 }
 
 function queueBattleAnimation(timeline: ResolvedBattleTimeline, messageType: MessageEntry["type"], messageText: string, after?: () => void) {
@@ -525,6 +609,19 @@ function sideForCombatant(name: string, fallback: BattleSide = "enemy"): BattleS
   if (name && (name === battle.player?.combatantSnapshotName || name === latestState.username)) return "player";
   if (name && name === battle.enemy?.combatantSnapshotName) return "enemy";
   return fallback;
+}
+
+function visualProfileForSide(side: BattleSide) {
+  const battle = latestState.battle;
+  const gender =
+    side === "player" ? battle.player?.combatantSnapshotGender || latestState.stats.gender : battle.enemy?.combatantSnapshotGender;
+  return visualProfileFromGender(gender);
+}
+
+function combatStyleForSide(side: BattleSide) {
+  const battle = latestState.battle;
+  const style = side === "player" ? battle.player?.combatantSnapshotCombatStyle : battle.enemy?.combatantSnapshotCombatStyle;
+  return combatStyleFromSnapshot(style);
 }
 
 function handleReward(rewards: RewardSummary[]) {

@@ -155,6 +155,8 @@ instance ToJSON ActiveSkillCooldownSummary
 data CombatantSnapshot = CombatantSnapshot
   { combatantSnapshotId :: CharId,
     combatantSnapshotName :: T.Text,
+    combatantSnapshotGender :: T.Text,
+    combatantSnapshotCombatStyle :: T.Text,
     combatantSnapshotHp :: Int,
     combatantSnapshotMaxHp :: Int,
     combatantSnapshotQi :: Int,
@@ -366,6 +368,27 @@ instance ToJSON ActiveSkillFailureReason where
         "activeSkillId" .= sid
       ]
 
+data PlayerStatsSummary = PlayerStatsSummary
+  { playerStatsSummaryHp :: Int,
+    playerStatsSummaryMaxHp :: Int,
+    playerStatsSummaryQi :: Int,
+    playerStatsSummaryMaxQi :: Int,
+    playerStatsSummaryJing :: Int,
+    playerStatsSummaryMaxJing :: Int,
+    playerStatsSummaryAp :: Int,
+    playerStatsSummaryStatus :: T.Text,
+    playerStatsSummaryGender :: T.Text,
+    playerStatsSummaryAppearance :: Int,
+    playerStatsSummaryAppearanceText :: T.Text,
+    playerStatsSummaryPortraitKey :: T.Text,
+    playerStatsSummaryStrength :: Int,
+    playerStatsSummaryAgility :: Int,
+    playerStatsSummaryVitality :: Int
+  }
+  deriving (Show, Eq, Generic)
+
+instance ToJSON PlayerStatsSummary
+
 data ActionResp
   -- | dst room name
   = MoveMsg T.Text
@@ -382,8 +405,7 @@ data ActionResp
   | SayMsg T.Text T.Text
   -- | char name, message
   | DialogueMsg T.Text T.Text
-  -- | hp, maxHp, qi, maxQi, ap, status
-  | PlayerStatsMsg Int Int Int Int Int T.Text
+  | PlayerStatsMsg PlayerStatsSummary
   | ActiveSkillFailureMsg ActiveSkillFailureReason
   | BattleStateMsg BattleSnapshot
   | StoryMsg T.Text T.Text

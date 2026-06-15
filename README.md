@@ -75,6 +75,7 @@ Start with [docs/README.md](docs/README.md).
 - [Architecture](docs/architecture.md)
 - [Content and story scripting](docs/content-scripting.md)
 - [Combat, martial arts, and items](docs/gameplay-systems.md)
+- [Character attributes and derived stats](docs/character-attributes.md)
 - [Character progression](docs/character-progression.md)
 - [Client UI](docs/client-ui.md)
 - [Protocol and persistence](docs/protocol-and-persistence.md)

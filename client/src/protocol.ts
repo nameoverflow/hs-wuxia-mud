@@ -73,6 +73,8 @@ export interface ActiveSkillCooldownSummary {
 export interface CombatantSnapshot {
   combatantSnapshotId: string;
   combatantSnapshotName: string;
+  combatantSnapshotGender: string;
+  combatantSnapshotCombatStyle: string;
   combatantSnapshotHp: number;
   combatantSnapshotMaxHp: number;
   combatantSnapshotQi: number;
@@ -87,6 +89,28 @@ export interface BattleSnapshot {
   battleSnapshotActiveSkillCooldowns: ActiveSkillCooldownSummary[];
   battleSnapshotActiveSkills: ActiveSkillSummary[];
 }
+
+export type PlayerStatsLegacyPayload = [number, number, number, number, number, string];
+
+export interface PlayerStatsSummary {
+  playerStatsSummaryHp: number;
+  playerStatsSummaryMaxHp: number;
+  playerStatsSummaryQi: number;
+  playerStatsSummaryMaxQi: number;
+  playerStatsSummaryJing: number;
+  playerStatsSummaryMaxJing: number;
+  playerStatsSummaryAp: number;
+  playerStatsSummaryStatus: string;
+  playerStatsSummaryGender: string;
+  playerStatsSummaryAppearance: number;
+  playerStatsSummaryAppearanceText: string;
+  playerStatsSummaryPortraitKey: string;
+  playerStatsSummaryStrength: number;
+  playerStatsSummaryAgility: number;
+  playerStatsSummaryVitality: number;
+}
+
+export type PlayerStatsPayload = PlayerStatsSummary | PlayerStatsLegacyPayload;
 
 export interface RewardSummary {
   rewardSummaryKind: string;
@@ -185,6 +209,6 @@ export type ServerMessage =
   | { tag: "UseItemMsg"; contents: [string, string] }
   | { tag: "DialogueMsg"; contents: [string, string] }
   | { tag: "SayMsg"; contents: [string, string] }
-  | { tag: "PlayerStatsMsg"; contents: [number, number, number, number, number, string] }
+  | { tag: "PlayerStatsMsg"; contents: PlayerStatsPayload }
   | { tag: "SystemMsg"; contents: { systemMessageKey: string; systemMessageParams: Record<string, string> } }
   | { tag: "ErrorMsg"; contents: { errorSummaryCode: string; errorSummaryParams: Record<string, string> } };

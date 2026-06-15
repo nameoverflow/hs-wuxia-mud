@@ -110,7 +110,32 @@ sendPlayerStats pid = do
         PlayerInBattle -> "in_battle"
         PlayerDead -> "dead"
         PlayerBanned -> "banned"
-  tell [(pid, PlayerStatsMsg hp maxHp qi maxQi ap status)]
+  tell [(pid, PlayerStatsMsg $ playerStatsSummary player hp maxHp qi maxQi ap status)]
+
+playerStatsSummary :: Player -> Int -> Int -> Int -> Int -> Int -> T.Text -> PlayerStatsSummary
+playerStatsSummary player hp maxHp qi maxQi ap status =
+  PlayerStatsSummary
+    { playerStatsSummaryHp = hp,
+      playerStatsSummaryMaxHp = maxHp,
+      playerStatsSummaryQi = qi,
+      playerStatsSummaryMaxQi = maxQi,
+      playerStatsSummaryJing = char ^. charJing,
+      playerStatsSummaryMaxJing = derived ^. dsMaxJing,
+      playerStatsSummaryAp = ap,
+      playerStatsSummaryStatus = status,
+      playerStatsSummaryGender = genderToText $ char ^. charGender,
+      playerStatsSummaryAppearance = appearance,
+      playerStatsSummaryAppearanceText = appearanceDescription appearance,
+      playerStatsSummaryPortraitKey = appearancePortraitKey appearance,
+      playerStatsSummaryStrength = innate ^. innateStrength,
+      playerStatsSummaryAgility = innate ^. innateAgility,
+      playerStatsSummaryVitality = innate ^. innateVitality
+    }
+  where
+    char = player ^. playerCharacter
+    derived = deriveStats player
+    innate = char ^. charInnate
+    appearance = char ^. charAppearance
 
 playerView :: PlayerId -> GameStateT ()
 playerView pid = do
@@ -961,6 +986,7 @@ reviveCharacter char =
 -- | Update the battle state
 sendBattleStats :: PlayerId -> Battle -> GameStateT ()
 sendBattleStats pid battle = do
+  player <- getsPlayer pid
   let pState = battle ^. battleState
   let char = pState ^. battleChar
   let hp = char ^. charHP
@@ -969,7 +995,7 @@ sendBattleStats pid battle = do
   let maxQi = char ^. charMaxQi
   let ap = pState ^. battleAp
   let status = "in_battle"
-  tell [(pid, PlayerStatsMsg hp maxHp qi maxQi ap status)]
+  tell [(pid, PlayerStatsMsg $ playerStatsSummary player hp maxHp qi maxQi ap status)]
   sendBattleSnapshot pid battle
 
 sendBattleSnapshot :: PlayerId -> Battle -> GameStateT ()
@@ -989,9 +1015,11 @@ sendBattleSnapshot pid battle = do
   where
     battleStateToSnapshot effectDefs state =
       let char = state ^. battleChar
-       in CombatantSnapshot
+         in CombatantSnapshot
             { combatantSnapshotId = char ^. charId,
               combatantSnapshotName = char ^. charName,
+              combatantSnapshotGender = genderToText $ char ^. charGender,
+              combatantSnapshotCombatStyle = combatStyleForCharacter char,
               combatantSnapshotHp = char ^. charHP,
               combatantSnapshotMaxHp = char ^. charMaxHP,
               combatantSnapshotQi = state ^. battleQi,
@@ -1047,6 +1075,17 @@ sendBattleSnapshot pid battle = do
     effectTypeText HoT = "hot"
     effectTypeText Buff = "buff"
     effectTypeText DeBuff = "debuff"
+
+combatStyleForCharacter :: Character -> T.Text
+combatStyleForCharacter char
+  | M.member Sword prepared = "sword"
+  | M.member Fist prepared = "fist"
+  | M.member Sword enabled = "sword"
+  | M.member Fist enabled = "fist"
+  | otherwise = "fist"
+  where
+    prepared = char ^. charPrepare
+    enabled = char ^. charEnabled
 
 updateBattle :: Double -> BattleId -> GameStateT ()
 updateBattle dt bId = do

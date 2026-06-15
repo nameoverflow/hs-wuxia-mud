@@ -19,6 +19,7 @@ import Data.Aeson.Types
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KM
 import qualified Data.Map as M
+import Data.Maybe (fromMaybe)
 import Data.Serialize (Serialize)
 import Data.Serialize.Text ()
 import qualified Data.Set as S
@@ -27,7 +28,6 @@ import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
 import qualified Data.Text.IO
 import GHC.Generics (Generic)
-import Relude (toText)
 import System.Directory (doesDirectoryExist, listDirectory)
 import System.FilePath (takeExtension, (</>))
 import Utils
@@ -408,10 +408,160 @@ data CharStatus
   | CharBusy
   deriving (Show, Eq, Generic)
 
+data Gender
+  = Male
+  | Female
+  | UnknownGender
+  deriving (Show, Eq, Ord, Generic)
+
+genderToText :: Gender -> Text
+genderToText = \case
+  Male -> "male"
+  Female -> "female"
+  UnknownGender -> "unknown"
+
+instance FromJSON Gender where
+  parseJSON = \case
+    String genderText ->
+      case T.toLower genderText of
+        "male" -> pure Male
+        "female" -> pure Female
+        "unknown" -> pure UnknownGender
+        _ -> fail "Invalid Gender"
+    _ -> fail "Invalid Gender"
+
+instance ToJSON Gender where
+  toJSON = String . genderToText
+
+data InnateAttrs = InnateAttrs
+  { _innateStrength :: Int,
+    _innateAgility :: Int,
+    _innateVitality :: Int
+  }
+  deriving (Show, Eq, Generic)
+
+instance FromJSON InnateAttrs where
+  parseJSON = withObject "InnateAttrs" $ \o -> do
+    _innateStrength <- clampInnateScore <$> o .: "strength"
+    _innateAgility <- clampInnateScore <$> o .: "agility"
+    _innateVitality <- clampInnateScore <$> o .: "vitality"
+    pure InnateAttrs {..}
+
+instance ToJSON InnateAttrs where
+  toJSON InnateAttrs {..} =
+    object
+      [ "strength" .= _innateStrength,
+        "agility" .= _innateAgility,
+        "vitality" .= _innateVitality
+      ]
+
+data DerivedStats = DerivedStats
+  { _dsMaxHp :: Int,
+    _dsMaxQi :: Int,
+    _dsMaxJing :: Int,
+    _dsQiRegen :: Double,
+    _dsJingRegen :: Double,
+    _dsAttack :: Int,
+    _dsDefense :: Int,
+    _dsHit :: Int,
+    _dsDodge :: Int,
+    _dsParry :: Int,
+    _dsDamageBonus :: Int,
+    _dsDamageReduction :: Int,
+    _dsLoadLimit :: Int
+  }
+  deriving (Show, Eq, Generic)
+
+data CharacterVitals = CharacterVitals
+  { _vitalsHp :: Int,
+    _vitalsMaxHp :: Int,
+    _vitalsQi :: Int,
+    _vitalsMaxQi :: Int,
+    _vitalsJing :: Int,
+    _vitalsMaxJing :: Int
+  }
+  deriving (Show, Eq, Generic)
+
+data CharacterProfileConfig = CharacterProfileConfig
+  { profileConfigGender :: Gender,
+    profileConfigAppearance :: Int
+  }
+  deriving (Show, Eq, Generic)
+
+defaultAppearanceScore :: Int
+defaultAppearanceScore = 5
+
+defaultJing :: Int
+defaultJing = 120
+
+defaultInnateAttrs :: InnateAttrs
+defaultInnateAttrs = InnateAttrs 18 18 18
+
+defaultCharacterProfileConfig :: CharacterProfileConfig
+defaultCharacterProfileConfig = CharacterProfileConfig UnknownGender defaultAppearanceScore
+
+instance FromJSON CharacterProfileConfig where
+  parseJSON = withObject "CharacterProfileConfig" $ \o -> do
+    profileConfigGender <- o .:? "gender" .!= UnknownGender
+    profileConfigAppearance <- clampAppearanceScore <$> o .:? "appearance" .!= defaultAppearanceScore
+    pure CharacterProfileConfig {..}
+
+clampInt :: Int -> Int -> Int -> Int
+clampInt lower upper = max lower . min upper
+
+clampAppearanceScore :: Int -> Int
+clampAppearanceScore = clampInt 0 10
+
+clampInnateScore :: Int -> Int
+clampInnateScore = clampInt 1 60
+
+clampLegacyInnateScore :: Int -> Int
+clampLegacyInnateScore = clampInt 6 45
+
+normalizeOldStrength :: Int -> Int
+normalizeOldStrength old
+  | old > 100 = 18 + min 12 ((old - 100) `div` 50)
+  | otherwise = clampLegacyInnateScore old
+
+legacyInnateAttrs :: Maybe Int -> Maybe Int -> Maybe Int -> InnateAttrs
+legacyInnateAttrs legacyStrength legacyAgility legacyVitality =
+  InnateAttrs
+    { _innateStrength = maybe (_innateStrength defaultInnateAttrs) normalizeOldStrength legacyStrength,
+      _innateAgility = maybe (_innateAgility defaultInnateAttrs) clampLegacyInnateScore legacyAgility,
+      _innateVitality = maybe (_innateVitality defaultInnateAttrs) clampLegacyInnateScore legacyVitality
+    }
+
+appearanceDescription :: Int -> Text
+appearanceDescription score =
+  case clampAppearanceScore score of
+    0 -> "面貌残破，令人不敢细看"
+    1 -> "形貌粗陋，眉眼多有乖戾"
+    2 -> "容色黯淡，不易令人记住"
+    3 -> "相貌平常，胜在人还干净"
+    4 -> "五官端正，已有几分顺眼"
+    5 -> "清清爽爽，不惹眼也不失礼"
+    6 -> "眉目清秀，举止间有些风致"
+    7 -> "容貌出众，行在人群里很难被忽略"
+    8 -> "明艳或俊逸，足以让旁人多看一眼"
+    9 -> "姿容极盛，近乎江湖传闻中的人物"
+    _ -> "风华照人，几可称倾城之色"
+
+appearancePortraitKey :: Int -> Text
+appearancePortraitKey score =
+  let clamped = clampAppearanceScore score
+      prefix = if clamped < 10 then "beauty-score-0" else "beauty-score-"
+   in prefix <> pack (Prelude.show clamped)
+
+makeLenses ''InnateAttrs
+makeLenses ''DerivedStats
+makeLenses ''CharacterVitals
+
 data Character = Character
   { _charId :: CharId,
     _charName :: Text,
     _charDesc :: Text,
+    _charGender :: Gender,
+    _charAppearance :: Int,
     _charDialogue :: [Text],
     _charActions :: S.Set CharAction,
     _charRespawn :: Int,
@@ -420,7 +570,9 @@ data Character = Character
     _charMaxHP :: Int,
     _charQi :: Int,
     _charMaxQi :: Int,
+    _charJing :: Int,
     _charQiRegen :: Double,
+    _charInnate :: InnateAttrs,
     _charStrength :: Int,
     _charAgility :: Int,
     _charVitality :: Int,
@@ -443,6 +595,8 @@ newCharacter cid cname =
     { _charId = cid,
       _charName = cname,
       _charDesc = "",
+      _charGender = UnknownGender,
+      _charAppearance = defaultAppearanceScore,
       _charDialogue = [],
       _charActions = S.empty,
       _charRespawn = 0,
@@ -450,7 +604,9 @@ newCharacter cid cname =
       _charMaxHP = 0,
       _charQi = 0,
       _charMaxQi = 0,
+      _charJing = defaultJing,
       _charQiRegen = 0.0,
+      _charInnate = defaultInnateAttrs,
       _charStrength = 0,
       _charAgility = 0,
       _charVitality = 0,
@@ -467,6 +623,11 @@ instance FromJSON Character where
     _charId <- o .: "id"
     _charName <- o .: "name"
     _charDesc <- o .: "desc"
+    profile <- o .:? "profile" .!= defaultCharacterProfileConfig
+    rootGender <- o .:? "gender"
+    rootAppearance <- o .:? "appearance"
+    let _charGender = fromMaybe (profileConfigGender profile) rootGender
+    let _charAppearance = clampAppearanceScore $ fromMaybe (profileConfigAppearance profile) rootAppearance
     _charDialogue <- o .: "dialogue"
     _charActions <- o .: "actions"
     _charRespawn <- o .: "respawn"
@@ -476,10 +637,16 @@ instance FromJSON Character where
     _charMaxHP <- attr .:? "max_hp" .!= _charHP
     _charQi <- attr .:? "qi" .!= 0
     _charMaxQi <- attr .:? "max_qi" .!= 0
+    _charJing <- attr .:? "jing" .!= defaultJing
     _charQiRegen <- attr .:? "qi_regen" .!= 0.0
-    _charStrength <- attr .: "str"
-    _charAgility <- attr .: "agi"
-    _charVitality <- attr .: "vit"
+    legacyStrength <- attr .:? "str"
+    legacyAgility <- attr .:? "agi"
+    legacyVitality <- attr .:? "vit"
+    innateMaybe <- attr .:? "innate"
+    let _charInnate = fromMaybe (legacyInnateAttrs legacyStrength legacyAgility legacyVitality) innateMaybe
+    let _charStrength = fromMaybe (_innateStrength _charInnate) legacyStrength
+    let _charAgility = fromMaybe (_innateAgility _charInnate) legacyAgility
+    let _charVitality = fromMaybe (_innateVitality _charInnate) legacyVitality
 
     _charArt <- o .: "martial_arts"
     _charPrepare <- o .: "prepared"
@@ -567,6 +734,64 @@ newPlayer pid cname =
     }
   where
     cid = "player$char$" <> pid
+
+deriveStats :: Player -> DerivedStats
+deriveStats player =
+  DerivedStats
+    { _dsMaxHp = 80 + vit * 5 + internalPower * 4 + combatExpHpBonus,
+      _dsMaxQi = char ^. charMaxQi + vit * 2 + internalPower * 6,
+      _dsMaxJing = 80 + vit * 4 + internalPower * 2 + combatExpJingBonus,
+      _dsQiRegen = 1.0 + fromIntegral vit / 25.0 + fromIntegral internalPower / 30.0,
+      _dsJingRegen = 0.5 + fromIntegral vit / 40.0 + fromIntegral internalPower / 60.0,
+      _dsAttack = 30 + meleeLevel * 7 + foundationMelee * 2 + str * 3 + agi * 2,
+      _dsDefense = damageReduction,
+      _dsHit = str * 2 + agi * 2 + meleeLevel * 3,
+      _dsDodge = 20 + agi * 5 + vit * 2 + lightnessPower * 6,
+      _dsParry = 15 + vit * 4 + str * 2 + parryArtLevel * 6,
+      _dsDamageBonus = max 0 ((str - 10) `div` 3),
+      _dsDamageReduction = damageReduction,
+      _dsLoadLimit = 20000 + str * 1500 + basicFist * 100
+    }
+  where
+    char = player ^. playerCharacter
+    innate = char ^. charInnate
+    str = clampEffectiveAttr $ innate ^. innateStrength + basicFist `div` 20
+    agi = clampEffectiveAttr $ innate ^. innateAgility + basicLightness `div` 20
+    vit = clampEffectiveAttr $ innate ^. innateVitality + basicInternal `div` 20
+    basicInternal = characterKnownArtLevel "basic_internal" char
+    basicLightness = characterKnownArtLevel "basic_lightness" char
+    basicFist = characterKnownArtLevel "basic_fist" char
+    basicSword = characterKnownArtLevel "basic_sword" char
+    enabledInternal = equippedArtLevel Internal char
+    enabledLightness = equippedArtLevel Lightness char
+    internalPower = basicInternal `div` 2 + enabledInternal
+    lightnessPower = basicLightness `div` 2 + enabledLightness
+    meleeLevel = max (equippedArtLevel Sword char) (equippedArtLevel Fist char)
+    foundationMelee = max basicFist basicSword
+    parryArtLevel = meleeLevel
+    combatExpHpBonus = min 80 (player ^. playerCombatExp `div` 2000)
+    combatExpJingBonus = min 60 (player ^. playerCombatExp `div` 3000)
+    damageReduction = max 0 ((vit - 10) `div` 4) + internalPower `div` 12
+
+clampEffectiveAttr :: Int -> Int
+clampEffectiveAttr = clampInt 1 60
+
+characterKnownArtLevel :: ArtId -> Character -> Int
+characterKnownArtLevel targetArtId char =
+  case artLevels of
+    [] -> 0
+    _ -> maximum artLevels
+  where
+    artLevels =
+      [ known ^. artLevel
+        | knownArts <- M.elems $ char ^. charArt,
+          known <- knownArts,
+          known ^. artDef == targetArtId
+      ]
+
+equippedArtLevel :: ArtType -> Character -> Int
+equippedArtLevel artType' char =
+  maybe 0 (^. artLevel) $ M.lookup artType' (char ^. charEnabled)
 
 data Direction
   = North

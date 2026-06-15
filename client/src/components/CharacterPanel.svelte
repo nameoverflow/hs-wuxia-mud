@@ -13,6 +13,8 @@
     sendAction({ other: "inventory" });
     sendAction({ other: "arts" });
   };
+
+  const genderLabel = (gender: string) => translate(state.locale, `gender.${gender || "unknown"}`);
 </script>
 
 <aside class="shell-panel character-panel">
@@ -52,6 +54,14 @@
         <dd>{state.username || "-"}</dd>
       </div>
       <div>
+        <dt>{translate(state.locale, "field.gender")}</dt>
+        <dd>{genderLabel(state.stats.gender)}</dd>
+      </div>
+      <div>
+        <dt>{translate(state.locale, "field.appearance")}</dt>
+        <dd>{state.stats.appearance} / {state.stats.appearanceText || "-"}</dd>
+      </div>
+      <div>
         <dt>{translate(state.locale, "field.location")}</dt>
         <dd>{state.room.name || "-"}</dd>
       </div>
@@ -68,7 +78,26 @@
     <div class="meter-stack">
       <ResourceMeter label={translate(state.locale, "resource.hp")} value={state.stats.hp} max={state.stats.maxHp} tone="hp" />
       <ResourceMeter label={translate(state.locale, "resource.qi")} value={state.stats.qi} max={state.stats.maxQi} tone="qi" />
+      <ResourceMeter label={translate(state.locale, "resource.jing")} value={state.stats.jing} max={state.stats.maxJing} tone="ap" />
     </div>
+
+    <section class="compact-section">
+      <h3>{translate(state.locale, "panel.innate")}</h3>
+      <dl class="attribute-grid">
+        <div>
+          <dt>{translate(state.locale, "attr.strength")}</dt>
+          <dd>{state.stats.strength}</dd>
+        </div>
+        <div>
+          <dt>{translate(state.locale, "attr.agility")}</dt>
+          <dd>{state.stats.agility}</dd>
+        </div>
+        <div>
+          <dt>{translate(state.locale, "attr.vitality")}</dt>
+          <dd>{state.stats.vitality}</dd>
+        </div>
+      </dl>
+    </section>
 
     <section class="compact-section">
       <h3>{translate(state.locale, "panel.effects")}</h3>

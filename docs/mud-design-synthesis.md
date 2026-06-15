@@ -122,6 +122,8 @@ data AvailableAction
 
 当前显式 `Battle` 比传统心跳散打更可控。后续不需要推翻。
 
+角色属性、资源和第一版公式已经收束到 [角色属性与派生数值设计](./character-attributes.md)。后续实现 DerivedStats、精神资源、装备属性或心法加成时，以该文档作为数值入口。
+
 下一步应该补的是战斗输入：
 
 ```text

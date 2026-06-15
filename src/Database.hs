@@ -14,6 +14,7 @@ module Database
 where
 
 import Control.Lens hiding ((.=))
+import Control.Applicative ((<|>))
 import Control.Monad (forM_, when)
 import Data.Aeson
 import Data.Bifunctor (first)
@@ -42,25 +43,82 @@ data PlayerSave = PlayerSave
     saveMaxHp :: Maybe Int,
     saveQi :: Maybe Int,
     saveMaxQi :: Maybe Int,
+    saveJing :: Maybe Int,
+    saveGender :: Maybe Gender,
+    saveAppearance :: Maybe Int,
+    saveInnate :: Maybe InnateAttrs,
     saveArts :: M.Map ArtType [ArtEntity],
     savePrepared :: M.Map ArtType ArtEntity,
     saveEnabled :: M.Map ArtType ArtEntity
   }
   deriving (Show, Eq, Generic)
 
+data SaveProfile = SaveProfile
+  { saveProfileGender :: Maybe Gender,
+    saveProfileAppearance :: Maybe Int
+  }
+  deriving (Show, Eq, Generic)
+
+data SaveCharacter = SaveCharacter
+  { saveCharacterHp :: Maybe Int,
+    saveCharacterMaxHp :: Maybe Int,
+    saveCharacterQi :: Maybe Int,
+    saveCharacterMaxQi :: Maybe Int,
+    saveCharacterJing :: Maybe Int,
+    saveCharacterInnate :: Maybe InnateAttrs
+  }
+  deriving (Show, Eq, Generic)
+
+emptySaveProfile :: SaveProfile
+emptySaveProfile = SaveProfile Nothing Nothing
+
+emptySaveCharacter :: SaveCharacter
+emptySaveCharacter = SaveCharacter Nothing Nothing Nothing Nothing Nothing Nothing
+
+instance FromJSON SaveProfile where
+  parseJSON = withObject "SaveProfile" $ \o -> do
+    saveProfileGender <- o .:? "gender"
+    rawAppearance <- o .:? "appearance"
+    let saveProfileAppearance = clampAppearanceScore <$> rawAppearance
+    pure SaveProfile {..}
+
+instance FromJSON SaveCharacter where
+  parseJSON = withObject "SaveCharacter" $ \o -> do
+    saveCharacterHp <- o .:? "hp"
+    saveCharacterMaxHp <- o .:? "max_hp"
+    saveCharacterQi <- o .:? "qi"
+    saveCharacterMaxQi <- o .:? "max_qi"
+    saveCharacterJing <- o .:? "jing"
+    saveCharacterInnate <- o .:? "innate"
+    pure SaveCharacter {..}
+
 instance FromJSON PlayerSave where
   parseJSON = withObject "PlayerSave" $ \o -> do
     saveVersion <- o .:? "version" .!= 1
     savePlayerId <- o .: "player_id"
+    profile <- o .:? "profile" .!= emptySaveProfile
+    character <- o .:? "character" .!= emptySaveCharacter
     saveStory <- o .:? "story" .!= newPlayerStoryState
     saveInventory <- o .:? "inventory" .!= M.empty
     saveMoney <- o .:? "money" .!= 0
     savePotential <- o .:? "potential" .!= 0
     saveCombatExp <- o .:? "combat_exp" .!= 0
-    saveHp <- o .:? "hp"
-    saveMaxHp <- o .:? "max_hp"
-    saveQi <- o .:? "qi"
-    saveMaxQi <- o .:? "max_qi"
+    topHp <- o .:? "hp"
+    topMaxHp <- o .:? "max_hp"
+    topQi <- o .:? "qi"
+    topMaxQi <- o .:? "max_qi"
+    topJing <- o .:? "jing"
+    topGender <- o .:? "gender"
+    topAppearance <- o .:? "appearance"
+    topInnate <- o .:? "innate"
+    let saveHp = topHp <|> saveCharacterHp character
+    let saveMaxHp = topMaxHp <|> saveCharacterMaxHp character
+    let saveQi = topQi <|> saveCharacterQi character
+    let saveMaxQi = topMaxQi <|> saveCharacterMaxQi character
+    let saveJing = topJing <|> saveCharacterJing character
+    let saveGender = topGender <|> saveProfileGender profile
+    let saveAppearance = (clampAppearanceScore <$> topAppearance) <|> saveProfileAppearance profile
+    let saveInnate = topInnate <|> saveCharacterInnate character
     saveArts <- o .:? "arts" .!= M.empty
     savePrepared <- o .:? "prepared" .!= M.empty
     saveEnabled <- o .:? "enabled" .!= savePrepared
@@ -76,10 +134,26 @@ instance ToJSON PlayerSave where
         "money" .= saveMoney,
         "potential" .= savePotential,
         "combat_exp" .= saveCombatExp,
+        "profile"
+          .= object
+            [ "gender" .= saveGender,
+              "appearance" .= saveAppearance
+            ],
+        "character"
+          .= object
+            [ "innate" .= saveInnate,
+              "hp" .= saveHp,
+              "max_hp" .= saveMaxHp,
+              "qi" .= saveQi,
+              "max_qi" .= saveMaxQi,
+              "jing" .= saveJing
+            ],
         "hp" .= saveHp,
         "max_hp" .= saveMaxHp,
         "qi" .= saveQi,
         "max_qi" .= saveMaxQi,
+        "jing" .= saveJing,
+        "innate" .= saveInnate,
         "arts" .= saveArts,
         "prepared" .= savePrepared,
         "enabled" .= saveEnabled
@@ -128,13 +202,17 @@ applyPlayerSaveToGameState PlayerSave {..} =
     . maybe id (\maxHp -> players . ix savePlayerId . playerCharacter . charMaxHP .~ maxHp) saveMaxHp
     . maybe id (\qi -> players . ix savePlayerId . playerCharacter . charQi .~ qi) saveQi
     . maybe id (\maxQi -> players . ix savePlayerId . playerCharacter . charMaxQi .~ maxQi) saveMaxQi
+    . maybe id (\jing -> players . ix savePlayerId . playerCharacter . charJing .~ jing) saveJing
+    . maybe id (\gender -> players . ix savePlayerId . playerCharacter . charGender .~ gender) saveGender
+    . maybe id (\appearance -> players . ix savePlayerId . playerCharacter . charAppearance .~ clampAppearanceScore appearance) saveAppearance
+    . maybe id (\innate -> players . ix savePlayerId . playerCharacter . charInnate .~ innate) saveInnate
     . (stories . at savePlayerId ?~ saveStory)
 
 playerSaveFromGameState :: PlayerId -> GameState -> Maybe PlayerSave
 playerSaveFromGameState pid gs = do
   player <- M.lookup pid (gs ^. players)
   let savePlayerId = pid
-      saveVersion = 2
+      saveVersion = 3
       saveStory = fromMaybe newPlayerStoryState $ M.lookup pid (gs ^. stories)
       saveInventory = player ^. playerInventory
       saveMoney = player ^. playerMoney
@@ -144,6 +222,10 @@ playerSaveFromGameState pid gs = do
       saveMaxHp = Just $ player ^. playerCharacter . charMaxHP
       saveQi = Just $ player ^. playerCharacter . charQi
       saveMaxQi = Just $ player ^. playerCharacter . charMaxQi
+      saveJing = Just $ player ^. playerCharacter . charJing
+      saveGender = Just $ player ^. playerCharacter . charGender
+      saveAppearance = Just $ player ^. playerCharacter . charAppearance
+      saveInnate = Just $ player ^. playerCharacter . charInnate
       saveArts = player ^. playerCharacter . charArt
       savePrepared = player ^. playerCharacter . charPrepare
       saveEnabled = player ^. playerCharacter . charEnabled

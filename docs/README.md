@@ -10,6 +10,7 @@
 - [MUD 调研综合结论与落地路线](./mud-design-synthesis.md)：整合公开 mudlib、《夺宝中华》和当前已落地功能后的统一设计判断。
 - [内容与剧情脚本](./content-scripting.md)：YAML 资源格式、剧情事件、物品使用、冷雨客栈章节。
 - [战斗、武功与物品](./gameplay-systems.md)：AP/Qi 战斗、主动招式、秘籍学习、奖励与掉落。
+- [角色属性与派生数值设计](./character-attributes.md)：性别/容貌、先天属性、精神资源、DerivedStats、战斗公式、迁移和落地计划。
 - [角色养成系统设计](./character-progression.md)：无角色等级、基础功门槛、武功升级、招式解锁。
 - [角色头像立绘风格预设](./character-portrait-style.md)：粗线稿、低细节、老式武侠手游头像生成基准。
 - [半回合制战斗动画系统](./battle-animation.md)：`CombatEventMsg`、YAML animation hint、客户端 catalog/resolver 和剪影素材规范。

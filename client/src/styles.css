@@ -385,6 +385,31 @@ h3 {
   padding-top: 12px;
 }
 
+.attribute-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.attribute-grid div {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.025);
+  padding: 8px;
+}
+
+.attribute-grid dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.attribute-grid dd {
+  margin: 3px 0 0;
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1rem;
+}
+
 .effect-list {
   display: flex;
   flex-wrap: wrap;

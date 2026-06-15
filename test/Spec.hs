@@ -25,6 +25,7 @@ main = do
   testWorldValidationCatchesBrokenRoomExit
   testRandomSelectEmpty
   testDefaultFoundationArts
+  testDerivedStats
   testMoveUpdatesRoomOccupancy
   testCrossMapExitMovesPlayerBetweenMaps
   testCannotAttackAcrossRooms
@@ -185,6 +186,22 @@ testDefaultFoundationArts = do
       assert ((player ^. playerCharacter . charPrepare . at Foundation) == Nothing) "foundation art should not be prepared"
       assert ((player ^. playerPotential) == 20) "default player potential did not load"
       assert ((player ^. playerCombatExp) == 1000) "default player combat exp did not load"
+      assert ((player ^. playerCharacter . charGender) == UnknownGender) "default player gender did not load"
+      assert ((player ^. playerCharacter . charAppearance) == 5) "default player appearance did not load"
+      assert ((player ^. playerCharacter . charJing) == 120) "default player jing did not load"
+      assert ((player ^. playerCharacter . charInnate) == InnateAttrs 18 18 18) "default player innate attrs did not load"
+
+testDerivedStats :: IO ()
+testDerivedStats = do
+  gs <- newTestPlayerState
+  case M.lookup "tester" (gs ^. players) of
+    Nothing -> fail "tester missing"
+    Just player -> do
+      let derived = deriveStats player
+      assert ((derived ^. dsMaxHp) == 170) "derived max hp changed unexpectedly"
+      assert ((derived ^. dsMaxQi) == 136) "derived max qi changed unexpectedly"
+      assert ((derived ^. dsMaxJing) == 152) "derived max jing changed unexpectedly"
+      assert ((derived ^. dsLoadLimit) == 47100) "derived load limit changed unexpectedly"
 
 testMoveUpdatesRoomOccupancy :: IO ()
 testMoveUpdatesRoomOccupancy = do
@@ -640,6 +657,10 @@ testPlayerSaveRoundTrip = do
           & players . ix "tester" . playerInventory . at "cold_rain_manual" .~ Just 1
           & players . ix "tester" . playerCharacter . charQi .~ 72
           & players . ix "tester" . playerCharacter . charMaxQi .~ 123
+          & players . ix "tester" . playerCharacter . charJing .~ 91
+          & players . ix "tester" . playerCharacter . charGender .~ Female
+          & players . ix "tester" . playerCharacter . charAppearance .~ 8
+          & players . ix "tester" . playerCharacter . charInnate .~ InnateAttrs 21 17 16
           & players . ix "tester" . playerCharacter . charArt . at Foundation .~ Just [ArtEntity "basic_sword" 5 0]
           & players . ix "tester" . playerCharacter . charArt . at Sword .~ Just [ArtEntity "cold_rain_secret" 5 0]
           & players . ix "tester" . playerCharacter . charPrepare . at Sword .~ Just (ArtEntity "cold_rain_secret" 5 0)
@@ -650,6 +671,7 @@ testPlayerSaveRoundTrip = do
     Left err -> fail $ "failed to load player save: " <> T.unpack err
     Right Nothing -> fail "player save was not written"
     Right (Just loaded) -> pure loaded
+  assert (saveVersion save == 3) "player save version was not bumped"
   fresh <- newTestPlayerState
   let restored = applyPlayerSaveToGameState save fresh
   assert (questStageOf "cold_rain_inn" restored == Just "accepted") "saved quest stage was not restored"
@@ -663,6 +685,10 @@ testPlayerSaveRoundTrip = do
       assert ((player ^. playerInventory . at "cold_rain_manual") == Just 1) "saved manual inventory was not restored"
       assert ((player ^. playerCharacter . charQi) == 72) "saved qi was not restored"
       assert ((player ^. playerCharacter . charMaxQi) == 123) "saved max qi was not restored"
+      assert ((player ^. playerCharacter . charJing) == 91) "saved jing was not restored"
+      assert ((player ^. playerCharacter . charGender) == Female) "saved gender was not restored"
+      assert ((player ^. playerCharacter . charAppearance) == 8) "saved appearance was not restored"
+      assert ((player ^. playerCharacter . charInnate) == InnateAttrs 21 17 16) "saved innate attrs were not restored"
       assert ((player ^. playerCharacter . charArt . at Foundation) == Just [ArtEntity "basic_sword" 5 0]) "saved foundation art was not restored"
       assert ((player ^. playerCharacter . charArt . at Sword) == Just [ArtEntity "cold_rain_secret" 5 0]) "saved learned martial art was not restored"
       assert ((player ^. playerCharacter . charPrepare . at Sword) == Just (ArtEntity "cold_rain_secret" 5 0)) "saved prepared martial art was not restored"
