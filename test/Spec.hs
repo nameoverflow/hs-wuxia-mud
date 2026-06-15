@@ -38,6 +38,8 @@ main = do
   testDotEffectTicks
   testTrainRaisesFoundationAndUnlocksActiveSkills
   testProgressionActions
+  testJingRequirementFailure
+  testJingTickRecovery
   testLearningRequirementFailure
   testArtsQuery
   testColdRainChapterFlow
@@ -202,6 +204,19 @@ testDerivedStats = do
       assert ((derived ^. dsMaxQi) == 136) "derived max qi changed unexpectedly"
       assert ((derived ^. dsMaxJing) == 152) "derived max jing changed unexpectedly"
       assert ((derived ^. dsLoadLimit) == 47100) "derived load limit changed unexpectedly"
+      let ironBody =
+            ActiveEffect
+              { _activeEffectDef = "iron_body_buff",
+                _activeEffectRemaining = 10.0,
+                _activeEffectValue = 5
+              }
+          withStatus =
+            deriveCharacterStats
+              (player ^. playerCharacter)
+              (player ^. playerCombatExp)
+              (characterDerivedStatSources (gs ^. world . effects) (M.singleton "iron_body_buff" ironBody) (player ^. playerCharacter))
+      assert ((withStatus ^. dsStrength) == 23) "status modifier did not affect derived strength"
+      assert ((withStatus ^. dsDamageReduction) > (derived ^. dsDamageReduction)) "status modifier did not affect mitigation"
 
 testMoveUpdatesRoomOccupancy :: IO ()
 testMoveUpdatesRoomOccupancy = do
@@ -287,9 +302,10 @@ testNpcBattleLockBlocksConcurrentAttackAndRespawns = do
 
   (_, respawned) <- runOk "respawn locked npc" dead (tickRespawns 5)
   npcRespawned <- getNpc respawned
+  let npcStats = deriveCharacterStats npcRespawned 0 emptyDerivedStatSources
   assert ((npcRespawned ^. charStatus) == CharAlive) "NPC did not respawn as alive"
-  assert ((npcRespawned ^. charHP) == npcRespawned ^. charMaxHP) "NPC did not respawn at full HP"
-  assert ((npcRespawned ^. charQi) == npcRespawned ^. charMaxQi) "NPC did not respawn at full Qi"
+  assert ((npcRespawned ^. charHP) == npcStats ^. dsMaxHp) "NPC did not respawn at full HP"
+  assert ((npcRespawned ^. charQi) == npcStats ^. dsMaxQi) "NPC did not respawn at full Qi"
 
 testDefeatDoesNotKillNpc :: IO ()
 testDefeatDoesNotKillNpc = do
@@ -341,7 +357,7 @@ testActiveSkillConsumesApAndSendsSnapshot = do
   battle <- getBattle afterSkill
   assert ((battle ^. battleState . battleAp) == 0) "active skill did not consume AP"
   assert ((battle ^. battleState . battleQi) == 70) "active skill did not consume Qi"
-  assert ((battle ^. battleEnemyState . battleChar . charHP) == 79) "active skill did not damage the enemy"
+  assert ((battle ^. battleEnemyState . battleChar . charHP) == 77) "active skill did not apply derived damage"
   assert (any isActiveSkillEvent responses) "active skill success did not emit a combat event"
   assert (any (isBattleStateMsg . snd) responses) "active skill success did not send a battle snapshot"
   where
@@ -349,7 +365,7 @@ testActiveSkillConsumesApAndSendsSnapshot = do
       combatEventKind event == CombatEventActiveSkill
         && combatEventActorName event == "无名客"
         && combatEventTargetName event == "沉默木人"
-        && combatEventDamage event == Just 35
+        && combatEventDamage event == Just 37
         && combatEventVisual event ^. combatVisualPool == "weapon.fist.basic"
     isActiveSkillEvent _ = False
 
@@ -363,10 +379,8 @@ testNormalAttackUsesCombatPipeline = do
   let ready =
         inBattle
           & battles . ix "tester" . battleState . battleAp .~ 100
-          & battles . ix "tester" . battleState . battleChar . charStrength .~ 410
-          & battles . ix "tester" . battleEnemyState . battleChar . charAgility .~ 0
-          & battles . ix "tester" . battleEnemyState . battleChar . charVitality .~ 0
-          & battles . ix "tester" . battleEnemyState . battleChar . charStrength .~ 0
+          & battles . ix "tester" . battleState . battleChar . charInnate . innateStrength .~ 60
+          & battles . ix "tester" . battleEnemyState . battleEffects . at "weakened" ?~ ActiveEffect "weakened" 5.0 100
           & battles . ix "tester" . battleEnemyState . battleChar . charPrepare .~ M.empty
   (responses, afterTick) <- runOk "normal attack pipeline tick" ready (updateBattle 0 "tester")
   let combatDamages =
@@ -380,7 +394,7 @@ testNormalAttackUsesCombatPipeline = do
   case combatDamages of
     [] -> fail "normal attack pipeline did not emit a damaging combat message"
     damage : _ -> do
-      assert (damage >= 15 && damage <= 16) "normal attack damage did not include the strength-based pipeline bonus"
+      assert (damage == 26) "normal attack damage did not use derived strength and mitigation"
       battle <- getBattle afterTick
       assert ((battle ^. battleEnemyState . battleChar . charHP) == 114 - damage) "normal attack damage was not applied to the enemy"
 
@@ -446,6 +460,7 @@ testProgressionActions = do
       assert (preparedArtIn Sword "cold_rain_secret" player) "teacher learning did not prepare learned art"
       assert (enabledArtIn Sword "cold_rain_secret" player) "teacher learning did not enable learned art"
       assert ((player ^. playerPotential) == 18) "teacher learning did not consume potential"
+      assert ((player ^. playerCharacter . charJing) == 96) "teacher learning did not consume jing"
 
   (_, researched) <- runOk "research learned art" learned (playerResearchArt "tester" "cold_rain_secret")
   case M.lookup "tester" (researched ^. players) of
@@ -453,6 +468,7 @@ testProgressionActions = do
     Just player -> do
       assert (knowsArtAt "cold_rain_secret" 3 player) "research did not improve the learned art"
       assert ((player ^. playerPotential) == 17) "research did not consume potential"
+      assert ((player ^. playerCharacter . charJing) == 74) "research did not consume jing"
 
   (_, meditated) <- runOk "meditate for max qi" researched (playerMeditate "tester" 40)
   case M.lookup "tester" (meditated ^. players) of
@@ -460,6 +476,35 @@ testProgressionActions = do
     Just player -> do
       assert ((player ^. playerCharacter . charQi) == 60) "meditation did not consume qi"
       assert ((player ^. playerCharacter . charMaxQi) == 102) "meditation did not raise max qi"
+      assert ((player ^. playerCharacter . charJing) == 69) "meditation did not consume jing"
+
+testJingRequirementFailure :: IO ()
+testJingRequirementFailure = do
+  gs <- newTestPlayerState
+  let exhausted =
+        gs
+          & players . ix "tester" . playerCharacter . charJing .~ 0
+  result <- runGameState exhausted (playerLearnArt "tester" "cold_rain_innkeeper" "cold_rain_secret" 1)
+  case result of
+    Left (StructuredException (ErrorSummary code params)) -> do
+      assert (code == "not_enough_jing") "jing failure used the wrong error code"
+      assert (M.lookup "required" params == Just "12") "jing failure did not include the required amount"
+      assert (M.lookup "current" params == Just "0") "jing failure did not include the current amount"
+    Left err -> fail $ "expected structured jing error, got: " <> show err
+    Right _ -> fail "learning succeeded without enough jing"
+
+testJingTickRecovery :: IO ()
+testJingTickRecovery = do
+  gs <- newTestPlayerState
+  let tired =
+        gs
+          & players . ix "tester" . playerCharacter . charJing .~ 10
+  (_, recovered) <- runOk "recover jing tick" tired (onGameTick 1)
+  case M.lookup "tester" (recovered ^. players) of
+    Nothing -> fail "tester missing after jing recovery"
+    Just player -> do
+      assert ((player ^. playerCharacter . charJing) > 10) "jing did not recover on tick"
+      assert ((player ^. playerCharacter . charJing) <= (deriveStats player ^. dsMaxJing)) "jing recovery exceeded derived max"
 
 testLearningRequirementFailure :: IO ()
 testLearningRequirementFailure = do

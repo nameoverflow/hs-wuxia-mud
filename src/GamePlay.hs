@@ -99,10 +99,11 @@ sendPlayerStats :: PlayerId -> GameStateT ()
 sendPlayerStats pid = do
   player <- getsPlayer pid
   let char = player ^. playerCharacter
+  let derived = deriveStats player
   let hp = char ^. charHP
-  let maxHp = char ^. charMaxHP
+  let maxHp = derived ^. dsMaxHp
   let qi = char ^. charQi
-  let maxQi = char ^. charMaxQi
+  let maxQi = derived ^. dsMaxQi
   -- AP is only available during battle
   let ap = 0  -- Default, will be updated in battle
   let status = case player ^. playerStatus of
@@ -425,11 +426,14 @@ playerPracticeArt pid artId = do
         Just knownLevel -> return knownLevel
       when (currentLevel >= martialArt ^. artMaxLevel) $
         throwStructured "art_already_max" [("art", martialArt ^. artName)]
+      ensureCombatExpForLevel pid (currentLevel + 1)
+      consumeJing pid (practiceJingCost currentLevel)
       let gain = artProgressRequired (currentLevel + 1)
       (_, rewards) <- improveKnownArt pid martialArt gain
       unless (null rewards) $
         tell [(pid, RewardMsg rewards)]
       playerArts pid
+      sendPlayerStats pid
 
 playerLearnArt :: PlayerId -> CharId -> ArtId -> Int -> GameStateT ()
 playerLearnArt pid teacherId artId times = do
@@ -454,6 +458,7 @@ playerLearnArt pid teacherId artId times = do
     when (currentLevel >= teacherMaxLevel) $
       throwStructured "teacher_art_level_cap" [("teacher", teacher ^. charName), ("art", martialArt ^. artName), ("max", showText teacherMaxLevel)]
     ensureCombatExpForLevel pid targetLevel
+    consumeJing pid (learnJingCost currentLevel)
     players . ix pid . playerPotential -= 1
     if currentLevel <= 0
       then grantArt pid artId 1
@@ -462,6 +467,7 @@ playerLearnArt pid teacherId artId times = do
         unless (null rewards) $
           tell [(pid, RewardMsg rewards)]
   playerArts pid
+  sendPlayerStats pid
 
 playerStudyItem :: PlayerId -> ItemId -> GameStateT ()
 playerStudyItem pid itemId = do
@@ -481,16 +487,19 @@ playerStudyItem pid itemId = do
           if currentLevel < level
             then do
               ensureCombatExpForLevel pid level
+              consumeJing pid (studyJingCost currentLevel)
               grantArt pid artId level
             else do
               when (currentLevel >= martialArt ^. artMaxLevel) $
                 throwStructured "art_already_max" [("art", martialArt ^. artName)]
               ensureCombatExpForLevel pid (currentLevel + 1)
+              consumeJing pid (studyJingCost currentLevel)
               (_, rewards) <- improveKnownArt pid martialArt (artProgressRequired (currentLevel + 1))
               unless (null rewards) $
                 tell [(pid, RewardMsg rewards)]
           tell [(pid, UseItemMsg (player ^. playerCharacter . charName) (fromMaybe ("你研读了" <> item ^. itemName <> "。") message))]
           playerArts pid
+          sendPlayerStats pid
         Nothing -> throwStructured "item_cannot_be_studied" [("item", item ^. itemName)]
     _ -> throwStructured "item_not_in_inventory" [("itemId", itemId)]
 
@@ -509,11 +518,13 @@ playerResearchArt pid artId = do
   when (player ^. playerPotential <= 0) $
     throwStructured "not_enough_potential" [("required", "1"), ("current", showText $ player ^. playerPotential)]
   ensureCombatExpForLevel pid (currentLevel + 1)
+  consumeJing pid (researchJingCost currentLevel)
   players . ix pid . playerPotential -= 1
   (_, rewards) <- improveKnownArt pid martialArt (artProgressRequired (currentLevel + 1))
   unless (null rewards) $
     tell [(pid, RewardMsg rewards)]
   playerArts pid
+  sendPlayerStats pid
 
 playerMeditate :: PlayerId -> Int -> GameStateT ()
 playerMeditate pid amount = do
@@ -524,11 +535,37 @@ playerMeditate pid amount = do
   when (qi < amount) $
     throwStructured "not_enough_qi" [("required", showText amount), ("current", showText qi)]
   let maxQiGain = max 1 (amount `div` 20)
+  consumeJing pid (meditateJingCost amount)
   players . ix pid . playerCharacter . charQi -= amount
   players . ix pid . playerCharacter . charMaxQi += maxQiGain
   tell [(pid, RewardMsg [resourceRewardSummary "max_qi" "真气上限" maxQiGain])]
   sendPlayerStats pid
   markPlayerDirty pid
+
+learnJingCost :: Int -> Int
+learnJingCost currentLevel = max 5 (12 + currentLevel `div` 2)
+
+practiceJingCost :: Int -> Int
+practiceJingCost currentLevel = max 5 (10 + currentLevel `div` 2)
+
+studyJingCost :: Int -> Int
+studyJingCost currentLevel = max 8 (18 + currentLevel `div` 2)
+
+researchJingCost :: Int -> Int
+researchJingCost currentLevel = max 10 (20 + currentLevel)
+
+meditateJingCost :: Int -> Int
+meditateJingCost amount = max 5 (amount `div` 10)
+
+consumeJing :: PlayerId -> Int -> GameStateT ()
+consumeJing pid cost =
+  when (cost > 0) $ do
+    player <- getsPlayer pid
+    let currentJing = player ^. playerCharacter . charJing
+    when (currentJing < cost) $
+      throwStructured "not_enough_jing" [("required", showText cost), ("current", showText currentJing)]
+    players . ix pid . playerCharacter . charJing -= cost
+    markPlayerDirty pid
 
 playerEnableArt :: PlayerId -> ArtType -> ArtId -> GameStateT ()
 playerEnableArt pid artType' artId = do
@@ -961,6 +998,7 @@ onGameTick :: Double -> GameStateT ()
 onGameTick dt = do
   tickBattles dt
   tickRespawns dt
+  tickPlayerRecovery dt
 
 tickBattles :: Double -> GameStateT ()
 tickBattles dt = do
@@ -976,23 +1014,43 @@ tickRespawns dt = do
   forM_ (M.keys toRemove) $ \charId -> do
     world . chars . ix charId %= reviveCharacter
 
+tickPlayerRecovery :: Double -> GameStateT ()
+tickPlayerRecovery dt = do
+  playerIds <- M.keys <$> use players
+  forM_ playerIds $ \pid -> do
+    player <- getsPlayer pid
+    when ((player ^. playerStatus) `elem` [PlayerNormal, PlayerInBattle]) $ do
+      let derived = deriveStats player
+          currentJing = player ^. playerCharacter . charJing
+          maxJing = derived ^. dsMaxJing
+          jingGain = max 0 . round $ dt * (derived ^. dsJingRegen)
+          nextJing = min maxJing (currentJing + jingGain)
+      when (nextJing /= currentJing) $ do
+        players . ix pid . playerCharacter . charJing .= nextJing
+        markPlayerDirty pid
+
 reviveCharacter :: Character -> Character
 reviveCharacter char =
   char
     & charStatus .~ CharAlive
-    & charHP .~ char ^. charMaxHP
-    & charQi .~ char ^. charMaxQi
+    & charHP .~ derived ^. dsMaxHp
+    & charQi .~ derived ^. dsMaxQi
+    & charJing .~ min (char ^. charJing) (derived ^. dsMaxJing)
+  where
+    derived = deriveCharacterStats char 0 emptyDerivedStatSources
 
 -- | Update the battle state
 sendBattleStats :: PlayerId -> Battle -> GameStateT ()
 sendBattleStats pid battle = do
   player <- getsPlayer pid
+  effectDefs <- use $ world . effects
   let pState = battle ^. battleState
   let char = pState ^. battleChar
+  let derived = battleStateDerivedStats effectDefs pState
   let hp = char ^. charHP
-  let maxHp = char ^. charMaxHP
+  let maxHp = derived ^. dsMaxHp
   let qi = pState ^. battleQi
-  let maxQi = char ^. charMaxQi
+  let maxQi = derived ^. dsMaxQi
   let ap = pState ^. battleAp
   let status = "in_battle"
   tell [(pid, PlayerStatsMsg $ playerStatsSummary player hp maxHp qi maxQi ap status)]
@@ -1015,15 +1073,16 @@ sendBattleSnapshot pid battle = do
   where
     battleStateToSnapshot effectDefs state =
       let char = state ^. battleChar
-         in CombatantSnapshot
+          derived = battleStateDerivedStats effectDefs state
+       in CombatantSnapshot
             { combatantSnapshotId = char ^. charId,
               combatantSnapshotName = char ^. charName,
               combatantSnapshotGender = genderToText $ char ^. charGender,
               combatantSnapshotCombatStyle = combatStyleForCharacter char,
               combatantSnapshotHp = char ^. charHP,
-              combatantSnapshotMaxHp = char ^. charMaxHP,
+              combatantSnapshotMaxHp = derived ^. dsMaxHp,
               combatantSnapshotQi = state ^. battleQi,
-              combatantSnapshotMaxQi = char ^. charMaxQi,
+              combatantSnapshotMaxQi = derived ^. dsMaxQi,
               combatantSnapshotAp = state ^. battleAp,
               combatantSnapshotEffects = map (effectToSummary effectDefs) . M.elems $ state ^. battleEffects
             }
@@ -1075,6 +1134,12 @@ sendBattleSnapshot pid battle = do
     effectTypeText HoT = "hot"
     effectTypeText Buff = "buff"
     effectTypeText DeBuff = "debuff"
+
+battleStateDerivedStats :: M.Map EffectId Effect -> BattleState -> DerivedStats
+battleStateDerivedStats effectDefs state =
+  deriveCharacterStats char (state ^. battleCombatExp) (characterDerivedStatSources effectDefs (state ^. battleEffects) char)
+  where
+    char = state ^. battleChar
 
 combatStyleForCharacter :: Character -> T.Text
 combatStyleForCharacter char
@@ -1164,7 +1229,8 @@ releasePlayerBattleLock pid gs =
 
 grantBattleGrowthReward :: PlayerId -> Character -> GameStateT ()
 grantBattleGrowthReward pid enemy = do
-  let combatExpGain = max 1 ((enemy ^. charMaxHP + enemy ^. charStrength + enemy ^. charAgility + enemy ^. charVitality) `div` 20)
+  let enemyStats = deriveCharacterStats enemy 0 emptyDerivedStatSources
+      combatExpGain = max 1 ((enemyStats ^. dsMaxHp + enemyStats ^. dsAttack + enemyStats ^. dsDodge + enemyStats ^. dsParry) `div` 20)
       potentialGain = max 1 (combatExpGain `div` 2)
   players . ix pid . playerCombatExp += combatExpGain
   players . ix pid . playerPotential += potentialGain

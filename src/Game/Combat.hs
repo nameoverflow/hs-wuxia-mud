@@ -48,6 +48,7 @@ data BattleState = BattleState
   { _battleActiveSkillCooldowns :: M.Map ActiveSkillId Double,
     _battleAp :: Int,
     _battleQi :: Int,
+    _battleCombatExp :: Int,
     _battleChar :: Character,
     _battleEffects :: M.Map EffectId ActiveEffect
   }
@@ -74,15 +75,16 @@ newBattle :: Player -> Character -> Battle
 newBattle player npc =
   Battle
     { _battleOwner = _playerId player,
-      _battleState = newBattleState $ _playerCharacter player,
-      _battleEnemyState = newBattleState npc
+      _battleState = newBattleState (player ^. playerCharacter) (player ^. playerCombatExp),
+      _battleEnemyState = newBattleState npc 0
     }
   where
-    newBattleState char =
+    newBattleState char combatExp =
       BattleState
         { _battleActiveSkillCooldowns = M.empty,
           _battleAp = 0,
           _battleQi = _charQi char,
+          _battleCombatExp = combatExp,
           _battleChar = char,
           _battleEffects = M.empty
         }
@@ -116,9 +118,6 @@ runCombat rand fCatch world battle combat = do
 -- | Run a combat action, return if the battle is over
 flushBattleTick :: Double -> Combat Bool
 flushBattleTick dt = do
-  char <- use $ battleState . battleChar
-  enemy <- use $ battleEnemyState . battleChar
-
   -- Update active skill cooldowns
   battleState . battleActiveSkillCooldowns %= M.filter (> 0.0) . M.map (subtract dt)
   battleEnemyState . battleActiveSkillCooldowns %= M.filter (> 0.0) . M.map (subtract dt)
@@ -134,17 +133,20 @@ flushBattleTick dt = do
   if playerHpAfterEffects <= 0 || enemyHpAfterEffects <= 0
     then return True
     else do
+      playerStats <- battleDerivedStats battleState
+      enemyStats <- battleDerivedStats battleEnemyState
+
       -- Regenerate Qi
-      battleState . battleQi += round (dt * _charQiRegen char)
-      battleEnemyState . battleQi += round (dt * _charQiRegen enemy)
+      battleState . battleQi += round (dt * (playerStats ^. dsQiRegen))
+      battleEnemyState . battleQi += round (dt * (enemyStats ^. dsQiRegen))
 
       -- Cap Qi at max
-      battleState . battleQi %= min (_charMaxQi char)
-      battleEnemyState . battleQi %= min (_charMaxQi enemy)
+      battleState . battleQi %= min (playerStats ^. dsMaxQi)
+      battleEnemyState . battleQi %= min (enemyStats ^. dsMaxQi)
 
       -- Accumulate action points
-      battleState . battleAp += apGain dt char
-      battleEnemyState . battleAp += apGain dt enemy
+      battleState . battleAp += apGain dt playerStats
+      battleEnemyState . battleAp += apGain dt enemyStats
 
       -- Check whether to attack the enemy
       checkApAndAttack battleState battleEnemyState
@@ -185,7 +187,7 @@ applyActiveEffects dt state = do
                     )
                   ]
               HoT -> do
-                maxHp <- use $ state . battleChar . charMaxHP
+                maxHp <- (^. dsMaxHp) <$> battleDerivedStats state
                 state . battleChar . charHP %= min maxHp . (+ amount)
                 tell
                   [
@@ -209,16 +211,24 @@ expireActiveEffects :: Double -> Lens' Battle BattleState -> Combat ()
 expireActiveEffects dt state =
   state . battleEffects %= M.filter ((> 0.0) . _activeEffectRemaining) . M.map (\e -> e & activeEffectRemaining %~ subtract dt)
 
+battleDerivedStats :: Lens' Battle BattleState -> Combat DerivedStats
+battleDerivedStats state = do
+  char <- use $ state . battleChar
+  combatExp <- use $ state . battleCombatExp
+  activeEffects <- use $ state . battleEffects
+  effectDefs <- view effects
+  pure $ deriveCharacterStats char combatExp (characterDerivedStatSources effectDefs activeEffects char)
+
 checkApAndAttack :: Lens' Battle BattleState -> Lens' Battle BattleState -> Combat ()
 checkApAndAttack left right = do
   leftAp <- use $ left . battleAp
   when (leftAp >= maxAp) $ do
     left . battleAp .= 0
-    (left . battleChar) `battleAttack` (right . battleChar)
+    left `battleAttack` right
 
-apGain :: Double -> Character -> Int
-apGain dt char =
-  round $ dt * fromIntegral (_charAgility char) * apGainRate
+apGain :: Double -> DerivedStats -> Int
+apGain dt stats =
+  round $ dt * fromIntegral (stats ^. dsAgility) * apGainRate
 
 combatEventResp :: CombatEventKind -> Text -> Text -> CombatMessage -> Maybe Int -> Maybe Int -> CombatResult -> CombatVisualHint -> ActionResp
 combatEventResp kind actorName targetName message damage heal result visual =
@@ -242,27 +252,29 @@ effectTickVisual effectKind =
       _combatVisualTags = ["effect", effectKind]
     }
 
-battleAttack :: Lens' Battle Character -> Lens' Battle Character -> Combat ()
+battleAttack :: Lens' Battle BattleState -> Lens' Battle BattleState -> Combat ()
 battleAttack left right = do
-  attacker <- use left
-  defender <- use right
+  attacker <- use $ left . battleChar
+  defender <- use $ right . battleChar
   attack <- selectPreparedAttack attacker
   case attack of
     Nothing -> do
       throwError $ CombatException $ pack $ "No unlocked move selected, prepared arts: " <> show (attacker ^. charPrepare)
     Just preparedAttack -> runAttackPipeline left right preparedAttack attacker defender
 
-runAttackPipeline :: Lens' Battle Character -> Lens' Battle Character -> PreparedAttack -> Character -> Character -> Combat ()
+runAttackPipeline :: Lens' Battle BattleState -> Lens' Battle BattleState -> PreparedAttack -> Character -> Character -> Combat ()
 runAttackPipeline left right preparedAttack attacker defender = do
-  let attackScore = attackPower attacker preparedAttack
-      dodgeScore = dodgePower defender
-      parryScore = parryPower defender
+  attackerStats <- battleDerivedStats left
+  defenderStats <- battleDerivedStats right
+  let attackScore = attackPower attackerStats preparedAttack
+      dodgeScore = dodgePower defenderStats
+      parryScore = parryPower defenderStats
       move = preparedAttackMove preparedAttack
       moveText = move ^. attackMoveMsg
   hit <- contest attackScore dodgeScore
   uid <- use battleOwner
-  attackerName <- use $ left . charName
-  defenderName <- use $ right . charName
+  attackerName <- use $ left . battleChar . charName
+  defenderName <- use $ right . battleChar . charName
   if not hit
     then
       tell
@@ -296,8 +308,8 @@ runAttackPipeline left right preparedAttack attacker defender = do
               )
             ]
         else do
-          let damage = applyCombatHooks attacker defender preparedAttack $ computeDamage attacker defender preparedAttack
-          right . charHP -= damage
+          let damage = applyCombatHooks attacker defender preparedAttack $ computeDamage attackerStats defenderStats preparedAttack
+          right . battleChar . charHP -= damage
           tell
             [ ( uid,
                 combatEventResp
@@ -335,50 +347,35 @@ contest attack defense
       roll <- getRandomR (1, attack + defense)
       return $ roll <= attack
 
-attackPower :: Character -> PreparedAttack -> Int
-attackPower attacker preparedAttack =
+attackPower :: DerivedStats -> PreparedAttack -> Int
+attackPower attackerStats preparedAttack =
   max 1 $
-    20
+    attackerStats ^. dsAttack
+      + (attackerStats ^. dsHit)
       + (preparedAttackMove preparedAttack ^. attackMoveDamage) * 4
-      + (preparedAttackArt preparedAttack ^. artLevel) * 8
-      + (attacker ^. charStrength) `div` 4
-      + (attacker ^. charAgility) `div` 2
 
-dodgePower :: Character -> Int
-dodgePower defender =
-  max 0 $
-    (defender ^. charAgility) * 5
-      + (defender ^. charVitality) * 2
-      + preparedLevelBonus defender Lightness 8
+dodgePower :: DerivedStats -> Int
+dodgePower defenderStats =
+  max 0 $ defenderStats ^. dsDodge
 
-parryPower :: Character -> Int
-parryPower defender =
-  max 0 $
-    (defender ^. charVitality) * 4
-      + (defender ^. charStrength) `div` 12
-      + preparedLevelBonus defender Sword 8
-      + preparedLevelBonus defender Fist 8
+parryPower :: DerivedStats -> Int
+parryPower defenderStats =
+  max 0 $ defenderStats ^. dsParry
 
-computeDamage :: Character -> Character -> PreparedAttack -> Int
-computeDamage attacker defender preparedAttack =
+computeDamage :: DerivedStats -> DerivedStats -> PreparedAttack -> Int
+computeDamage attackerStats defenderStats preparedAttack =
   max 1 $
     baseDamage
       + artBonus
-      + strengthBonus
-      - vitalityMitigation
+      + attackerStats ^. dsDamageBonus
+      - defenderStats ^. dsDamageReduction
   where
     baseDamage = preparedAttackMove preparedAttack ^. attackMoveDamage
     artBonus = (preparedAttackArt preparedAttack ^. artLevel) `div` 3
-    strengthBonus = max 0 ((attacker ^. charStrength) - 10) `div` 80
-    vitalityMitigation = max 0 ((defender ^. charVitality) - 10) `div` 20
 
 applyCombatHooks :: Character -> Character -> PreparedAttack -> Int -> Int
 applyCombatHooks _ _ _ =
   max 1
-
-preparedLevelBonus :: Character -> ArtType -> Int -> Int
-preparedLevelBonus char artType' multiplier =
-  maybe 0 ((* multiplier) . view artLevel) $ char ^. charPrepare . at artType'
 
 canUseActiveSkill :: ActiveSkill -> Lens' Battle BattleState -> Combat Bool
 canUseActiveSkill activeSkill state = do
@@ -396,10 +393,14 @@ canUseActiveSkill activeSkill state = do
 
 useActiveSkill :: ActiveSkill -> Lens' Battle BattleState -> Lens' Battle BattleState -> Combat ()
 useActiveSkill activeSkill caster target = do
-  let effectiveTarget =
-        case activeSkill ^. activeSkillTarget of
-          Self -> caster
-          _ -> target
+  damageAmount <-
+    case activeSkill ^. activeSkillTarget of
+      Self -> activeSkillDamageAmount activeSkill caster caster
+      _ -> activeSkillDamageAmount activeSkill caster target
+  healAmount <-
+    case activeSkill ^. activeSkillTarget of
+      Self -> activeSkillHealAmount activeSkill caster caster
+      _ -> activeSkillHealAmount activeSkill caster target
 
   -- Consume AP
   caster . battleAp %= max 0 . subtract (activeSkill ^. activeSkillApReq)
@@ -412,13 +413,16 @@ useActiveSkill activeSkill caster target = do
 
   -- Apply effects based on target type
   case activeSkill ^. activeSkillTarget of
-    Single -> applyActiveSkillEffects activeSkill caster target
-    Self   -> applyActiveSkillEffects activeSkill caster caster
-    All    -> applyActiveSkillEffects activeSkill caster target  -- For now, same as Single
+    Single -> applyActiveSkillEffects activeSkill caster target damageAmount healAmount
+    Self   -> applyActiveSkillEffects activeSkill caster caster damageAmount healAmount
+    All    -> applyActiveSkillEffects activeSkill caster target damageAmount healAmount  -- For now, same as Single
 
   uid <- use battleOwner
   casterName <- use $ caster . battleChar . charName
-  targetName <- use $ effectiveTarget . battleChar . charName
+  targetName <-
+    case activeSkill ^. activeSkillTarget of
+      Self -> use $ caster . battleChar . charName
+      _ -> use $ target . battleChar . charName
   tell
     [ ( uid,
         combatEventResp
@@ -426,8 +430,8 @@ useActiveSkill activeSkill caster target = do
           casterName
           targetName
           (CombatScriptText $ activeSkill ^. activeSkillMsg)
-          (activeSkill ^. activeSkillDamage)
-          (activeSkill ^. activeSkillHeal)
+          damageAmount
+          healAmount
           activeSkillResult
           (activeSkill ^. activeSkillAnimation)
       )
@@ -438,16 +442,45 @@ useActiveSkill activeSkill caster target = do
         Just _ -> CombatHit
         Nothing -> CombatEffect
 
-applyActiveSkillEffects :: ActiveSkill -> Lens' Battle BattleState -> Lens' Battle BattleState -> Combat ()
-applyActiveSkillEffects activeSkill caster target = do
+activeSkillDamageAmount :: ActiveSkill -> Lens' Battle BattleState -> Lens' Battle BattleState -> Combat (Maybe Int)
+activeSkillDamageAmount activeSkill caster target =
   case activeSkill ^. activeSkillDamage of
+    Nothing -> pure Nothing
+    Just baseDamage -> do
+      casterStats <- battleDerivedStats caster
+      targetStats <- battleDerivedStats target
+      casterChar <- use $ caster . battleChar
+      let artBonus = activeSkillArtLevel activeSkill casterChar `div` 2
+          mitigation = (targetStats ^. dsDefense) `div` 8
+      pure . Just . max 1 $ baseDamage + artBonus + (casterStats ^. dsDamageBonus) - mitigation
+
+activeSkillHealAmount :: ActiveSkill -> Lens' Battle BattleState -> Lens' Battle BattleState -> Combat (Maybe Int)
+activeSkillHealAmount activeSkill caster _target =
+  case activeSkill ^. activeSkillHeal of
+    Nothing -> pure Nothing
+    Just baseHeal -> do
+      casterStats <- battleDerivedStats caster
+      pure . Just $ baseHeal + max 0 ((casterStats ^. dsVitality) - 10) `div` 4
+
+activeSkillArtLevel :: ActiveSkill -> Character -> Int
+activeSkillArtLevel activeSkill char =
+  case requiredLevels <> preparedLevels of
+    [] -> 0
+    levels -> maximum levels
+  where
+    requiredLevels = map (`characterKnownArtLevel` char) (activeSkill ^. activeSkillReqArts)
+    preparedLevels = map (^. artLevel) . M.elems $ char ^. charPrepare
+
+applyActiveSkillEffects :: ActiveSkill -> Lens' Battle BattleState -> Lens' Battle BattleState -> Maybe Int -> Maybe Int -> Combat ()
+applyActiveSkillEffects activeSkill caster target damageAmount healAmount = do
+  case damageAmount of
     Just dmg -> do
       target . battleChar . charHP -= dmg
     Nothing -> return ()
 
-  case activeSkill ^. activeSkillHeal of
+  case healAmount of
     Just heal -> do
-      maxHp <- use $ target . battleChar . charMaxHP
+      maxHp <- (^. dsMaxHp) <$> battleDerivedStats target
       target . battleChar . charHP %= min maxHp . (+ heal)
     Nothing -> return ()
 

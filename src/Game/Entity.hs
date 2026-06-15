@@ -461,6 +461,9 @@ data DerivedStats = DerivedStats
     _dsMaxJing :: Int,
     _dsQiRegen :: Double,
     _dsJingRegen :: Double,
+    _dsStrength :: Int,
+    _dsAgility :: Int,
+    _dsVitality :: Int,
     _dsAttack :: Int,
     _dsDefense :: Int,
     _dsHit :: Int,
@@ -469,6 +472,31 @@ data DerivedStats = DerivedStats
     _dsDamageBonus :: Int,
     _dsDamageReduction :: Int,
     _dsLoadLimit :: Int
+  }
+  deriving (Show, Eq, Generic)
+
+data DerivedStatModifiers = DerivedStatModifiers
+  { _dsmStrength :: Int,
+    _dsmAgility :: Int,
+    _dsmVitality :: Int,
+    _dsmMaxHp :: Int,
+    _dsmMaxQi :: Int,
+    _dsmMaxJing :: Int,
+    _dsmQiRegen :: Double,
+    _dsmJingRegen :: Double,
+    _dsmHit :: Int,
+    _dsmDodge :: Int,
+    _dsmParry :: Int,
+    _dsmDamageBonus :: Int,
+    _dsmDamageReduction :: Int,
+    _dsmLoadLimit :: Int
+  }
+  deriving (Show, Eq, Generic)
+
+data DerivedStatSources = DerivedStatSources
+  { _derivedEquipmentModifiers :: DerivedStatModifiers,
+    _derivedTechniqueModifiers :: DerivedStatModifiers,
+    _derivedStatusModifiers :: DerivedStatModifiers
   }
   deriving (Show, Eq, Generic)
 
@@ -554,6 +582,8 @@ appearancePortraitKey score =
 
 makeLenses ''InnateAttrs
 makeLenses ''DerivedStats
+makeLenses ''DerivedStatModifiers
+makeLenses ''DerivedStatSources
 makeLenses ''CharacterVitals
 
 data Character = Character
@@ -737,27 +767,38 @@ newPlayer pid cname =
 
 deriveStats :: Player -> DerivedStats
 deriveStats player =
+  deriveStatsWithSources player emptyDerivedStatSources
+
+deriveStatsWithSources :: Player -> DerivedStatSources -> DerivedStats
+deriveStatsWithSources player =
+  deriveCharacterStats (player ^. playerCharacter) (player ^. playerCombatExp)
+
+deriveCharacterStats :: Character -> Int -> DerivedStatSources -> DerivedStats
+deriveCharacterStats char combatExp statSources =
   DerivedStats
-    { _dsMaxHp = 80 + vit * 5 + internalPower * 4 + combatExpHpBonus,
-      _dsMaxQi = char ^. charMaxQi + vit * 2 + internalPower * 6,
-      _dsMaxJing = 80 + vit * 4 + internalPower * 2 + combatExpJingBonus,
-      _dsQiRegen = 1.0 + fromIntegral vit / 25.0 + fromIntegral internalPower / 30.0,
-      _dsJingRegen = 0.5 + fromIntegral vit / 40.0 + fromIntegral internalPower / 60.0,
+    { _dsMaxHp = 80 + vit * 5 + internalPower * 4 + combatExpHpBonus + maxHpBonus,
+      _dsMaxQi = char ^. charMaxQi + vit * 2 + internalPower * 6 + maxQiBonus,
+      _dsMaxJing = 80 + vit * 4 + internalPower * 2 + combatExpJingBonus + maxJingBonus,
+      _dsQiRegen = 1.0 + fromIntegral vit / 25.0 + fromIntegral internalPower / 30.0 + qiRegenBonus,
+      _dsJingRegen = 0.5 + fromIntegral vit / 40.0 + fromIntegral internalPower / 60.0 + jingRegenBonus,
+      _dsStrength = str,
+      _dsAgility = agi,
+      _dsVitality = vit,
       _dsAttack = 30 + meleeLevel * 7 + foundationMelee * 2 + str * 3 + agi * 2,
-      _dsDefense = damageReduction,
-      _dsHit = str * 2 + agi * 2 + meleeLevel * 3,
-      _dsDodge = 20 + agi * 5 + vit * 2 + lightnessPower * 6,
-      _dsParry = 15 + vit * 4 + str * 2 + parryArtLevel * 6,
-      _dsDamageBonus = max 0 ((str - 10) `div` 3),
-      _dsDamageReduction = damageReduction,
-      _dsLoadLimit = 20000 + str * 1500 + basicFist * 100
+      _dsDefense = finalDamageReduction,
+      _dsHit = str * 2 + agi * 2 + meleeLevel * 3 + hitBonus,
+      _dsDodge = 20 + agi * 5 + vit * 2 + lightnessPower * 6 + dodgeBonus,
+      _dsParry = 15 + vit * 4 + str * 2 + parryArtLevel * 6 + parryBonus,
+      _dsDamageBonus = finalDamageBonus,
+      _dsDamageReduction = finalDamageReduction,
+      _dsLoadLimit = 20000 + str * 1500 + basicFist * 100 + loadLimitBonus
     }
   where
-    char = player ^. playerCharacter
     innate = char ^. charInnate
-    str = clampEffectiveAttr $ innate ^. innateStrength + basicFist `div` 20
-    agi = clampEffectiveAttr $ innate ^. innateAgility + basicLightness `div` 20
-    vit = clampEffectiveAttr $ innate ^. innateVitality + basicInternal `div` 20
+    modifiers = combinedDerivedStatSources statSources
+    str = clampEffectiveAttr $ innate ^. innateStrength + basicFist `div` 20 + modifiers ^. dsmStrength
+    agi = clampEffectiveAttr $ innate ^. innateAgility + basicLightness `div` 20 + modifiers ^. dsmAgility
+    vit = clampEffectiveAttr $ innate ^. innateVitality + basicInternal `div` 20 + modifiers ^. dsmVitality
     basicInternal = characterKnownArtLevel "basic_internal" char
     basicLightness = characterKnownArtLevel "basic_lightness" char
     basicFist = characterKnownArtLevel "basic_fist" char
@@ -769,9 +810,122 @@ deriveStats player =
     meleeLevel = max (equippedArtLevel Sword char) (equippedArtLevel Fist char)
     foundationMelee = max basicFist basicSword
     parryArtLevel = meleeLevel
-    combatExpHpBonus = min 80 (player ^. playerCombatExp `div` 2000)
-    combatExpJingBonus = min 60 (player ^. playerCombatExp `div` 3000)
+    combatExpHpBonus = min 80 (combatExp `div` 2000)
+    combatExpJingBonus = min 60 (combatExp `div` 3000)
     damageReduction = max 0 ((vit - 10) `div` 4) + internalPower `div` 12
+    maxHpBonus = modifiers ^. dsmMaxHp
+    maxQiBonus = modifiers ^. dsmMaxQi
+    maxJingBonus = modifiers ^. dsmMaxJing
+    qiRegenBonus = modifiers ^. dsmQiRegen
+    jingRegenBonus = modifiers ^. dsmJingRegen
+    hitBonus = modifiers ^. dsmHit
+    dodgeBonus = modifiers ^. dsmDodge
+    parryBonus = modifiers ^. dsmParry
+    damageBonus = modifiers ^. dsmDamageBonus
+    damageReductionBonus = modifiers ^. dsmDamageReduction
+    loadLimitBonus = modifiers ^. dsmLoadLimit
+    finalDamageBonus = max 0 $ max 0 ((str - 10) `div` 3) + damageBonus
+    finalDamageReduction = max 0 $ damageReduction + damageReductionBonus
+
+emptyDerivedStatModifiers :: DerivedStatModifiers
+emptyDerivedStatModifiers =
+  DerivedStatModifiers
+    { _dsmStrength = 0,
+      _dsmAgility = 0,
+      _dsmVitality = 0,
+      _dsmMaxHp = 0,
+      _dsmMaxQi = 0,
+      _dsmMaxJing = 0,
+      _dsmQiRegen = 0.0,
+      _dsmJingRegen = 0.0,
+      _dsmHit = 0,
+      _dsmDodge = 0,
+      _dsmParry = 0,
+      _dsmDamageBonus = 0,
+      _dsmDamageReduction = 0,
+      _dsmLoadLimit = 0
+    }
+
+emptyDerivedStatSources :: DerivedStatSources
+emptyDerivedStatSources =
+  DerivedStatSources
+    { _derivedEquipmentModifiers = emptyDerivedStatModifiers,
+      _derivedTechniqueModifiers = emptyDerivedStatModifiers,
+      _derivedStatusModifiers = emptyDerivedStatModifiers
+    }
+
+combineDerivedStatModifiers :: DerivedStatModifiers -> DerivedStatModifiers -> DerivedStatModifiers
+combineDerivedStatModifiers left right =
+  DerivedStatModifiers
+    { _dsmStrength = sumInt dsmStrength,
+      _dsmAgility = sumInt dsmAgility,
+      _dsmVitality = sumInt dsmVitality,
+      _dsmMaxHp = sumInt dsmMaxHp,
+      _dsmMaxQi = sumInt dsmMaxQi,
+      _dsmMaxJing = sumInt dsmMaxJing,
+      _dsmQiRegen = sumDouble dsmQiRegen,
+      _dsmJingRegen = sumDouble dsmJingRegen,
+      _dsmHit = sumInt dsmHit,
+      _dsmDodge = sumInt dsmDodge,
+      _dsmParry = sumInt dsmParry,
+      _dsmDamageBonus = sumInt dsmDamageBonus,
+      _dsmDamageReduction = sumInt dsmDamageReduction,
+      _dsmLoadLimit = sumInt dsmLoadLimit
+    }
+  where
+    sumInt lens = left ^. lens + right ^. lens
+    sumDouble lens = left ^. lens + right ^. lens
+
+combinedDerivedStatSources :: DerivedStatSources -> DerivedStatModifiers
+combinedDerivedStatSources sources =
+  foldr
+    combineDerivedStatModifiers
+    emptyDerivedStatModifiers
+    [ sources ^. derivedEquipmentModifiers,
+      sources ^. derivedTechniqueModifiers,
+      sources ^. derivedStatusModifiers
+    ]
+
+characterDerivedStatSources :: M.Map EffectId Effect -> M.Map EffectId ActiveEffect -> Character -> DerivedStatSources
+characterDerivedStatSources effectDefs activeEffects char =
+  DerivedStatSources
+    { _derivedEquipmentModifiers = equipmentDerivedModifiers char,
+      _derivedTechniqueModifiers = techniqueDerivedModifiers char,
+      _derivedStatusModifiers = activeEffectDerivedModifiers effectDefs activeEffects
+    }
+
+equipmentDerivedModifiers :: Character -> DerivedStatModifiers
+equipmentDerivedModifiers _ = emptyDerivedStatModifiers
+
+techniqueDerivedModifiers :: Character -> DerivedStatModifiers
+techniqueDerivedModifiers _ = emptyDerivedStatModifiers
+
+activeEffectDerivedModifiers :: M.Map EffectId Effect -> M.Map EffectId ActiveEffect -> DerivedStatModifiers
+activeEffectDerivedModifiers effectDefs activeEffects =
+  foldr combineDerivedStatModifiers emptyDerivedStatModifiers $
+    map activeEffectModifiers (M.elems activeEffects)
+  where
+    activeEffectModifiers activeEffect =
+      case M.lookup (activeEffect ^. activeEffectDef) effectDefs of
+        Just effect ->
+          case effect ^. effectType of
+            Buff -> statusMagnitudeModifiers (activeEffect ^. activeEffectValue)
+            DeBuff -> statusMagnitudeModifiers (negate $ activeEffect ^. activeEffectValue)
+            DoT -> emptyDerivedStatModifiers
+            HoT -> emptyDerivedStatModifiers
+        Nothing -> emptyDerivedStatModifiers
+
+statusMagnitudeModifiers :: Int -> DerivedStatModifiers
+statusMagnitudeModifiers value =
+  emptyDerivedStatModifiers
+    & dsmStrength .~ value
+    & dsmAgility .~ value
+    & dsmVitality .~ value
+    & dsmHit .~ value * 4
+    & dsmDodge .~ value * 4
+    & dsmParry .~ value * 4
+    & dsmDamageBonus .~ value
+    & dsmDamageReduction .~ value
 
 clampEffectiveAttr :: Int -> Int
 clampEffectiveAttr = clampInt 1 60

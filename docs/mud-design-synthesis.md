@@ -201,7 +201,7 @@ ItemInstance
 
 《夺宝中华》的心法系统很有价值：它和武功分开，是可获得、可装备、可修炼、战斗中成长的 modifier。
 
-但当前项目还没有装备实例和派生属性层。心法应在 `DerivedStats` 和装备系统之后做，否则会继续把加成塞进战斗代码。
+当前项目已经有 `DerivedStats` 派生层，但还没有装备实例和心法实例。心法应在装备实例稳定后做，并只通过 `DerivedStats` modifier 和主动招式管线进入战斗，避免重新把加成塞回战斗代码。
 
 建议模型：
 
@@ -284,11 +284,10 @@ Job 可以复用 room action、RoomObject、NPC spawn，但不应污染剧情 qu
 - 客户端接入 `enable/prepare` 主动切换。
 - 增加 action registry 的最小版本，用于返回当前可用动作。
 
-### Phase 2：DerivedStats + 装备实例
+### Phase 2：装备实例接入 DerivedStats
 
-目标：建立后续所有成长系统的底座。
+目标：把已落地的派生属性底座扩展到真实装备。
 
-- 新增 `DerivedStats` 计算函数。
 - 新增 `ItemInstance`、装备槽、穿脱命令。
 - 装备属性进入普通攻击和防御。
 - 接入耐久消耗和修理。
@@ -310,7 +309,7 @@ Job 可以复用 room action、RoomObject、NPC spawn，但不应污染剧情 qu
 
 - 新增 `busy` runtime state。
 - `learn/practice/study/research/meditate` 进入 busy 或 consume action time。
-- 增加精神/行动资源。
+- 基于现有 `Jing` 消耗补休息/睡眠等恢复动作。
 - 增加 `tickConditions`，统一战斗内外状态。
 - 教师可教列表增加等级上限和资源成本。
 
@@ -338,7 +337,7 @@ Job 可以复用 room action、RoomObject、NPC spawn，但不应污染剧情 qu
 - 不做 Redis 事实源。
 - 不做多人围攻，直到 encounter、奖励归属和房间对象稳定。
 - 不做交易市场，直到 item instance 和事务边界稳定。
-- 不做心法系统，直到 `DerivedStats` 和装备实例稳定。
+- 不做心法系统，直到装备实例稳定，并继续通过 `DerivedStats` modifier 接入。
 - 不继续扩展散乱命令，先建立 action registry 和 busy/资源成本。
 
 ## 设计准则

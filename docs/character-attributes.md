@@ -709,6 +709,13 @@ normalizeOldStrength old =
 
 ## 实现计划
 
+当前实现状态：
+
+- Phase A 已落地：类型、存档迁移、YAML 兼容、角色面板和 `deriveStats` 测试已完成。
+- Phase B 已落地：AP 增长、普通攻击、主动招式伤害/治疗、状态 modifier、战斗快照资源上限均通过 `DerivedStats`。
+- Phase C 已部分落地：`Jing` 已用于 learn/practice/study/research/meditate 消耗，并随 tick 恢复；busy runtime、休息/睡眠恢复动作仍待实现。
+- Phase D/E 仍待实现：当前只有装备/心法 modifier 的派生入口，还没有装备实例、心法实例和对应 UI。
+
 ### Phase A：文档和类型
 
 - 增加 `InnateAttrs`、`DerivedStats`、`CharacterVitals` 类型。
@@ -726,7 +733,7 @@ normalizeOldStrength old =
 
 - `Game.Combat` 的 `attackPower/dodgePower/parryPower/computeDamage` 改为消费 `DerivedStats`。
 - AP 增长改用派生身法。
-- `BattleState` 保留当前 HP/Qi，新增 Jing 暂不进战斗消耗。
+- `BattleState` 保留当前 HP/Qi，派生上限用于战斗快照和 HoT/治疗上限。
 - 主动招式伤害和治疗接入派生公式。
 
 完成标准：
@@ -740,7 +747,7 @@ normalizeOldStrength old =
 - 新增 Jing tick 恢复。
 - `learn/practice/study/research/meditate` 扣 Jing。
 - busy runtime state 接入这些动作。
-- UI 展示精神和 busy。
+- UI 已展示精神；busy 展示待实现。
 
 完成标准：
 

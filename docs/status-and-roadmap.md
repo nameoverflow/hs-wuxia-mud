@@ -29,6 +29,8 @@
 - 武侠风房间 UI、方位图移动、NPC 弹框、背包使用按钮。
 - 战斗快照驱动的敌我资源条和主动招式 UI。
 - 角色属性第一层模型：`gender`、数值容貌、`InnateAttrs`、`Jing`、`DerivedStats` 纯计算和角色面板展示。
+- `DerivedStats` 已接入 AP 增长、普通攻击、主动招式、状态 modifier、战斗快照 HP/Qi 上限和战斗奖励估算。
+- `Jing` 已接入 learn/practice/study/research/meditate 消耗，并在 tick 中按派生恢复速度回复。
 - 数据驱动战斗剪影动画：`CombatEventMsg`、YAML `animation` hint、客户端 catalog/resolver、half-turn 队列。
 - UI 固定字段中/英文 i18n。
 - 本地 dev 测试入口：`?test=1` 自动登录，`MUD_DEV_MODE=1` 下重置同名测试存档。
@@ -67,7 +69,8 @@
 - 物品系统只有背包数量和 `learn_art` 使用效果，没有装备、消耗品、交易、掉落表。
 - prepared/enabled 已有服务端命令，但还没有玩家主动切换 UI。
 - 没有全局角色等级；基础属性成长尚未实现。
-- `DerivedStats` 仍未接入普通攻击、主动招式、AP 增长、busy 和学习/研读/自研成本；`Jing` 目前先持久化并展示，尚未成为行动消耗。
+- `DerivedStats` 的装备、心法细项 hook 已预留，但装备实例和心法实例尚未落地。
+- `Jing` 已成为养成动作消耗和 tick 恢复资源，但 busy/耗时动作尚未落地，仍可能在资源足够时连续点击。
 - 多人同房间广播、聊天可见范围、PVP 规则尚未完善；多人围攻同一个 NPC 尚未实现。
 - NPC AI 仍很简单：普通攻击来自准备武功 attack_moves，主动招式 AI 尚未成体系。
 - 普通攻击已有命中、闪避、招架和属性缩放；装备、防具、暴击和技能 hook 尚未接入。
@@ -86,8 +89,7 @@
    - 把已有 `enable/prepare` 命令接入 UI。
    - 增加 action registry 的最小版本，用于返回当前可用动作。
 
-2. **DerivedStats + 装备实例**
-   - 按 [角色属性与派生数值设计](./character-attributes.md) 增加统一派生属性计算层。
+2. **装备实例接入 DerivedStats**
    - 增加装备槽、装备实例、装备属性、穿脱命令/UI。
    - 将装备接入普通攻击、防御、耐久消耗和修理。
 
@@ -96,9 +98,9 @@
    - 把剧情掉落从单个 action 扩展成可配置 drop table。
    - 增加 TTL、归属保护和拾取规则。
 
-4. **busy、condition 和学习成本**
+4. **busy、condition 和行动时间**
    - busy 机制，让学习、练功、研读、自研、打坐成为耗时动作。
-   - 增加精神或行动资源。
+   - 基于现有 `Jing` 消耗补休息/睡眠等恢复动作。
    - 增加 `tickConditions`，统一战斗内外状态。
 
 5. **门派/师承与循环 job**
