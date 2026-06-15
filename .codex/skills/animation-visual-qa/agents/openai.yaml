@@ -1,0 +1,4 @@
+interface:
+  display_name: "Animation Visual QA"
+  short_description: "Record storyboards for subjective animation review"
+  default_prompt: "Use $animation-visual-qa to record this animation, create storyboard frames, and judge whether it matches my visual expectation."

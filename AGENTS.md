@@ -35,6 +35,30 @@ stack ghci
 
 **Important:** The project uses `allow-newer: true` in stack.yaml to handle version mismatches between dependencies. This is required for GHC 9.10.3 compatibility.
 
+## Image Asset Generation Policy
+
+When creating or modifying visual game assets, especially character sprites,
+animation frames, skill effects, icons, and style reference images, use the
+Codex `imagegen` skill / `image_gen` tool as the source of the actual artwork.
+
+Do **not** manually create final artwork with SVG path tracing, hand-authored
+vector shapes, PIL/canvas geometry drawing, pixel-by-pixel edits, or other
+code-native/manual drawing techniques. Do not "fix" an image by redrawing the
+character or effect manually unless the user explicitly asks for a code-native
+vector/SVG asset.
+
+Allowed deterministic post-processing is limited to clearly mechanical steps
+that do not invent or redraw the artwork: copying/moving generated files,
+cropping, resizing, padding, spritesheet slicing/assembly, format conversion,
+alpha/chroma-key removal, palette cleanup, compression, and alignment against
+an existing generated frame. If a visual change affects the shape, pose,
+style, anatomy, silhouette, costume, weapon, VFX design, or perceived art
+direction, perform it through `image_gen` generation/editing instead of manual
+editing.
+
+If `image_gen` cannot produce the needed asset, stop and report the limitation
+or ask before using a fallback workflow.
+
 ## Architecture
 
 ### Core Architecture Pattern

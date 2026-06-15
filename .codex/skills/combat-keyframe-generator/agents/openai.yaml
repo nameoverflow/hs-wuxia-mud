@@ -1,0 +1,4 @@
+interface:
+  display_name: "Combat Keyframe Generator"
+  short_description: "Generate wuxia combat keyframes with image_gen"
+  default_prompt: "Use $combat-keyframe-generator to generate natural wuxia combat animation keyframes for this action description."

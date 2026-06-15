@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wuxia Avatar Portrait Pipeline"
+  short_description: "Generate and QA locked wuxia avatar portraits"
+  default_prompt: "Use $wuxia-avatar-portrait-pipeline to generate or QA a wuxia character portrait in the locked v4 avatar style."
