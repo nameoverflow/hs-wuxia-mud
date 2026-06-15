@@ -1,10 +1,13 @@
 <script lang="ts">
   import { onDestroy, tick } from "svelte";
-  import { actorIdleSprite } from "../battle/animationCatalog";
+  import { combatStyleFromSnapshot, idleVisualForStyle, visualProfileFromGender } from "../battle/animationCatalog";
+  import type { ActorVisual } from "../battle/animationTypes";
   import { percent, type BattleSide, type GameState } from "../game";
   import { translate } from "../i18n";
 
   export let state: GameState;
+
+  type BattleCombatant = GameState["battle"]["player"];
 
   let panelEl: HTMLElement;
   let wasActive = false;
@@ -12,11 +15,15 @@
   let displayedEnemyAp = 0;
   let playerApFrame = 0;
   let enemyApFrame = 0;
+  let playerVisual: ActorVisual = idleVisualForStyle("fist", "male");
+  let enemyVisual: ActorVisual = idleVisualForStyle("fist", "male");
 
   $: player = state.battle.player;
   $: enemy = state.battle.enemy;
   $: timeline = state.battle.animation.activeTimeline;
   $: timelineKey = timeline?.id ?? 0;
+  $: playerVisual = visualFor("player", timeline, player, enemy, state.stats.gender);
+  $: enemyVisual = visualFor("enemy", timeline, player, enemy, state.stats.gender);
   $: smoothAp("player", player?.combatantSnapshotAp ?? state.stats.ap);
   $: smoothAp("enemy", enemy?.combatantSnapshotAp ?? 0);
   $: if (state.battle.active && !wasActive) {
@@ -34,11 +41,31 @@
     return `micro-meter ${tone}`;
   }
 
-  function spriteFor(side: BattleSide) {
-    if (!timeline || timeline.kind === "settlement") return actorIdleSprite;
-    if (timeline.actor.side === side) return timeline.actor.sprite;
-    if (timeline.target.side === side) return timeline.target.sprite;
-    return actorIdleSprite;
+  function visualFor(
+    side: BattleSide,
+    currentTimeline: typeof timeline,
+    playerCombatant: BattleCombatant,
+    enemyCombatant: BattleCombatant,
+    playerGender: string
+  ): ActorVisual {
+    if (!currentTimeline) return idleVisualForSide(side, playerCombatant, enemyCombatant, playerGender);
+    if (currentTimeline.actor.side === side) return currentTimeline.actor.visual;
+    if (currentTimeline.target.side === side) return currentTimeline.target.visual;
+    return idleVisualForSide(side, playerCombatant, enemyCombatant, playerGender);
+  }
+
+  function idleVisualForSide(
+    side: BattleSide,
+    playerCombatant: BattleCombatant,
+    enemyCombatant: BattleCombatant,
+    playerGender: string
+  ): ActorVisual {
+    const combatant = side === "player" ? playerCombatant : enemyCombatant;
+    const gender = side === "player" ? combatant?.combatantSnapshotGender || playerGender : combatant?.combatantSnapshotGender;
+    return idleVisualForStyle(
+      combatStyleFromSnapshot(combatant?.combatantSnapshotCombatStyle),
+      visualProfileFromGender(gender)
+    );
   }
 
   function actorClass(side: BattleSide) {
@@ -112,10 +139,10 @@
       {#key timelineKey}
         <div class="stage-cue" style={`--cue-ms: ${timeline?.durationMs ?? 840}ms`}>
           <div class={actorClass("player")}>
-            <img src={spriteFor("player")} alt="" draggable="false" />
+            <img src={playerVisual.sprite} alt="" draggable="false" />
           </div>
           <div class={actorClass("enemy")}>
-            <img src={spriteFor("enemy")} alt="" draggable="false" />
+            <img src={enemyVisual.sprite} alt="" draggable="false" />
           </div>
           {#if timeline && timeline.kind !== "settlement"}
             {#each timeline.vfx as vfx (vfx.id)}

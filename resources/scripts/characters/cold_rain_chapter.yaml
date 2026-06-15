@@ -29,12 +29,12 @@
   desc: "青衣客的剑很旧，旧得像一段无人敢提的往事。"
   actions: [dialogue]
   martial_arts:
-    fist:
-      - id: nameless_trial_fist
+    sword:
+      - id: cold_rain_secret
         level: 1
   prepared:
-    fist:
-      id: nameless_trial_fist
+    sword:
+      id: cold_rain_secret
       level: 1
   dialogue:
     - "雨越大，脚步声越清楚。"
@@ -50,7 +50,8 @@
 
 - id: paper_umbrella_killer
   name: "纸伞客"
-  desc: "他撑着一柄干净的纸伞，伞骨细得像暗器。"
+  gender: female
+  desc: "她撑着一柄干净的纸伞，伞骨细得像暗器。"
   actions: [dialogue, attacking]
   martial_arts:
     fist:

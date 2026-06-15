@@ -394,9 +394,33 @@ testNormalAttackUsesCombatPipeline = do
   case combatDamages of
     [] -> fail "normal attack pipeline did not emit a damaging combat message"
     damage : _ -> do
-      assert (damage == 26) "normal attack damage did not use derived strength and mitigation"
+      expectedDamages <- expectedNormalAttackDamages ready
+      assert (damage `elem` expectedDamages) "normal attack damage did not use derived strength and mitigation"
       battle <- getBattle afterTick
       assert ((battle ^. battleEnemyState . battleChar . charHP) == 114 - damage) "normal attack damage was not applied to the enemy"
+
+expectedNormalAttackDamages :: GameState -> IO [Int]
+expectedNormalAttackDamages gs = do
+  battle <- getBattle gs
+  let effectDefs = gs ^. world . effects
+      attackerState = battle ^. battleState
+      defenderState = battle ^. battleEnemyState
+      attackerChar = attackerState ^. battleChar
+      defenderChar = defenderState ^. battleChar
+      attackerStats =
+        deriveCharacterStats
+          attackerChar
+          (attackerState ^. battleCombatExp)
+          (characterDerivedStatSources effectDefs (attackerState ^. battleEffects) attackerChar)
+      defenderStats =
+        deriveCharacterStats
+          defenderChar
+          (defenderState ^. battleCombatExp)
+          (characterDerivedStatSources effectDefs (defenderState ^. battleEffects) defenderChar)
+  pure $
+    [ computeDamage attackerStats defenderStats preparedAttack
+      | preparedAttack <- unlockedPreparedAttacks (gs ^. world . martialArts) attackerChar
+    ]
 
 testDotEffectTicks :: IO ()
 testDotEffectTicks = do

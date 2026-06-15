@@ -781,6 +781,22 @@ h3 {
   animation-name: enemyApproach;
 }
 
+.stage-actor.motion-lunge {
+  animation: actorLunge var(--cue-ms) cubic-bezier(0.18, 0.95, 0.2, 1) both;
+}
+
+.stage-actor.enemy.motion-lunge {
+  animation-name: enemyLunge;
+}
+
+.stage-actor.motion-drive {
+  animation: actorDrive var(--cue-ms) cubic-bezier(0.32, 0.82, 0.22, 1) both;
+}
+
+.stage-actor.enemy.motion-drive {
+  animation-name: enemyDrive;
+}
+
 .stage-actor.motion-focus {
   animation: actorFocus var(--cue-ms) ease-out both;
 }
@@ -1051,6 +1067,76 @@ h3 {
     transform: translateX(var(--strike-distance-neg)) translateY(-2px);
   }
   74% {
+    transform: translateX(var(--strike-recoil-neg)) translateY(0);
+  }
+}
+
+@keyframes actorLunge {
+  0%,
+  100% {
+    transform: translateX(0) translateY(0);
+  }
+  18% {
+    transform: translateX(-8px) translateY(0);
+  }
+  42% {
+    transform: translateX(calc(var(--strike-distance) + 12px)) translateY(-3px);
+  }
+  58% {
+    transform: translateX(var(--strike-recoil)) translateY(0);
+  }
+}
+
+@keyframes enemyLunge {
+  0%,
+  100% {
+    transform: translateX(0) translateY(0);
+  }
+  18% {
+    transform: translateX(8px) translateY(0);
+  }
+  42% {
+    transform: translateX(calc(var(--strike-distance-neg) - 12px)) translateY(-3px);
+  }
+  58% {
+    transform: translateX(var(--strike-recoil-neg)) translateY(0);
+  }
+}
+
+@keyframes actorDrive {
+  0%,
+  100% {
+    transform: translateX(0) translateY(0);
+  }
+  20% {
+    transform: translateX(-14px) translateY(1px);
+  }
+  44% {
+    transform: translateX(-18px) translateY(2px);
+  }
+  62% {
+    transform: translateX(var(--strike-distance)) translateY(-1px);
+  }
+  78% {
+    transform: translateX(var(--strike-recoil)) translateY(0);
+  }
+}
+
+@keyframes enemyDrive {
+  0%,
+  100% {
+    transform: translateX(0) translateY(0);
+  }
+  20% {
+    transform: translateX(14px) translateY(1px);
+  }
+  44% {
+    transform: translateX(18px) translateY(2px);
+  }
+  62% {
+    transform: translateX(var(--strike-distance-neg)) translateY(-1px);
+  }
+  78% {
     transform: translateX(var(--strike-recoil-neg)) translateY(0);
   }
 }
@@ -1605,6 +1691,28 @@ h3 {
   .message-log {
     height: 240px;
   }
+
+  .rig-preview-row,
+  .rig-preview-stage.compare {
+    grid-template-columns: 1fr;
+  }
+
+  .rig-preview-stage {
+    min-height: 300px;
+  }
+
+  .rig-preview-stage.compare {
+    min-height: 460px;
+  }
+
+  .rig-preview-stage.compare .rig-preview-actor:first-child {
+    left: 50%;
+    bottom: 220px;
+  }
+
+  .rig-preview-stage.compare .rig-preview-actor:last-child {
+    left: 50%;
+  }
 }
 
 @media (max-width: 520px) {
@@ -1651,5 +1759,15 @@ h3 {
 
   .impact-float.target-enemy {
     right: calc(5% + 34px);
+  }
+
+  .rig-preview-actor,
+  .rig-anchor-ghost,
+  .rig-preview-stage.compare .rig-preview-actor {
+    width: min(78vw, 250px);
+  }
+
+  .rig-pose-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

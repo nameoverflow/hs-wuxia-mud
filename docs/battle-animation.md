@@ -149,10 +149,10 @@ active_skills:
 
 - `weapon.sword.basic`
 - `weapon.fist.basic`
+- `skill.sword_focus`
+- `skill.fist_focus`
 - `skill.self_focus`
 - `effect.tick`
-
-当前拳法 pool 仍复用同一套剪影素材。这样内容语义可以先正确表达为拳法，素材可以后续逐步替换。
 
 ## 客户端 Catalog
 
@@ -160,10 +160,11 @@ active_skills:
 
 它包含：
 
-- `spriteClips`：clip id 到 PNG 的映射。
+- `spriteClips`：clip id 到不同 visual profile 的 PNG 映射。
 - `battleActions`：动作 id 到 clip、tags、duration、motion、reaction、VFX 的映射。
-- `actionPools`：pool id 到动作 id 列表的映射。
-- `reactionSprites`：hit/dodge/parry/effect 的目标反馈素材。
+- `actionVariants`：通用 action 到 style/profile 专用 action 的映射。
+- `actionPools`：pool id 到基础候选、style 覆盖、profile 覆盖和 style+profile 覆盖的映射。
+- `reactionClips`：hit/dodge/parry/effect 到反馈 clip 的映射。
 
 当前角色 clip：
 
@@ -171,23 +172,33 @@ active_skills:
 - `actor.sword.stab_a`
 - `actor.sword.slash_a`
 - `actor.sword.uppercut_a`
+- `actor.sword.guard`
+- `actor.fist.idle`
+- `actor.fist.punch`
+- `actor.fist.heavy`
+- `actor.fist.kick`
+- `actor.fist.guard`
+- `actor.fist.healing_palm`
+- `actor.common.hurt`
+- `actor.common.dodge`
+- `actor.common.parry`
+
+每个 clip 当前都有 `male` 和 `female` 两套 PNG。角色性别来自 battle snapshot 中的 `combatantSnapshotGender`；`female` 使用女性 profile，其余值使用男性 profile。
 
 当前通用目标反馈：
 
-- `hit` -> `common/hurt.png`
-- `dodge` -> `common/dodge.png`
-- `parry` -> `common/parry.png`
+- `hit` -> `actor.common.hurt`
+- `dodge` -> `actor.common.dodge`
+- `parry` -> `actor.common.parry`
 - `effect` -> idle
 
-当前动作：
+当前动作分三类：
 
-- `sword.stab_a`
-- `sword.slash_a`
-- `sword.uppercut_a`
-- `skill.self_focus.guard`
-- `skill.self_focus.palm`
-- `effect.dot`
-- `effect.hot`
+- 基础通用动作：`sword.stab_a`、`sword.slash_a`、`sword.uppercut_a`、`fist.punch`、`fist.heavy`、`fist.kick`。
+- profile 专用动作：例如 `sword.male.slash_drive`、`sword.female.stab_lunge`、`fist.male.heavy_drive`、`fist.female.kick_lunge`。
+- 技能和效果动作：例如 `skill.sword_focus.male_guard`、`skill.fist_focus.female_palm`、`effect.dot`、`effect.hot`。
+
+profile 专用动作可以复用同一个 clip，但有不同的 duration、motion、tags、VFX 组合。这样可以表达“同一个武功池在不同角色 profile 下使用不同动作逻辑”，而不是只换图片。
 
 ## Resolver 规则
 
@@ -195,11 +206,14 @@ active_skills:
 
 选择规则：
 
-1. 如果 `visual.action` 存在且 catalog 中有对应 action，直接使用。
-2. 否则读取 `visual.pool` 对应动作池。
-3. 用 `visual.tags` 在动作池内筛选 tag 命中的动作。
-4. 如果没有 tag 命中，使用池内任意动作。
-5. 如果 pool 不存在或为空，回退到 `sword.slash_a`。
+1. 根据 actor side 读取 visual profile 和 combat style。
+2. 如果 `visual.action` 存在，先通过 `actionVariants` 转成 style/profile 专用 action；如果专用 action 不存在，回退到原 action。
+3. 如果没有固定 action，读取 `visual.pool` 对应动作池。
+4. 动作池按 `actions -> styles -> profiles -> styleProfiles` 顺序合成候选；每层可以 append 或 replace。
+5. 候选可以带 `weight` 和额外 tags。
+6. 用 `visual.tags` 对候选 action tags + 候选 tags 打分。
+7. 只在最高分候选中按 weight 随机选择。
+8. 如果 pool 不存在或为空，回退到 actor combat style 对应的基础池；最后回退到该 style 的默认 action。
 
 当前池内随机使用 `Math.random()`。这足够满足实时表现；如果以后要做确定性回放，可改为基于 battle/event/move/skill id 的 seeded random。
 
@@ -212,8 +226,8 @@ interface ResolvedBattleTimeline {
   actorSide: "player" | "enemy";
   targetSide: "player" | "enemy";
   durationMs: number;
-  actor: { side: BattleSide; sprite: string; motion: ActorMotion };
-  target: { side: BattleSide; sprite: string; reaction: TargetReaction };
+  actor: { side: BattleSide; sprite: string; visual: ActorVisual; motion: ActorMotion };
+  target: { side: BattleSide; sprite: string; visual: ActorVisual; reaction: TargetReaction };
   result: CombatResult;
   damage: number | null;
   heal: number | null;
@@ -247,10 +261,10 @@ CombatSettlementMsg
 
 当前默认时长由 catalog 控制：
 
-- 普通刺击：`760ms`
-- 普通劈砍：`840ms`
-- 普通上挑：`900ms`
-- self focus 技能：`720ms`
+- 基础普通动作：`720-900ms`
+- profile 专用快速动作：`640-780ms`
+- profile 专用重动作：`780-960ms`
+- focus 技能：`640-780ms`
 - effect tick：`560ms`
 - settlement：`900ms`
 
@@ -273,7 +287,7 @@ server 侧普通行动节奏当前约为每名 combatant `2.0s` 一次行动。�
 
 CSS 当前保留的是通用 primitive，而不是技能硬编码：
 
-- actor motion：`motion-approach`、`motion-focus`
+- actor motion：`motion-approach`、`motion-lunge`、`motion-drive`、`motion-focus`
 - target reaction：`react-hit`、`react-dodge`、`react-parry`、`react-effect`
 - VFX：`stage-vfx trail/impact/parry/aura/heal`
 - VFX variant：`stab-line`、`slash-arc`、`uppercut-arc`、`hit-spark`、`parry-arc`、`guard-ring`、`heal-pulse`
@@ -294,13 +308,12 @@ CSS 当前保留的是通用 primitive，而不是技能硬编码：
 当前文件：
 
 ```text
-client/src/assets/battle/actors/sword/idle.png
-client/src/assets/battle/actors/sword/attack/stab-a.png
-client/src/assets/battle/actors/sword/attack/slash-a.png
-client/src/assets/battle/actors/sword/attack/uppercut-a.png
-client/src/assets/battle/actors/common/hurt.png
-client/src/assets/battle/actors/common/dodge.png
-client/src/assets/battle/actors/common/parry.png
+client/src/assets/battle/actors/common/male/*.png
+client/src/assets/battle/actors/common/female/*.png
+client/src/assets/battle/actors/sword/male/*.png
+client/src/assets/battle/actors/sword/female/*.png
+client/src/assets/battle/actors/fist/male/*.png
+client/src/assets/battle/actors/fist/female/*.png
 ```
 
 导出规则：
@@ -342,6 +355,9 @@ AP 条展示和出手动画是两个系统：
 - `AttackMove` / `ActiveSkill` 强制要求 `animation` 字段。
 - 当前 martial arts YAML 都包含 animation hint。
 - client 有独立 catalog、resolver 和 timeline types。
+- client 能按 actor combat style 选择拳/剑基础动作池。
+- client 能按 actor visual profile 选择不同动作池、固定 action 变体和 sprite 素材。
+- pool candidate 支持 weight 和附加 tags，resolver 会在 tag 最高分候选中按 weight 随机。
 - `BattlePanel.svelte` 只消费 resolved timeline。
 - CSS 使用通用 motion、reaction 和 VFX primitive。
 - 普通攻击、主动技能、effect tick、结算都进入动画队列。
@@ -355,7 +371,7 @@ AP 条展示和出手动画是两个系统：
 1. 增加素材 manifest，记录 canvas、baseline、pivot、weaponTip、impact anchor。
 2. 增加 catalog validator，检查 pool/action/clip/vfx 引用和图片存在性。
 3. 增加本地 animation preview route，用于预览 pool/action/result 组合。
-4. 为拳、剑、暗器分别补独立基础素材池。
+4. 为暗器、掌法、指法分别补独立基础素材池。
 5. 为重点武功和主动技能增加专属 action 和 VFX。
 6. 如果需要战斗回放，再把 resolver 随机改成 seeded random。
 

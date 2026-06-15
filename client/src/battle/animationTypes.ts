@@ -1,15 +1,22 @@
 import type { CombatResult } from "../protocol";
 
 export type BattleSide = "player" | "enemy";
+export type VisualProfile = "male" | "female";
+export type CombatStyle = "sword" | "fist";
 
 export type BattleTimelineKind = "normal" | "active_skill" | "effect_tick" | "settlement";
 
-export type ActorMotion = "none" | "approach" | "focus";
+export type ActorMotion = "none" | "approach" | "lunge" | "drive" | "focus";
 
 export type TargetReaction = "none" | "hit" | "dodge" | "parry" | "effect";
 
 export interface SpriteClip {
   id: string;
+  sprites: Record<VisualProfile, string>;
+}
+
+export interface ActorVisual {
+  kind: "sprite";
   sprite: string;
 }
 
@@ -36,6 +43,34 @@ export interface BattleActionDefinition {
   vfx: ActionVfxDefinition[];
 }
 
+export interface ActionPoolCandidate {
+  id: string;
+  weight?: number;
+  tags?: string[];
+}
+
+export type ActionPoolEntry = string | ActionPoolCandidate;
+
+export interface ActionPoolVariant {
+  mode?: "append" | "replace";
+  actions: ActionPoolEntry[];
+}
+
+export interface ActionPoolDefinition {
+  id: string;
+  fallbackPool?: string;
+  actions: ActionPoolEntry[];
+  styles?: Partial<Record<CombatStyle, ActionPoolVariant>>;
+  profiles?: Partial<Record<VisualProfile, ActionPoolVariant>>;
+  styleProfiles?: Partial<Record<CombatStyle, Partial<Record<VisualProfile, ActionPoolVariant>>>>;
+}
+
+export interface ActionVariantDefinition {
+  styles?: Partial<Record<CombatStyle, string>>;
+  profiles?: Partial<Record<VisualProfile, string>>;
+  styleProfiles?: Partial<Record<CombatStyle, Partial<Record<VisualProfile, string>>>>;
+}
+
 export interface ResolvedBattleTimeline {
   id: number;
   kind: BattleTimelineKind;
@@ -45,11 +80,13 @@ export interface ResolvedBattleTimeline {
   actor: {
     side: BattleSide;
     sprite: string;
+    visual: ActorVisual;
     motion: ActorMotion;
   };
   target: {
     side: BattleSide;
     sprite: string;
+    visual: ActorVisual;
     reaction: TargetReaction;
   };
   result: CombatResult;
