@@ -59,6 +59,31 @@ editing.
 If `image_gen` cannot produce the needed asset, stop and report the limitation
 or ask before using a fallback workflow.
 
+## Agent Harness Artifacts
+
+Use `harness/` for agent-generated material that should remain available for
+future QA, prompt reuse, or design decisions. Do not create new top-level
+`reports/` or `tmp/` directories for agent work.
+
+Current layout:
+
+- `harness/animation-qa/runs/` - review prompts, QA verdicts, bounding boxes,
+  and other lightweight records from local animation checks.
+- `harness/animation-qa/references/` - reusable reference clips and analysis
+  notes for animation timing or visual style.
+- `harness/portrait-generation/jobs/` - prompt histories, QA manifests, notes,
+  and contact sheets for portrait-generation jobs.
+- `harness/portrait-generation/candidates/` - reusable generated candidates
+  that are not final in-game assets or documentation assets yet.
+- `harness/tmp/` - ignored runtime scratch space for recordings, storyboards,
+  crop tests, generated lists, markers, and other files that can be regenerated.
+
+Commit files that preserve a decision, a repeatable prompt, a source reference,
+or a reusable generated candidate. Put pure execution byproducts under
+`harness/tmp/` so they stay local. If a generated visual becomes a final game
+asset, move it into the appropriate `client/src/assets/` or `docs/assets/`
+location and keep only the supporting prompt/QA notes in `harness/`.
+
 ## Architecture
 
 ### Core Architecture Pattern
