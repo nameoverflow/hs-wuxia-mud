@@ -1,5 +1,37 @@
+# Haskell build products
 .stack-work/
+dist-newstyle/
+.ghc.environment.*
+*.hi
+*.o
+*.dyn_hi
+*.dyn_o
+*.hp
+*.eventlog
+
+# Runtime state
 saves/
-*~
+
+# Frontend dependencies and build output
 client/node_modules/
 client/dist/
+client/.svelte-kit/
+client/coverage/
+client/*.tsbuildinfo
+
+# Local configuration and logs
+.env
+.env.*
+!.env.example
+*.log
+
+# Agent/dev-tool runtime artifacts
+/harness/tmp/*
+!/harness/tmp/.gitkeep
+.codex/tmp/
+.codex/runs/
+.codex/artifacts/
+
+# Editor and OS files
+*~
+.DS_Store
