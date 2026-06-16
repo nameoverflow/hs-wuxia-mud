@@ -25,6 +25,51 @@
 - 通用 motion / reaction / VFX CSS：[client/src/styles.css](../client/src/styles.css)
 - 当前素材：[client/src/assets/battle/](../client/src/assets/battle)
 
+## 骨骼绑定基础系统
+
+骨骼系统当前是独立基础设施，不接入正式游戏 client UI。它用于先验证骨骼层级、锚点、绑定、姿势编辑和 Canvas 渲染。
+
+源码入口：
+
+- 骨骼类型：[client/src/battle/skeletal/types.ts](../client/src/battle/skeletal/types.ts)
+- 2D transform 数学：[client/src/battle/skeletal/math.ts](../client/src/battle/skeletal/math.ts)
+- pose/runtime 解析：[client/src/battle/skeletal/runtime.ts](../client/src/battle/skeletal/runtime.ts)
+- Canvas renderer：[client/src/battle/skeletal/renderer.ts](../client/src/battle/skeletal/renderer.ts)
+- battle action 到 rig 条目映射：[client/src/battle/skeletal/catalog.ts](../client/src/battle/skeletal/catalog.ts)
+- 独立开发工具入口：[client/animation-rig.html](../client/animation-rig.html)
+- 工具组件：[client/src/tools/animation-rig/AnimationRigTool.svelte](../client/src/tools/animation-rig/AnimationRigTool.svelte)
+
+运行工具：
+
+```bash
+cd client
+npm run dev
+# 打开 http://127.0.0.1:8080/animation-rig.html
+```
+
+当前能力：
+
+- 从现有 `battleActions` 自动列出所有 action/profile 组合。
+- 每个条目套用标准 humanoid rig，包含 root、躯干、头、双臂、双腿、剑、impact 等骨骼/锚点。
+- 新增 `segmented.v4` 粗分件 actor rig，使用头、窄躯干、前后直手臂、直腿占位和女版马尾 PNG 部件做绑定。
+- `segmented.v4` 提供 `bind`、`idle`、`windup`、`strike`、`recover`、`guard`、`hurt`、`dodge` 离散关键帧；另有 `segmented.v4.sword.*` 条目用于预览中国剑术风格的刺、劈、撩、受击、闪避、格挡关键帧。工具默认停在当前关键帧，Play Preview 只用于临时补间预览。
+- renderer 支持 source frame、debug skin、骨骼、锚点、binding link、label 和四肢/马尾 alpha-contour mesh 形变分层开关。
+- `Pose` 模式可拖动带 `handleBoneId` 的锚点来旋转对应骨骼。
+- `Pose` 模式也可拖动四肢 deform keypoint（elbow、wrist、knee、ankle），这些调整按当前关键帧保存；`Lock lengths` 默认打开，拖动四肢关键点时用两段 IK 保持骨段长度，避免手动编辑时把四肢拉长或压短。
+- `Anchor` 模式可拖动关节/挂点，或在 inspector 中修改 anchor 所属 bone、局部 X/Y、拖动时控制的 bone。
+- `Bind` 模式可拖动绑定点，或在 inspector 中修改 anchor、offset、rotation、scale、opacity。
+- Canvas 视口支持滚轮/触摸板双指平移，macOS 触摸板 pinch 或 `Cmd/Ctrl`+滚轮会以指针位置为中心缩放。
+- 调整结果可导出 JSON，也可保存到浏览器 localStorage 做本地迭代；导出包含 per-pose `poses`、全局 `anchors` 和全局 `bindings`。
+
+当前约束：
+
+- 大多数正式战斗 PNG 仍是完整帧图；`source.frame` 只是对照 binding，不代表最终骨骼切片资产。
+- `segmented.v4` 当前四肢使用三点 alpha-contour mesh：renderer 从原 PNG alpha 沿 source keypoint 中心线采样截面轮廓，并生成多列三角网格做 affine texture warp。它不再用半径生成新的圆管外形，所以手脚末端和部件粗细由源图 alpha 决定；当像素采样失败时才回退到旧 ribbon mesh。它已经支持从弯曲到伸直的关键点形变，但还不是完整的权重刷/多骨骼蒙皮编辑器。
+- 女版马尾使用同一套三点 alpha-contour mesh，但骨骼上分成 `ponytailBase` 和 `ponytailTail`：`ponytailRoot` 固定到 head，`ponytailMid` 是固定基座末端，只有 `ponytailTip`/`ponytailTail` 作为尾段手柄参与摆动。
+- 剑术关键帧参考记录在 [harness/animation-qa/references/chinese-jian-keyframe-notes.md](../harness/animation-qa/references/chinese-jian-keyframe-notes.md)。当前剑是挂在 `sword` bone 上的 tool prop line，方便先调动作，不作为最终剑器美术。
+- debug skin 是工具层预览，不作为最终游戏美术。
+- 正式战斗面板仍走现有 sprite/CSS timeline；骨骼渲染接入需要后续单独切换 `ActorVisual` 和 `BattlePanel` 渲染路径。
+
 ## 总体架构
 
 ```text
@@ -368,7 +413,7 @@ AP 条展示和出手动画是两个系统：
 
 近期最有价值的后续工作：
 
-1. 增加素材 manifest，记录 canvas、baseline、pivot、weaponTip、impact anchor。
+1. 把 `segmented.v4` 的锚点和默认 pose 从工具导出固化为可版本化 manifest。
 2. 增加 catalog validator，检查 pool/action/clip/vfx 引用和图片存在性。
 3. 增加本地 animation preview route，用于预览 pool/action/result 组合。
 4. 为暗器、掌法、指法分别补独立基础素材池。
