@@ -657,41 +657,61 @@ h3 {
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 1;
+  z-index: 4;
+  overflow: visible;
 }
 
-.full-map-links line {
-  stroke: rgba(84, 198, 177, 0.48);
-  stroke-width: 1;
+.full-map-links path {
+  fill: none;
   stroke-linecap: square;
   vector-effect: non-scaling-stroke;
+  shape-rendering: geometricPrecision;
 }
 
-.full-map-links .full-map-link-current {
-  stroke: rgba(200, 167, 90, 0.82);
-  stroke-width: 1.4;
+.full-map-link-halo {
+  stroke: rgba(0, 0, 0, 0.82);
+  stroke-width: 5.2;
+}
+
+.full-map-link {
+  stroke: rgba(84, 198, 177, 0.94);
+  stroke-width: 2.1;
+  filter: drop-shadow(0 0 3px rgba(84, 198, 177, 0.42));
+}
+
+.full-map-link-halo.full-map-link-current {
+  stroke: rgba(0, 0, 0, 0.88);
+  stroke-width: 6;
+}
+
+.full-map-link.full-map-link-current {
+  stroke: rgba(232, 196, 87, 0.98);
+  stroke-width: 2.7;
+  filter: drop-shadow(0 0 4px rgba(232, 196, 87, 0.52));
 }
 
 .full-map-room {
   position: absolute;
-  z-index: 2;
-  width: clamp(76px, 12vw, 132px);
-  min-height: 44px;
+  z-index: 3;
+  width: clamp(72px, 7.4%, 116px);
+  min-height: 40px;
   display: grid;
   align-content: center;
   gap: 2px;
-  padding: 7px 8px;
+  padding: 6px 7px;
   border: 1px solid rgba(84, 198, 177, 0.56);
-  background: rgba(10, 17, 16, 0.94);
+  background: rgba(10, 17, 16, 0.9);
   color: var(--text);
   text-align: center;
   transform: translate(-50%, -50%);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.58),
+    0 8px 18px rgba(0, 0, 0, 0.3);
 }
 
 .full-map-room strong {
   overflow-wrap: anywhere;
-  font-size: 0.86rem;
+  font-size: 0.82rem;
   line-height: 1.15;
 }
 
@@ -703,7 +723,7 @@ h3 {
 }
 
 .full-map-room-current {
-  z-index: 3;
+  z-index: 5;
   border-color: var(--gold);
   background: #171307;
   color: var(--gold);
@@ -1770,9 +1790,9 @@ h3 {
   }
 
   .full-map-room {
-    width: clamp(62px, 20vw, 96px);
-    min-height: 38px;
-    padding: 5px 6px;
+    width: clamp(60px, 13.5%, 92px);
+    min-height: 36px;
+    padding: 5px;
   }
 
   .full-map-room strong {

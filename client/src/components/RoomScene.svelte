@@ -33,6 +33,7 @@
     from: FullMapRoomPoint;
     to: FullMapRoomPoint;
     current: boolean;
+    path: string;
   };
 
   const currentPoint = { x: 50, y: 56 };
@@ -278,11 +279,41 @@
         key: `${sortedKey}:${index}`,
         from,
         to,
-        current: from.key === currentKey || to.key === currentKey
+        current: from.key === currentKey || to.key === currentKey,
+        path: fullMapEdgePath(from, to)
       });
     }
 
     return edges;
+  }
+
+  function fullMapEdgePath(from: FullMapRoomPoint, to: FullMapRoomPoint) {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const length = Math.hypot(dx, dy);
+    if (length === 0) return `M ${from.x} ${from.y}`;
+
+    const halfWidth = 4.2;
+    const halfHeight = 3.4;
+    const startCut = edgeCutRatio(dx, dy, halfWidth, halfHeight);
+    const endCut = edgeCutRatio(-dx, -dy, halfWidth, halfHeight);
+    const start = {
+      x: from.x + dx * startCut,
+      y: from.y + dy * startCut
+    };
+    const end = {
+      x: to.x - dx * endCut,
+      y: to.y - dy * endCut
+    };
+
+    return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
+  }
+
+  function edgeCutRatio(dx: number, dy: number, halfWidth: number, halfHeight: number) {
+    const ratios = [];
+    if (dx !== 0) ratios.push(halfWidth / Math.abs(dx));
+    if (dy !== 0) ratios.push(halfHeight / Math.abs(dy));
+    return Math.min(...ratios, 0.48);
   }
 
   function currentFullMapRoomKey(mapOverview: GameState["mapOverview"]) {
@@ -487,13 +518,16 @@
         {#if fullMapRooms.length > 0}
           <svg class="full-map-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
             {#each fullMapEdges as edge (edge.key)}
-              <line
+              <path
+                class="full-map-link-halo"
                 class:full-map-link-current={edge.current}
-                x1={edge.from.x}
-                y1={edge.from.y}
-                x2={edge.to.x}
-                y2={edge.to.y}
-              ></line>
+                d={edge.path}
+              ></path>
+              <path
+                class="full-map-link"
+                class:full-map-link-current={edge.current}
+                d={edge.path}
+              ></path>
             {/each}
           </svg>
 
