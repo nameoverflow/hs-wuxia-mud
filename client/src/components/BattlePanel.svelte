@@ -4,6 +4,7 @@
   import type { ActorVisual } from "../battle/animationTypes";
   import { percent, type BattleSide, type GameState } from "../game";
   import { translate } from "../i18n";
+  import ActiveSkillPanel from "./ActiveSkillPanel.svelte";
 
   export let state: GameState;
 
@@ -130,12 +131,9 @@
   <section class="battle-panel shell-panel" bind:this={panelEl}>
     <div class="section-heading battle-heading">
       <h2>{translate(state.locale, "panel.battle")}</h2>
-      <span>{enemy?.combatantSnapshotName || "..."}</span>
     </div>
 
     <div class="battle-stage" aria-hidden="true">
-      <div class="stage-name player-name">{player?.combatantSnapshotName || state.username || "Player"}</div>
-      <div class="stage-name enemy-name">{enemy?.combatantSnapshotName || "Enemy"}</div>
       {#key timelineKey}
         <div class="stage-cue" style={`--cue-ms: ${timeline?.durationMs ?? 840}ms`}>
           <div class={actorClass("player")}>
@@ -159,7 +157,6 @@
 
     <div class="duel-grid">
       <div class="combatant player">
-        <div class="avatar-mark">侠</div>
         <strong>{player?.combatantSnapshotName || state.username || "Player"}</strong>
         <div class={toneClass("hp")}>
           <span style={`width: ${percent(player?.combatantSnapshotHp ?? state.stats.hp, player?.combatantSnapshotMaxHp ?? state.stats.maxHp)}%`}></span>
@@ -175,10 +172,7 @@
         </div>
       </div>
 
-      <div class="duel-symbol">对</div>
-
       <div class="combatant enemy">
-        <div class="avatar-mark enemy-mark">敌</div>
         <strong>{enemy?.combatantSnapshotName || "Enemy"}</strong>
         <div class={toneClass("hp")}>
           <span style={`width: ${percent(enemy?.combatantSnapshotHp ?? 0, enemy?.combatantSnapshotMaxHp ?? 1)}%`}></span>
@@ -194,5 +188,7 @@
         </div>
       </div>
     </div>
+
+    <ActiveSkillPanel state={state} />
   </section>
 {/if}

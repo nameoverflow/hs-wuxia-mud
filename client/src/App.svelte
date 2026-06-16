@@ -1,6 +1,6 @@
 <script lang="ts">
-  import BattlePanel from "./components/BattlePanel.svelte";
   import CharacterPanel from "./components/CharacterPanel.svelte";
+  import CombatScene from "./components/CombatScene.svelte";
   import LoginPanel from "./components/LoginPanel.svelte";
   import MartialArtsPanel from "./components/MartialArtsPanel.svelte";
   import MessageLog from "./components/MessageLog.svelte";
@@ -43,14 +43,19 @@
     </div>
 
     <div class="center-column">
-      <BattlePanel state={$game} />
-      <RoomScene state={$game} />
+      {#if $game.battle.active}
+        <CombatScene state={$game} />
+      {:else}
+        <RoomScene state={$game} />
+      {/if}
       <MessageLog state={$game} />
     </div>
 
     <div class="right-column">
       <RightRail state={$game} />
-      <MartialArtsPanel state={$game} />
+      {#if !$game.battle.active}
+        <MartialArtsPanel state={$game} />
+      {/if}
     </div>
   </main>
 </div>

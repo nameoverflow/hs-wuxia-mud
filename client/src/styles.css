@@ -211,11 +211,17 @@ input:focus {
 .meter-stack,
 .compact-section,
 .world-panel,
+.combat-scene,
 .message-panel,
 .rail-section,
 .arts-panel {
   display: grid;
   gap: 12px;
+}
+
+.right-column {
+  align-content: start;
+  align-items: start;
 }
 
 .shell-panel,
@@ -666,6 +672,20 @@ h3 {
   border-color: rgba(211, 93, 86, 0.58);
 }
 
+.combat-scene .battle-panel {
+  min-height: 0;
+}
+
+.active-skill-panel {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(84, 198, 177, 0.28);
+}
+
+.active-skill-panel h2 {
+  color: var(--jade);
+}
+
 .battle-heading h2 {
   color: var(--red);
 }
@@ -709,27 +729,6 @@ h3 {
 .battle-stage::after {
   bottom: 26px;
   opacity: 0.38;
-}
-
-.stage-name {
-  position: absolute;
-  top: 10px;
-  z-index: 2;
-  max-width: 38%;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 0.78rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.player-name {
-  left: 12px;
-}
-
-.enemy-name {
-  right: 12px;
-  text-align: right;
 }
 
 .stage-cue {
@@ -978,54 +977,32 @@ h3 {
 
 .duel-grid {
   display: grid;
-  grid-template-columns: 1fr 64px 1fr;
-  align-items: center;
-  gap: 12px;
-  margin-top: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .combatant {
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr);
-  gap: 7px 10px;
-  align-items: center;
+  gap: 4px;
   border: 1px solid var(--line);
-  padding: 10px;
+  background: #0b0d0c;
+  padding: 7px 8px 8px;
 }
 
 .combatant strong {
+  min-width: 0;
   overflow: hidden;
+  color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1.1;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.avatar-mark {
-  grid-row: span 4;
-  width: 42px;
-  height: 42px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--jade);
-  color: var(--jade);
-  font-size: 1.25rem;
-}
-
-.enemy-mark {
-  border-color: var(--red);
-  color: var(--red);
-}
-
-.duel-symbol {
-  display: grid;
-  place-items: center;
-  height: 64px;
-  border: 1px solid var(--line);
-  color: var(--gold);
-  font-size: 1.7rem;
-}
-
 .micro-meter {
-  height: 16px;
+  height: 8px;
+  border-color: rgba(105, 115, 108, 0.72);
 }
 
 .micro-meter em {
@@ -1035,8 +1012,10 @@ h3 {
   place-items: center;
   color: var(--text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.68rem;
+  font-size: 0.56rem;
   font-style: normal;
+  line-height: 1;
+  opacity: 0;
 }
 
 @keyframes actorApproach {
@@ -1409,6 +1388,11 @@ h3 {
 
 .rail-section {
   min-height: 0;
+  align-content: start;
+}
+
+.arts-panel {
+  align-content: start;
 }
 
 .quest-list article,
@@ -1486,12 +1470,22 @@ h3 {
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
 }
 
+.active-skill-panel .skill-grid {
+  grid-template-columns: repeat(auto-fit, minmax(142px, 1fr));
+}
+
 .skill-grid button {
   min-height: 128px;
   display: grid;
   align-content: start;
   gap: 8px;
   text-align: left;
+}
+
+.active-skill-panel .skill-grid button {
+  min-height: 86px;
+  gap: 5px;
+  padding: 7px 8px;
 }
 
 .skill-grid button.ready {
@@ -1617,8 +1611,7 @@ h3 {
   .app-header,
   .main-layout,
   .right-column,
-  .world-grid,
-  .duel-grid {
+  .world-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1653,10 +1646,6 @@ h3 {
 
   .people-panel {
     min-height: 120px;
-  }
-
-  .duel-symbol {
-    height: 38px;
   }
 
   .battle-stage {
