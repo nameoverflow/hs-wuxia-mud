@@ -2,7 +2,7 @@
   import { afterUpdate, beforeUpdate } from "svelte";
   import { directionVector, exitLabel, sendAction, type GameState } from "../game";
   import { translate } from "../i18n";
-  import type { Direction, RoomCharacterSummary, RoomExitSummary } from "../protocol";
+  import type { Direction, RoomCharacterSummary, RoomExitSummary, RoomPosition } from "../protocol";
 
   export let state: GameState;
 
@@ -14,11 +14,33 @@
     y: number;
   };
 
+  type PositionPoint = {
+    x: number;
+    y: number;
+  };
+
+  type FullMapRoomPoint = {
+    key: string;
+    roomId: string | null;
+    name: string;
+    position: PositionPoint;
+    x: number;
+    y: number;
+  };
+
+  type FullMapEdgePoint = {
+    key: string;
+    from: FullMapRoomPoint;
+    to: FullMapRoomPoint;
+    current: boolean;
+  };
+
   const currentPoint = { x: 50, y: 56 };
 
   let selectedCharacter: RoomCharacterSummary | null = null;
   let selectedDirection: Direction | null = null;
   let pendingMapMove: { direction: Direction; roomName: string | null; roomKey: string } | null = null;
+  let showFullMap = false;
   let mapMoving = false;
   let mapElement: HTMLDivElement | null = null;
   let previousRects = new Map<string, DOMRect>();
@@ -38,6 +60,9 @@
   }
 
   $: mapPoints = buildMapPoints(state.room.exits);
+  $: fullMapRooms = buildFullMapRooms(state.mapOverview);
+  $: fullMapEdges = buildFullMapEdges(state.mapOverview, fullMapRooms);
+  $: fullMapCurrentKey = currentFullMapRoomKey(state.mapOverview);
 
   beforeUpdate(() => {
     previousRects = captureMapNodeRects();
@@ -72,8 +97,22 @@
     selectedCharacter = null;
   }
 
+  function openFullMap() {
+    showFullMap = true;
+    sendAction({ other: "map" });
+  }
+
+  function closeFullMap() {
+    showFullMap = false;
+  }
+
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === "Escape" && selectedCharacter) {
+    if (event.key !== "Escape") return;
+    if (showFullMap) {
+      closeFullMap();
+      return;
+    }
+    if (selectedCharacter) {
       closeNpcModal();
     }
   }
@@ -81,6 +120,12 @@
   function handleModalBackdropClick(event: MouseEvent) {
     if (event.target === event.currentTarget) {
       closeNpcModal();
+    }
+  }
+
+  function handleFullMapBackdropClick(event: MouseEvent) {
+    if (event.target === event.currentTarget) {
+      closeFullMap();
     }
   }
 
@@ -114,8 +159,8 @@
       const label = exitLabel(state.locale, exit);
       const targetPosition = exitPosition(exit);
       const fallbackVector = worldDirectionVector(exit.direction);
-      const dx = targetPosition ? targetPosition.x - currentPosition.x : fallbackVector.x;
-      const dy = targetPosition ? targetPosition.y - currentPosition.y : fallbackVector.y;
+      const dx = targetPosition && currentPosition ? targetPosition.x - currentPosition.x : fallbackVector.x;
+      const dy = targetPosition && currentPosition ? targetPosition.y - currentPosition.y : fallbackVector.y;
       const vector = dx === 0 && dy === 0 ? fallbackVector : { x: dx, y: dy };
 
       return {
@@ -141,7 +186,7 @@
       })
       .filter((candidate): candidate is { x: number; y: number } => Boolean(candidate));
 
-    if (candidates.length === 0) return { x: 0, y: 0 };
+    if (candidates.length === 0) return null;
 
     const counts = new Map<string, number>();
     for (const candidate of candidates) {
@@ -149,13 +194,20 @@
       counts.set(key, (counts.get(key) || 0) + 1);
     }
 
-    const [bestKey] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+    const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+    const [bestKey, bestCount] = sorted[0];
+    const [, secondCount = 0] = sorted[1] || [];
+    if (bestCount === secondCount) return null;
+
     const [x, y] = bestKey.split(",").map(Number);
     return { x, y };
   }
 
   function exitPosition(exit: RoomExitSummary) {
-    const raw = exit.position;
+    return positionPoint(exit.position);
+  }
+
+  function positionPoint(raw: RoomPosition | null | undefined): PositionPoint | null {
     if (Array.isArray(raw) && raw.length >= 2) {
       return { x: Number(raw[0]), y: Number(raw[1]) };
     }
@@ -166,6 +218,80 @@
       }
     }
     return null;
+  }
+
+  function buildFullMapRooms(mapOverview: GameState["mapOverview"]): FullMapRoomPoint[] {
+    const rooms = (mapOverview?.rooms || [])
+      .map((room) => {
+        const position = positionPoint(room.position);
+        if (!position) return null;
+        return {
+          key: positionKey(position),
+          roomId: room.roomId,
+          name: room.roomName || room.roomId || translate(state.locale, "panel.world"),
+          position,
+          x: 50,
+          y: 50
+        };
+      })
+      .filter((room): room is FullMapRoomPoint => Boolean(room));
+
+    if (rooms.length === 0) return [];
+
+    const xs = rooms.map((room) => room.position.x);
+    const ys = rooms.map((room) => room.position.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    const scale = 82 / Math.max(maxX - minX, maxY - minY, 1);
+
+    return rooms.map((room) => ({
+      ...room,
+      x: clamp(50 + (room.position.x - centerX) * scale, 9, 91),
+      y: clamp(50 - (room.position.y - centerY) * scale, 9, 91)
+    }));
+  }
+
+  function buildFullMapEdges(mapOverview: GameState["mapOverview"], rooms: FullMapRoomPoint[]): FullMapEdgePoint[] {
+    const roomsByPosition = new Map(rooms.map((room) => [positionKey(room.position), room]));
+    const currentKey = currentFullMapRoomKey(mapOverview);
+    const seen = new Set<string>();
+    const edges: FullMapEdgePoint[] = [];
+
+    for (const [index, edge] of (mapOverview?.edges || []).entries()) {
+      const fromPosition = positionPoint(edge.from);
+      const toPosition = positionPoint(edge.to);
+      if (!fromPosition || !toPosition) continue;
+
+      const from = roomsByPosition.get(positionKey(fromPosition));
+      const to = roomsByPosition.get(positionKey(toPosition));
+      if (!from || !to) continue;
+
+      const sortedKey = [from.key, to.key].sort().join("|");
+      if (seen.has(sortedKey)) continue;
+      seen.add(sortedKey);
+
+      edges.push({
+        key: `${sortedKey}:${index}`,
+        from,
+        to,
+        current: from.key === currentKey || to.key === currentKey
+      });
+    }
+
+    return edges;
+  }
+
+  function currentFullMapRoomKey(mapOverview: GameState["mapOverview"]) {
+    const position = positionPoint(mapOverview?.currentPosition);
+    return position ? positionKey(position) : "";
+  }
+
+  function positionKey(position: PositionPoint) {
+    return `${position.x},${position.y}`;
   }
 
   function worldDirectionVector(direction: Direction) {
@@ -255,9 +381,12 @@
 <section class="world-panel">
   <div class="world-grid">
     <section class="map-panel">
-      <div class="section-heading">
+      <div class="section-heading map-heading">
         <h2>{translate(state.locale, "panel.exits")}</h2>
-        <span>{state.room.exits.length}</span>
+        <div class="map-heading-actions">
+          <button class="ghost-button" type="button" disabled={!state.connected} on:click={openFullMap}>{translate(state.locale, "action.full_map")}</button>
+          <span>{state.room.exits.length}</span>
+        </div>
       </div>
       <div class="room-context">
         <strong>{state.room.name || translate(state.locale, "panel.world")}</strong>
@@ -340,6 +469,47 @@
         {/if}
         {#if !hasAction(selectedCharacter, "talk") && !hasAction(selectedCharacter, "attack")}
           <span class="npc-no-actions">{translate(state.locale, "ui.none")}</span>
+        {/if}
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if showFullMap}
+  <div class="map-modal" role="presentation" on:click={handleFullMapBackdropClick}>
+    <div class="map-modal-content" role="dialog" aria-modal="true" aria-labelledby="full-map-title" tabindex="-1">
+      <button class="npc-modal-close" type="button" aria-label={translate(state.locale, "action.close")} on:click={closeFullMap}>×</button>
+      <div class="section-heading full-map-heading">
+        <h2 id="full-map-title">{state.mapOverview?.mapName || translate(state.locale, "panel.full_map")}</h2>
+        <span>{fullMapRooms.length}</span>
+      </div>
+      <div class="full-map-canvas" aria-label={translate(state.locale, "panel.full_map")}>
+        {#if fullMapRooms.length > 0}
+          <svg class="full-map-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            {#each fullMapEdges as edge (edge.key)}
+              <line
+                class:full-map-link-current={edge.current}
+                x1={edge.from.x}
+                y1={edge.from.y}
+                x2={edge.to.x}
+                y2={edge.to.y}
+              ></line>
+            {/each}
+          </svg>
+
+          {#each fullMapRooms as room (room.key)}
+            <div
+              class="full-map-room"
+              class:full-map-room-current={room.key === fullMapCurrentKey}
+              aria-current={room.key === fullMapCurrentKey ? "location" : undefined}
+              style={pointStyle(room)}
+            >
+              <strong>{room.name}</strong>
+              <small>{room.position.x},{room.position.y}</small>
+            </div>
+          {/each}
+        {:else}
+          <div class="full-map-empty">{state.mapOverview ? translate(state.locale, "ui.none") : translate(state.locale, "ui.loading")}</div>
         {/if}
       </div>
     </div>

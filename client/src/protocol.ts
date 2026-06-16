@@ -8,6 +8,8 @@ export type Direction =
   | "SouthEast"
   | "SouthWest";
 
+export type RoomPosition = [number, number] | { x: number; y: number };
+
 export type PlayerAction =
   | { go: Direction }
   | { talk: string }
@@ -38,9 +40,31 @@ export interface RoomCharacterSummary {
 
 export interface RoomExitSummary {
   direction: Direction;
+  mapId: string | null;
   roomId: string | null;
   roomName: string | null;
-  position: [number, number] | { x: number; y: number } | null;
+  position: RoomPosition | null;
+}
+
+export interface MapRoomSummary {
+  roomId: string | null;
+  roomName: string;
+  position: RoomPosition | null;
+}
+
+export interface MapEdgeSummary {
+  direction: Direction;
+  from: RoomPosition | null;
+  to: RoomPosition | null;
+  toRoomId: string | null;
+}
+
+export interface MapOverviewSummary {
+  mapId: string;
+  mapName: string;
+  currentPosition: RoomPosition | null;
+  rooms: MapRoomSummary[];
+  edges: MapEdgeSummary[];
 }
 
 export interface EffectSummary {
@@ -196,6 +220,7 @@ export type ActiveSkillFailureReason =
 export type ServerMessage =
   | { tag: "MoveMsg"; contents: string }
   | { tag: "ViewMsg"; contents: [string, string, unknown[], unknown[]] }
+  | { tag: "MapOverviewMsg"; contents: MapOverviewSummary }
   | { tag: "AttackMsg"; contents: [string, string] }
   | { tag: "CombatEventMsg"; contents: CombatEvent }
   | { tag: "CombatSettlementMsg"; contents: [string, string, boolean] }

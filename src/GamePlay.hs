@@ -55,6 +55,7 @@ processNormalAction pid action = case action of
   Other "quests" -> playerQuestLog pid
   Other "inventory" -> sendPlayerInventory pid
   Other "arts" -> playerArts pid
+  Other "map" -> playerMapOverview pid
   Other "view" -> playerView pid
   _ -> return ()
 
@@ -64,6 +65,7 @@ processBattleAction pid action = case action of
   Other "quests" -> playerQuestLog pid
   Other "inventory" -> sendPlayerInventory pid
   Other "arts" -> playerArts pid
+  Other "map" -> playerMapOverview pid
   -- Use item -> do
   --   -- Update player's inventory and apply item effects
   --   players . ix playerId %= updatePlayerAfterUsingItem item
@@ -183,6 +185,45 @@ playerView pid = do
     charActionText Attacking = "attack"
     charActionText Dialogue = "talk"
     charActionText Sparring = "sparring"
+
+playerMapOverview :: PlayerId -> GameStateT ()
+playerMapOverview pid = do
+  (curMapId, curPos) <- (^. playerPosition) <$> getsPlayer pid
+  currentMap <- liftWorld $ getsMap curMapId
+  let roomsByPos = currentMap ^. mapRooms
+  let roomSummaries =
+        [ MapRoomSummary
+            { mapRoomSummaryRoomId = room ^. roomId,
+              mapRoomSummaryRoomName = room ^. roomName,
+              mapRoomSummaryPosition = pos
+            }
+          | (pos, room) <- M.toList roomsByPos
+        ]
+  let edgeSummaries =
+        [ MapEdgeSummary
+            { mapEdgeSummaryDirection = direction,
+              mapEdgeSummaryFromPosition = pos,
+              mapEdgeSummaryToPosition = dstPos,
+              mapEdgeSummaryToRoomId = dstRoom ^. roomId
+            }
+          | (pos, room) <- M.toList roomsByPos,
+            (direction, dst) <- M.toList $ room ^. roomExits,
+            dst ^. roomRefMapId == curMapId,
+            let dstPos = dst ^. roomRefPos,
+            Just dstRoom <- [M.lookup dstPos roomsByPos]
+        ]
+  tell
+    [ ( pid,
+        MapOverviewMsg $
+          MapOverviewSummary
+            { mapOverviewSummaryMapId = curMapId,
+              mapOverviewSummaryMapName = currentMap ^. mapName,
+              mapOverviewSummaryCurrentPosition = curPos,
+              mapOverviewSummaryRooms = roomSummaries,
+              mapOverviewSummaryEdges = edgeSummaries
+            }
+      )
+    ]
 
 playerTalk :: PlayerId -> CharId -> GameStateT ()
 playerTalk pid target = do

@@ -28,6 +28,7 @@ main = do
   testDerivedStats
   testMoveUpdatesRoomOccupancy
   testCrossMapExitMovesPlayerBetweenMaps
+  testMapOverviewIncludesCurrentMapGraph
   testCannotAttackAcrossRooms
   testNpcBattleLockBlocksConcurrentAttackAndRespawns
   testDefeatDoesNotKillNpc
@@ -248,6 +249,35 @@ testCrossMapExitMovesPlayerBetweenMaps = do
     Nothing -> fail "tester missing after returning from cross-map movement"
     Just player ->
       assert ((player ^. playerPosition) == ("test_map", (2, 3))) "player did not return to the source map"
+
+testMapOverviewIncludesCurrentMapGraph :: IO ()
+testMapOverviewIncludesCurrentMapGraph = do
+  gs <- newTestPlayerState
+  (responses, _) <- runOk "map overview" gs (playerMapOverview "tester")
+  case [overview | (_, MapOverviewMsg overview) <- responses] of
+    [overview] -> do
+      assert (mapOverviewSummaryMapId overview == "test_map") "map overview did not use the player's current map"
+      assert (mapOverviewSummaryMapName overview == "冷雨客栈") "map overview did not include the map name"
+      assert (mapOverviewSummaryCurrentPosition overview == (3, 3)) "map overview did not include the player's current position"
+      assert
+        (map mapRoomSummaryRoomId (mapOverviewSummaryRooms overview) == ["cold_rain_woodshed", "cold_rain_ferry", "cold_rain_hall", "cold_rain_courtyard"])
+        "map overview did not include every room in coordinate order"
+      assert
+        (any
+          ( \edge ->
+              mapEdgeSummaryDirection edge == North
+                && mapEdgeSummaryFromPosition edge == (3, 3)
+                && mapEdgeSummaryToPosition edge == (3, 4)
+                && mapEdgeSummaryToRoomId edge == "cold_rain_hall"
+          )
+          (mapOverviewSummaryEdges overview)
+        )
+        "map overview did not include the north edge from the current room"
+      assert
+        (not $ any ((== (0, 0)) . mapEdgeSummaryToPosition) (mapOverviewSummaryEdges overview))
+        "map overview should not include cross-map edges in the current map graph"
+    [] -> fail "map overview did not send MapOverviewMsg"
+    _ -> fail "map overview sent multiple MapOverviewMsg responses"
 
 testCannotAttackAcrossRooms :: IO ()
 testCannotAttackAcrossRooms = do

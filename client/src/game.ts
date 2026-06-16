@@ -15,11 +15,13 @@ import type {
   EffectSummary,
   InventoryItemSummary,
   LoginEvent,
+  MapOverviewSummary,
   NetPlayerAction,
   PlayerAction,
   PlayerStatsPayload,
   QuestLogEntry,
   RewardSummary,
+  RoomPosition,
   RoomCharacterSummary,
   RoomExitSummary,
   ServerMessage
@@ -79,6 +81,7 @@ export interface GameState {
   money: number;
   stats: PlayerStats;
   room: RoomState;
+  mapOverview: MapOverviewSummary | null;
   effects: EffectSummary[];
   inventory: InventoryItemSummary[];
   quests: QuestLogEntry[];
@@ -112,6 +115,7 @@ const initialState: GameState = {
     vitality: 18
   },
   room: { name: "", desc: "", characters: [], exits: [] },
+  mapOverview: null,
   effects: [],
   inventory: [],
   quests: [],
@@ -237,6 +241,7 @@ export function connect(username: string, options: { reset?: boolean } = {}) {
       sendAction({ other: "quests" });
       sendAction({ other: "inventory" });
       sendAction({ other: "arts" });
+      sendAction({ other: "map" });
     }, 250);
   });
 
@@ -284,6 +289,9 @@ export function processServerMessage(message: ServerMessage | { tag: string; con
       break;
     case "ViewMsg":
       handleView(message.contents as [string, string, unknown[], unknown[]]);
+      break;
+    case "MapOverviewMsg":
+      handleMapOverview(message.contents);
       break;
     case "AttackMsg":
       handleAttack(message.contents as [string, string]);
@@ -357,11 +365,13 @@ export function processServerMessage(message: ServerMessage | { tag: string; con
 }
 
 function handleMove(room: string) {
+  const shouldRefreshMap = Boolean(latestState.mapOverview);
   game.update((state) => ({
     ...state,
     room: { ...state.room, name: room }
   }));
   addMessage("move", withLocale((locale) => t(locale, "message.move", { room })));
+  if (shouldRefreshMap) sendAction({ other: "map" });
 }
 
 function handleView(contents: [string, string, unknown[], unknown[]]) {
@@ -375,6 +385,12 @@ function handleView(contents: [string, string, unknown[], unknown[]]) {
       exits: normalizeExits(exits)
     }
   }));
+}
+
+function handleMapOverview(contents: unknown) {
+  const mapOverview = normalizeMapOverview(contents);
+  if (!mapOverview) return;
+  game.update((state) => ({ ...state, mapOverview }));
 }
 
 function handleAttack([attacker, defender]: [string, string]) {
@@ -655,6 +671,50 @@ function handleError(contents: { errorSummaryCode: string; errorSummaryParams: R
   addMessage("error", text);
 }
 
+function normalizeMapOverview(raw: unknown): MapOverviewSummary | null {
+  if (!raw || typeof raw !== "object") return null;
+
+  const obj = raw as Record<string, unknown>;
+  const roomsRaw = arrayValue(obj.rooms, obj.mapOverviewSummaryRooms);
+  const edgesRaw = arrayValue(obj.edges, obj.mapOverviewSummaryEdges);
+  const rooms: MapOverviewSummary["rooms"] = [];
+  const edges: MapOverviewSummary["edges"] = [];
+
+  for (const room of roomsRaw) {
+    if (!room || typeof room !== "object") continue;
+    const roomObj = room as Record<string, unknown>;
+    const position = normalizePosition(roomObj.position || roomObj.mapRoomSummaryPosition);
+    if (!position) continue;
+    rooms.push({
+      roomId: typeof roomObj.roomId === "string" ? roomObj.roomId : typeof roomObj.mapRoomSummaryRoomId === "string" ? roomObj.mapRoomSummaryRoomId : null,
+      roomName: String(roomObj.roomName || roomObj.mapRoomSummaryRoomName || ""),
+      position
+    });
+  }
+
+  for (const edge of edgesRaw) {
+    if (!edge || typeof edge !== "object") continue;
+    const edgeObj = edge as Record<string, unknown>;
+    const from = normalizePosition(edgeObj.from || edgeObj.mapEdgeSummaryFromPosition);
+    const to = normalizePosition(edgeObj.to || edgeObj.mapEdgeSummaryToPosition);
+    if (!from || !to) continue;
+    edges.push({
+      direction: normalizeDirection(String(edgeObj.direction || edgeObj.mapEdgeSummaryDirection || "")),
+      from,
+      to,
+      toRoomId: typeof edgeObj.toRoomId === "string" ? edgeObj.toRoomId : typeof edgeObj.mapEdgeSummaryToRoomId === "string" ? edgeObj.mapEdgeSummaryToRoomId : null
+    });
+  }
+
+  return {
+    mapId: String(obj.mapId || obj.mapOverviewSummaryMapId || ""),
+    mapName: String(obj.mapName || obj.mapOverviewSummaryMapName || ""),
+    currentPosition: normalizePosition(obj.currentPosition || obj.mapOverviewSummaryCurrentPosition),
+    rooms,
+    edges
+  };
+}
+
 function normalizeCharacters(chars: unknown[]): RoomCharacterSummary[] {
   return (chars || []).map((char) => {
     if (char && typeof char === "object") {
@@ -675,18 +735,41 @@ function normalizeExits(exits: unknown[]): RoomExitSummary[] {
   return (exits || [])
     .map((exit) => {
       if (typeof exit === "string") {
-        return { direction: normalizeDirection(exit), roomId: null, roomName: null, position: null };
+        return { direction: normalizeDirection(exit), mapId: null, roomId: null, roomName: null, position: null };
       }
       if (!exit || typeof exit !== "object") return null;
       const obj = exit as Record<string, unknown>;
       return {
         direction: normalizeDirection(String(obj.direction || obj.roomExitSummaryDirection || "")),
+        mapId: typeof obj.mapId === "string" ? obj.mapId : typeof obj.roomExitSummaryMapId === "string" ? obj.roomExitSummaryMapId : null,
         roomId: typeof obj.roomId === "string" ? obj.roomId : typeof obj.roomExitSummaryRoomId === "string" ? obj.roomExitSummaryRoomId : null,
         roomName: typeof obj.roomName === "string" ? obj.roomName : typeof obj.roomExitSummaryRoomName === "string" ? obj.roomExitSummaryRoomName : null,
         position: (obj.position || obj.roomExitSummaryPosition || null) as RoomExitSummary["position"]
       };
     })
     .filter((exit): exit is RoomExitSummary => Boolean(exit?.direction));
+}
+
+function normalizePosition(raw: unknown): RoomPosition | null {
+  if (Array.isArray(raw) && raw.length >= 2) {
+    const x = Number(raw[0]);
+    const y = Number(raw[1]);
+    return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
+  }
+  if (raw && typeof raw === "object") {
+    const position = raw as { x?: unknown; y?: unknown };
+    const x = Number(position.x);
+    const y = Number(position.y);
+    return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+  }
+  return null;
+}
+
+function arrayValue(...values: unknown[]) {
+  for (const value of values) {
+    if (Array.isArray(value)) return value;
+  }
+  return [];
 }
 
 export function normalizeDirection(direction: string): Direction {

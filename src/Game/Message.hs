@@ -214,6 +214,57 @@ instance ToJSON RoomExitSummary where
         "position" .= roomExitSummaryPosition
       ]
 
+data MapRoomSummary = MapRoomSummary
+  { mapRoomSummaryRoomId :: RoomId,
+    mapRoomSummaryRoomName :: T.Text,
+    mapRoomSummaryPosition :: (Int, Int)
+  }
+  deriving (Show, Eq, Generic)
+
+instance ToJSON MapRoomSummary where
+  toJSON MapRoomSummary {..} =
+    object
+      [ "roomId" .= mapRoomSummaryRoomId,
+        "roomName" .= mapRoomSummaryRoomName,
+        "position" .= mapRoomSummaryPosition
+      ]
+
+data MapEdgeSummary = MapEdgeSummary
+  { mapEdgeSummaryDirection :: Direction,
+    mapEdgeSummaryFromPosition :: (Int, Int),
+    mapEdgeSummaryToPosition :: (Int, Int),
+    mapEdgeSummaryToRoomId :: RoomId
+  }
+  deriving (Show, Eq, Generic)
+
+instance ToJSON MapEdgeSummary where
+  toJSON MapEdgeSummary {..} =
+    object
+      [ "direction" .= mapEdgeSummaryDirection,
+        "from" .= mapEdgeSummaryFromPosition,
+        "to" .= mapEdgeSummaryToPosition,
+        "toRoomId" .= mapEdgeSummaryToRoomId
+      ]
+
+data MapOverviewSummary = MapOverviewSummary
+  { mapOverviewSummaryMapId :: MapId,
+    mapOverviewSummaryMapName :: T.Text,
+    mapOverviewSummaryCurrentPosition :: (Int, Int),
+    mapOverviewSummaryRooms :: [MapRoomSummary],
+    mapOverviewSummaryEdges :: [MapEdgeSummary]
+  }
+  deriving (Show, Eq, Generic)
+
+instance ToJSON MapOverviewSummary where
+  toJSON MapOverviewSummary {..} =
+    object
+      [ "mapId" .= mapOverviewSummaryMapId,
+        "mapName" .= mapOverviewSummaryMapName,
+        "currentPosition" .= mapOverviewSummaryCurrentPosition,
+        "rooms" .= mapOverviewSummaryRooms,
+        "edges" .= mapOverviewSummaryEdges
+      ]
+
 data RewardSummary = RewardSummary
   { rewardSummaryKind :: T.Text,
     rewardSummaryId :: Maybe T.Text,
@@ -394,6 +445,7 @@ data ActionResp
   = MoveMsg T.Text
   -- | room name, room desc, visible characters, exits
   | ViewMsg T.Text T.Text [RoomCharacterSummary] [RoomExitSummary]
+  | MapOverviewMsg MapOverviewSummary
   -- | attacker, defender
   | AttackMsg T.Text T.Text
   | CombatEventMsg CombatEvent
