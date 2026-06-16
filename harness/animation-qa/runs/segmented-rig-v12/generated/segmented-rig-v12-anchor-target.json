@@ -1,0 +1,55 @@
+{
+  "reference": "harness/animation-qa/runs/segmented-rig-v12/generated/segmented-rig-v12-anchor-reference.png",
+  "canvas": {
+    "width": 256,
+    "height": 192,
+    "baseline": 176
+  },
+  "referenceMaskBBox": [
+    327,
+    280,
+    821,
+    948
+  ],
+  "referenceMaskCentroid": [
+    571.6671025406324,
+    600.1294776435114
+  ],
+  "transform": {
+    "scale": 0.2,
+    "offsetX": 13.666579491873506,
+    "offsetY": -13.6
+  },
+  "partPlacementsInReferencePixels": {
+    "ponytail": [
+      319,
+      263
+    ],
+    "head": [
+      506,
+      318
+    ],
+    "torso": [
+      505,
+      486
+    ],
+    "arm_back": [
+      435,
+      470
+    ],
+    "arm_front": [
+      573,
+      494
+    ],
+    "leg_back": [
+      374,
+      650
+    ],
+    "leg_front": [
+      560,
+      654
+    ]
+  },
+  "comparison": "harness/tmp/segmented-v12-anchor-target-comparison.png",
+  "notes": "The catalog v12 idle/bind baseline uses this transform and these target keypoint placements. All visual parts use one source scale of 0.2."
+}

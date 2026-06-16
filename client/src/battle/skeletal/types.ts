@@ -53,7 +53,7 @@ export interface MeshDeformKeypoint {
 }
 
 export interface MeshDeformDefinition {
-  keypoints: [MeshDeformKeypoint, MeshDeformKeypoint, MeshDeformKeypoint];
+  keypoints: MeshDeformKeypoint[];
   segments?: number;
 }
 
@@ -172,6 +172,7 @@ export interface ResolvedRig {
 }
 
 export interface SkeletalRenderOptions {
+  showStage: boolean;
   showBones: boolean;
   showAnchors: boolean;
   showBindings: boolean;

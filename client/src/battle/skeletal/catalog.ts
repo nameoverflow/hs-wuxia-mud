@@ -9,22 +9,43 @@ import type {
   SkeletonRigDefinition
 } from "./types";
 
-import segmentedArmBack from "../../assets/battle/actors/segmented/v4/arm_back.png";
-import segmentedArmFront from "../../assets/battle/actors/segmented/v4/arm_front.png";
-import segmentedHead from "../../assets/battle/actors/segmented/v4/head.png";
-import segmentedLegFront from "../../assets/battle/actors/segmented/v4/leg_front.png";
-import segmentedPonytail from "../../assets/battle/actors/segmented/v4/ponytail.png";
-import segmentedTorso from "../../assets/battle/actors/segmented/v4/torso.png";
+import segmentedArmBack from "../../assets/battle/actors/segmented/v12/arm_back.png";
+import segmentedArmFront from "../../assets/battle/actors/segmented/v12/arm_front.png";
+import segmentedHead from "../../assets/battle/actors/segmented/v12/head.png";
+import segmentedLegBack from "../../assets/battle/actors/segmented/v12/leg_back.png";
+import segmentedLegFront from "../../assets/battle/actors/segmented/v12/leg_front.png";
+import segmentedPonytail from "../../assets/battle/actors/segmented/v12/ponytail.png";
+import segmentedTorso from "../../assets/battle/actors/segmented/v12/torso.png";
 
 const canvas = { width: 256, height: 192, baseline: 176 };
 const spritePivotY = canvas.baseline / canvas.height;
 const profiles: VisualProfile[] = ["male", "female"];
-const segmentedTorsoScale = 0.14;
-const segmentedHeadScale = 0.09;
-const segmentedArmScale = 0.14;
-const segmentedBackArmScale = 0.14;
-const segmentedLegScale = 0.13;
-const segmentedPonytailScale = 0.095;
+const segmentedSourceScale = 0.2;
+const segmentedTorsoScale = segmentedSourceScale;
+const segmentedHeadScale = segmentedSourceScale;
+const segmentedArmScale = segmentedSourceScale;
+const segmentedBackArmScale = segmentedSourceScale;
+const segmentedFrontLegScale = segmentedSourceScale;
+const segmentedBackLegScale = segmentedSourceScale;
+const segmentedPonytailScale = segmentedSourceScale;
+const segmentedHipsX = 4.02;
+const segmentedHipsY = -37.325;
+const segmentedSpineLength = 50.271;
+const segmentedSpineRotation = -90.755;
+const segmentedHeadRotation = 90.755;
+const segmentedTorsoBindingRotation = 90.755;
+const segmentedFrontShoulderLength = 9.897;
+const segmentedRearShoulderLength = 7.286;
+const segmentedFrontHipLength = 9.839;
+const segmentedRearHipLength = 7.144;
+const segmentedFrontArmLength = 27.02;
+const segmentedRearArmLength = 30.84;
+const segmentedFrontHandLength = 10.413;
+const segmentedRearHandLength = 7.837;
+const segmentedFrontLegLength = 48.915;
+const segmentedRearLegLength = 49.789;
+const segmentedFrontFootLength = 10.276;
+const segmentedRearFootLength = 9.359;
 
 const bones: BoneDefinition[] = [
   { id: "root", name: "root", parentId: null, x: 128, y: 176, length: 0, rotation: 0, color: "#c8a75a" },
@@ -68,16 +89,22 @@ const anchors = [
 
 const segmentedBones: BoneDefinition[] = [
   { id: "root", name: "root", parentId: null, x: 128, y: 176, length: 0, rotation: 0, color: "#c8a75a" },
-  { id: "hips", name: "hips", parentId: "root", x: -2, y: -58, length: 0, rotation: 0, color: "#c8a75a" },
-  { id: "spine", name: "spine", parentId: "hips", x: 0, y: 0, length: 49, rotation: -90, color: "#54c6b1" },
-  { id: "head", name: "head", parentId: "spine", x: 49, y: 4, length: 0, rotation: 90, color: "#54c6b1" },
-  { id: "ponytailBase", name: "ponytail base", parentId: "head", x: -8, y: -8, length: 14, rotation: 178, color: "#c8a75a" },
-  { id: "ponytailTail", name: "ponytail tail", parentId: "ponytailBase", x: 14, y: 0, length: 32, rotation: 0, color: "#c8a75a" },
-  { id: "frontArm", name: "front arm", parentId: "spine", x: 34, y: 14, length: 45, rotation: 178, color: "#6b96d8" },
-  { id: "rearArm", name: "rear arm", parentId: "spine", x: 32, y: -9, length: 43, rotation: 184, color: "#6b96d8" },
-  { id: "frontLeg", name: "front leg", parentId: "hips", x: 7, y: 1, length: 58, rotation: 88, color: "#78b56b" },
-  { id: "rearLeg", name: "rear leg", parentId: "hips", x: -7, y: 1, length: 57, rotation: 94, color: "#78b56b" },
-  { id: "sword", name: "straight sword", parentId: "frontArm", x: 45, y: 0, length: 58, rotation: 0, color: "#d35d56" },
+  { id: "hips", name: "hips", parentId: "root", x: segmentedHipsX, y: segmentedHipsY, length: 0, rotation: 0, color: "#c8a75a" },
+  { id: "spine", name: "spine", parentId: "hips", x: 0, y: 0, length: segmentedSpineLength, rotation: segmentedSpineRotation, color: "#54c6b1" },
+  { id: "head", name: "head", parentId: "spine", x: segmentedSpineLength, y: 0, length: 0, rotation: segmentedHeadRotation, color: "#54c6b1" },
+  { id: "ponytailBase", name: "ponytail base", parentId: "head", x: -4.283, y: -32.373, length: 3.554, rotation: -131.016, color: "#c8a75a" },
+  { id: "ponytailMid", name: "ponytail mid", parentId: "ponytailBase", x: 3.554, y: 0, length: 13.056, rotation: -40.987, color: "#c8a75a" },
+  { id: "ponytailLower", name: "ponytail lower", parentId: "ponytailMid", x: 13.056, y: 0, length: 38.251, rotation: -84.092, color: "#c8a75a" },
+  { id: "ponytailTail", name: "ponytail tail", parentId: "ponytailLower", x: 38.251, y: 0, length: 27.699, rotation: 12.133, color: "#c8a75a" },
+  { id: "frontArmRoot", name: "front arm root", parentId: "spine", x: 47.668, y: 1.456, length: segmentedFrontShoulderLength, rotation: 126.712, color: "#6b96d8" },
+  { id: "frontArm", name: "front arm", parentId: "frontArmRoot", x: segmentedFrontShoulderLength, y: 0, length: segmentedFrontArmLength, rotation: -18.353, color: "#6b96d8" },
+  { id: "rearArmRoot", name: "rear arm root", parentId: "spine", x: 53.534, y: -2.64, length: segmentedRearShoulderLength, rotation: 243.39, color: "#6b96d8" },
+  { id: "rearArm", name: "rear arm", parentId: "rearArmRoot", x: segmentedRearShoulderLength, y: 0, length: segmentedRearArmLength, rotation: -35.941, color: "#6b96d8" },
+  { id: "frontLegRoot", name: "front leg root", parentId: "hips", x: -1.674, y: -13.951, length: segmentedFrontHipLength, rotation: 26.565, color: "#78b56b" },
+  { id: "frontLeg", name: "front leg", parentId: "frontLegRoot", x: segmentedFrontHipLength, y: 0, length: segmentedFrontLegLength, rotation: 32.176, color: "#78b56b" },
+  { id: "rearLegRoot", name: "rear leg root", parentId: "hips", x: -5.424, y: -17.604, length: segmentedRearHipLength, rotation: 135.019, color: "#78b56b" },
+  { id: "rearLeg", name: "rear leg", parentId: "rearLegRoot", x: segmentedRearHipLength, y: 0, length: segmentedRearLegLength, rotation: -18.768, color: "#78b56b" },
+  { id: "sword", name: "straight sword", parentId: "frontArm", x: 30.078, y: -9.953, length: 58, rotation: 0, color: "#d35d56" },
   { id: "impact", name: "impact", parentId: "root", x: 76, y: -86, length: 0, rotation: 0, color: "#d35d56" }
 ];
 
@@ -85,24 +112,34 @@ const segmentedAnchors = [
   { id: "root", name: "Root", boneId: "root", x: 0, y: 0, kind: "root" as const, color: "#c8a75a" },
   { id: "hips", name: "Hips", boneId: "hips", x: 0, y: 0, kind: "joint" as const, color: "#c8a75a", handleBoneId: "hips" },
   { id: "spineBase", name: "Spine base", boneId: "spine", x: 0, y: 0, kind: "joint" as const, color: "#54c6b1" },
-  { id: "chest", name: "Chest", boneId: "spine", x: 34, y: 2, kind: "joint" as const, color: "#54c6b1" },
-  { id: "neck", name: "Neck", boneId: "spine", x: 49, y: 4, kind: "joint" as const, color: "#54c6b1", handleBoneId: "spine" },
+  { id: "chest", name: "Chest", boneId: "spine", x: 28, y: 0, kind: "joint" as const, color: "#54c6b1" },
+  { id: "neck", name: "Neck", boneId: "spine", x: segmentedSpineLength, y: 0, kind: "joint" as const, color: "#54c6b1", handleBoneId: "spine" },
   { id: "head", name: "Head", boneId: "head", x: 0, y: 0, kind: "joint" as const, color: "#54c6b1" },
-  { id: "ponytailRoot", name: "Ponytail root", boneId: "head", x: -8, y: -8, kind: "joint" as const, color: "#c8a75a" },
-  { id: "ponytailMid", name: "Ponytail fixed base", boneId: "ponytailBase", x: 14, y: 0, kind: "joint" as const, color: "#c8a75a" },
-  { id: "ponytailTip", name: "Ponytail tip", boneId: "ponytailTail", x: 32, y: 0, kind: "socket" as const, color: "#c8a75a", handleBoneId: "ponytailTail" },
+  { id: "ponytailRoot", name: "Ponytail root", boneId: "head", x: -4.283, y: -32.373, kind: "joint" as const, color: "#c8a75a" },
+  { id: "ponytailBase", name: "Ponytail fixed base", boneId: "ponytailBase", x: 3.554, y: 0, kind: "joint" as const, color: "#c8a75a", handleBoneId: "ponytailBase" },
+  { id: "ponytailMid", name: "Ponytail mid", boneId: "ponytailMid", x: 13.056, y: 0, kind: "joint" as const, color: "#c8a75a", handleBoneId: "ponytailMid" },
+  { id: "ponytailLower", name: "Ponytail lower", boneId: "ponytailLower", x: 38.251, y: 0, kind: "joint" as const, color: "#c8a75a", handleBoneId: "ponytailLower" },
+  { id: "ponytailTip", name: "Ponytail tip", boneId: "ponytailTail", x: 27.699, y: 0, kind: "socket" as const, color: "#c8a75a", handleBoneId: "ponytailTail" },
+  { id: "frontArmRoot", name: "Front arm hidden root", boneId: "frontArmRoot", x: 0, y: 0, kind: "joint" as const, color: "#6b96d8", handleBoneId: "frontArmRoot" },
+  { id: "rearArmRoot", name: "Rear arm hidden root", boneId: "rearArmRoot", x: 0, y: 0, kind: "joint" as const, color: "#6b96d8", handleBoneId: "rearArmRoot" },
   { id: "frontShoulder", name: "Front shoulder", boneId: "frontArm", x: 0, y: 0, kind: "joint" as const, color: "#6b96d8", handleBoneId: "frontArm" },
-  { id: "frontElbow", name: "Front elbow", boneId: "frontArm", x: 23, y: 0, kind: "joint" as const, color: "#6b96d8" },
-  { id: "frontWrist", name: "Front wrist", boneId: "frontArm", x: 45, y: 0, kind: "socket" as const, color: "#6b96d8", handleBoneId: "frontArm" },
+  { id: "frontElbow", name: "Front elbow", boneId: "frontArm", x: 16.402, y: 9.891, kind: "joint" as const, color: "#6b96d8" },
+  { id: "frontWrist", name: "Front wrist", boneId: "frontArm", x: segmentedFrontArmLength, y: 0, kind: "socket" as const, color: "#6b96d8", handleBoneId: "frontArm" },
+  { id: "frontHand", name: "Front hand", boneId: "frontArm", x: 30.078, y: -9.953, kind: "socket" as const, color: "#6b96d8", handleBoneId: "frontArm" },
   { id: "rearShoulder", name: "Rear shoulder", boneId: "rearArm", x: 0, y: 0, kind: "joint" as const, color: "#6b96d8", handleBoneId: "rearArm" },
-  { id: "rearElbow", name: "Rear elbow", boneId: "rearArm", x: 22, y: 0, kind: "joint" as const, color: "#6b96d8" },
-  { id: "rearWrist", name: "Rear wrist", boneId: "rearArm", x: 43, y: 0, kind: "socket" as const, color: "#6b96d8", handleBoneId: "rearArm" },
+  { id: "rearElbow", name: "Rear elbow", boneId: "rearArm", x: 19.527, y: 4.843, kind: "joint" as const, color: "#6b96d8" },
+  { id: "rearWrist", name: "Rear wrist", boneId: "rearArm", x: segmentedRearArmLength, y: 0, kind: "socket" as const, color: "#6b96d8", handleBoneId: "rearArm" },
+  { id: "rearHand", name: "Rear hand", boneId: "rearArm", x: 35.732, y: -6.122, kind: "socket" as const, color: "#6b96d8", handleBoneId: "rearArm" },
+  { id: "frontLegRoot", name: "Front leg hidden root", boneId: "frontLegRoot", x: 0, y: 0, kind: "joint" as const, color: "#78b56b", handleBoneId: "frontLegRoot" },
+  { id: "rearLegRoot", name: "Rear leg hidden root", boneId: "rearLegRoot", x: 0, y: 0, kind: "joint" as const, color: "#78b56b", handleBoneId: "rearLegRoot" },
   { id: "frontHip", name: "Front hip", boneId: "frontLeg", x: 0, y: 0, kind: "joint" as const, color: "#78b56b", handleBoneId: "frontLeg" },
-  { id: "frontKnee", name: "Front knee", boneId: "frontLeg", x: 30, y: 0, kind: "joint" as const, color: "#78b56b" },
-  { id: "frontAnkle", name: "Front ankle", boneId: "frontLeg", x: 58, y: 0, kind: "socket" as const, color: "#78b56b", handleBoneId: "frontLeg" },
+  { id: "frontKnee", name: "Front knee", boneId: "frontLeg", x: 24.078, y: -5.988, kind: "joint" as const, color: "#78b56b" },
+  { id: "frontAnkle", name: "Front ankle", boneId: "frontLeg", x: segmentedFrontLegLength, y: 0, kind: "socket" as const, color: "#78b56b", handleBoneId: "frontLeg" },
+  { id: "frontFoot", name: "Front foot", boneId: "frontLeg", x: 55.801, y: -7.627, kind: "socket" as const, color: "#78b56b", handleBoneId: "frontLeg" },
   { id: "rearHip", name: "Rear hip", boneId: "rearLeg", x: 0, y: 0, kind: "joint" as const, color: "#78b56b", handleBoneId: "rearLeg" },
-  { id: "rearKnee", name: "Rear knee", boneId: "rearLeg", x: 29, y: 0, kind: "joint" as const, color: "#78b56b" },
-  { id: "rearAnkle", name: "Rear ankle", boneId: "rearLeg", x: 57, y: 0, kind: "socket" as const, color: "#78b56b", handleBoneId: "rearLeg" },
+  { id: "rearKnee", name: "Rear knee", boneId: "rearLeg", x: 25.417, y: 0.281, kind: "joint" as const, color: "#78b56b" },
+  { id: "rearAnkle", name: "Rear ankle", boneId: "rearLeg", x: segmentedRearLegLength, y: 0, kind: "socket" as const, color: "#78b56b", handleBoneId: "rearLeg" },
+  { id: "rearFoot", name: "Rear foot", boneId: "rearLeg", x: 47.358, y: -9.038, kind: "socket" as const, color: "#78b56b", handleBoneId: "rearLeg" },
   { id: "weaponGrip", name: "Weapon grip", boneId: "sword", x: 0, y: 0, kind: "socket" as const, color: "#d35d56" },
   { id: "weaponTip", name: "Weapon tip", boneId: "sword", x: 58, y: 0, kind: "target" as const, color: "#d35d56", handleBoneId: "sword" },
   { id: "impact", name: "Impact", boneId: "impact", x: 0, y: 0, kind: "target" as const, color: "#d35d56", handleBoneId: "impact" }
@@ -317,58 +354,20 @@ export const skeletalPoseLibrary: Record<string, SkeletalPoseDefinition> = {
   }
 };
 
-const segmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
+const rawSegmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
   bind: {
     id: "bind",
-    name: "Bind pose",
+    name: "Anchor reference",
     durationMs: 360,
-    bones: {
-      hips: { x: -2, y: -58 },
-      spine: { rotation: -90 },
-      head: { rotation: 90 },
-      ponytailBase: { rotation: 178 },
-      ponytailTail: { rotation: 0 },
-      frontArm: { rotation: 178 },
-      rearArm: { rotation: 184 },
-      frontLeg: { rotation: 88 },
-      rearLeg: { rotation: 94 }
-    },
-    anchors: {
-      frontElbow: { x: 23, y: 0 },
-      frontWrist: { x: 45, y: 0 },
-      rearElbow: { x: 22, y: 0 },
-      rearWrist: { x: 43, y: 0 },
-      frontKnee: { x: 30, y: 0 },
-      frontAnkle: { x: 58, y: 0 },
-      rearKnee: { x: 29, y: 0 },
-      rearAnkle: { x: 57, y: 0 }
-    }
+    bones: {},
+    anchors: {}
   },
   idle: {
     id: "idle",
-    name: "Idle",
+    name: "Anchor idle",
     durationMs: 420,
-    bones: {
-      hips: { x: -2, y: -58 },
-      spine: { rotation: -90 },
-      head: { rotation: 90 },
-      ponytailBase: { rotation: 178 },
-      ponytailTail: { rotation: 2 },
-      frontArm: { rotation: 178 },
-      rearArm: { rotation: 184 },
-      frontLeg: { rotation: 86 },
-      rearLeg: { rotation: 96 }
-    },
-    anchors: {
-      frontElbow: { x: 23, y: 0 },
-      frontWrist: { x: 45, y: 0 },
-      rearElbow: { x: 22, y: 0 },
-      rearWrist: { x: 43, y: 0 },
-      frontKnee: { x: 30, y: 0 },
-      frontAnkle: { x: 58, y: 0 },
-      rearKnee: { x: 29, y: 0 },
-      rearAnkle: { x: 57, y: 0 }
-    }
+    bones: {},
+    anchors: {}
   },
   windup: {
     id: "windup",
@@ -379,7 +378,7 @@ const segmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
       hips: { x: -3, y: -57 },
       spine: { rotation: -84 },
       head: { rotation: 84 },
-      ponytailBase: { rotation: 178 },
+      ponytailBase: { rotation: 128 },
       ponytailTail: { rotation: 10 },
       frontArm: { rotation: 112 },
       rearArm: { rotation: 122 },
@@ -406,7 +405,7 @@ const segmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
       hips: { x: -1, y: -58 },
       spine: { rotation: -100 },
       head: { rotation: 100 },
-      ponytailBase: { rotation: 178 },
+      ponytailBase: { rotation: 128 },
       ponytailTail: { rotation: -12 },
       frontArm: { rotation: 76 },
       rearArm: { rotation: 126 },
@@ -433,7 +432,7 @@ const segmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
       hips: { x: -2, y: -58 },
       spine: { rotation: -94 },
       head: { rotation: 94 },
-      ponytailBase: { rotation: 178 },
+      ponytailBase: { rotation: 128 },
       ponytailTail: { rotation: 6 },
       frontArm: { rotation: 94 },
       rearArm: { rotation: 112 },
@@ -459,7 +458,7 @@ const segmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
       root: { x: 126, y: 176 },
       spine: { rotation: -92 },
       head: { rotation: 92 },
-      ponytailBase: { rotation: 178 },
+      ponytailBase: { rotation: 128 },
       ponytailTail: { rotation: 4 },
       frontArm: { rotation: 82 },
       rearArm: { rotation: 120 },
@@ -485,7 +484,7 @@ const segmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
       root: { x: 112, y: 177 },
       spine: { rotation: -72 },
       head: { rotation: 72 },
-      ponytailBase: { rotation: 178 },
+      ponytailBase: { rotation: 128 },
       ponytailTail: { rotation: 26 },
       frontArm: { rotation: 130 },
       rearArm: { rotation: 142 },
@@ -512,7 +511,7 @@ const segmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
       hips: { x: -4, y: -54 },
       spine: { rotation: -78 },
       head: { rotation: 78 },
-      ponytailBase: { rotation: 178 },
+      ponytailBase: { rotation: 128 },
       ponytailTail: { rotation: 26 },
       frontArm: { rotation: 124 },
       rearArm: { rotation: 132 },
@@ -539,7 +538,7 @@ const segmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
       hips: { x: -2, y: -58 },
       spine: { rotation: -92 },
       head: { rotation: 92 },
-      ponytailBase: { rotation: 178 },
+      ponytailBase: { rotation: 128 },
       ponytailTail: { rotation: 4 },
       frontArm: { rotation: 104 },
       rearArm: { rotation: 178 },
@@ -570,7 +569,7 @@ const segmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
       hips: { x: -4, y: -57 },
       spine: { rotation: -82 },
       head: { rotation: 82 },
-      ponytailBase: { rotation: 178 },
+      ponytailBase: { rotation: 128 },
       ponytailTail: { rotation: 12 },
       frontArm: { rotation: 128 },
       rearArm: { rotation: 190 },
@@ -601,7 +600,7 @@ const segmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
       hips: { x: 0, y: -59 },
       spine: { rotation: -104 },
       head: { rotation: 98 },
-      ponytailBase: { rotation: 178 },
+      ponytailBase: { rotation: 128 },
       ponytailTail: { rotation: -10 },
       frontArm: { rotation: 88 },
       rearArm: { rotation: 172 },
@@ -632,7 +631,7 @@ const segmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
       hips: { x: -3, y: -57 },
       spine: { rotation: -82 },
       head: { rotation: 84 },
-      ponytailBase: { rotation: 178 },
+      ponytailBase: { rotation: 128 },
       ponytailTail: { rotation: 12 },
       frontArm: { rotation: 156 },
       rearArm: { rotation: 128 },
@@ -663,7 +662,7 @@ const segmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
       hips: { x: -1, y: -58 },
       spine: { rotation: -104 },
       head: { rotation: 98 },
-      ponytailBase: { rotation: 178 },
+      ponytailBase: { rotation: 128 },
       ponytailTail: { rotation: -8 },
       frontArm: { rotation: 84 },
       rearArm: { rotation: 128 },
@@ -694,7 +693,7 @@ const segmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
       hips: { x: -3, y: -57 },
       spine: { rotation: -84 },
       head: { rotation: 84 },
-      ponytailBase: { rotation: 178 },
+      ponytailBase: { rotation: 128 },
       ponytailTail: { rotation: 10 },
       frontArm: { rotation: 112 },
       rearArm: { rotation: 178 },
@@ -725,7 +724,7 @@ const segmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
       hips: { x: -1, y: -58 },
       spine: { rotation: -96 },
       head: { rotation: 94 },
-      ponytailBase: { rotation: 178 },
+      ponytailBase: { rotation: 128 },
       ponytailTail: { rotation: -6 },
       frontArm: { rotation: 66 },
       rearArm: { rotation: 146 },
@@ -756,7 +755,7 @@ const segmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
       hips: { x: -2, y: -58 },
       spine: { rotation: -94 },
       head: { rotation: 94 },
-      ponytailBase: { rotation: 178 },
+      ponytailBase: { rotation: 128 },
       ponytailTail: { rotation: 6 },
       frontArm: { rotation: 96 },
       rearArm: { rotation: 174 },
@@ -787,7 +786,7 @@ const segmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
       hips: { x: -3, y: -58 },
       spine: { rotation: -88 },
       head: { rotation: 88 },
-      ponytailBase: { rotation: 178 },
+      ponytailBase: { rotation: 128 },
       ponytailTail: { rotation: 8 },
       frontArm: { rotation: 128 },
       rearArm: { rotation: 184 },
@@ -818,7 +817,7 @@ const segmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
       hips: { x: -3, y: -57 },
       spine: { rotation: -72 },
       head: { rotation: 72 },
-      ponytailBase: { rotation: 178 },
+      ponytailBase: { rotation: 128 },
       ponytailTail: { rotation: 28 },
       frontArm: { rotation: 136 },
       rearArm: { rotation: 150 },
@@ -849,7 +848,7 @@ const segmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
       hips: { x: -5, y: -54 },
       spine: { rotation: -78 },
       head: { rotation: 78 },
-      ponytailBase: { rotation: 178 },
+      ponytailBase: { rotation: 128 },
       ponytailTail: { rotation: 30 },
       frontArm: { rotation: 124 },
       rearArm: { rotation: 184 },
@@ -873,16 +872,121 @@ const segmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
   }
 };
 
+const segmentedPoseLibrary = compactSegmentedPoseLibrary(rawSegmentedPoseLibrary);
+
+function compactSegmentedPoseLibrary(library: Record<string, SkeletalPoseDefinition>): Record<string, SkeletalPoseDefinition> {
+  return Object.fromEntries(
+    Object.entries(library).map(([id, pose]) => [
+      id,
+      {
+        ...pose,
+        bones: compactSegmentedBonePoses(pose.bones),
+        anchors: pose.anchors ? compactSegmentedAnchorPoses(pose.anchors) : undefined
+      }
+    ])
+  );
+}
+
+function compactSegmentedBonePoses(bones: SkeletalPoseDefinition["bones"]): SkeletalPoseDefinition["bones"] {
+  const compact = { ...bones };
+  if (compact.hips?.y !== undefined) {
+    compact.hips = { ...compact.hips, y: compactValue(compact.hips.y * (Math.abs(segmentedHipsY) / 58)) };
+  }
+  moveSegmentedLimbRotation(compact, "frontArm", "frontArmRoot");
+  moveSegmentedLimbRotation(compact, "rearArm", "rearArmRoot");
+  moveSegmentedLimbRotation(compact, "frontLeg", "frontLegRoot");
+  moveSegmentedLimbRotation(compact, "rearLeg", "rearLegRoot");
+  if (compact.sword) {
+    compact.sword = {
+      ...compact.sword,
+      ...(compact.sword.x === undefined ? {} : { x: compactValue(compact.sword.x * (segmentedFrontArmLength / 45)) }),
+      ...(compact.sword.y === undefined ? {} : { y: compactValue(compact.sword.y * (segmentedFrontArmLength / 45)) })
+    };
+  }
+  return compact;
+}
+
+function moveSegmentedLimbRotation(bones: SkeletalPoseDefinition["bones"], childId: string, rootId: string) {
+  const child = bones[childId];
+  if (!child?.rotation) return;
+  bones[rootId] = { ...(bones[rootId] || {}), rotation: child.rotation };
+  bones[childId] = { ...child, rotation: 0 };
+}
+
+function compactSegmentedAnchorPoses(
+  anchors: NonNullable<SkeletalPoseDefinition["anchors"]>
+): NonNullable<SkeletalPoseDefinition["anchors"]> {
+  const compact: NonNullable<SkeletalPoseDefinition["anchors"]> = {};
+  for (const [id, anchor] of Object.entries(anchors)) {
+    compact[id] = compactSegmentedAnchorPose(id, anchor);
+  }
+  extendSegmentedTerminalAnchor(compact, "frontElbow", "frontWrist", "frontHand", segmentedFrontHandLength);
+  extendSegmentedTerminalAnchor(compact, "rearElbow", "rearWrist", "rearHand", segmentedRearHandLength);
+  extendSegmentedTerminalAnchor(compact, "frontKnee", "frontAnkle", "frontFoot", segmentedFrontFootLength);
+  extendSegmentedTerminalAnchor(compact, "rearKnee", "rearAnkle", "rearFoot", segmentedRearFootLength);
+  return compact;
+}
+
+function extendSegmentedTerminalAnchor(
+  anchors: NonNullable<SkeletalPoseDefinition["anchors"]>,
+  previousId: string,
+  terminalBaseId: string,
+  terminalId: string,
+  length: number
+) {
+  if (anchors[terminalId] || !anchors[terminalBaseId]) return;
+  const previous = anchors[previousId] || { x: 0, y: 0 };
+  const terminalBase = anchors[terminalBaseId];
+  const baseX = terminalBase.x ?? 0;
+  const baseY = terminalBase.y ?? 0;
+  const previousX = previous.x ?? 0;
+  const previousY = previous.y ?? 0;
+  const dx = baseX - previousX;
+  const dy = baseY - previousY;
+  const distance = Math.hypot(dx, dy) || 1;
+  anchors[terminalId] = {
+    ...terminalBase,
+    x: compactValue(baseX + (dx / distance) * length),
+    y: compactValue(baseY + (dy / distance) * length)
+  };
+}
+
+function compactSegmentedAnchorPose(
+  id: string,
+  anchor: NonNullable<SkeletalPoseDefinition["anchors"]>[string]
+): NonNullable<SkeletalPoseDefinition["anchors"]>[string] {
+  const ratio =
+    id === "frontElbow" || id === "frontWrist" || id === "frontHand"
+      ? segmentedFrontArmLength / 45
+      : id === "rearElbow" || id === "rearWrist" || id === "rearHand"
+        ? segmentedRearArmLength / 43
+        : id === "frontKnee" || id === "frontAnkle" || id === "frontFoot"
+          ? segmentedFrontLegLength / 58
+          : id === "rearKnee" || id === "rearAnkle" || id === "rearFoot"
+            ? segmentedRearLegLength / 57
+            : 1;
+  if (ratio === 1) return anchor;
+  return {
+    ...anchor,
+    ...(anchor.x === undefined ? {} : { x: compactValue(anchor.x * ratio) }),
+    ...(anchor.y === undefined ? {} : { y: compactValue(anchor.y * ratio) })
+  };
+}
+
+function compactValue(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
 const segmentedBaseEntries: AnimationRigEntry[] = profiles.map((profile) => ({
-  id: `segmented.v4.${profile}`,
-  actionId: "segmented.v4",
-  clipId: "segmented-rig-v4",
-  label: `segmented rig v4 / ${profile}`,
+  id: `segmented.v12.${profile}`,
+  actionId: "segmented.v12",
+  clipId: "segmented-rig-v12",
+  label: `segmented rig v12 / ${profile}`,
   profile,
   style: "fist",
   poseId: "idle",
   sprite: null,
-  tags: ["segmented", "part-rig", "v4", profile],
+  tags: ["segmented", "part-rig", "v12", profile],
   durationMs: 1080
 }));
 
@@ -897,15 +1001,15 @@ const segmentedSwordActions = [
 
 const segmentedSwordEntries: AnimationRigEntry[] = segmentedSwordActions.flatMap((action) =>
   profiles.map((profile) => ({
-    id: `segmented.v4.sword.${action.id}.${profile}`,
-    actionId: `segmented.v4.sword.${action.id}`,
-    clipId: "segmented-rig-v4-sword",
+    id: `segmented.v12.sword.${action.id}.${profile}`,
+    actionId: `segmented.v12.sword.${action.id}`,
+    clipId: "segmented-rig-v12-sword",
     label: `${action.label} / ${profile}`,
     profile,
     style: "sword" as const,
     poseId: action.poseId,
     sprite: null,
-    tags: ["segmented", "part-rig", "v4", profile, "sword", ...action.tags],
+    tags: ["segmented", "part-rig", "v12", profile, "sword", ...action.tags],
     durationMs: action.durationMs
   }))
 );
@@ -964,104 +1068,147 @@ function segmentedBindingsForEntry(entry: AnimationRigEntry): BindingDefinition[
     partBinding(
       "part.leg_back",
       "rear leg",
-      "rearHip",
-      -18,
-      segmentedLegFront,
-      179,
-      455,
-      segmentedLegScale,
-      0.68,
-      0.09,
+      "rearLegRoot",
+      -32,
+      segmentedLegBack,
+      221,
+      314,
+      segmentedBackLegScale,
+      0.86264,
+      0.07438,
       1,
       -94,
-      limbMesh(179 * segmentedLegScale, 455 * segmentedLegScale, [
-        { anchorId: "rearHip", x: 0.68, y: 0.09, radius: 6.2, sourceRadius: 6.2 },
-        { anchorId: "rearKnee", x: 0.5, y: 0.5, radius: 6.4, sourceRadius: 6.4 },
-        { anchorId: "rearAnkle", x: 0.29, y: 0.9, radius: 6.8, sourceRadius: 6.8 }
-      ])
-    ),
-    partBinding(
-      "part.arm_back",
-      "rear arm",
-      "rearShoulder",
-      -14,
-      segmentedArmBack,
-      226,
-      341,
-      segmentedBackArmScale,
-      0.31,
-      0.12,
-      1,
-      -14,
-      limbMesh(226 * segmentedBackArmScale, 341 * segmentedBackArmScale, [
-        { anchorId: "rearShoulder", x: 0.31, y: 0.12, radius: 5.2, sourceRadius: 5.2 },
-        { anchorId: "rearElbow", x: 0.53, y: 0.49, radius: 5.3, sourceRadius: 5.3 },
-        { anchorId: "rearWrist", x: 0.75, y: 0.83, radius: 5.8, sourceRadius: 5.8 }
-      ])
-    ),
-    partBinding("part.torso", "torso", "spineBase", -8, segmentedTorso, 197, 377, segmentedTorsoScale, 0.5, 0.9, 1, 90),
-    partBinding(
-      "part.ponytail",
-      "ponytail",
-      "ponytailRoot",
-      -6,
-      segmentedPonytail,
-      187,
-      492,
-      segmentedPonytailScale,
-      0.72,
-      0.15,
-      ponytailOpacity,
-      0,
       limbMesh(
-        187 * segmentedPonytailScale,
-        492 * segmentedPonytailScale,
+        221 * segmentedBackLegScale,
+        314 * segmentedBackLegScale,
         [
-          { anchorId: "ponytailRoot", x: 0.72, y: 0.15, radius: 6.4 },
-          { anchorId: "ponytailMid", x: 0.42, y: 0.48, radius: 6.6 },
-          { anchorId: "ponytailTip", x: 0.28, y: 0.9, radius: 3.8 }
+          { anchorId: "rearLegRoot", x: 0.86264, y: 0.07438, radius: 5.4, sourceRadius: 5.4 },
+          { anchorId: "rearHip", x: 0.74831, y: 0.1548, radius: 4.8, sourceRadius: 4.8 },
+          { anchorId: "rearKnee", x: 0.48826, y: 0.5158, radius: 4.2, sourceRadius: 4.2 },
+          { anchorId: "rearAnkle", x: 0.25008, y: 0.86585, radius: 4.8, sourceRadius: 4.8 },
+          { anchorId: "rearFoot", x: 0.4578, y: 0.89478, radius: 5.2, sourceRadius: 5.2 }
         ],
         18
       )
     ),
-    partBinding("part.head", "head", "head", -4, segmentedHead, 259, 287, segmentedHeadScale, 0.5, 0.88, 1),
+    partBinding(
+      "part.arm_back",
+      "rear arm",
+      "rearArmRoot",
+      -30,
+      segmentedArmBack,
+      164,
+      238,
+      segmentedBackArmScale,
+      0.8539,
+      0.10044,
+      1,
+      -14,
+      limbMesh(
+        164 * segmentedBackArmScale,
+        238 * segmentedBackArmScale,
+        [
+          { anchorId: "rearArmRoot", x: 0.8539, y: 0.10044, radius: 4.8, sourceRadius: 4.8 },
+          { anchorId: "rearShoulder", x: 0.65662, y: 0.1708, radius: 4.4, sourceRadius: 4.4 },
+          { anchorId: "rearElbow", x: 0.25726, y: 0.4916, radius: 3.8, sourceRadius: 3.8 },
+          { anchorId: "rearWrist", x: 0.23424, y: 0.74964, radius: 4.3, sourceRadius: 4.3 },
+          { anchorId: "rearHand", x: 0.334, y: 0.89925, radius: 5.1, sourceRadius: 5.1 }
+        ],
+        18
+      )
+    ),
+    partBinding(
+      "part.torso",
+      "torso",
+      "spineBase",
+      -34,
+      segmentedTorso,
+      150,
+      299,
+      segmentedTorsoScale,
+      0.57844,
+      0.99,
+      1,
+      segmentedTorsoBindingRotation
+    ),
+    partBinding(
+      "part.ponytail",
+      "ponytail",
+      "ponytailRoot",
+      -24,
+      segmentedPonytail,
+      278,
+      475,
+      segmentedPonytailScale,
+      0.89223,
+      0.17931,
+      ponytailOpacity,
+      0,
+      limbMesh(
+        278 * segmentedPonytailScale,
+        475 * segmentedPonytailScale,
+        [
+          { anchorId: "ponytailRoot", x: 0.89223, y: 0.17931, radius: 3.4, sourceRadius: 3.4 },
+          { anchorId: "ponytailBase", x: 0.85028, y: 0.15109, radius: 3.2, sourceRadius: 3.2 },
+          { anchorId: "ponytailMid", x: 0.61775, y: 0.13197, radius: 4.7, sourceRadius: 4.7 },
+          { anchorId: "ponytailLower", x: 0.45242, y: 0.52281, radius: 5.2, sourceRadius: 5.2 },
+          { anchorId: "ponytailTip", x: 0.23373, y: 0.78479, radius: 3.2, sourceRadius: 3.2 }
+        ],
+        18
+      )
+    ),
+    partBinding("part.head", "head", "head", -2, segmentedHead, 184, 217, segmentedHeadScale, 0.45755, 0.845, 1),
     partBinding(
       "part.leg_front",
       "front leg",
-      "frontHip",
-      4,
+      "frontLegRoot",
+      -8,
       segmentedLegFront,
-      179,
-      455,
-      segmentedLegScale,
-      0.68,
-      0.09,
+      269,
+      310,
+      segmentedFrontLegScale,
+      0.08697,
+      0.12136,
       1,
       -88,
-      limbMesh(179 * segmentedLegScale, 455 * segmentedLegScale, [
-        { anchorId: "frontHip", x: 0.68, y: 0.09, radius: 6.2, sourceRadius: 6.2 },
-        { anchorId: "frontKnee", x: 0.5, y: 0.5, radius: 6.4, sourceRadius: 6.4 },
-        { anchorId: "frontAnkle", x: 0.29, y: 0.9, radius: 6.8, sourceRadius: 6.8 }
-      ])
+      limbMesh(
+        269 * segmentedFrontLegScale,
+        310 * segmentedFrontLegScale,
+        [
+          { anchorId: "frontLegRoot", x: 0.08697, y: 0.12136, radius: 5.4, sourceRadius: 5.4 },
+          { anchorId: "frontHip", x: 0.25054, y: 0.19233, radius: 4.8, sourceRadius: 4.8 },
+          { anchorId: "frontKnee", x: 0.57791, y: 0.47419, radius: 4.2, sourceRadius: 4.2 },
+          { anchorId: "frontAnkle", x: 0.72233, y: 0.86675, radius: 4.8, sourceRadius: 4.8 },
+          { anchorId: "frontFoot", x: 0.90994, y: 0.89786, radius: 5.2, sourceRadius: 5.2 }
+        ],
+        18
+      )
     ),
     partBinding(
       "part.arm_front",
       "front arm",
-      "frontShoulder",
-      8,
+      "frontArmRoot",
+      -6,
       segmentedArmFront,
-      220,
-      347,
+      249,
+      181,
       segmentedArmScale,
-      0.31,
-      0.12,
+      0.09199,
+      0.16001,
       1,
       -8,
-      limbMesh(220 * segmentedArmScale, 347 * segmentedArmScale, [
-        { anchorId: "frontShoulder", x: 0.31, y: 0.12, radius: 5.2, sourceRadius: 5.2 },
-        { anchorId: "frontElbow", x: 0.53, y: 0.49, radius: 5.3, sourceRadius: 5.3 },
-        { anchorId: "frontWrist", x: 0.75, y: 0.84, radius: 5.8, sourceRadius: 5.8 }
-      ])
+      limbMesh(
+        249 * segmentedArmScale,
+        181 * segmentedArmScale,
+        [
+          { anchorId: "frontArmRoot", x: 0.09199, y: 0.16001, radius: 4.8, sourceRadius: 4.8 },
+          { anchorId: "frontShoulder", x: 0.25285, y: 0.32054, radius: 4.4, sourceRadius: 4.4 },
+          { anchorId: "frontElbow", x: 0.50672, y: 0.71801, radius: 3.8, sourceRadius: 3.8 },
+          { anchorId: "frontWrist", x: 0.77001, y: 0.54628, radius: 4.3, sourceRadius: 4.3 },
+          { anchorId: "frontHand", x: 0.88899, y: 0.30976, radius: 5.1, sourceRadius: 5.1 }
+        ],
+        18
+      )
     ),
     debugBinding("prop.sword", "straight sword", "line", "weaponGrip", 18, 0, 0, 0, swordOpacity, 58, 3.6, "rgba(232, 227, 208, 0.98)"),
     debugBinding("target.impact", "impact target", "target", "impact", 40, 0, 0, 0, 0.78, 18, 18, "rgba(211, 93, 86, 0.88)")
@@ -1109,11 +1256,7 @@ function partBinding(
 function limbMesh(
   width: number,
   height: number,
-  keypoints: [
-    { anchorId: string; x: number; y: number; radius: number; sourceRadius?: number },
-    { anchorId: string; x: number; y: number; radius: number; sourceRadius?: number },
-    { anchorId: string; x: number; y: number; radius: number; sourceRadius?: number }
-  ],
+  keypoints: { anchorId: string; x: number; y: number; radius: number; sourceRadius?: number }[],
   segments?: number
 ): MeshDeformDefinition {
   const deform: MeshDeformDefinition = {
@@ -1123,7 +1266,7 @@ function limbMesh(
       sourceY: keypoint.y * height,
       radius: keypoint.radius,
       ...(keypoint.sourceRadius === undefined ? {} : { sourceRadius: keypoint.sourceRadius })
-    })) as MeshDeformDefinition["keypoints"]
+    }))
   };
   if (segments !== undefined) deform.segments = segments;
   return deform;

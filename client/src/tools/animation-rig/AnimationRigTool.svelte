@@ -92,7 +92,21 @@
   $: selectedAnchor = resolvedRig?.anchorsById[selectedAnchorId] || null;
   $: selectedBinding = resolvedRig?.bindingsById[selectedBindingId] || null;
   $: exportText = makeExportText(selectedEntry, selectedPoseId, overrides);
-  $: if (resolvedRig && canvasEl && !isPlaying) queueDraw();
+  $: renderInvalidationKey = [
+    showBones,
+    showAnchors,
+    showBindings,
+    showImages,
+    showSkin,
+    showLabels,
+    selectedBoneId,
+    selectedAnchorId,
+    selectedBindingId,
+    zoom,
+    viewportPan.x,
+    viewportPan.y
+  ].join(":");
+  $: if (resolvedRig && canvasEl && !isPlaying && renderInvalidationKey) queueDraw();
 
   onMount(() => {
     renderer = new SkeletalCanvasRenderer(queueDraw);
@@ -377,8 +391,10 @@
     const chain = deformChainForAnchor(anchorId);
     if (!chain) return false;
     const anchors = chain.anchorIds.map((id) => resolvedRig?.anchorsById[id]).filter((anchor) => !!anchor);
-    if (anchors.length !== 3) return false;
     const points = anchors.map((anchor) => anchor.position);
+    if (anchors.length === 5) return applyConstrainedFivePointDrag(chain.anchorIds, chain.index, points, point);
+    if (anchors.length === 4) return applyConstrainedFourPointDrag(chain.anchorIds, chain.index, points, point);
+    if (anchors.length !== 3) return false;
     const upperLength = Math.max(0.1, distance(points[0], points[1]));
     const lowerLength = Math.max(0.1, distance(points[1], points[2]));
 
@@ -403,6 +419,114 @@
     setPoseAnchorWorldOverrides({
       [chain.anchorIds[1]]: solution.mid,
       [chain.anchorIds[2]]: solution.end
+    });
+    return true;
+  }
+
+  function applyConstrainedFivePointDrag(anchorIds: string[], index: number, points: Vec2[], point: Vec2) {
+    const rootLength = Math.max(0.1, distance(points[0], points[1]));
+    const upperLength = Math.max(0.1, distance(points[1], points[2]));
+    const lowerLength = Math.max(0.1, distance(points[2], points[3]));
+    const terminalLength = Math.max(0.1, distance(points[3], points[4]));
+
+    if (index === 0) {
+      const delta = { x: point.x - points[0].x, y: point.y - points[0].y };
+      setPoseAnchorWorldOverrides({
+        [anchorIds[0]]: point,
+        [anchorIds[1]]: { x: points[1].x + delta.x, y: points[1].y + delta.y },
+        [anchorIds[2]]: { x: points[2].x + delta.x, y: points[2].y + delta.y },
+        [anchorIds[3]]: { x: points[3].x + delta.x, y: points[3].y + delta.y },
+        [anchorIds[4]]: { x: points[4].x + delta.x, y: points[4].y + delta.y }
+      });
+      return true;
+    }
+
+    if (index === 1) {
+      const direction = directionBetween(points[0], point, directionBetween(points[0], points[1], { x: 1, y: 0 }));
+      const shoulder = {
+        x: points[0].x + direction.x * rootLength,
+        y: points[0].y + direction.y * rootLength
+      };
+      const delta = { x: shoulder.x - points[1].x, y: shoulder.y - points[1].y };
+      setPoseAnchorWorldOverrides({
+        [anchorIds[1]]: shoulder,
+        [anchorIds[2]]: { x: points[2].x + delta.x, y: points[2].y + delta.y },
+        [anchorIds[3]]: { x: points[3].x + delta.x, y: points[3].y + delta.y },
+        [anchorIds[4]]: { x: points[4].x + delta.x, y: points[4].y + delta.y }
+      });
+      return true;
+    }
+
+    if (index === 2) {
+      setPoseAnchorWorldOverrides({
+        [anchorIds[2]]: solveConstrainedMidpoint(points[1], points[3], upperLength, lowerLength, point)
+      });
+      return true;
+    }
+
+    if (index === 3) {
+      const solution = solveTwoBoneIk(points[1], point, upperLength, lowerLength, points[2]);
+      const delta = { x: solution.end.x - points[3].x, y: solution.end.y - points[3].y };
+      setPoseAnchorWorldOverrides({
+        [anchorIds[2]]: solution.mid,
+        [anchorIds[3]]: solution.end,
+        [anchorIds[4]]: { x: points[4].x + delta.x, y: points[4].y + delta.y }
+      });
+      return true;
+    }
+
+    const terminalDirection = directionBetween(points[3], point, directionBetween(points[3], points[4], directionBetween(points[2], points[3], { x: 1, y: 0 })));
+    setPoseAnchorWorldOverrides({
+      [anchorIds[4]]: {
+        x: points[3].x + terminalDirection.x * terminalLength,
+        y: points[3].y + terminalDirection.y * terminalLength
+      }
+    });
+    return true;
+  }
+
+  function applyConstrainedFourPointDrag(anchorIds: string[], index: number, points: Vec2[], point: Vec2) {
+    const rootLength = Math.max(0.1, distance(points[0], points[1]));
+    const upperLength = Math.max(0.1, distance(points[1], points[2]));
+    const lowerLength = Math.max(0.1, distance(points[2], points[3]));
+
+    if (index === 0) {
+      const delta = { x: point.x - points[0].x, y: point.y - points[0].y };
+      setPoseAnchorWorldOverrides({
+        [anchorIds[0]]: point,
+        [anchorIds[1]]: { x: points[1].x + delta.x, y: points[1].y + delta.y },
+        [anchorIds[2]]: { x: points[2].x + delta.x, y: points[2].y + delta.y },
+        [anchorIds[3]]: { x: points[3].x + delta.x, y: points[3].y + delta.y }
+      });
+      return true;
+    }
+
+    if (index === 1) {
+      const direction = directionBetween(points[0], point, directionBetween(points[0], points[1], { x: 1, y: 0 }));
+      const shoulder = {
+        x: points[0].x + direction.x * rootLength,
+        y: points[0].y + direction.y * rootLength
+      };
+      const delta = { x: shoulder.x - points[1].x, y: shoulder.y - points[1].y };
+      setPoseAnchorWorldOverrides({
+        [anchorIds[1]]: shoulder,
+        [anchorIds[2]]: { x: points[2].x + delta.x, y: points[2].y + delta.y },
+        [anchorIds[3]]: { x: points[3].x + delta.x, y: points[3].y + delta.y }
+      });
+      return true;
+    }
+
+    if (index === 2) {
+      setPoseAnchorWorldOverrides({
+        [anchorIds[2]]: solveConstrainedMidpoint(points[1], points[3], upperLength, lowerLength, point)
+      });
+      return true;
+    }
+
+    const solution = solveTwoBoneIk(points[1], point, upperLength, lowerLength, points[2]);
+    setPoseAnchorWorldOverrides({
+      [anchorIds[2]]: solution.mid,
+      [anchorIds[3]]: solution.end
     });
     return true;
   }
@@ -843,7 +967,7 @@
 
         <label><input type="checkbox" bind:checked={showImages} /> Source</label>
         <label><input type="checkbox" bind:checked={showSkin} /> Skin</label>
-        <label><input type="checkbox" bind:checked={showBones} /> Bones</label>
+        <label><input type="checkbox" bind:checked={showBones} /> Skeleton</label>
         <label><input type="checkbox" bind:checked={showAnchors} /> Anchors</label>
         <label><input type="checkbox" bind:checked={showBindings} /> Bindings</label>
         <label><input type="checkbox" bind:checked={showLabels} /> Labels</label>
@@ -864,7 +988,7 @@
 
       <div class="rig-status-row">
         <span>Anchor: {selectedAnchor?.id || "-"}</span>
-        <span>Bone: {selectedBone?.id || "-"}</span>
+        <span>Pose bone: {selectedBone?.id || "-"}</span>
         <span>Binding: {selectedBinding?.id || "-"}</span>
         <span>View: {zoom.toFixed(2)}x / {Math.round(viewportPan.x)}, {Math.round(viewportPan.y)}</span>
       </div>
@@ -884,7 +1008,7 @@
         </div>
 
         <label class="rig-field">
-          Bone
+          Pose bone
           <select bind:value={selectedBoneId}>
             {#each resolvedRig?.bones || [] as bone (bone.id)}
               <option value={bone.id}>{bone.id}</option>

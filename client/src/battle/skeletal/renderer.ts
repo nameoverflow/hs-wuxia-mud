@@ -2,6 +2,7 @@ import { screenToRig } from "./math";
 import type { Mat2D, ResolvedBinding, ResolvedRig, RigViewport, SkeletalRenderOptions, Vec2 } from "./types";
 
 const defaultOptions: SkeletalRenderOptions = {
+  showStage: true,
   showBones: true,
   showAnchors: true,
   showBindings: true,
@@ -22,6 +23,11 @@ export class SkeletalCanvasRenderer {
     this.onAssetLoad = onAssetLoad;
   }
 
+  async preloadImages(srcs: Array<string | undefined>): Promise<void> {
+    const images = srcs.map((src) => this.loadImage(src)).filter((image): image is HTMLImageElement => !!image);
+    await Promise.all(images.map((image) => waitForImage(image)));
+  }
+
   render(ctx: CanvasRenderingContext2D, rig: ResolvedRig, options: Partial<SkeletalRenderOptions> = {}): RigViewport {
     const merged = { ...defaultOptions, ...options };
     const viewport = fitRigViewport(ctx.canvas.width, ctx.canvas.height, rig.definition.canvas, merged.zoom ?? 1);
@@ -30,20 +36,25 @@ export class SkeletalCanvasRenderer {
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    ctx.fillStyle = merged.background || "#070808";
-    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    drawGrid(ctx, viewport, rig.definition.canvas);
+    if (merged.showStage) {
+      ctx.fillStyle = merged.background || "#070808";
+      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      drawGrid(ctx, viewport, rig.definition.canvas);
+    } else if (merged.background && merged.background !== "transparent") {
+      ctx.fillStyle = merged.background;
+      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    }
     ctx.setTransform(viewport.scale, 0, 0, viewport.scale, viewport.offsetX, viewport.offsetY);
-    drawStage(ctx, rig, viewport);
+    if (merged.showStage) drawStage(ctx, rig, viewport);
 
     for (const binding of rig.bindings) {
-      if ((binding.definition.kind === "image" || binding.definition.kind === "mesh") && !merged.showImages) continue;
+      if (binding.definition.tags?.includes("source") && !merged.showImages) continue;
       if (binding.definition.tags?.includes("skin") && !merged.showSkin) continue;
       drawBinding(ctx, rig, binding, viewport, merged, this.loadImage(binding.definition.image));
     }
 
     if (merged.showBindings) drawBindingLinks(ctx, rig, viewport, merged);
-    if (merged.showBones) drawBones(ctx, rig, viewport, merged);
+    if (merged.showBones) drawSkeletonGuides(ctx, rig, viewport, merged);
     if (merged.showAnchors) drawAnchors(ctx, rig, viewport, merged);
 
     ctx.restore();
@@ -60,6 +71,22 @@ export class SkeletalCanvasRenderer {
     this.images.set(src, image);
     return image;
   }
+}
+
+function waitForImage(image: HTMLImageElement): Promise<void> {
+  if (image.complete && image.naturalWidth > 0) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const previousLoad = image.onload;
+    const previousError = image.onerror;
+    image.onload = (event) => {
+      if (typeof previousLoad === "function") previousLoad.call(image, event);
+      resolve();
+    };
+    image.onerror = (event) => {
+      if (typeof previousError === "function") previousError.call(image, event);
+      reject(new Error("Failed to load skeletal render image"));
+    };
+  });
 }
 
 export function fitRigViewport(
@@ -217,7 +244,7 @@ function drawMeshBinding(
   const targetRibbon = targetSamples.map((sample) => ribbonPoint(sample.point, sample.tangent, sample.radius));
 
   if (image?.complete && image.naturalWidth > 0) {
-    const alphaMesh = buildAlphaContourMesh(image, def.width, def.height, sourceCenters, targetCenters, sourceRadii, radii, deform.segments);
+    const alphaMesh = buildSkeletonWarpMesh(image, def.width, def.height, sourceCenters, targetCenters, sourceRadii, radii, deform.segments);
     if (alphaMesh) {
       drawTexturedGridTriangles(ctx, image, def.width, def.height, alphaMesh);
       return;
@@ -255,9 +282,10 @@ function drawTexturedRibbonTriangles(
   }
 }
 
-interface TexturedGridMesh {
+export interface TexturedGridMesh {
   sourceRows: Vec2[][];
   targetRows: Vec2[][];
+  mask?: ImageAlphaMask;
 }
 
 function drawTexturedGridTriangles(ctx: CanvasRenderingContext2D, image: HTMLImageElement, width: number, height: number, mesh: TexturedGridMesh) {
@@ -277,14 +305,14 @@ function drawTexturedGridTriangles(ctx: CanvasRenderingContext2D, image: HTMLIma
       const d1 = targetNext[column];
       const d2 = targetRow[column + 1];
       const d3 = targetNext[column + 1];
-      drawTexturedTriangle(ctx, image, width, height, s0, s1, s2, d0, d1, d2);
-      drawTexturedTriangle(ctx, image, width, height, s2, s1, s3, d2, d1, d3);
+      if (!mesh.mask || sourceTriangleHasAlpha(mesh.mask, s0, s1, s2)) drawTexturedTriangle(ctx, image, width, height, s0, s1, s2, d0, d1, d2);
+      if (!mesh.mask || sourceTriangleHasAlpha(mesh.mask, s2, s1, s3)) drawTexturedTriangle(ctx, image, width, height, s2, s1, s3, d2, d1, d3);
     }
   }
 }
 
-function buildAlphaContourMesh(
-  image: HTMLImageElement,
+export function buildSkeletonWarpMesh(
+  image: HTMLImageElement | null,
   width: number,
   height: number,
   sourceCenters: Vec2[],
@@ -293,101 +321,115 @@ function buildAlphaContourMesh(
   targetRadii: number[],
   segmentCount = 12
 ): TexturedGridMesh | null {
-  const mask = getImageAlphaMask(image, width, height);
-  if (!mask || sourceCenters.length !== 3 || targetCenters.length !== 3) return null;
-  const rows = pairedContourSamples(mask, sourceCenters, targetCenters, sourceRadii, targetRadii, segmentCount);
-  if (rows.length < 2) return null;
-
-  const sourceRows: Vec2[][] = [];
-  const targetRows: Vec2[][] = [];
-  const columnCount = 7;
-  for (const row of rows) {
-    const sourceNormal = normalForTangent(row.source.tangent);
-    const targetNormal = normalForTangent(row.target.tangent);
-    const span = alphaSpanAlongNormal(mask, row.source.point, sourceNormal) || {
-      start: -row.source.radius,
-      end: row.source.radius
-    };
-    sourceRows.push(sampleMeshRow(row.source.point, sourceNormal, span.start, span.end, columnCount));
-    targetRows.push(sampleMeshRow(row.target.point, targetNormal, span.start, span.end, columnCount));
-  }
-
-  return { sourceRows, targetRows };
-}
-
-function sampleMeshRow(center: Vec2, normal: Vec2, start: number, end: number, columnCount: number) {
-  const row: Vec2[] = [];
-  for (let column = 0; column < columnCount; column += 1) {
-    const t = column / Math.max(1, columnCount - 1);
-    const offset = start + (end - start) * t;
-    row.push({ x: center.x + normal.x * offset, y: center.y + normal.y * offset });
-  }
-  return row;
-}
-
-function pairedContourSamples(
-  mask: ImageAlphaMask,
-  sourceCenters: Vec2[],
-  targetCenters: Vec2[],
-  sourceRadii: number[],
-  targetRadii: number[],
-  segmentCount: number
-) {
+  const mask = image ? getImageAlphaMask(image, width, height) : undefined;
+  if ((image && !mask) || sourceCenters.length < 2 || sourceCenters.length !== targetCenters.length) return null;
   const sourceSamples = ribbonSamples(sourceCenters, sourceRadii, segmentCount);
   const targetSamples = ribbonSamples(targetCenters, targetRadii, segmentCount);
-  const samples = sourceSamples.map((source, index) => ({ source, target: targetSamples[index] })).filter((row) => row.target);
-  const sourceStartDirection = normalizeVector({ x: sourceCenters[1].x - sourceCenters[0].x, y: sourceCenters[1].y - sourceCenters[0].y });
-  const sourceEndDirection = normalizeVector({ x: sourceCenters[2].x - sourceCenters[1].x, y: sourceCenters[2].y - sourceCenters[1].y });
-  const targetStartDirection = normalizeVector({ x: targetCenters[1].x - targetCenters[0].x, y: targetCenters[1].y - targetCenters[0].y });
-  const targetEndDirection = normalizeVector({ x: targetCenters[2].x - targetCenters[1].x, y: targetCenters[2].y - targetCenters[1].y });
-  const startScale = safeRatio(distanceBetween(targetCenters[0], targetCenters[1]), distanceBetween(sourceCenters[0], sourceCenters[1]));
-  const endScale = safeRatio(distanceBetween(targetCenters[2], targetCenters[1]), distanceBetween(sourceCenters[2], sourceCenters[1]));
-  const startExtension = alphaExtensionAlongTangent(mask, sourceCenters[0], sourceStartDirection, -1, sourceRadii[0]);
-  const endExtension = alphaExtensionAlongTangent(mask, sourceCenters[2], sourceEndDirection, 1, sourceRadii[2]);
+  const sampleCount = Math.min(sourceSamples.length, targetSamples.length);
+  if (sampleCount < 2) return null;
+  const sourcePath = sourceSamples.slice(0, sampleCount);
+  const targetPath = targetSamples.slice(0, sampleCount);
+  const sourceRows: Vec2[][] = [];
+  const targetRows: Vec2[][] = [];
+  const columnCount = Math.max(5, Math.min(28, Math.ceil(width / 3.5) + 1));
+  const rowCount = Math.max(5, Math.min(38, Math.ceil(height / 3.5) + 1));
 
-  return [
-    ...extensionSamples(sourceCenters[0], targetCenters[0], sourceStartDirection, targetStartDirection, sourceRadii[0], targetRadii[0], startExtension, startScale, -1, true),
-    ...samples,
-    ...extensionSamples(sourceCenters[2], targetCenters[2], sourceEndDirection, targetEndDirection, sourceRadii[2], targetRadii[2], endExtension, endScale, 1, false)
-  ];
+  for (let row = 0; row < rowCount; row += 1) {
+    const sourceRow: Vec2[] = [];
+    const targetRow: Vec2[] = [];
+    const y = (height * row) / Math.max(1, rowCount - 1);
+    for (let column = 0; column < columnCount; column += 1) {
+      const source = {
+        x: (width * column) / Math.max(1, columnCount - 1),
+        y
+      };
+      sourceRow.push(source);
+      targetRow.push(mapSourcePointToTargetPath(source, sourcePath, targetPath));
+    }
+    sourceRows.push(sourceRow);
+    targetRows.push(targetRow);
+  }
+
+  return { sourceRows, targetRows, ...(mask ? { mask } : {}) };
 }
 
-function extensionSamples(
-  sourceCenter: Vec2,
-  targetCenter: Vec2,
-  sourceDirection: Vec2,
-  targetDirection: Vec2,
-  sourceRadius: number,
-  targetRadius: number,
-  extension: number,
-  targetScale: number,
-  sign: -1 | 1,
-  reverse: boolean
-) {
-  if (extension < 0.75) return [];
-  const count = Math.min(5, Math.max(2, Math.ceil(extension / 3)));
-  const rows = Array.from({ length: count }, (_, index) => {
-    const t = (index + 1) / count;
-    return {
-      source: {
-        point: {
-          x: sourceCenter.x + sourceDirection.x * sign * extension * t,
-          y: sourceCenter.y + sourceDirection.y * sign * extension * t
-        },
-        tangent: sourceDirection,
-        radius: sourceRadius
-      },
-      target: {
-        point: {
-          x: targetCenter.x + targetDirection.x * sign * extension * targetScale * t,
-          y: targetCenter.y + targetDirection.y * sign * extension * targetScale * t
-        },
-        tangent: targetDirection,
-        radius: targetRadius
-      }
-    };
+function mapSourcePointToTargetPath(point: Vec2, sourcePath: RibbonSample[], targetPath: RibbonSample[]): Vec2 {
+  const projection = closestSourcePathProjection(point, sourcePath);
+  const sourceA = sourcePath[projection.index];
+  const sourceB = sourcePath[projection.index + 1];
+  const targetA = targetPath[projection.index];
+  const targetB = targetPath[projection.index + 1];
+  const targetPoint = {
+    x: lerpNumber(targetA.point.x, targetB.point.x, projection.t),
+    y: lerpNumber(targetA.point.y, targetB.point.y, projection.t)
+  };
+  const targetNormal = normalForTangent({
+    x: targetB.point.x - targetA.point.x,
+    y: targetB.point.y - targetA.point.y
   });
-  return reverse ? rows.reverse() : rows;
+  const sourceRadius = Math.max(0.001, lerpNumber(sourceA.radius, sourceB.radius, projection.t));
+  const targetRadius = Math.max(0.001, lerpNumber(targetA.radius, targetB.radius, projection.t));
+  const radiusScale = targetRadius / sourceRadius;
+  return {
+    x: targetPoint.x + targetNormal.x * projection.offset * radiusScale,
+    y: targetPoint.y + targetNormal.y * projection.offset * radiusScale
+  };
+}
+
+function closestSourcePathProjection(point: Vec2, sourcePath: RibbonSample[]) {
+  let best = {
+    index: 0,
+    t: 0,
+    offset: 0,
+    distanceSq: Number.POSITIVE_INFINITY
+  };
+
+  for (let index = 0; index < sourcePath.length - 1; index += 1) {
+    const start = sourcePath[index].point;
+    const end = sourcePath[index + 1].point;
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const lengthSq = dx * dx + dy * dy;
+    if (lengthSq < 0.000001) continue;
+    const t = clampNumber(((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSq, 0, 1);
+    const projected = { x: start.x + dx * t, y: start.y + dy * t };
+    const distanceSq = squaredDistance(point, projected);
+    if (distanceSq < best.distanceSq) {
+      const normal = normalForTangent({ x: dx, y: dy });
+      best = {
+        index,
+        t,
+        offset: (point.x - projected.x) * normal.x + (point.y - projected.y) * normal.y,
+        distanceSq
+      };
+    }
+  }
+
+  return best;
+}
+
+function sourceTriangleHasAlpha(mask: ImageAlphaMask, a: Vec2, b: Vec2, c: Vec2) {
+  const threshold = 8;
+  const samples = [
+    a,
+    b,
+    c,
+    midpoint(a, b),
+    midpoint(b, c),
+    midpoint(a, c),
+    { x: (a.x + b.x + c.x) / 3, y: (a.y + b.y + c.y) / 3 }
+  ];
+  return samples.some((point) => alphaAt(mask, point) >= threshold);
+}
+
+function squaredDistance(a: Vec2, b: Vec2) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return dx * dx + dy * dy;
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
 }
 
 interface ImageAlphaMask {
@@ -424,56 +466,6 @@ function getImageAlphaMask(image: HTMLImageElement, displayWidth: number, displa
   }
 }
 
-function alphaSpanAlongNormal(mask: ImageAlphaMask, center: Vec2, normal: Vec2): { start: number; end: number } | null {
-  const step = 0.45;
-  const threshold = 12;
-  const maxDistance = Math.hypot(mask.displayWidth, mask.displayHeight);
-  const spans: { start: number; end: number }[] = [];
-  let inSpan = false;
-  let spanStart = -maxDistance;
-  let lastInside = -maxDistance;
-
-  for (let offset = -maxDistance; offset <= maxDistance; offset += step) {
-    const inside = alphaAt(mask, { x: center.x + normal.x * offset, y: center.y + normal.y * offset }) >= threshold;
-    if (inside) {
-      if (!inSpan) spanStart = offset;
-      inSpan = true;
-      lastInside = offset;
-    } else if (inSpan) {
-      spans.push({ start: spanStart, end: lastInside });
-      inSpan = false;
-    }
-  }
-  if (inSpan) spans.push({ start: spanStart, end: lastInside });
-  if (spans.length === 0) return null;
-
-  return spans
-    .filter((span) => span.end - span.start >= 0.25)
-    .sort((a, b) => distanceToSpan(0, a) - distanceToSpan(0, b) || b.end - b.start - (a.end - a.start))[0] ?? null;
-}
-
-function alphaExtensionAlongTangent(mask: ImageAlphaMask, center: Vec2, direction: Vec2, sign: -1 | 1, radius: number) {
-  const step = 0.45;
-  const threshold = 12;
-  const maxDistance = Math.min(Math.hypot(mask.displayWidth, mask.displayHeight), Math.max(5, radius * 2.4));
-  let sawInside = alphaAt(mask, center) >= threshold;
-  let lastInside = sawInside ? 0 : -1;
-  for (let distance = step; distance <= maxDistance; distance += step) {
-    const point = {
-      x: center.x + direction.x * sign * distance,
-      y: center.y + direction.y * sign * distance
-    };
-    const inside = alphaAt(mask, point) >= threshold;
-    if (inside) {
-      sawInside = true;
-      lastInside = distance;
-    } else if (sawInside) {
-      break;
-    }
-  }
-  return Math.max(0, lastInside);
-}
-
 function alphaAt(mask: ImageAlphaMask, point: Vec2) {
   const x = Math.round((point.x / mask.displayWidth) * (mask.pixelWidth - 1));
   const y = Math.round((point.y / mask.displayHeight) * (mask.pixelHeight - 1));
@@ -481,19 +473,9 @@ function alphaAt(mask: ImageAlphaMask, point: Vec2) {
   return mask.alpha[y * mask.pixelWidth + x];
 }
 
-function distanceToSpan(value: number, span: { start: number; end: number }) {
-  if (value >= span.start && value <= span.end) return 0;
-  return Math.min(Math.abs(value - span.start), Math.abs(value - span.end));
-}
-
 function normalForTangent(tangent: Vec2) {
   const length = Math.hypot(tangent.x, tangent.y) || 1;
   return { x: -tangent.y / length, y: tangent.x / length };
-}
-
-function safeRatio(numerator: number, denominator: number) {
-  if (Math.abs(denominator) < 0.001) return 1;
-  return numerator / denominator;
 }
 
 function traceRibbonPath(ctx: CanvasRenderingContext2D, samples: RibbonSample[], ribbon: RibbonPoint[]) {
@@ -517,8 +499,12 @@ function addRoundCap(ctx: CanvasRenderingContext2D, center: Vec2, radius: number
 }
 
 function ribbonSamples(points: Vec2[], radii: number[], segmentCount = 12): RibbonSample[] {
-  if (points.length !== 3) {
+  if (points.length < 3) {
     return points.map((point, index) => ({ point, tangent: tangentForPolyline(points, index), radius: radii[index] }));
+  }
+
+  if (points.length !== 3) {
+    return multiJointFilletSamples(points, radii, segmentCount);
   }
 
   const keypoints: [Vec2, Vec2, Vec2] = [points[0], points[1], points[2]];
@@ -579,6 +565,61 @@ function jointFilletSamples(points: [Vec2, Vec2, Vec2], radii: number[], segment
   return samples;
 }
 
+function multiJointFilletSamples(points: Vec2[], radii: number[], segmentCount: number): RibbonSample[] {
+  const samples: RibbonSample[] = [];
+  const firstDirection = normalizeVector({ x: points[1].x - points[0].x, y: points[1].y - points[0].y });
+  samples.push({ point: points[0], tangent: firstDirection, radius: radii[0] });
+
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const prev = points[index - 1];
+    const joint = points[index];
+    const next = points[index + 1];
+    const prevLength = distanceBetween(prev, joint);
+    const nextLength = distanceBetween(joint, next);
+    if (prevLength < 0.001 || nextLength < 0.001) {
+      samples.push({ point: joint, tangent: tangentForPolyline(points, index), radius: radii[index] });
+      continue;
+    }
+
+    const prevDirection = normalizeVector({ x: joint.x - prev.x, y: joint.y - prev.y });
+    const nextDirection = normalizeVector({ x: next.x - joint.x, y: next.y - joint.y });
+    const jointRadius = radii[index] ?? Math.max(radii[index - 1] ?? 0, radii[index + 1] ?? 0);
+    const filletLength = Math.min(prevLength * 0.22, nextLength * 0.22, Math.max(3, jointRadius * 0.75));
+    const beforeJoint = {
+      x: joint.x - prevDirection.x * filletLength,
+      y: joint.y - prevDirection.y * filletLength
+    };
+    const afterJoint = {
+      x: joint.x + nextDirection.x * filletLength,
+      y: joint.y + nextDirection.y * filletLength
+    };
+    const curveSteps = Math.max(3, Math.round(segmentCount * 0.35));
+
+    samples.push({
+      point: midpoint(samples[samples.length - 1].point, beforeJoint),
+      tangent: prevDirection,
+      radius: averageNumber(radii[index - 1], radii[index])
+    });
+
+    for (let step = 0; step <= curveSteps; step += 1) {
+      const t = step / curveSteps;
+      samples.push({
+        point: quadraticPoint(beforeJoint, joint, afterJoint, t),
+        tangent: quadraticTangent(beforeJoint, joint, afterJoint, t),
+        radius: lerpNumber(averageNumber(radii[index - 1], radii[index]), averageNumber(radii[index], radii[index + 1]), t)
+      });
+    }
+  }
+
+  const lastIndex = points.length - 1;
+  samples.push({
+    point: points[lastIndex],
+    tangent: normalizeVector({ x: points[lastIndex].x - points[lastIndex - 1].x, y: points[lastIndex].y - points[lastIndex - 1].y }),
+    radius: radii[lastIndex]
+  });
+  return samples;
+}
+
 function ribbonPoint(point: Vec2, tangent: Vec2, radius: number) {
   const length = Math.hypot(tangent.x, tangent.y) || 1;
   const nx = -tangent.y / length;
@@ -606,6 +647,10 @@ function distanceBetween(a: Vec2, b: Vec2) {
 
 function averageNumber(a: number, b: number) {
   return (a + b) * 0.5;
+}
+
+function lerpNumber(a: number, b: number, t: number) {
+  return a + (b - a) * t;
 }
 
 function quadraticPoint(a: Vec2, b: Vec2, c: Vec2, t: number): Vec2 {
@@ -654,7 +699,7 @@ function drawTexturedTriangle(
   ctx.restore();
 }
 
-function affineFromTriangles(s0: Vec2, s1: Vec2, s2: Vec2, d0: Vec2, d1: Vec2, d2: Vec2): Mat2D | null {
+export function affineFromTriangles(s0: Vec2, s1: Vec2, s2: Vec2, d0: Vec2, d1: Vec2, d2: Vec2): Mat2D | null {
   const det = s0.x * (s1.y - s2.y) + s1.x * (s2.y - s0.y) + s2.x * (s0.y - s1.y);
   if (Math.abs(det) < 1e-6) return null;
   return {
@@ -689,6 +734,55 @@ function drawBindingLinks(ctx: CanvasRenderingContext2D, rig: ResolvedRig, viewp
     if (options.showLabels && selected) {
       drawLabel(ctx, midpoint(binding.anchor.position, binding.position), binding.definition.anchorId, "#9b9a8f", viewport.scale);
     }
+  }
+  ctx.restore();
+}
+
+function drawSkeletonGuides(ctx: CanvasRenderingContext2D, rig: ResolvedRig, viewport: RigViewport, options: SkeletalRenderOptions) {
+  const deformBindings = rig.bindings.filter(
+    (binding) => binding.definition.kind === "mesh" && binding.definition.opacity > 0.001 && binding.definition.deform?.keypoints.length
+  );
+  if (deformBindings.length > 0) {
+    drawDeformChains(ctx, rig, deformBindings, viewport, options);
+    return;
+  }
+  drawBones(ctx, rig, viewport, options);
+}
+
+function drawDeformChains(
+  ctx: CanvasRenderingContext2D,
+  rig: ResolvedRig,
+  bindings: ResolvedBinding[],
+  viewport: RigViewport,
+  options: SkeletalRenderOptions
+) {
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  for (const binding of bindings) {
+    const keypoints = binding.definition.deform?.keypoints || [];
+    const anchors = keypoints.map((keypoint) => rig.anchorsById[keypoint.anchorId]).filter((anchor) => !!anchor);
+    if (anchors.length < 2) continue;
+    const selected = binding.id === options.selectedBindingId || anchors.some((anchor) => anchor.id === options.selectedAnchorId);
+    const color = selected ? "#54c6b1" : anchors[0]?.definition.color || "rgba(84, 198, 177, 0.72)";
+    ctx.strokeStyle = color;
+    ctx.lineWidth = (selected ? 3 : 2) / viewport.scale;
+    ctx.beginPath();
+    ctx.moveTo(anchors[0].position.x, anchors[0].position.y);
+    for (const anchor of anchors.slice(1)) ctx.lineTo(anchor.position.x, anchor.position.y);
+    ctx.stroke();
+    if (!options.showAnchors) {
+      ctx.fillStyle = "#101211";
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1 / viewport.scale;
+      for (const anchor of anchors) {
+        ctx.beginPath();
+        ctx.arc(anchor.position.x, anchor.position.y, (selected ? 4 : 3.2) / viewport.scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+    if (options.showLabels && selected) drawLabel(ctx, anchors[Math.floor(anchors.length * 0.5)].position, binding.name, color, viewport.scale);
   }
   ctx.restore();
 }

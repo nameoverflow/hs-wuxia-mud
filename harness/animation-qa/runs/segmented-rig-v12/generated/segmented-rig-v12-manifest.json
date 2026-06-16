@@ -1,0 +1,615 @@
+{
+  "source": "generated/segmented-rig-v12-parts-source.png",
+  "bonesSource": "generated/segmented-rig-v12-bones-source.png",
+  "sheetSize": [
+    1254,
+    1254
+  ],
+  "bluePointCount": 30,
+  "parts": {
+    "ponytail": {
+      "bbox": [
+        190,
+        242,
+        436,
+        685
+      ],
+      "crop": [
+        174,
+        226,
+        452,
+        701
+      ],
+      "componentLabel": 0,
+      "size": [
+        278,
+        475
+      ],
+      "keypoints": [
+        {
+          "id": "ponytailRoot",
+          "abs": [
+            422.039,
+            311.174
+          ],
+          "local": [
+            248.039,
+            85.174
+          ],
+          "normalized": [
+            0.89223,
+            0.17931
+          ]
+        },
+        {
+          "id": "ponytailBase",
+          "abs": [
+            410.377,
+            297.766
+          ],
+          "local": [
+            236.377,
+            71.766
+          ],
+          "normalized": [
+            0.85028,
+            0.15109
+          ]
+        },
+        {
+          "id": "ponytailMid",
+          "abs": [
+            345.734,
+            288.684
+          ],
+          "local": [
+            171.734,
+            62.684
+          ],
+          "normalized": [
+            0.61775,
+            0.13197
+          ]
+        },
+        {
+          "id": "ponytailLower",
+          "abs": [
+            299.773,
+            474.335
+          ],
+          "local": [
+            125.773,
+            248.335
+          ],
+          "normalized": [
+            0.45242,
+            0.52281
+          ]
+        },
+        {
+          "id": "ponytailTip",
+          "abs": [
+            238.978,
+            598.775
+          ],
+          "local": [
+            64.978,
+            372.775
+          ],
+          "normalized": [
+            0.23373,
+            0.78479
+          ]
+        }
+      ],
+      "asset": "client/src/assets/battle/actors/segmented/v12/ponytail.png"
+    },
+    "torso": {
+      "bbox": [
+        528,
+        502,
+        646,
+        763
+      ],
+      "crop": [
+        512,
+        483,
+        662,
+        782
+      ],
+      "componentLabel": 2,
+      "size": [
+        150,
+        299
+      ],
+      "keypoints": [
+        {
+          "id": "neck",
+          "abs": [
+            593.717,
+            506.083
+          ],
+          "local": [
+            81.717,
+            23.083
+          ],
+          "normalized": [
+            0.54478,
+            0.0772
+          ]
+        },
+        {
+          "id": "spineBase",
+          "abs": [
+            598.766,
+            758.377
+          ],
+          "local": [
+            86.766,
+            275.377
+          ],
+          "normalized": [
+            0.57844,
+            0.92099
+          ]
+        }
+      ],
+      "asset": "client/src/assets/battle/actors/segmented/v12/torso.png"
+    },
+    "leg_front": {
+      "bbox": [
+        684,
+        775,
+        908,
+        1053
+      ],
+      "crop": [
+        662,
+        759,
+        931,
+        1069
+      ],
+      "componentLabel": 6,
+      "size": [
+        269,
+        310
+      ],
+      "keypoints": [
+        {
+          "id": "frontLegRoot",
+          "abs": [
+            685.394,
+            796.623
+          ],
+          "local": [
+            23.394,
+            37.623
+          ],
+          "normalized": [
+            0.08697,
+            0.12136
+          ]
+        },
+        {
+          "id": "frontHip",
+          "abs": [
+            729.394,
+            818.623
+          ],
+          "local": [
+            67.394,
+            59.623
+          ],
+          "normalized": [
+            0.25054,
+            0.19233
+          ]
+        },
+        {
+          "id": "frontKnee",
+          "abs": [
+            817.458,
+            906.0
+          ],
+          "local": [
+            155.458,
+            147.0
+          ],
+          "normalized": [
+            0.57791,
+            0.47419
+          ]
+        },
+        {
+          "id": "frontAnkle",
+          "abs": [
+            856.307,
+            1027.693
+          ],
+          "local": [
+            194.307,
+            268.693
+          ],
+          "normalized": [
+            0.72233,
+            0.86675
+          ]
+        },
+        {
+          "id": "frontFoot",
+          "abs": [
+            906.773,
+            1037.335
+          ],
+          "local": [
+            244.773,
+            278.335
+          ],
+          "normalized": [
+            0.90994,
+            0.89786
+          ]
+        }
+      ],
+      "asset": "client/src/assets/battle/actors/segmented/v12/leg_front.png"
+    },
+    "leg_back": {
+      "bbox": [
+        340,
+        755,
+        529,
+        1037
+      ],
+      "crop": [
+        324,
+        739,
+        545,
+        1053
+      ],
+      "componentLabel": 5,
+      "size": [
+        221,
+        314
+      ],
+      "keypoints": [
+        {
+          "id": "rearLegRoot",
+          "abs": [
+            514.644,
+            762.356
+          ],
+          "local": [
+            190.644,
+            23.356
+          ],
+          "normalized": [
+            0.86264,
+            0.07438
+          ]
+        },
+        {
+          "id": "rearHip",
+          "abs": [
+            489.377,
+            787.606
+          ],
+          "local": [
+            165.377,
+            48.606
+          ],
+          "normalized": [
+            0.74831,
+            0.1548
+          ]
+        },
+        {
+          "id": "rearKnee",
+          "abs": [
+            431.906,
+            900.961
+          ],
+          "local": [
+            107.906,
+            161.961
+          ],
+          "normalized": [
+            0.48826,
+            0.5158
+          ]
+        },
+        {
+          "id": "rearAnkle",
+          "abs": [
+            379.268,
+            1010.877
+          ],
+          "local": [
+            55.268,
+            271.877
+          ],
+          "normalized": [
+            0.25008,
+            0.86585
+          ]
+        },
+        {
+          "id": "rearFoot",
+          "abs": [
+            425.174,
+            1019.961
+          ],
+          "local": [
+            101.174,
+            280.961
+          ],
+          "normalized": [
+            0.4578,
+            0.89478
+          ]
+        }
+      ],
+      "asset": "client/src/assets/battle/actors/segmented/v12/leg_back.png"
+    },
+    "head": {
+      "bbox": [
+        522,
+        278,
+        674,
+        458
+      ],
+      "crop": [
+        506,
+        262,
+        690,
+        479
+      ],
+      "componentLabel": 1,
+      "size": [
+        184,
+        217
+      ],
+      "keypoints": [
+        {
+          "id": "headTop",
+          "abs": [
+            609.039,
+            284.906
+          ],
+          "local": [
+            103.039,
+            22.906
+          ],
+          "normalized": [
+            0.55999,
+            0.10556
+          ]
+        },
+        {
+          "id": "head",
+          "abs": [
+            590.335,
+            434.227
+          ],
+          "local": [
+            84.335,
+            172.227
+          ],
+          "normalized": [
+            0.45834,
+            0.79367
+          ]
+        },
+        {
+          "id": "neck",
+          "abs": [
+            590.19,
+            455.0
+          ],
+          "local": [
+            84.19,
+            193.0
+          ],
+          "normalized": [
+            0.45755,
+            0.8894
+          ]
+        }
+      ],
+      "asset": "client/src/assets/battle/actors/segmented/v12/head.png"
+    },
+    "arm_front": {
+      "bbox": [
+        738,
+        510,
+        952,
+        659
+      ],
+      "crop": [
+        719,
+        494,
+        968,
+        675
+      ],
+      "componentLabel": 4,
+      "size": [
+        249,
+        181
+      ],
+      "keypoints": [
+        {
+          "id": "frontArmRoot",
+          "abs": [
+            741.906,
+            522.961
+          ],
+          "local": [
+            22.906,
+            28.961
+          ],
+          "normalized": [
+            0.09199,
+            0.16001
+          ]
+        },
+        {
+          "id": "frontShoulder",
+          "abs": [
+            781.961,
+            552.017
+          ],
+          "local": [
+            62.961,
+            58.017
+          ],
+          "normalized": [
+            0.25285,
+            0.32054
+          ]
+        },
+        {
+          "id": "frontElbow",
+          "abs": [
+            845.174,
+            623.961
+          ],
+          "local": [
+            126.174,
+            129.961
+          ],
+          "normalized": [
+            0.50672,
+            0.71801
+          ]
+        },
+        {
+          "id": "frontWrist",
+          "abs": [
+            910.732,
+            592.877
+          ],
+          "local": [
+            191.732,
+            98.877
+          ],
+          "normalized": [
+            0.77001,
+            0.54628
+          ]
+        },
+        {
+          "id": "frontHand",
+          "abs": [
+            940.36,
+            550.067
+          ],
+          "local": [
+            221.36,
+            56.067
+          ],
+          "normalized": [
+            0.88899,
+            0.30976
+          ]
+        }
+      ],
+      "asset": "client/src/assets/battle/actors/segmented/v12/arm_front.png"
+    },
+    "arm_back": {
+      "bbox": [
+        344,
+        508,
+        473,
+        714
+      ],
+      "crop": [
+        328,
+        492,
+        492,
+        730
+      ],
+      "componentLabel": 3,
+      "size": [
+        164,
+        238
+      ],
+      "keypoints": [
+        {
+          "id": "rearArmRoot",
+          "abs": [
+            468.039,
+            515.906
+          ],
+          "local": [
+            140.039,
+            23.906
+          ],
+          "normalized": [
+            0.8539,
+            0.10044
+          ]
+        },
+        {
+          "id": "rearShoulder",
+          "abs": [
+            435.686,
+            532.651
+          ],
+          "local": [
+            107.686,
+            40.651
+          ],
+          "normalized": [
+            0.65662,
+            0.1708
+          ]
+        },
+        {
+          "id": "rearElbow",
+          "abs": [
+            370.19,
+            609.0
+          ],
+          "local": [
+            42.19,
+            117.0
+          ],
+          "normalized": [
+            0.25726,
+            0.4916
+          ]
+        },
+        {
+          "id": "rearWrist",
+          "abs": [
+            366.415,
+            670.415
+          ],
+          "local": [
+            38.415,
+            178.415
+          ],
+          "normalized": [
+            0.23424,
+            0.74964
+          ]
+        },
+        {
+          "id": "rearHand",
+          "abs": [
+            382.775,
+            706.022
+          ],
+          "local": [
+            54.775,
+            214.022
+          ],
+          "normalized": [
+            0.334,
+            0.89925
+          ]
+        }
+      ],
+      "asset": "client/src/assets/battle/actors/segmented/v12/arm_back.png"
+    }
+  }
+}

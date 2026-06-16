@@ -47,12 +47,40 @@ npm run dev
 # 打开 http://127.0.0.1:8080/animation-rig.html
 ```
 
+### Rig PNG 直出审查
+
+如果只想审查当前 rig 渲染效果，不需要打开浏览器截图；用 `render:rig` 可以直接把 Canvas renderer 输出成 PNG。这个脚本复用同一套 `SkeletalCanvasRenderer`、catalog 和 runtime，因此适合快速看黑底带标注版、黑底 clean 版、透明 clean 版，以及多动作关键帧对比。
+
+基础命令：
+
+```bash
+cd client
+npm run render:rig -- --mode review --profile female --style sword --actions thrust,chop,rising_cut --width 720 --height 540 --out harness/tmp/rig-review-female-sword-attacks-xlarge.png
+npm run render:rig -- --mode review --profile female --style sword --actions dodge,parry,hurt --width 720 --height 540 --out harness/tmp/rig-review-female-sword-reactions-xlarge.png
+```
+
+常用参数：
+
+- `--mode debug|clean|review`：`debug` 单张黑底带骨骼/锚点/绑定；`clean` 单张透明 clean；`review` 一张图里并排输出黑底带标注、黑底 clean、透明 clean 三列。
+- `--profile female|male`、`--style fist|sword`、`--tag v12`：按角色和动作风格筛选 catalog entry。
+- `--actions thrust,chop,rising_cut`：按 action/tag 选多行动作，适合一次审查 2 到 3 行；动作太多会缩小到难以看清。
+- `--entry segmented.v12.sword.thrust.female` 或 `--entries <id,id>`：需要精确指定 entry 时使用。
+- `--poses <id,id>`：对同一个 entry 输出多个 pose。
+- `--width 720 --height 540`：在 `review` 模式下是每个小面板的尺寸，不是整张图尺寸；看细节时优先放大面板或减少动作行数。
+- `--fit actor|stage`：默认 `actor` 只按人物 bbox 自动缩放；`stage` 保留完整 rig stage。
+- `--zoom`、`--pan-x`、`--pan-y`：手动覆盖自动 fit，用来检查局部拼接或裁切问题。
+- `--out harness/tmp/...png`：临时审查图默认放在 `harness/tmp/`，需要长期保留的参考图再移动到 `harness/animation-qa/runs/`。
+
+建议串行运行多条 `render:rig` 命令。并行运行时 Vite SSR 仍可能打印 HMR 端口占用警告，但 PNG 通常可以正常输出。
+
 当前能力：
 
 - 从现有 `battleActions` 自动列出所有 action/profile 组合。
 - 每个条目套用标准 humanoid rig，包含 root、躯干、头、双臂、双腿、剑、impact 等骨骼/锚点。
-- 新增 `segmented.v4` 粗分件 actor rig，使用头、窄躯干、前后直手臂、直腿占位和女版马尾 PNG 部件做绑定。
-- `segmented.v4` 提供 `bind`、`idle`、`windup`、`strike`、`recover`、`guard`、`hurt`、`dodge` 离散关键帧；另有 `segmented.v4.sword.*` 条目用于预览中国剑术风格的刺、劈、撩、受击、闪避、格挡关键帧。工具默认停在当前关键帧，Play Preview 只用于临时补间预览。
+- 新增 `segmented.v12` 右侧面短头身粗分件 actor rig，使用用户提供的拆分部件图做机械切片，并使用用户提供的骨骼节点图提取 source keypoint 做绑定。
+- `segmented.v12` 采用 limb proximal extension 策略：肩/胯融合段不是独立分件，而是四肢靠近身体那一端自带的延长根部；渲染时这些根部藏到头身下面，由躯干和头部遮住拼接缝。
+- `segmented.v12` 提供 `bind`、`idle`、`windup`、`strike`、`recover`、`guard`、`hurt`、`dodge` 离散关键帧；另有 `segmented.v12.sword.*` 条目用于预览中国剑术风格的刺、劈、撩、受击、闪避、格挡关键帧。工具默认停在当前关键帧，Play Preview 只用于临时补间预览。
+- `segmented.v12` 的 `bind` 和 `idle` 现在是 anchor 参考图基准姿态：所有部件共享同一个 source scale，并按参考图 mask bbox / baseline 反推骨骼长度、keypoint 距离和默认节点位置。
 - renderer 支持 source frame、debug skin、骨骼、锚点、binding link、label 和四肢/马尾 alpha-contour mesh 形变分层开关。
 - `Pose` 模式可拖动带 `handleBoneId` 的锚点来旋转对应骨骼。
 - `Pose` 模式也可拖动四肢 deform keypoint（elbow、wrist、knee、ankle），这些调整按当前关键帧保存；`Lock lengths` 默认打开，拖动四肢关键点时用两段 IK 保持骨段长度，避免手动编辑时把四肢拉长或压短。
@@ -64,8 +92,8 @@ npm run dev
 当前约束：
 
 - 大多数正式战斗 PNG 仍是完整帧图；`source.frame` 只是对照 binding，不代表最终骨骼切片资产。
-- `segmented.v4` 当前四肢使用三点 alpha-contour mesh：renderer 从原 PNG alpha 沿 source keypoint 中心线采样截面轮廓，并生成多列三角网格做 affine texture warp。它不再用半径生成新的圆管外形，所以手脚末端和部件粗细由源图 alpha 决定；当像素采样失败时才回退到旧 ribbon mesh。它已经支持从弯曲到伸直的关键点形变，但还不是完整的权重刷/多骨骼蒙皮编辑器。
-- 女版马尾使用同一套三点 alpha-contour mesh，但骨骼上分成 `ponytailBase` 和 `ponytailTail`：`ponytailRoot` 固定到 head，`ponytailMid` 是固定基座末端，只有 `ponytailTip`/`ponytailTail` 作为尾段手柄参与摆动。
+- `segmented.v12` 当前四肢使用五点 alpha-contour mesh：renderer 从原 PNG alpha 沿 source keypoint 中心线采样截面轮廓，并生成多列三角网格做 affine texture warp。手臂 keypoint 是 hidden root、shoulder、elbow、wrist、hand；腿部 keypoint 是 hidden root、hip、knee、ankle、foot。它不再用半径生成新的圆管外形，所以手脚末端和部件粗细由源图 alpha 决定；当像素采样失败时才回退到 ribbon mesh。它已经支持从弯曲到伸直的关键点形变，但还不是完整的权重刷/多骨骼蒙皮编辑器。
+- 女版马尾使用同一套五点 alpha-contour mesh，`ponytailRoot` 固定到 head，`ponytailBase` 是靠头的固定基座，`ponytailMid`、`ponytailLower`、`ponytailTip` 作为后段链条参与摆动。
 - 剑术关键帧参考记录在 [harness/animation-qa/references/chinese-jian-keyframe-notes.md](../harness/animation-qa/references/chinese-jian-keyframe-notes.md)。当前剑是挂在 `sword` bone 上的 tool prop line，方便先调动作，不作为最终剑器美术。
 - debug skin 是工具层预览，不作为最终游戏美术。
 - 正式战斗面板仍走现有 sprite/CSS timeline；骨骼渲染接入需要后续单独切换 `ActorVisual` 和 `BattlePanel` 渲染路径。
@@ -413,7 +441,7 @@ AP 条展示和出手动画是两个系统：
 
 近期最有价值的后续工作：
 
-1. 把 `segmented.v4` 的锚点和默认 pose 从工具导出固化为可版本化 manifest。
+1. 把 `segmented.v12` 的锚点和默认 pose 从工具导出固化为可版本化 manifest。
 2. 增加 catalog validator，检查 pool/action/clip/vfx 引用和图片存在性。
 3. 增加本地 animation preview route，用于预览 pool/action/result 组合。
 4. 为暗器、掌法、指法分别补独立基础素材池。
