@@ -1,0 +1,11 @@
+- id: town_work_token
+  name: "津关工筹"
+  desc: "一枚木筹，背面刻着津关二字。镇上做过活的人，都会有这么一枚。"
+
+- id: black_pine_badge
+  name: "黑松木牌"
+  desc: "从黑松路剪径人身上搜出的木牌。牌面粗糙，却刻着一个很新的暗记。"
+
+- id: faction_intro_note
+  name: "三路引帖"
+  desc: "引路人写下的三条路线：寒雨门听雨，铁衣帮扛事，药王谷调息。"

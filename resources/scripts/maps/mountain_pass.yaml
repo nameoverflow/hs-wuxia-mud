@@ -10,3 +10,6 @@ rooms:
       south:
         map: test_map
         position: [2, 3]
+      north:
+        map: jinguan_town
+        position: [0, -3]

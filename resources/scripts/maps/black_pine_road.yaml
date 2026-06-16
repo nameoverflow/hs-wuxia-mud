@@ -1,0 +1,92 @@
+id: black_pine_road
+name: "黑松路"
+desc: "津关镇北面的官道。松林很密，风过时像有人在暗处磨刀。"
+rooms:
+  - position: [0, 0]
+    id: black_pine_south_marker
+    name: "黑松路南口"
+    desc: "石碑上刻着黑松路三个字，下面还有一行小字：天黑莫行。"
+    exits:
+      south:
+        map: jinguan_town
+        position: [0, 4]
+      north: [0, 1]
+
+  - position: [0, 1]
+    id: black_pine_low_road
+    name: "低松路"
+    desc: "松枝压得很低，车马经过时常要低头。"
+    exits:
+      south: [0, 0]
+      north: [0, 2]
+
+  - position: [0, 2]
+    id: black_pine_relay_pavilion
+    name: "递铺亭"
+    desc: "旧递铺亭里空空如也，墙上贴着巡捕房的告示。"
+    char:
+      - roadside_runner
+    exits:
+      south: [0, 1]
+      north: [0, 3]
+      west: [-1, 2]
+      east: [1, 2]
+
+  - position: [-1, 2]
+    id: black_pine_roadside_shrine
+    name: "路边小祠"
+    desc: "小祠里供着无名牌位，香灰被雨吹成细线。"
+    exits:
+      east: [0, 2]
+      north: [-1, 3]
+
+  - position: [1, 2]
+    id: black_pine_hunter_shed
+    name: "猎户棚"
+    desc: "棚里有几张旧弓和半锅冷粥，主人像是走得很急。"
+    exits:
+      west: [0, 2]
+      north: [1, 3]
+
+  - position: [0, 3]
+    id: black_pine_fork
+    name: "松林岔口"
+    desc: "官道在这里分出两条小径。西边脚印杂乱，东边药香很淡。"
+    exits:
+      south: [0, 2]
+      north: [0, 4]
+      west: [-1, 3]
+      east: [1, 3]
+
+  - position: [-1, 3]
+    id: black_pine_hidden_path
+    name: "藏身小径"
+    desc: "小径被松针盖住，只有常来的人才知道该往哪里落脚。"
+    char:
+      - black_pine_bandit
+    exits:
+      east: [0, 3]
+      south: [-1, 2]
+
+  - position: [1, 3]
+    id: black_pine_herb_slope
+    name: "药草坡"
+    desc: "坡上长着几丛苦草。雨打过以后，药气反而更重。"
+    exits:
+      west: [0, 3]
+      south: [1, 2]
+
+  - position: [0, 4]
+    id: black_pine_abandoned_shrine
+    name: "废祠"
+    desc: "废祠门歪着，门后有新烧过的灰。这里不像真的荒废。"
+    exits:
+      south: [0, 3]
+      north: [0, 5]
+
+  - position: [0, 5]
+    id: black_pine_ridge_overlook
+    name: "松岭望处"
+    desc: "站在岭上能看见更北的山影。那是后续江湖章节才会打开的路。"
+    exits:
+      south: [0, 4]

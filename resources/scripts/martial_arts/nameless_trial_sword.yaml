@@ -1,0 +1,40 @@
+id: nameless_trial_sword
+name: "无名试剑"
+type: sword
+desc: "用来试剑。剑法不求名目，只求每一下都看得清。"
+foundation: basic_sword
+requires:
+  - art: basic_sword
+    level: 1
+max_level: 10
+attack_moves:
+  - id: trial_jian_thrust
+    name: "试剑一刺"
+    desc: "剑尖平直递出，先试距离。"
+    msg: "以剑尖平平递出一刺"
+    unlock_level: 1
+    damage: 11
+    animation:
+      pool: "weapon.sword.basic"
+      action: "sword.stab_a"
+      tags: ["sword", "stab"]
+  - id: trial_jian_cut
+    name: "试剑一劈"
+    desc: "剑身斜落，试的是身步合一。"
+    msg: "斜斜劈出一剑"
+    unlock_level: 1
+    damage: 12
+    animation:
+      pool: "weapon.sword.basic"
+      action: "sword.slash_a"
+      tags: ["sword", "slash"]
+  - id: trial_jian_lift
+    name: "试剑一撩"
+    desc: "剑从下路挑起，试的是手腕和步法。"
+    msg: "剑锋自下向上撩起"
+    unlock_level: 1
+    damage: 12
+    animation:
+      pool: "weapon.sword.basic"
+      action: "sword.uppercut_a"
+      tags: ["sword", "uppercut"]

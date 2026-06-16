@@ -1,0 +1,114 @@
+id: tieyi_bang
+name: "铁衣帮"
+desc: "铁衣帮不避市井，也不避风雨。帮中人讲规矩，更讲一双能扛事的肩。"
+rooms:
+  - position: [0, 0]
+    id: tieyi_town_post
+    name: "分舵门房"
+    desc: "门房里堆着押运文书和几根油亮铁棍。"
+    exits:
+      south:
+        map: jinguan_town
+        position: [2, 2]
+      north: [0, 1]
+
+  - position: [0, 1]
+    id: tieyi_cart_yard
+    name: "车马场"
+    desc: "车辙在泥里交错。每一道车辙都像一趟没说完的镖。"
+    char:
+      - tieyi_caravan_guard
+    exits:
+      south: [0, 0]
+      north: [0, 2]
+
+  - position: [0, 2]
+    id: tieyi_outer_yard
+    name: "外院"
+    desc: "院里没有花树，只有石锁、沙袋和成排的短棍。"
+    exits:
+      south: [0, 1]
+      north: [0, 3]
+      west: [-1, 2]
+      east: [1, 2]
+
+  - position: [-1, 2]
+    id: tieyi_stone_lock
+    name: "石锁棚"
+    desc: "石锁大大小小排成一列，旁边写着：先搬得动自己。"
+    exits:
+      east: [0, 2]
+      north: [-1, 3]
+
+  - position: [1, 2]
+    id: tieyi_gear_room
+    name: "护具房"
+    desc: "护腕、短甲和旧靴挂满一墙，补丁比皮面还多。"
+    exits:
+      west: [0, 2]
+      north: [1, 3]
+
+  - position: [0, 3]
+    id: tieyi_drill_ground
+    name: "操练场"
+    desc: "地上画着十几道白线，帮众沿线进退，脚步沉得像打桩。"
+    exits:
+      south: [0, 2]
+      north: [0, 4]
+      west: [-1, 3]
+      east: [1, 3]
+
+  - position: [-1, 3]
+    id: tieyi_oath_wall
+    name: "誓墙"
+    desc: "墙上刻着帮规。字不多，最深的一句是：收钱办事，收命偿命。"
+    exits:
+      east: [0, 3]
+      south: [-1, 2]
+      north: [-1, 4]
+
+  - position: [1, 3]
+    id: tieyi_kitchen
+    name: "大灶房"
+    desc: "灶上常年有粥，练完拳的人先喝一碗，再说话。"
+    exits:
+      west: [0, 3]
+      south: [1, 2]
+      north: [1, 4]
+
+  - position: [0, 4]
+    id: tieyi_hall
+    name: "铁衣堂"
+    desc: "堂中挂着一件破铁衣，衣上每个凹痕都像一段押镖旧事。"
+    char:
+      - tieyi_senior
+    exits:
+      south: [0, 3]
+      north: [0, 5]
+      west: [-1, 4]
+      east: [1, 4]
+
+  - position: [-1, 4]
+    id: tieyi_teacher_room
+    name: "传功屋"
+    desc: "屋中没有蒲团，只有一张厚木桌。桌角被拳头砸得发黑。"
+    char:
+      - tieyi_teacher
+    exits:
+      east: [0, 4]
+      south: [-1, 3]
+
+  - position: [1, 4]
+    id: tieyi_contract_room
+    name: "镖契房"
+    desc: "桌上压着许多镖契。纸薄，责任却很重。"
+    exits:
+      west: [0, 4]
+      south: [1, 3]
+
+  - position: [0, 5]
+    id: tieyi_locked_arsenal
+    name: "锁兵库"
+    desc: "兵库上了三道锁。真正的重兵器要等帮中 job 系统完成后才会开放。"
+    exits:
+      south: [0, 4]

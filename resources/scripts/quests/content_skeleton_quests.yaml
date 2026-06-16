@@ -1,0 +1,270 @@
+- id: first_steps_jinguan
+  name: "津关初到"
+  objectives:
+    - stage: train
+      text: "去南门西边的孤灯武馆，找江教头确认基础功。"
+    - stage: errands
+      text: "去书院、铁匠铺或药铺问一份新手活计。"
+    - stage: completed
+      text: "你在津关镇站稳了第一步。"
+  reward:
+    money: 30
+    items:
+      - id: town_work_token
+        amount: 1
+  events:
+    - id: guide_after_cold_rain
+      trigger:
+        type: talk
+        npc: town_guide
+      conditions:
+        - type: quest_completed
+          quest: cold_rain_inn
+        - type: quest_not_started
+          quest: first_steps_jinguan
+      actions:
+        - type: message
+          speaker: "灰衣引路人"
+          text: "从冷雨客栈出来的人，眼神都不太一样。先进镇吧。别急着问哪家门派厉害，先问自己今晚睡在哪里、明天靠什么吃饭。"
+        - type: set_stage
+          quest: first_steps_jinguan
+          stage: train
+        - type: message
+          speaker: "旁白"
+          text: "他指了指南门西边：孤灯武馆的灯还亮着。"
+
+    - id: meet_martial_hall_instructor
+      trigger:
+        type: talk
+        npc: martial_hall_instructor
+      conditions:
+        - type: quest_stage
+          quest: first_steps_jinguan
+          stage: train
+      actions:
+        - type: message
+          speaker: "江教头"
+          text: "会一招半式不算会活。你要先明白四件事：拳脚护身，轻功跑路，内功续命，兵器拉开距离。想拜师，先别把基础功丢了。"
+        - type: set_stage
+          quest: first_steps_jinguan
+          stage: errands
+        - type: message
+          speaker: "旁白"
+          text: "江教头把一枚空木筹丢给你：镇上书院、铁匠铺、药铺都缺人手。做一份活，才算在津关镇留下脚印。"
+
+    - id: work_at_academy
+      trigger:
+        type: talk
+        npc: old_scribe
+      conditions:
+        - type: quest_stage
+          quest: first_steps_jinguan
+          stage: errands
+      actions:
+        - type: message
+          speaker: "沈抄书"
+          text: "抄书不丢人。能把一行字抄稳的人，出刀时也不会乱。今日先替我誊一页告示。"
+        - type: complete_quest
+          quest: first_steps_jinguan
+
+    - id: work_at_smithy
+      trigger:
+        type: talk
+        npc: town_blacksmith
+      conditions:
+        - type: quest_stage
+          quest: first_steps_jinguan
+          stage: errands
+      actions:
+        - type: message
+          speaker: "赵铁匠"
+          text: "来得正好。拉一阵风箱，记住火候。江湖上很多事也一样，火不到不成，火过了就废。"
+        - type: complete_quest
+          quest: first_steps_jinguan
+
+    - id: work_at_apothecary
+      trigger:
+        type: talk
+        npc: town_physician
+      conditions:
+        - type: quest_stage
+          quest: first_steps_jinguan
+          stage: errands
+      actions:
+        - type: message
+          speaker: "柳药师"
+          text: "帮我把这几味药分开。药分错了，只是苦；人看错了，可能就是命。"
+        - type: complete_quest
+          quest: first_steps_jinguan
+
+- id: black_pine_patrol
+  name: "黑松路巡查"
+  objectives:
+    - stage: accepted
+      text: "沿北门出镇，到黑松路递铺亭查探。"
+    - stage: found_tracks
+      text: "去松林岔口西边的小径，找到拦路的剪径人。"
+    - stage: completed
+      text: "黑松路暂时安静下来。"
+  reward:
+    money: 80
+    items:
+      - id: black_pine_badge
+        amount: 1
+  events:
+    - id: constable_starts_patrol
+      trigger:
+        type: talk
+        npc: town_constable
+      conditions:
+        - type: quest_completed
+          quest: first_steps_jinguan
+        - type: quest_not_started
+          quest: black_pine_patrol
+      actions:
+        - type: message
+          speaker: "顾巡捕"
+          text: "黑松路少了两封递信。不是大案，却最适合试脚。你沿北门出去，到递铺亭看看。记住，打不过就回来，活人比线索值钱。"
+        - type: set_stage
+          quest: black_pine_patrol
+          stage: accepted
+
+    - id: inspect_relay_pavilion
+      trigger:
+        type: enter_room
+        map: black_pine_road
+        position: [0, 2]
+      conditions:
+        - type: quest_stage
+          quest: black_pine_patrol
+          stage: accepted
+        - type: not_flag
+          flag: black_pine.tracks_seen
+      actions:
+        - type: set_flag
+          flag: black_pine.tracks_seen
+        - type: set_stage
+          quest: black_pine_patrol
+          stage: found_tracks
+        - type: message
+          speaker: "旁白"
+          text: "递铺亭墙根有一串湿脚印，绕向西边松林小径。脚印很浅，像走路的人一直在回头。"
+
+    - id: defeat_black_pine_bandit
+      trigger:
+        type: kill
+        npc: black_pine_bandit
+      conditions:
+        - type: quest_stage
+          quest: black_pine_patrol
+          stage: found_tracks
+      actions:
+        - type: message
+          speaker: "黑松剪径人"
+          text: "他跌坐在松针里，斗篷散开，怀里滑出一枚刻着暗记的木牌。看来这条路背后还有人。"
+        - type: complete_quest
+          quest: black_pine_patrol
+        - type: hide_npc
+          npc: black_pine_bandit
+
+- id: faction_intro
+  name: "三路拜师"
+  objectives:
+    - stage: visit
+      text: "分别向寒雨门、铁衣帮、药王谷的接引人打听门路，再回南门找引路人。"
+    - stage: completed
+      text: "你已经知道津关镇外的三条入门路。"
+  reward:
+    money: 20
+    items:
+      - id: faction_intro_note
+        amount: 1
+  events:
+    - id: guide_opens_faction_intro
+      trigger:
+        type: talk
+        npc: town_guide
+      conditions:
+        - type: quest_completed
+          quest: first_steps_jinguan
+        - type: quest_not_started
+          quest: faction_intro
+      actions:
+        - type: message
+          speaker: "灰衣引路人"
+          text: "你已经能在镇上站住。接下来才谈门派。西北寒雨门，东边铁衣帮，东头药车通药王谷。三条路都问一遍，再决定自己像哪种人。"
+        - type: set_stage
+          quest: faction_intro
+          stage: visit
+
+    - id: ask_hanyi_runner
+      trigger:
+        type: talk
+        npc: hanyi_runner
+      conditions:
+        - type: quest_stage
+          quest: faction_intro
+          stage: visit
+        - type: not_flag
+          flag: faction_intro.hanyi
+      actions:
+        - type: set_flag
+          flag: faction_intro.hanyi
+        - type: message
+          speaker: "寒雨接引弟子"
+          text: "寒雨门教剑，也教你在出剑前听见自己心乱。若你喜欢先看清，再出手，可以去山门试试。"
+
+    - id: ask_tieyi_runner
+      trigger:
+        type: talk
+        npc: tieyi_runner
+      conditions:
+        - type: quest_stage
+          quest: faction_intro
+          stage: visit
+        - type: not_flag
+          flag: faction_intro.tieyi
+      actions:
+        - type: set_flag
+          flag: faction_intro.tieyi
+        - type: message
+          speaker: "铁衣帮接引"
+          text: "铁衣帮不问你会不会漂亮招式，只问你敢不敢扛事。押镖、巡查、护人，都是拳脚以外的功夫。"
+
+    - id: ask_yaowang_runner
+      trigger:
+        type: talk
+        npc: yaowang_runner
+      conditions:
+        - type: quest_stage
+          quest: faction_intro
+          stage: visit
+        - type: not_flag
+          flag: faction_intro.yaowang
+      actions:
+        - type: set_flag
+          flag: faction_intro.yaowang
+        - type: message
+          speaker: "药王谷药童"
+          text: "药王谷先教你调息，再教你辨伤。若你觉得活下来比赢一招更重要，可以随药车入谷。"
+
+    - id: guide_completes_faction_intro
+      trigger:
+        type: talk
+        npc: town_guide
+      conditions:
+        - type: quest_stage
+          quest: faction_intro
+          stage: visit
+        - type: flag
+          flag: faction_intro.hanyi
+        - type: flag
+          flag: faction_intro.tieyi
+        - type: flag
+          flag: faction_intro.yaowang
+      actions:
+        - type: message
+          speaker: "灰衣引路人"
+          text: "都问过了，就别急着把自己卖给第一个愿意收你的人。真正的师门，收的是你以后许多年。"
+        - type: complete_quest
+          quest: faction_intro

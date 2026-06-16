@@ -1,0 +1,707 @@
+- id: town_guide
+  name: "灰衣引路人"
+  desc: "他站在南门阴影里，衣摆很旧，眼神却很清。"
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_fist
+        level: 3
+      - id: basic_lightness
+        level: 3
+  prepared: {}
+  teaches: {}
+  dialogue:
+    - "过了这道门，就是津关镇。想活得久些，先去武馆，再问活计，最后才谈门派。"
+  respawn: 0
+  attr:
+    hp: 100
+    qi: 80
+    max_qi: 80
+    jing: 120
+    qi_regen: 2.0
+    innate:
+      strength: 14
+      agility: 16
+      vitality: 14
+
+- id: martial_hall_instructor
+  name: "江教头"
+  desc: "孤灯武馆的教头，袖口卷得很高，手背上全是旧伤。"
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_fist
+        level: 15
+      - id: basic_sword
+        level: 12
+      - id: basic_lightness
+        level: 12
+      - id: basic_internal
+        level: 12
+    fist:
+      - id: nameless_trial_fist
+        level: 8
+    sword:
+      - id: nameless_trial_sword
+        level: 8
+  prepared:
+    fist:
+      id: nameless_trial_fist
+      level: 8
+  teaches:
+    basic_fist: 12
+    basic_sword: 10
+    basic_lightness: 10
+    basic_internal: 10
+    nameless_trial_fist: 5
+    nameless_trial_sword: 5
+    cold_rain_short_fist: 5
+  dialogue:
+    - "武馆不教你赢，只先教你别死。拳脚、轻功、内功，少一样都不算入门。"
+  respawn: 0
+  attr:
+    hp: 180
+    qi: 120
+    max_qi: 120
+    jing: 140
+    qi_regen: 3.0
+    innate:
+      strength: 22
+      agility: 18
+      vitality: 20
+
+- id: old_scribe
+  name: "沈抄书"
+  desc: "旧书院的抄书先生，写字很慢，像怕漏掉纸里的旧事。"
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_internal
+        level: 5
+  prepared: {}
+  teaches:
+    basic_internal: 6
+  dialogue:
+    - "不愿动刀的人，可以先抄书。字写稳了，心也就稳一点。"
+  respawn: 0
+  attr:
+    hp: 80
+    qi: 90
+    max_qi: 90
+    jing: 150
+    qi_regen: 2.0
+    innate:
+      strength: 10
+      agility: 12
+      vitality: 13
+
+- id: town_blacksmith
+  name: "赵铁匠"
+  desc: "赵铁匠说话像落锤，短，重，不绕弯。"
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_fist
+        level: 8
+  prepared:
+    fist:
+      id: nameless_trial_fist
+      level: 3
+  dialogue:
+    - "没钱就帮我看炉、鼓风、淬火。江湖上不少第一口饭，都是从铁匠铺挣的。"
+  respawn: 0
+  attr:
+    hp: 130
+    qi: 70
+    max_qi: 70
+    jing: 100
+    qi_regen: 1.5
+    innate:
+      strength: 24
+      agility: 10
+      vitality: 18
+
+- id: town_physician
+  name: "柳药师"
+  desc: "柳药师眉眼温和，拿药刀的手却稳得吓人。"
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_internal
+        level: 10
+    internal:
+      - id: yaowang_breath
+        level: 6
+  prepared:
+    internal:
+      id: yaowang_breath
+      level: 6
+  teaches:
+    basic_internal: 8
+    yaowang_breath: 4
+  dialogue:
+    - "伤口会说话。你若听不懂，就先学会别让它越说越大声。"
+  respawn: 0
+  attr:
+    hp: 100
+    qi: 140
+    max_qi: 140
+    jing: 160
+    qi_regen: 3.0
+    innate:
+      strength: 11
+      agility: 15
+      vitality: 20
+
+- id: tea_storyteller
+  name: "茶棚说书人"
+  desc: "他说书时总留半句，像故意让听客自己走进江湖。"
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_lightness
+        level: 4
+  prepared: {}
+  dialogue:
+    - "江湖从来不缺大侠，缺的是知道自己下一步该去哪的人。"
+  respawn: 0
+  attr:
+    hp: 90
+    qi: 70
+    max_qi: 70
+    jing: 130
+    qi_regen: 1.5
+    innate:
+      strength: 10
+      agility: 18
+      vitality: 12
+
+- id: post_runner
+  name: "驿卒小梁"
+  desc: "小梁背着油布信筒，鞋底磨得很薄。"
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_lightness
+        level: 10
+    lightness:
+      - id: mist_step
+        level: 6
+  prepared:
+    lightness:
+      id: mist_step
+      level: 6
+  teaches:
+    basic_lightness: 8
+    mist_step: 4
+  dialogue:
+    - "送信第一条规矩：信可以湿，人不能停。"
+  respawn: 0
+  attr:
+    hp: 100
+    qi: 90
+    max_qi: 90
+    jing: 130
+    qi_regen: 2.5
+    innate:
+      strength: 12
+      agility: 24
+      vitality: 14
+
+- id: town_constable
+  name: "顾巡捕"
+  desc: "顾巡捕腰间的刀不新，刀鞘却擦得很亮。"
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_fist
+        level: 12
+      - id: basic_sword
+        level: 10
+    fist:
+      - id: tieyi_gate_fist
+        level: 7
+  prepared:
+    fist:
+      id: tieyi_gate_fist
+      level: 7
+  teaches:
+    basic_fist: 8
+    tieyi_gate_fist: 4
+  dialogue:
+    - "黑松路最近不安生。你若真想见江湖，先从能回来的一趟开始。"
+  respawn: 0
+  attr:
+    hp: 180
+    qi: 110
+    max_qi: 110
+    jing: 130
+    qi_regen: 2.5
+    innate:
+      strength: 21
+      agility: 17
+      vitality: 19
+
+- id: hanyi_runner
+  name: "寒雨接引弟子"
+  desc: "她怀里抱着木剑，站着不动时像一笔很淡的墨。"
+  gender: female
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_sword
+        level: 8
+      - id: basic_lightness
+        level: 8
+    sword:
+      - id: hanyi_rain_sword
+        level: 5
+  prepared:
+    sword:
+      id: hanyi_rain_sword
+      level: 5
+  dialogue:
+    - "寒雨门不问你从哪里来，只问你能不能听见雨里的第二个声音。"
+  respawn: 0
+  attr:
+    hp: 120
+    qi: 100
+    max_qi: 100
+    jing: 130
+    qi_regen: 2.5
+    innate:
+      strength: 14
+      agility: 22
+      vitality: 15
+
+- id: tieyi_runner
+  name: "铁衣帮接引"
+  desc: "他坐在麻包上补护腕，针脚粗得像帮规。"
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_fist
+        level: 8
+      - id: basic_internal
+        level: 8
+    fist:
+      - id: tieyi_gate_fist
+        level: 5
+  prepared:
+    fist:
+      id: tieyi_gate_fist
+      level: 5
+  dialogue:
+    - "铁衣帮收人不看出身，看你挨一下之后还肯不肯站稳。"
+  respawn: 0
+  attr:
+    hp: 150
+    qi: 90
+    max_qi: 90
+    jing: 120
+    qi_regen: 2.0
+    innate:
+      strength: 22
+      agility: 12
+      vitality: 22
+
+- id: yaowang_runner
+  name: "药王谷药童"
+  desc: "药童背着小药箱，药箱上挂着一枚清脆的小铃。"
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_internal
+        level: 8
+      - id: basic_lightness
+        level: 5
+    internal:
+      - id: yaowang_breath
+        level: 5
+  prepared:
+    internal:
+      id: yaowang_breath
+      level: 5
+  dialogue:
+    - "谷里不急着教你救人。先学会分清什么时候该退，什么时候该扶。"
+  respawn: 0
+  attr:
+    hp: 95
+    qi: 140
+    max_qi: 140
+    jing: 160
+    qi_regen: 3.0
+    innate:
+      strength: 10
+      agility: 18
+      vitality: 22
+
+- id: roadside_runner
+  name: "递铺小役"
+  desc: "他把空信筒抱在怀里，脸色比墙上的告示还白。"
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_lightness
+        level: 3
+  prepared: {}
+  dialogue:
+    - "昨夜有人在西边小径吹了一声哨，今早递铺就少了两封信。"
+  respawn: 0
+  attr:
+    hp: 80
+    qi: 60
+    max_qi: 60
+    jing: 100
+    qi_regen: 1.0
+    innate:
+      strength: 9
+      agility: 17
+      vitality: 10
+
+- id: black_pine_bandit
+  name: "黑松剪径人"
+  desc: "他披着湿斗篷，腰间别着短刀。眼神比路边松针还冷。"
+  actions: [dialogue, attacking]
+  martial_arts:
+    foundation:
+      - id: basic_fist
+        level: 6
+      - id: basic_lightness
+        level: 4
+    fist:
+      - id: tieyi_gate_fist
+        level: 3
+  prepared:
+    fist:
+      id: tieyi_gate_fist
+      level: 3
+  dialogue:
+    - "这条路归谁管？谁能站着走出去，就归谁管。"
+  respawn: 45
+  attr:
+    hp: 95
+    qi: 80
+    max_qi: 80
+    jing: 100
+    qi_regen: 2.0
+    innate:
+      strength: 18
+      agility: 15
+      vitality: 14
+
+- id: hanyi_gate_disciple
+  name: "寒雨守门弟子"
+  desc: "守门弟子手中木剑没有开锋，但握剑的指节很白。"
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_sword
+        level: 10
+    sword:
+      - id: hanyi_rain_sword
+        level: 8
+  prepared:
+    sword:
+      id: hanyi_rain_sword
+      level: 8
+  dialogue:
+    - "进门之前，先把脚步放轻。这里最忌人声盖过雨声。"
+  respawn: 0
+  attr:
+    hp: 130
+    qi: 100
+    max_qi: 100
+    jing: 120
+    qi_regen: 2.5
+    innate:
+      strength: 15
+      agility: 22
+      vitality: 15
+
+- id: hanyi_senior
+  name: "寒雨门大师姐"
+  desc: "她的剑总在鞘中，像一句从不急着出口的话。"
+  gender: female
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_sword
+        level: 22
+      - id: basic_lightness
+        level: 20
+    sword:
+      - id: hanyi_rain_sword
+        level: 16
+  prepared:
+    sword:
+      id: hanyi_rain_sword
+      level: 16
+  teaches:
+    basic_sword: 16
+    basic_lightness: 14
+    hanyi_rain_sword: 10
+    mist_step: 8
+  dialogue:
+    - "寒雨剑不怕慢，怕的是你还没听清，就急着证明自己。"
+  respawn: 0
+  attr:
+    hp: 190
+    qi: 160
+    max_qi: 160
+    jing: 150
+    qi_regen: 3.5
+    innate:
+      strength: 18
+      agility: 28
+      vitality: 18
+
+- id: hanyi_teacher
+  name: "闻雨先生"
+  desc: "他守着残谱室，说话前总会先停一息，像在确认雨声。"
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_sword
+        level: 25
+      - id: basic_lightness
+        level: 22
+      - id: basic_internal
+        level: 16
+    sword:
+      - id: hanyi_rain_sword
+        level: 20
+      - id: cold_rain_secret
+        level: 8
+  prepared:
+    sword:
+      id: hanyi_rain_sword
+      level: 20
+  teaches:
+    basic_sword: 20
+    basic_lightness: 18
+    basic_internal: 12
+    hanyi_rain_sword: 14
+    cold_rain_secret: 6
+    mist_step: 10
+  dialogue:
+    - "残谱残的是纸，不是路。你若只想要完整答案，便不适合寒雨门。"
+  respawn: 0
+  attr:
+    hp: 210
+    qi: 190
+    max_qi: 190
+    jing: 170
+    qi_regen: 4.0
+    innate:
+      strength: 18
+      agility: 26
+      vitality: 22
+
+- id: tieyi_caravan_guard
+  name: "押车帮众"
+  desc: "他把短棍横在膝上，眼睛一直看着车辙尽头。"
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_fist
+        level: 10
+    fist:
+      - id: tieyi_gate_fist
+        level: 7
+  prepared:
+    fist:
+      id: tieyi_gate_fist
+      level: 7
+  dialogue:
+    - "押车不是往前走这么简单。该停时不停，该走时不走，都要死人。"
+  respawn: 0
+  attr:
+    hp: 150
+    qi: 90
+    max_qi: 90
+    jing: 110
+    qi_regen: 2.0
+    innate:
+      strength: 22
+      agility: 13
+      vitality: 21
+
+- id: tieyi_senior
+  name: "铁衣帮二当家"
+  desc: "他坐在堂中，身形很宽，像能替半个堂口挡雨。"
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_fist
+        level: 24
+      - id: basic_internal
+        level: 20
+    fist:
+      - id: tieyi_gate_fist
+        level: 18
+  prepared:
+    fist:
+      id: tieyi_gate_fist
+      level: 18
+  teaches:
+    basic_fist: 18
+    basic_internal: 16
+    tieyi_gate_fist: 12
+    cold_rain_short_fist: 8
+  dialogue:
+    - "帮中不怕你拳慢，怕你接了事又退。拳可以练，肩膀也可以练。"
+  respawn: 0
+  attr:
+    hp: 260
+    qi: 160
+    max_qi: 160
+    jing: 140
+    qi_regen: 3.0
+    innate:
+      strength: 28
+      agility: 14
+      vitality: 28
+
+- id: tieyi_teacher
+  name: "韩铁臂"
+  desc: "韩铁臂的左臂比常人粗一圈，袖子从来扣不上。"
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_fist
+        level: 28
+      - id: basic_internal
+        level: 22
+      - id: basic_lightness
+        level: 12
+    fist:
+      - id: tieyi_gate_fist
+        level: 22
+  prepared:
+    fist:
+      id: tieyi_gate_fist
+      level: 22
+  teaches:
+    basic_fist: 22
+    basic_internal: 18
+    basic_lightness: 10
+    tieyi_gate_fist: 16
+    cold_rain_short_fist: 10
+  dialogue:
+    - "铁衣拳先练挨打。你若连自己怕什么都不知道，拳架再漂亮也没用。"
+  respawn: 0
+  attr:
+    hp: 280
+    qi: 170
+    max_qi: 170
+    jing: 150
+    qi_regen: 3.0
+    innate:
+      strength: 30
+      agility: 14
+      vitality: 30
+
+- id: yaowang_herb_boy
+  name: "采药童子"
+  desc: "他蹲在药畦边，用小竹片拨开泥土。"
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_internal
+        level: 8
+      - id: basic_lightness
+        level: 8
+    internal:
+      - id: yaowang_breath
+        level: 5
+  prepared:
+    internal:
+      id: yaowang_breath
+      level: 5
+  dialogue:
+    - "这畦不能碰，碰了会麻半条手臂。那畦也不能碰，碰了会睡到明天。"
+  respawn: 0
+  attr:
+    hp: 90
+    qi: 130
+    max_qi: 130
+    jing: 150
+    qi_regen: 3.0
+    innate:
+      strength: 9
+      agility: 18
+      vitality: 18
+
+- id: yaowang_senior
+  name: "白发医者"
+  desc: "他看人时先看眼，再看手，最后才问伤在哪里。"
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_internal
+        level: 26
+      - id: basic_lightness
+        level: 16
+    internal:
+      - id: yaowang_breath
+        level: 18
+  prepared:
+    internal:
+      id: yaowang_breath
+      level: 18
+  teaches:
+    basic_internal: 20
+    basic_lightness: 12
+    yaowang_breath: 12
+    mist_step: 8
+  dialogue:
+    - "江湖人来谷中，多半先问怎么治伤。其实该先问，为什么总让自己受伤。"
+  respawn: 0
+  attr:
+    hp: 190
+    qi: 240
+    max_qi: 240
+    jing: 210
+    qi_regen: 5.0
+    innate:
+      strength: 12
+      agility: 18
+      vitality: 30
+
+- id: yaowang_teacher
+  name: "苏静息"
+  desc: "她说话很轻，像每一句都怕惊动病人的脉。"
+  gender: female
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_internal
+        level: 30
+      - id: basic_lightness
+        level: 18
+    internal:
+      - id: yaowang_breath
+        level: 24
+  prepared:
+    internal:
+      id: yaowang_breath
+      level: 24
+  teaches:
+    basic_internal: 24
+    basic_lightness: 14
+    yaowang_breath: 16
+    mist_step: 10
+  dialogue:
+    - "调息不是坐着不动。真正的静，是刀到眼前时还知道自己下一口气在哪里。"
+  respawn: 0
+  attr:
+    hp: 200
+    qi: 260
+    max_qi: 260
+    jing: 230
+    qi_regen: 5.0
+    innate:
+      strength: 12
+      agility: 20
+      vitality: 32
