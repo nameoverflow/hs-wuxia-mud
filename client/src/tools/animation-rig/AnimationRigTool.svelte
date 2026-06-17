@@ -23,6 +23,7 @@
   import type { CombatResult } from "../../protocol";
 
   type ToolTab = "actions" | "mapping";
+  type LibraryTab = "actions" | "poses";
   type InspectorTab = "action" | "feedback" | "pose" | "anchor" | "binding" | "map" | "io";
   type StyleFilter = CombatStyle | "all";
   type DragMode = "pose" | "anchor" | "binding";
@@ -70,9 +71,15 @@
   let drawFrame = 0;
 
   let activeTab: ToolTab = "actions";
+  let activeLibraryTab: LibraryTab = "actions";
   let activeInspectorTab: InspectorTab = "action";
   let selectedEntryId = "";
   let selectedPoseId = initialRigActions[0]?.poseId || "idle";
+  let poseIdDraft = selectedPoseId;
+  let lastPoseIdDraftSource = selectedPoseId;
+  let poseNameDraft = "";
+  let poseDurationDraft = 240;
+  let lastPoseMetadataDraftSource = "";
   let lastEntryId = "";
   let styleFilter: StyleFilter = "all";
   let search = "";
@@ -119,6 +126,11 @@
   $: selectedEntry = selectedActionEntries.find((entry) => entry.id === selectedEntryId);
   $: filteredRigActions = filterRigActions(rigActionManifest.actions, styleFilter, search);
   $: actionPoseOptions = rig ? keyframePoses(rig) : [];
+  $: filteredPoseOptions = filterPoseOptions(actionPoseOptions, rigActionManifest.actions, search);
+  $: if (selectedPoseId !== lastPoseIdDraftSource) {
+    poseIdDraft = selectedPoseId;
+    lastPoseIdDraftSource = selectedPoseId;
+  }
   $: selectedActionSequence = selectedRigAction ? normalizedActionSequence(selectedRigAction) : [];
   $: selectedActionPoseIds = selectedRigAction ? uniqueTextList([selectedRigAction.poseId, ...selectedActionSequence]) : [];
   $: missingActionPoseIds =
@@ -130,7 +142,7 @@
   $: currentMappingTarget = mappingTargets.find((target) => target.key === selectedMappingTargetKey) || mappingTargets[0];
   $: currentPoolId = currentMartialArt ? resolvedPoolId(currentMartialArt.data) : "";
   $: currentPoolEntries = currentMartialArt && currentPoolId ? poolEntries(currentMartialArt.data, currentPoolId) : [];
-  $: rig = selectedEntry ? createRigWithProjectPoses(selectedEntry) : null;
+  $: rig = selectedEntry ? createRigWithProjectPoses(selectedEntry, projectPoseLibrary) : null;
   $: if (selectedEntry && selectedEntry.id !== lastEntryId) {
     lastEntryId = selectedEntry.id;
     selectedPoseId = selectedEntry.poseId;
@@ -143,6 +155,14 @@
     loadSavedEdits(selectedEntry.id);
   }
   $: selectedPose = rig?.poses[selectedPoseId] || (selectedEntry && rig?.poses[selectedEntry.poseId]) || rig?.poses.idle;
+  $: {
+    const metadataSource = `${selectedPoseId}:${selectedPose?.name || ""}:${selectedPose?.durationMs || 240}`;
+    if (metadataSource !== lastPoseMetadataDraftSource) {
+      poseNameDraft = selectedPose?.name || selectedPoseId;
+      poseDurationDraft = selectedPose?.durationMs || 240;
+      lastPoseMetadataDraftSource = metadataSource;
+    }
+  }
   $: activePose = rig && isPlaying ? playbackPose(rig, playbackTime, selectedPoseId, selectedRigAction?.sequence || []) : selectedPose;
   $: currentBoneOverrides = isPlaying ? {} : boneOverridesByPose[selectedPoseId] || {};
   $: currentPoseAnchorOverrides = isPlaying ? {} : anchorOverridesByPose[selectedPoseId] || {};
@@ -196,6 +216,15 @@
     });
   }
 
+  function filterPoseOptions(list: SkeletalPoseDefinition[], actions: BattleActionDefinition[], term: string) {
+    const q = term.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((pose) => {
+      const users = actions.filter((action) => actionUsesPose(action, pose.id)).map((action) => action.id);
+      return [pose.id, pose.name, String(pose.durationMs || ""), ...users].join(" ").toLowerCase().includes(q);
+    });
+  }
+
   function entriesForRigActions(actions: BattleActionDefinition[]): AnimationRigEntry[] {
     return actions.flatMap((action) =>
       visualProfiles.map((profile) => ({
@@ -213,10 +242,10 @@
     );
   }
 
-  function createRigWithProjectPoses(entry: AnimationRigEntry) {
+  function createRigWithProjectPoses(entry: AnimationRigEntry, poseLibrary: Record<string, SkeletalPoseDefinition> | null) {
     const baseRig = createBattleActorRig(entry);
-    if (!entry.tags.includes("part-rig") || !projectPoseLibrary) return baseRig;
-    return { ...baseRig, poses: projectPoseLibrary };
+    if (!entry.tags.includes("part-rig") || !poseLibrary) return baseRig;
+    return { ...baseRig, poses: poseLibrary };
   }
 
   async function loadProjectPoses() {
@@ -254,6 +283,20 @@
     return entries.filter((entry) => entry.actionId === actionId).length;
   }
 
+  function actionUsesPose(action: BattleActionDefinition, poseId: string) {
+    return action.poseId === poseId || action.sequence.includes(poseId);
+  }
+
+  function poseUsageCount(poseId: string) {
+    return rigActionManifest.actions.filter((action) => actionUsesPose(action, poseId)).length;
+  }
+
+  function poseUsageSummary(poseId: string) {
+    const users = rigActionManifest.actions.filter((action) => actionUsesPose(action, poseId)).map((action) => action.id);
+    if (!users.length) return "未被动作引用";
+    return users.slice(0, 3).join(", ") + (users.length > 3 ? ` +${users.length - 3}` : "");
+  }
+
   function previewEntryLabel(entry: AnimationRigEntry) {
     return `${entry.profile} / ${entry.style} / ${entry.poseId}`;
   }
@@ -262,12 +305,12 @@
     return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
   }
 
-  function poseLabelById(id: string) {
-    return rig?.poses[id]?.name || id;
+  function poseLabelById(id: string, rigValue: SkeletonRigDefinition | null = rig) {
+    return rigValue?.poses[id]?.name || id;
   }
 
-  function poseOptionLabel(id: string) {
-    const pose = rig?.poses[id];
+  function poseOptionLabel(id: string, rigValue: SkeletonRigDefinition | null = rig) {
+    const pose = rigValue?.poses[id];
     return pose ? `${pose.name} / ${id}` : `缺失姿势 / ${id}`;
   }
 
@@ -343,6 +386,11 @@
     playbackTime = 0;
     playbackLastMs = 0;
     queueDraw();
+  }
+
+  function selectPoseFromLibrary(id: string) {
+    selectPose(id);
+    activeInspectorTab = "pose";
   }
 
   function queueDraw() {
@@ -1046,6 +1094,93 @@
     selectedRigActionId = clean;
   }
 
+  function renameSelectedPoseId(id: string) {
+    const fromId = selectedPoseId;
+    const clean = cleanPoseId(id);
+    if (!fromId || !clean) {
+      saveStatus = "Pose id is required";
+      return;
+    }
+    if (clean === fromId) return;
+
+    const library = currentProjectPoseLibrary();
+    if (library[clean]) {
+      saveStatus = "Pose id must be unique";
+      return;
+    }
+
+    const source = library[fromId] || poseDefinitionById(fromId) || selectedPose;
+    if (!source) {
+      saveStatus = "Pose not found";
+      return;
+    }
+
+    const { [fromId]: _removed, ...rest } = library;
+    projectPoseLibrary = {
+      ...rest,
+      [clean]: {
+        ...cloneRecord(source),
+        id: clean
+      }
+    };
+    rigActionManifest = {
+      ...rigActionManifest,
+      actions: rigActionManifest.actions.map((action) => ({
+        ...action,
+        poseId: action.poseId === fromId ? clean : action.poseId,
+        sequence: action.sequence.map((poseId) => (poseId === fromId ? clean : poseId))
+      }))
+    };
+    boneOverridesByPose = moveRecordKey(boneOverridesByPose, fromId, clean);
+    anchorOverridesByPose = moveRecordKey(anchorOverridesByPose, fromId, clean);
+    selectedPoseId = clean;
+    poseIdDraft = clean;
+    lastPoseIdDraftSource = clean;
+    saveStatus = "Renamed pose";
+    rigActionStatus = "Updated pose references";
+  }
+
+  function updateSelectedPoseMetadata(patch: Partial<SkeletalPoseDefinition>, status = "Updated pose") {
+    if (!selectedPoseId) return;
+    const source = poseDefinitionById(selectedPoseId) || selectedPose || { id: selectedPoseId, name: selectedPoseId, bones: {}, anchors: {} };
+    projectPoseLibrary = {
+      ...currentProjectPoseLibrary(),
+      [selectedPoseId]: {
+        ...cloneRecord(source),
+        ...patch,
+        id: selectedPoseId
+      }
+    };
+    saveStatus = status;
+  }
+
+  function updateSelectedPoseDuration(durationMs: number) {
+    if (!Number.isFinite(durationMs)) return;
+    updateSelectedPoseMetadata({ durationMs: Math.max(40, Math.round(durationMs)) }, "Updated pose duration");
+  }
+
+  function inputValueFromForm(event: SubmitEvent, name: string) {
+    const form = event.currentTarget as HTMLFormElement;
+    const input = form.elements.namedItem(name) as HTMLInputElement | null;
+    return input?.value || "";
+  }
+
+  function submitSelectedPoseId(event: SubmitEvent) {
+    event.preventDefault();
+    renameSelectedPoseId(inputValueFromForm(event, "poseId") || poseIdDraft);
+  }
+
+  function submitSelectedPoseName(event: SubmitEvent) {
+    event.preventDefault();
+    const name = (inputValueFromForm(event, "poseName") || poseNameDraft).trim();
+    updateSelectedPoseMetadata({ name: name || selectedPoseId }, "Updated pose name");
+  }
+
+  function submitSelectedPoseDuration(event: SubmitEvent) {
+    event.preventDefault();
+    updateSelectedPoseDuration(Number(inputValueFromForm(event, "poseDuration") || poseDurationDraft));
+  }
+
   function createRigAction() {
     const id = uniqueRigActionId("rig.custom.action");
     const poseId = createPoseDraftFrom(selectedPoseId, `${id}_pose`, "Custom action pose");
@@ -1139,6 +1274,7 @@
     const id = createPoseDraftFrom(selectedPoseId, `${selectedRigAction.id}_${selectedPoseId}`, `${selectedRigAction.label} ${selectedPose.name}`);
     attachPoseToCurrentAction(id, selectedPoseId);
     selectPose(id);
+    activeLibraryTab = "poses";
   }
 
   function createBlankPoseForCurrentAction() {
@@ -1150,6 +1286,7 @@
     };
     attachPoseToCurrentAction(id, selectedPoseId);
     selectPose(id);
+    activeLibraryTab = "poses";
     saveStatus = "Created blank pose";
   }
 
@@ -1191,6 +1328,12 @@
     return JSON.parse(JSON.stringify(value)) as T;
   }
 
+  function moveRecordKey<T>(record: Record<string, T>, fromId: string, toId: string) {
+    if (!(fromId in record)) return record;
+    const { [fromId]: value, ...rest } = record;
+    return { ...rest, [toId]: value };
+  }
+
   function uniquePoseId(base: string, library: Record<string, SkeletalPoseDefinition> = currentProjectPoseLibrary()) {
     const clean = sanitizePoseId(base) || "pose";
     const used = new Set(Object.keys(library));
@@ -1202,6 +1345,10 @@
 
   function sanitizePoseId(value: string) {
     return value.replace(/^rig[._-]*/i, "").replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "pose";
+  }
+
+  function cleanPoseId(value: string) {
+    return value.trim().replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "");
   }
 
   async function loadMartialArts() {
@@ -1688,7 +1835,7 @@
   <header class="rig-tool-header">
     <div>
       <h1>骨骼动画工具</h1>
-      <p>{rigActionManifest.actions.length} actions / {entries.length} rig previews</p>
+      <p>{rigActionManifest.actions.length} actions / {actionPoseOptions.length} poses / {entries.length} rig previews</p>
     </div>
     <div class="rig-header-meta">
       <span>{selectedRigAction?.id || "-"}</span>
@@ -1706,28 +1853,61 @@
   <main class="rig-tool-layout">
     <aside class="rig-list-panel">
       <div class="rig-panel-title">
-        <h2>动作定义</h2>
-        <span>{filteredRigActions.length} / {rigActionManifest.actions.length}</span>
-      </div>
-      <div class="rig-filter-row">
-        <input aria-label="Search actions" placeholder="Search action id / tag" bind:value={search} />
-      </div>
-      <div class="rig-filter-grid">
-        <select bind:value={styleFilter} aria-label="Style filter">
-          <option value="all">All styles</option>
-          <option value="sword">Sword</option>
-          <option value="fist">Fist</option>
-        </select>
+        <h2>{activeLibraryTab === "actions" ? "动作定义" : "姿势库"}</h2>
+        <span>
+          {activeLibraryTab === "actions"
+            ? `${filteredRigActions.length} / ${rigActionManifest.actions.length}`
+            : `${filteredPoseOptions.length} / ${actionPoseOptions.length}`}
+        </span>
       </div>
 
-      <div class="rig-entry-list" aria-label="Rig action definitions">
-        {#each filteredRigActions as action (action.id)}
-          <button type="button" class:active={action.id === selectedRigAction?.id} on:click={() => selectRigAction(action.id)}>
-            <strong>{action.id}</strong>
-            <span>{action.label}</span>
-            <small>{action.style} · {entryCountForAction(action.id)} previews · {action.durationMs}ms</small>
-          </button>
-        {/each}
+      <div class="rig-library-tabs" aria-label="Rig library">
+        <button type="button" class:active={activeLibraryTab === "actions"} on:click={() => (activeLibraryTab = "actions")}>动作</button>
+        <button type="button" class:active={activeLibraryTab === "poses"} on:click={() => (activeLibraryTab = "poses")}>姿势</button>
+      </div>
+
+      <div class="rig-filter-row">
+        <input
+          aria-label={activeLibraryTab === "actions" ? "Search actions" : "Search poses"}
+          placeholder={activeLibraryTab === "actions" ? "搜索动作 ID / 标签" : "搜索姿势 ID / 名称 / 引用动作"}
+          bind:value={search}
+        />
+      </div>
+
+      {#if activeLibraryTab === "actions"}
+        <div class="rig-filter-grid">
+          <select bind:value={styleFilter} aria-label="Style filter">
+            <option value="all">全部流派</option>
+            <option value="sword">剑</option>
+            <option value="fist">拳</option>
+          </select>
+        </div>
+      {:else}
+        <div class="rig-library-summary">
+          选择姿势会切到右侧“姿势”面板；改姿势 ID 会同步更新所有动作引用。
+        </div>
+      {/if}
+
+      <div class="rig-entry-list" aria-label={activeLibraryTab === "actions" ? "Rig action definitions" : "Rig pose definitions"}>
+        {#if activeLibraryTab === "actions"}
+          {#each filteredRigActions as action (action.id)}
+            <button type="button" class:active={action.id === selectedRigAction?.id} on:click={() => selectRigAction(action.id)}>
+              <strong>{action.id}</strong>
+              <span>{action.label}</span>
+              <small>{action.style} · {entryCountForAction(action.id)} previews · {action.durationMs}ms</small>
+            </button>
+          {/each}
+        {:else}
+          {#each filteredPoseOptions as pose (pose.id)}
+            <button type="button" class:active={pose.id === selectedPoseId} on:click={() => selectPoseFromLibrary(pose.id)}>
+              <strong>{pose.name}</strong>
+              <span>{pose.id}</span>
+              <small>{poseUsageCount(pose.id)} actions · {pose.durationMs || 0}ms · {poseUsageSummary(pose.id)}</small>
+            </button>
+          {:else}
+            <div class="rig-empty-list">没有匹配的姿势</div>
+          {/each}
+        {/if}
       </div>
     </aside>
 
@@ -1860,7 +2040,7 @@
             </div>
             <div>
               <span>主姿势</span>
-              <strong class:missing={rig && !rig.poses[selectedRigAction.poseId]}>{poseLabelById(selectedRigAction.poseId)}</strong>
+              <strong class:missing={rig && !rig.poses[selectedRigAction.poseId]}>{poseLabelById(selectedRigAction.poseId, rig)}</strong>
             </div>
             <div>
               <span>时长</span>
@@ -2072,14 +2252,49 @@
       {:else if activeInspectorTab === "pose"}
       <section>
         <div class="rig-section-head">
-          <h2>姿势编辑</h2>
-          <span>{selectedPoseId}</span>
+          <h2>姿势资源</h2>
+          <span>{saveStatus}</span>
+        </div>
+
+        <div class="rig-pose-identity">
+          <div class="rig-field">
+            <span>姿势 ID</span>
+            <form class="rig-pose-id-row" on:submit={submitSelectedPoseId}>
+              <input name="poseId" bind:value={poseIdDraft} />
+              <button type="submit" class="rig-secondary">重命名</button>
+            </form>
+          </div>
+          <div class="rig-field">
+            <span>名称</span>
+            <form class="rig-pose-id-row" on:submit={submitSelectedPoseName}>
+              <input name="poseName" bind:value={poseNameDraft} />
+              <button type="submit" class="rig-secondary">更新</button>
+            </form>
+          </div>
+          <div class="rig-field">
+            <span>单段时长</span>
+            <form class="rig-pose-id-row" on:submit={submitSelectedPoseDuration}>
+              <input name="poseDuration" type="number" min="40" step="20" bind:value={poseDurationDraft} />
+              <button type="submit" class="rig-secondary">更新</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="rig-pose-relation">
+          <div>
+            <span>姿势名称</span>
+            <strong>{poseLabelById(selectedPoseId, rig)}</strong>
+          </div>
+          <div>
+            <span>引用动作</span>
+            <strong>{poseUsageCount(selectedPoseId)} 个</strong>
+          </div>
         </div>
 
         {#if selectedRigAction}
           <div class="rig-pose-relation">
             <div>
-              <span>动作定义</span>
+              <span>当前动作</span>
               <strong>{selectedRigAction.id}</strong>
             </div>
             <div>
@@ -2093,7 +2308,7 @@
             <div class="rig-pose-button-list">
               {#each selectedActionPoseIds as poseId}
                 <button type="button" class:active={poseId === selectedPoseId} disabled={!rig?.poses[poseId]} on:click={() => selectPose(poseId)}>
-                  <strong>{poseLabelById(poseId)}</strong>
+                  <strong>{poseLabelById(poseId, rig)}</strong>
                   <code>{poseId}</code>
                 </button>
               {/each}
@@ -2103,30 +2318,15 @@
           <div class="rig-pose-workflow">
             <div>
               <span>当前姿势</span>
-              <strong>{poseLabelById(selectedPoseId)}</strong>
+              <strong>{poseLabelById(selectedPoseId, rig)}</strong>
               <code>{selectedPoseId}</code>
             </div>
             <button type="button" class="rig-secondary" on:click={copySelectedPoseToCurrentAction}>复制当前姿势给动作</button>
             <button type="button" class="rig-secondary" on:click={createBlankPoseForCurrentAction}>新建空白姿势给动作</button>
             <button type="button" class="rig-primary" disabled={!canSaveProjectPoses} on:click={saveProjectPoses}>保存姿势库</button>
+            <button type="button" class="rig-primary" on:click={saveRigActions}>保存动作引用</button>
           </div>
         {/if}
-
-        <details class="rig-advanced-editor">
-          <summary>全部 rig 姿势库</summary>
-          <div class="rig-advanced-editor-body">
-            <label class="rig-field">
-              正在编辑
-              <select value={selectedPoseId} aria-label="姿势预设" on:change={(event) => selectPose(selectInput(event))}>
-                {#if rig}
-                  {#each keyframePoses(rig) as pose (pose.id)}
-                    <option value={pose.id}>{pose.name}</option>
-                  {/each}
-                {/if}
-              </select>
-            </label>
-          </div>
-        </details>
 
         <label class="rig-field">
           姿势骨骼

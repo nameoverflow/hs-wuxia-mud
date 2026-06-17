@@ -198,7 +198,7 @@ textarea {
 
 .rig-list-panel {
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
   gap: 10px;
   padding: 10px;
 }
@@ -231,6 +231,25 @@ textarea {
   font-size: 0.72rem;
 }
 
+.rig-library-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.rig-library-tabs button {
+  min-height: 34px;
+  color: var(--rig-muted);
+  background: var(--rig-panel-3);
+}
+
+.rig-library-tabs button.active {
+  border-color: rgba(84, 198, 177, 0.72);
+  background: #14322f;
+  color: var(--rig-jade);
+  font-weight: 700;
+}
+
 .rig-filter-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -239,6 +258,23 @@ textarea {
 
 .rig-list-panel .rig-filter-grid {
   grid-template-columns: 1fr;
+}
+
+.rig-library-summary,
+.rig-empty-list {
+  border: 1px solid var(--rig-line);
+  background: var(--rig-panel-3);
+  color: var(--rig-muted);
+  font-size: 0.74rem;
+  line-height: 1.4;
+  padding: 8px;
+}
+
+.rig-empty-list {
+  display: grid;
+  min-height: 84px;
+  place-content: center;
+  text-align: center;
 }
 
 .rig-entry-list {
@@ -599,6 +635,22 @@ textarea {
 .rig-sequence-actions .rig-secondary {
   min-width: 0;
   padding: 0 6px;
+}
+
+.rig-pose-identity {
+  display: grid;
+  gap: 8px;
+}
+
+.rig-pose-id-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+.rig-pose-id-row .rig-secondary {
+  min-width: 74px;
+  padding: 0 10px;
 }
 
 .rig-pose-relation {
