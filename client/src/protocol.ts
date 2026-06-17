@@ -190,8 +190,7 @@ export type CombatMessage =
     };
 
 export interface CombatVisualHint {
-  pool: string;
-  action: string | null;
+  actionId: string;
   tags: string[];
 }
 

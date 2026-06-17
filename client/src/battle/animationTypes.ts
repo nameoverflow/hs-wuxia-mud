@@ -10,14 +10,14 @@ export type ActorMotion = "none" | "approach" | "lunge" | "drive" | "focus";
 
 export type TargetReaction = "none" | "hit" | "dodge" | "parry" | "effect";
 
-export interface SpriteClip {
-  id: string;
-  sprites: Record<VisualProfile, string>;
-}
-
 export interface ActorVisual {
-  kind: "sprite";
-  sprite: string;
+  kind: "rig";
+  actionId: string;
+  entryId: string;
+  profile: VisualProfile;
+  style: CombatStyle;
+  poseId: string;
+  sequence: string[];
 }
 
 export interface TimelineVfx {
@@ -35,40 +35,16 @@ export interface ActionVfxDefinition {
 
 export interface BattleActionDefinition {
   id: string;
-  clipId: string;
+  label: string;
+  rig: "segmented-v12";
+  style: CombatStyle;
+  poseId: string;
+  sequence: string[];
   tags: string[];
   durationMs: number;
   actorMotion: ActorMotion;
   targetReaction: Partial<Record<CombatResult, TargetReaction>>;
   vfx: ActionVfxDefinition[];
-}
-
-export interface ActionPoolCandidate {
-  id: string;
-  weight?: number;
-  tags?: string[];
-}
-
-export type ActionPoolEntry = string | ActionPoolCandidate;
-
-export interface ActionPoolVariant {
-  mode?: "append" | "replace";
-  actions: ActionPoolEntry[];
-}
-
-export interface ActionPoolDefinition {
-  id: string;
-  fallbackPool?: string;
-  actions: ActionPoolEntry[];
-  styles?: Partial<Record<CombatStyle, ActionPoolVariant>>;
-  profiles?: Partial<Record<VisualProfile, ActionPoolVariant>>;
-  styleProfiles?: Partial<Record<CombatStyle, Partial<Record<VisualProfile, ActionPoolVariant>>>>;
-}
-
-export interface ActionVariantDefinition {
-  styles?: Partial<Record<CombatStyle, string>>;
-  profiles?: Partial<Record<VisualProfile, string>>;
-  styleProfiles?: Partial<Record<CombatStyle, Partial<Record<VisualProfile, string>>>>;
 }
 
 export interface ResolvedBattleTimeline {
@@ -79,13 +55,11 @@ export interface ResolvedBattleTimeline {
   durationMs: number;
   actor: {
     side: BattleSide;
-    sprite: string;
     visual: ActorVisual;
     motion: ActorMotion;
   };
   target: {
     side: BattleSide;
-    sprite: string;
     visual: ActorVisual;
     reaction: TargetReaction;
   };

@@ -1,6 +1,6 @@
 import { writable } from "svelte/store";
 import { resolveCombatTimeline, resolveSettlementTimeline } from "./battle/animationResolver";
-import { combatStyleFromSnapshot, visualProfileFromGender } from "./battle/animationCatalog";
+import { combatStyleFromSnapshot, visualProfileFromGender } from "./battle/rigActionCatalog";
 import type { BattleSide, ResolvedBattleTimeline } from "./battle/animationTypes";
 export type { BattleSide } from "./battle/animationTypes";
 import { hasTranslation, translate, type Locale } from "./i18n";

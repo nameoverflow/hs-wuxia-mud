@@ -7,6 +7,18 @@ requires:
   - art: basic_fist
     level: 1
 max_level: 10
+animation_pools:
+  basic:
+    actions:
+      - action: rig.fist.punch_a
+        weight: 3
+        tags: ["fist", "strike", "punch"]
+      - action: rig.fist.heavy_a
+        weight: 2
+        tags: ["fist", "heavy", "strike"]
+      - action: rig.fist.kick_a
+        weight: 1
+        tags: ["fist", "kick", "uppercut"]
 attack_moves:
   - id: straight_trial_punch
     name: "试手一拳"
@@ -15,7 +27,7 @@ attack_moves:
     unlock_level: 1
     damage: 10
     animation:
-      pool: "weapon.fist.basic"
+      pool: basic
       tags: ["fist", "strike"]
   - id: rainstep_kick
     name: "雨脚一踢"
@@ -24,7 +36,7 @@ attack_moves:
     unlock_level: 1
     damage: 11
     animation:
-      pool: "weapon.fist.basic"
+      pool: basic
       tags: ["fist", "kick", "uppercut"]
 active_skills:
   - id: power_strike
@@ -39,7 +51,7 @@ active_skills:
     req_status: []
     damage: 35
     animation:
-      pool: "weapon.fist.basic"
+      pool: basic
       tags: ["fist", "heavy", "strike"]
     effect:
       self: []
@@ -56,8 +68,7 @@ active_skills:
     req_status: []
     heal: 40
     animation:
-      pool: "skill.fist_focus"
-      action: "skill.fist_focus.palm"
+      action: rig.fist.healing_palm
       tags: ["heal", "self"]
     effect:
       self: []

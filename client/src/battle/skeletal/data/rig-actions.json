@@ -1,0 +1,276 @@
+{
+  "schemaVersion": 1,
+  "actions": [
+    {
+      "id": "rig.sword.idle",
+      "label": "Sword idle",
+      "rig": "segmented-v12",
+      "style": "sword",
+      "poseId": "swordReady",
+      "sequence": ["swordReady"],
+      "durationMs": 640,
+      "tags": ["sword", "idle"],
+      "actorMotion": "none",
+      "targetReaction": { "hit": "none", "dodge": "none", "parry": "none", "effect": "none" },
+      "vfx": []
+    },
+    {
+      "id": "rig.sword.thrust_a",
+      "label": "Jian thrust",
+      "rig": "segmented-v12",
+      "style": "sword",
+      "poseId": "swordThrust",
+      "sequence": ["swordReady", "swordThrustWindup", "swordThrust", "swordRecover", "swordReady"],
+      "durationMs": 760,
+      "tags": ["sword", "jian", "attack", "stab", "thrust", "quick"],
+      "actorMotion": "approach",
+      "targetReaction": { "hit": "hit", "dodge": "dodge", "parry": "parry", "effect": "effect" },
+      "vfx": [
+        { "kind": "trail", "variant": "stab-line", "anchor": "actor" },
+        { "kind": "impact", "variant": "hit-spark", "anchor": "target" },
+        { "kind": "parry", "variant": "parry-arc", "anchor": "target" }
+      ]
+    },
+    {
+      "id": "rig.sword.chop_a",
+      "label": "Jian chop",
+      "rig": "segmented-v12",
+      "style": "sword",
+      "poseId": "swordChop",
+      "sequence": ["swordReady", "swordChopWindup", "swordChop", "swordRecover", "swordReady"],
+      "durationMs": 780,
+      "tags": ["sword", "jian", "attack", "slash", "chop", "heavy"],
+      "actorMotion": "approach",
+      "targetReaction": { "hit": "hit", "dodge": "dodge", "parry": "parry", "effect": "effect" },
+      "vfx": [
+        { "kind": "trail", "variant": "slash-arc", "anchor": "actor" },
+        { "kind": "impact", "variant": "hit-spark", "anchor": "target" },
+        { "kind": "parry", "variant": "parry-arc", "anchor": "target" }
+      ]
+    },
+    {
+      "id": "rig.sword.rising_cut_a",
+      "label": "Jian rising cut",
+      "rig": "segmented-v12",
+      "style": "sword",
+      "poseId": "swordLiao",
+      "sequence": ["swordReady", "swordLiaoWindup", "swordLiao", "swordRecover", "swordReady"],
+      "durationMs": 760,
+      "tags": ["sword", "jian", "attack", "uppercut", "rising-cut", "lift"],
+      "actorMotion": "lunge",
+      "targetReaction": { "hit": "hit", "dodge": "dodge", "parry": "parry", "effect": "effect" },
+      "vfx": [
+        { "kind": "trail", "variant": "uppercut-arc", "anchor": "actor" },
+        { "kind": "impact", "variant": "hit-spark", "anchor": "target" },
+        { "kind": "parry", "variant": "parry-arc", "anchor": "target" }
+      ]
+    },
+    {
+      "id": "rig.sword.guard",
+      "label": "Sword guard",
+      "rig": "segmented-v12",
+      "style": "sword",
+      "poseId": "swordParry",
+      "sequence": ["swordReady", "swordParry", "swordReady"],
+      "durationMs": 720,
+      "tags": ["sword", "guard", "stance", "buff", "self"],
+      "actorMotion": "focus",
+      "targetReaction": { "hit": "effect", "dodge": "effect", "parry": "effect", "effect": "effect" },
+      "vfx": [{ "kind": "aura", "variant": "guard-ring", "anchor": "actor" }]
+    },
+    {
+      "id": "rig.sword.hurt",
+      "label": "Sword hurt",
+      "rig": "segmented-v12",
+      "style": "sword",
+      "poseId": "swordHurt",
+      "sequence": ["swordReady", "swordHurt", "swordReady"],
+      "durationMs": 520,
+      "tags": ["sword", "reaction", "hurt"],
+      "actorMotion": "none",
+      "targetReaction": { "hit": "none", "dodge": "none", "parry": "none", "effect": "none" },
+      "vfx": []
+    },
+    {
+      "id": "rig.sword.dodge",
+      "label": "Sword dodge",
+      "rig": "segmented-v12",
+      "style": "sword",
+      "poseId": "swordDodge",
+      "sequence": ["swordReady", "swordDodge", "swordReady"],
+      "durationMs": 560,
+      "tags": ["sword", "reaction", "dodge"],
+      "actorMotion": "none",
+      "targetReaction": { "hit": "none", "dodge": "none", "parry": "none", "effect": "none" },
+      "vfx": []
+    },
+    {
+      "id": "rig.sword.parry",
+      "label": "Sword parry",
+      "rig": "segmented-v12",
+      "style": "sword",
+      "poseId": "swordParry",
+      "sequence": ["swordReady", "swordParry", "swordReady"],
+      "durationMs": 560,
+      "tags": ["sword", "reaction", "parry", "guard"],
+      "actorMotion": "none",
+      "targetReaction": { "hit": "none", "dodge": "none", "parry": "none", "effect": "none" },
+      "vfx": []
+    },
+    {
+      "id": "rig.fist.idle",
+      "label": "Fist idle",
+      "rig": "segmented-v12",
+      "style": "fist",
+      "poseId": "idle",
+      "sequence": ["idle"],
+      "durationMs": 640,
+      "tags": ["fist", "idle"],
+      "actorMotion": "none",
+      "targetReaction": { "hit": "none", "dodge": "none", "parry": "none", "effect": "none" },
+      "vfx": []
+    },
+    {
+      "id": "rig.fist.punch_a",
+      "label": "Fist punch",
+      "rig": "segmented-v12",
+      "style": "fist",
+      "poseId": "strike",
+      "sequence": ["idle", "windup", "strike", "recover", "idle"],
+      "durationMs": 720,
+      "tags": ["fist", "attack", "strike", "punch"],
+      "actorMotion": "approach",
+      "targetReaction": { "hit": "hit", "dodge": "dodge", "parry": "parry", "effect": "effect" },
+      "vfx": [
+        { "kind": "trail", "variant": "stab-line", "anchor": "actor" },
+        { "kind": "impact", "variant": "hit-spark", "anchor": "target" },
+        { "kind": "parry", "variant": "parry-arc", "anchor": "target" }
+      ]
+    },
+    {
+      "id": "rig.fist.heavy_a",
+      "label": "Fist heavy strike",
+      "rig": "segmented-v12",
+      "style": "fist",
+      "poseId": "strike",
+      "sequence": ["idle", "windup", "strike", "recover", "idle"],
+      "durationMs": 820,
+      "tags": ["fist", "attack", "strike", "heavy"],
+      "actorMotion": "drive",
+      "targetReaction": { "hit": "hit", "dodge": "dodge", "parry": "parry", "effect": "effect" },
+      "vfx": [
+        { "kind": "trail", "variant": "slash-arc", "anchor": "actor" },
+        { "kind": "impact", "variant": "hit-spark", "anchor": "target" },
+        { "kind": "parry", "variant": "parry-arc", "anchor": "target" }
+      ]
+    },
+    {
+      "id": "rig.fist.kick_a",
+      "label": "Fist kick",
+      "rig": "segmented-v12",
+      "style": "fist",
+      "poseId": "strike",
+      "sequence": ["idle", "windup", "strike", "recover", "idle"],
+      "durationMs": 860,
+      "tags": ["fist", "attack", "kick", "uppercut", "lift"],
+      "actorMotion": "lunge",
+      "targetReaction": { "hit": "hit", "dodge": "dodge", "parry": "parry", "effect": "effect" },
+      "vfx": [
+        { "kind": "trail", "variant": "uppercut-arc", "anchor": "actor" },
+        { "kind": "impact", "variant": "hit-spark", "anchor": "target" },
+        { "kind": "parry", "variant": "parry-arc", "anchor": "target" }
+      ]
+    },
+    {
+      "id": "rig.fist.guard",
+      "label": "Fist guard",
+      "rig": "segmented-v12",
+      "style": "fist",
+      "poseId": "guard",
+      "sequence": ["idle", "guard", "idle"],
+      "durationMs": 720,
+      "tags": ["fist", "guard", "stance", "buff", "self"],
+      "actorMotion": "focus",
+      "targetReaction": { "hit": "effect", "dodge": "effect", "parry": "effect", "effect": "effect" },
+      "vfx": [{ "kind": "aura", "variant": "guard-ring", "anchor": "actor" }]
+    },
+    {
+      "id": "rig.fist.healing_palm",
+      "label": "Healing palm",
+      "rig": "segmented-v12",
+      "style": "fist",
+      "poseId": "guard",
+      "sequence": ["idle", "guard", "idle"],
+      "durationMs": 780,
+      "tags": ["fist", "heal", "palm", "self"],
+      "actorMotion": "focus",
+      "targetReaction": { "hit": "effect", "dodge": "effect", "parry": "effect", "effect": "effect" },
+      "vfx": [{ "kind": "heal", "variant": "heal-pulse", "anchor": "actor" }]
+    },
+    {
+      "id": "rig.fist.hurt",
+      "label": "Fist hurt",
+      "rig": "segmented-v12",
+      "style": "fist",
+      "poseId": "hurt",
+      "sequence": ["idle", "hurt", "idle"],
+      "durationMs": 520,
+      "tags": ["fist", "reaction", "hurt"],
+      "actorMotion": "none",
+      "targetReaction": { "hit": "none", "dodge": "none", "parry": "none", "effect": "none" },
+      "vfx": []
+    },
+    {
+      "id": "rig.fist.dodge",
+      "label": "Fist dodge",
+      "rig": "segmented-v12",
+      "style": "fist",
+      "poseId": "dodge",
+      "sequence": ["idle", "dodge", "idle"],
+      "durationMs": 560,
+      "tags": ["fist", "reaction", "dodge"],
+      "actorMotion": "none",
+      "targetReaction": { "hit": "none", "dodge": "none", "parry": "none", "effect": "none" },
+      "vfx": []
+    },
+    {
+      "id": "rig.fist.parry",
+      "label": "Fist parry",
+      "rig": "segmented-v12",
+      "style": "fist",
+      "poseId": "guard",
+      "sequence": ["idle", "guard", "idle"],
+      "durationMs": 560,
+      "tags": ["fist", "reaction", "parry", "guard"],
+      "actorMotion": "none",
+      "targetReaction": { "hit": "none", "dodge": "none", "parry": "none", "effect": "none" },
+      "vfx": []
+    },
+    {
+      "id": "rig.effect.dot",
+      "label": "Damage over time",
+      "rig": "segmented-v12",
+      "style": "fist",
+      "poseId": "idle",
+      "sequence": ["idle"],
+      "durationMs": 560,
+      "tags": ["effect", "dot"],
+      "actorMotion": "none",
+      "targetReaction": { "hit": "effect", "dodge": "effect", "parry": "effect", "effect": "effect" },
+      "vfx": [{ "kind": "impact", "variant": "dot-spark", "anchor": "target" }]
+    },
+    {
+      "id": "rig.effect.hot",
+      "label": "Heal over time",
+      "rig": "segmented-v12",
+      "style": "fist",
+      "poseId": "idle",
+      "sequence": ["idle"],
+      "durationMs": 560,
+      "tags": ["effect", "hot"],
+      "actorMotion": "none",
+      "targetReaction": { "hit": "effect", "dodge": "effect", "parry": "effect", "effect": "effect" },
+      "vfx": [{ "kind": "heal", "variant": "heal-pulse", "anchor": "target" }]
+    }
+  ]
+}

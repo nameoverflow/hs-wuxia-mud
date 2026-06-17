@@ -5,12 +5,15 @@ rooms:
   - position: [3, 3]
     id: cold_rain_ferry
     name: "冷雨渡口"
-    desc: "渡船拴在黑水边，灯笼被雨打得发白。客栈门口站着一个掌柜，像是在等一个不会来的人。"
+    desc: "渡船拴在黑水边，灯笼被雨打得发白。你怀里有半张无名短笺，只写着“今夜，冷雨客栈，问青衣客”。客栈门口站着一个掌柜，像是在等一个不会来的人。"
     char:
       - cold_rain_innkeeper
     exits:
       north: [3, 4]
       northeast: [4, 4]
+      east:
+        map: mountain_pass
+        position: [0, 0]
       west: [2, 3]
 
   - position: [3, 4]
@@ -41,6 +44,3 @@ rooms:
       - char_in_test
     exits:
       east: [3, 3]
-      north:
-        map: mountain_pass
-        position: [0, 0]

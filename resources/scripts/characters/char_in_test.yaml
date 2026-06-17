@@ -3,15 +3,16 @@ name: "沉默木人"
 desc: "一具给客人试招的旧木人，刀痕纵横。"
 actions: [dialogue, attacking, sparring]
 martial_arts:
-  fist:
-    - id: nameless_trial_fist
+  sword:
+    - id: nameless_trial_sword
       level: 1
 prepared:
-  fist:
-    id: nameless_trial_fist
+  sword:
+    id: nameless_trial_sword
     level: 1
 teaches:
   cold_rain_secret: 5
+  nameless_trial_sword: 5
   nameless_trial_fist: 5
 dialogue:
   - "木人沉默不语，雨水沿着刀痕往下流。"

@@ -5,7 +5,7 @@ rooms:
   - position: [0, -3]
     id: jinguan_south_ferry
     name: "南渡口"
-    desc: "渡口的木桩被雨水泡得发黑。往南还能看见荒山小径，往北便是津关镇的石桥。"
+    desc: "渡口的木桩被雨水泡得发黑。往南还能看见冷雨客栈外的官道，往北便是津关镇的石桥。"
     exits:
       north: [0, -2]
       south:

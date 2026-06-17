@@ -7,6 +7,18 @@
     - art: basic_sword
       level: 1
   max_level: 40
+  animation_pools:
+    basic:
+      actions:
+        - action: rig.sword.thrust_a
+          weight: 3
+          tags: ["sword", "stab", "thrust"]
+        - action: rig.sword.chop_a
+          weight: 3
+          tags: ["sword", "slash", "chop"]
+        - action: rig.sword.rising_cut_a
+          weight: 1
+          tags: ["sword", "uppercut", "lift"]
   attack_moves:
     - id: hanyi_drop_cut
       name: "檐滴一斩"
@@ -15,8 +27,7 @@
       unlock_level: 1
       damage: 13
       animation:
-        pool: "weapon.sword.basic"
-        action: "sword.slash_a"
+        pool: basic
         tags: ["sword", "slash"]
     - id: hanyi_thread_stab
       name: "雨线一刺"
@@ -25,8 +36,7 @@
       unlock_level: 4
       damage: 16
       animation:
-        pool: "weapon.sword.basic"
-        action: "sword.stab_a"
+        pool: basic
         tags: ["sword", "stab"]
   active_skills:
     - id: hanyi_listen_cut
@@ -41,8 +51,7 @@
       req_status: []
       damage: 48
       animation:
-        pool: "weapon.sword.basic"
-        action: "sword.slash_a"
+        pool: basic
         tags: ["sword", "slash", "counter"]
       effect:
         self: []
@@ -60,6 +69,18 @@
     - art: basic_fist
       level: 1
   max_level: 40
+  animation_pools:
+    basic:
+      actions:
+        - action: rig.fist.punch_a
+          weight: 3
+          tags: ["fist", "strike", "punch"]
+        - action: rig.fist.heavy_a
+          weight: 3
+          tags: ["fist", "heavy", "strike"]
+        - action: rig.fist.kick_a
+          weight: 1
+          tags: ["fist", "kick"]
   attack_moves:
     - id: tieyi_door_push
       name: "推门势"
@@ -68,7 +89,7 @@
       unlock_level: 1
       damage: 12
       animation:
-        pool: "weapon.fist.basic"
+        pool: basic
         tags: ["fist", "strike"]
     - id: tieyi_iron_elbow
       name: "铁肘"
@@ -77,7 +98,7 @@
       unlock_level: 5
       damage: 18
       animation:
-        pool: "weapon.fist.basic"
+        pool: basic
         tags: ["fist", "heavy", "strike"]
   active_skills:
     - id: tieyi_cover_body
@@ -91,8 +112,7 @@
       ap_req: 45
       req_status: []
       animation:
-        pool: "skill.fist_focus"
-        action: "skill.fist_focus.guard"
+        action: rig.fist.guard
         tags: ["buff", "self"]
       effect:
         self:
@@ -123,8 +143,7 @@
       req_status: []
       heal: 45
       animation:
-        pool: "skill.fist_focus"
-        action: "skill.fist_focus.palm"
+        action: rig.fist.healing_palm
         tags: ["heal", "self"]
       effect:
         self: []

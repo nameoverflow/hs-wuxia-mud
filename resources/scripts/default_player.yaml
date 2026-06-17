@@ -27,9 +27,16 @@ char:
     fist:
       - id: nameless_trial_fist
         level: 1
+    sword:
+      - id: nameless_trial_sword
+        level: 1
   prepared:
-    fist:
-      id: nameless_trial_fist
+    sword:
+      id: nameless_trial_sword
+      level: 1
+  enabled:
+    sword:
+      id: nameless_trial_sword
       level: 1
   attr:
     hp: 114

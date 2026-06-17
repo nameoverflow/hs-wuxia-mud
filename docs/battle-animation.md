@@ -1,14 +1,14 @@
 # 半回合制战斗动画系统
 
-本文记录当前 Web 客户端战斗动画系统的实现边界。战斗事实由 server 发送结构化事件，client 通过动画 catalog 和 resolver 选择表现。
+本文记录当前 Web 客户端战斗动画系统的实现边界。战斗事实由 server 发送结构化事件，server 根据武功动作池选出最终 rig action，client 只负责按 action id 播放对应 rig 动作。
 
 目标不是做完整 3D 或骨骼动画引擎，而是为当前一对一、AP 驱动、半回合制的文字 MUD 提供一个轻量、数据驱动、可扩展的 2D 剪影动画系统。
 
 核心原则：
 
-- server 决定战斗事实：谁出手、用什么招、命中/闪避/招架、伤害、治疗、结算。
-- 内容 YAML 决定动画语义：动作池、指定动作、动作 tag。
-- client 决定表现播放：从 catalog 中选 clip、motion、reaction、VFX 和飘字。
+- server 决定战斗事实：谁出手、用什么招、命中/闪避/招架、伤害、治疗、结算，以及本次事件最终使用哪个 `actionId`。
+- 内容 YAML 决定动作池：每门武功有自己的 `animation_pools`，普通攻击和主动技能引用本门 pool 或固定 `rig.*` action。
+- client 决定表现播放：从 rig action manifest 读取 pose sequence、motion、reaction、VFX 和飘字。
 - UI 组件渲染 resolved timeline。
 - 素材使用统一画布、统一比例和统一脚底基线。
 
@@ -18,16 +18,18 @@
 - 服务端战斗事件协议：[src/Game/Message.hs](../src/Game/Message.hs)
 - 服务端事件产生：[src/Game/Combat.hs](../src/Game/Combat.hs)
 - 客户端协议类型：[client/src/protocol.ts](../client/src/protocol.ts)
-- 动画 catalog：[client/src/battle/animationCatalog.ts](../client/src/battle/animationCatalog.ts)
+- rig action manifest：[client/src/battle/skeletal/data/rig-actions.json](../client/src/battle/skeletal/data/rig-actions.json)
+- rig action catalog：[client/src/battle/rigActionCatalog.ts](../client/src/battle/rigActionCatalog.ts)
 - timeline resolver：[client/src/battle/animationResolver.ts](../client/src/battle/animationResolver.ts)
 - timeline 类型：[client/src/battle/animationTypes.ts](../client/src/battle/animationTypes.ts)
 - 战斗面板渲染：[client/src/components/BattlePanel.svelte](../client/src/components/BattlePanel.svelte)
+- rig actor 渲染：[client/src/components/RigActor.svelte](../client/src/components/RigActor.svelte)
 - 通用 motion / reaction / VFX CSS：[client/src/styles.css](../client/src/styles.css)
 - 当前素材：[client/src/assets/battle/](../client/src/assets/battle)
 
 ## 骨骼绑定基础系统
 
-骨骼系统当前是独立基础设施，不接入正式游戏 client UI。它用于先验证骨骼层级、锚点、绑定、姿势编辑和 Canvas 渲染。
+骨骼系统已经接入正式战斗 UI。`BattlePanel` 渲染 `RigActor`，`RigActor` 使用同一套 `SkeletalCanvasRenderer` 播放 `rig-actions.json` 中定义的 pose sequence。
 
 源码入口：
 
@@ -98,36 +100,34 @@ npm run render:rig -- --mode review --profile female --style sword --actions dod
 
 当前约束：
 
-- 大多数正式战斗 PNG 仍是完整帧图；`source.frame` 只是对照 binding，不代表最终骨骼切片资产。
 - `segmented.v12` 当前四肢和马尾使用五点 weighted mesh skinning：renderer 生成高密度三角网格，每个 source 网格点按到多段 source keypoint 曲线的距离连续混合权重，再映射到 target keypoint 曲线。相比旧的最近中心线投影，这会保留马尾曲线、尖端和肢体轮廓，避免弯曲后出现方形端面或硬分区。
 - 手臂 keypoint 是 hidden root、shoulder、elbow、wrist、hand；腿部 keypoint 是 hidden root、hip、knee、ankle、foot。它不再用半径生成新的圆管外形，所以手脚末端和部件粗细由源图 alpha 决定；当像素采样失败时才回退到 ribbon mesh。它已经支持从弯曲到伸直的关键点形变，但还不是完整的手工权重刷编辑器。
 - 女版马尾使用同一套 weighted mesh skinning，`ponytailRoot` 固定到 head，`ponytailBase` 是靠头的固定基座，`ponytailMid`、`ponytailLower`、`ponytailTip` 作为后段链条参与摆动；马尾使用更密的网格和更宽的曲线影响半径。
 - 剑术关键帧参考记录在 [harness/animation-qa/references/chinese-jian-keyframe-notes.md](../harness/animation-qa/references/chinese-jian-keyframe-notes.md)。当前剑是挂在 `sword` bone 上的 tool prop line，方便先调动作，不作为最终剑器美术。
 - debug skin 是工具层预览，不作为最终游戏美术。
-- 正式战斗面板仍走现有 sprite/CSS timeline；骨骼渲染接入需要后续单独切换 `ActorVisual` 和 `BattlePanel` 渲染路径。
 
 ## 总体架构
 
 ```text
 Content YAML
-  -> AttackMove / ActiveSkill animation
-  -> Combat server
-  -> CombatEventMsg
+  -> MartialArt animation_pools
+  -> Combat server selects final rig actionId
+  -> CombatEventMsg.visual.actionId
   -> client event queue
   -> animationResolver
   -> ResolvedBattleTimeline
-  -> BattlePanel + CSS primitives
+  -> BattlePanel + RigActor + CSS primitives
 ```
 
 各层职责：
 
 | 层 | 责任 | 交付物 |
 | --- | --- | --- |
-| Combat server | 结算战斗事实，随事件发送 `CombatVisualHint` | `CombatEventMsg` |
-| Content YAML | 为普通招式和主动招式声明动画池、动作、tag | `animation` 字段 |
-| Animation catalog | 定义 clip、动作池、动作时长、motion、target reaction、VFX | action / pool / clip 表 |
-| Resolver | 从 `CombatEvent` 和 catalog 选择 `ResolvedBattleTimeline` | actor、target、VFX、飘字状态 |
-| BattlePanel | 渲染 actor、target、VFX、飘字、结算层 | 舞台 DOM |
+| Combat server | 结算战斗事实，并按武功动作池选出最终 `actionId` | `CombatEventMsg` |
+| Content YAML | 每门武功声明自己的动作池和招式映射 | `animation_pools` / `animation` |
+| Rig action manifest | 定义 action id、pose sequence、duration、motion、reaction、VFX | `rig-actions.json` |
+| Resolver | 从 `CombatEvent.visual.actionId` 生成 `ResolvedBattleTimeline` | actor、target、VFX、飘字状态 |
+| BattlePanel | 渲染 actor、target、VFX、飘字、结算层 | `RigActor` + 舞台 DOM |
 | CSS | 提供通用 motion、reaction、VFX primitive | 可复用动画 primitive |
 
 ## 服务端协议
@@ -146,8 +146,7 @@ Content YAML
     "heal": null,
     "result": "hit",
     "visual": {
-      "pool": "weapon.fist.basic",
-      "action": null,
+      "actionId": "rig.fist.punch_a",
       "tags": ["fist", "strike"]
     }
   }
@@ -169,31 +168,40 @@ Content YAML
 
 结算仍使用 `CombatSettlementMsg`。它不是出手事实事件，client 会把它排在动画队列末尾，作为胜负短动画播放后再关闭战斗面板。
 
-## CombatVisualHint
+## CombatVisualHint 与 AnimationRef
 
-`CombatVisualHint` 定义在 [src/Game/Entity.hs](../src/Game/Entity.hs)，JSON 形态：
+内容 YAML 中的 `animation` 解析为 `AnimationRef`，形态为：
 
-```json
-{
-  "pool": "weapon.sword.basic",
-  "action": "skill.self_focus.guard",
-  "tags": ["sword", "slash", "heavy"]
-}
+```yaml
+animation:
+  pool: basic
+  tags: ["sword", "stab"]
 ```
 
-字段语义：
+或固定动作：
 
-- `pool`：动作池。必填。resolver 从该池选择动作。
-- `action`：指定动作。可选。需要固定表现的主动技能可直接指定。
-- `tags`：动作语义标签。可选。用于在动作池内选择更合适的动作。
+```yaml
+animation:
+  action: rig.fist.healing_palm
+  tags: ["heal", "self"]
+```
 
-`CombatVisualHint` 保持语义层级，只包含动作池、指定动作和标签。图片路径、CSS primitive、时长和 VFX 组合由 client catalog 定义。
+`pool` 和 `action` 必须二选一。若使用 `pool`，pool 必须存在于同一门武功的 `animation_pools` 中。server 在出手时按 tag 先筛出最高匹配候选，再按 weight 随机选择，并将结果写入 `CombatVisualHint.actionId`。client 不再做动作池随机。
 
 ## YAML 内容格式
 
-每个 `attack_moves` 条目必须写 `animation`：
+每门有战斗动作的武功声明自己的动作池：
 
 ```yaml
+animation_pools:
+  basic:
+    actions:
+      - action: rig.sword.thrust_a
+        weight: 3
+        tags: ["sword", "stab", "thrust"]
+      - action: rig.sword.chop_a
+        weight: 2
+        tags: ["sword", "slash", "chop"]
 attack_moves:
   - id: shadow_spine
     name: "影里一刺"
@@ -202,7 +210,7 @@ attack_moves:
     unlock_level: 3
     damage: 16
     animation:
-      pool: "weapon.sword.basic"
+      pool: basic
       tags: ["sword", "stab"]
 ```
 
@@ -218,68 +226,39 @@ active_skills:
     ap_req: 40
     heal: 40
     animation:
-      pool: "skill.self_focus"
-      action: "skill.self_focus.palm"
+      action: rig.fist.healing_palm
       tags: ["heal", "self"]
     effect:
       self: []
       target: []
 ```
 
-当前已使用的 pool：
+当前基础 action id：
 
-- `weapon.sword.basic`
-- `weapon.fist.basic`
-- `skill.sword_focus`
-- `skill.fist_focus`
-- `skill.self_focus`
-- `effect.tick`
+- `rig.sword.thrust_a`
+- `rig.sword.chop_a`
+- `rig.sword.rising_cut_a`
+- `rig.sword.guard`
+- `rig.fist.punch_a`
+- `rig.fist.heavy_a`
+- `rig.fist.kick_a`
+- `rig.fist.guard`
+- `rig.fist.healing_palm`
+- `rig.effect.dot`
+- `rig.effect.hot`
 
-## 客户端 Catalog
+## Rig Action Manifest
 
-当前 catalog 位于 [client/src/battle/animationCatalog.ts](../client/src/battle/animationCatalog.ts)。
+当前 manifest 位于 [client/src/battle/skeletal/data/rig-actions.json](../client/src/battle/skeletal/data/rig-actions.json)。每个 action 包含：
 
-它包含：
-
-- `spriteClips`：clip id 到不同 visual profile 的 PNG 映射。
-- `battleActions`：动作 id 到 clip、tags、duration、motion、reaction、VFX 的映射。
-- `actionVariants`：通用 action 到 style/profile 专用 action 的映射。
-- `actionPools`：pool id 到基础候选、style 覆盖、profile 覆盖和 style+profile 覆盖的映射。
-- `reactionClips`：hit/dodge/parry/effect 到反馈 clip 的映射。
-
-当前角色 clip：
-
-- `actor.sword.idle`
-- `actor.sword.stab_a`
-- `actor.sword.slash_a`
-- `actor.sword.uppercut_a`
-- `actor.sword.guard`
-- `actor.fist.idle`
-- `actor.fist.punch`
-- `actor.fist.heavy`
-- `actor.fist.kick`
-- `actor.fist.guard`
-- `actor.fist.healing_palm`
-- `actor.common.hurt`
-- `actor.common.dodge`
-- `actor.common.parry`
-
-每个 clip 当前都有 `male` 和 `female` 两套 PNG。角色性别来自 battle snapshot 中的 `combatantSnapshotGender`；`female` 使用女性 profile，其余值使用男性 profile。
-
-当前通用目标反馈：
-
-- `hit` -> `actor.common.hurt`
-- `dodge` -> `actor.common.dodge`
-- `parry` -> `actor.common.parry`
-- `effect` -> idle
-
-当前动作分三类：
-
-- 基础通用动作：`sword.stab_a`、`sword.slash_a`、`sword.uppercut_a`、`fist.punch`、`fist.heavy`、`fist.kick`。
-- profile 专用动作：例如 `sword.male.slash_drive`、`sword.female.stab_lunge`、`fist.male.heavy_drive`、`fist.female.kick_lunge`。
-- 技能和效果动作：例如 `skill.sword_focus.male_guard`、`skill.fist_focus.female_palm`、`effect.dot`、`effect.hot`。
-
-profile 专用动作可以复用同一个 clip，但有不同的 duration、motion、tags、VFX 组合。这样可以表达“同一个武功池在不同角色 profile 下使用不同动作逻辑”，而不是只换图片。
+- `id`：稳定动作 ID，供武功 YAML 引用。
+- `rig`：当前为 `segmented-v12`。
+- `style`：`sword` 或 `fist`，用于角色 idle/reaction fallback。
+- `poseId` / `sequence`：编辑器和正式战斗播放的关键帧。
+- `durationMs`：本动作 timeline 时长。
+- `actorMotion`：外层舞台位移 primitive。
+- `targetReaction`：命中、闪避、招架、效果事件对应的目标反应。
+- `vfx`：trail、impact、parry、aura、heal 等舞台特效。
 
 ## Resolver 规则
 
@@ -288,15 +267,9 @@ profile 专用动作可以复用同一个 clip，但有不同的 duration、moti
 选择规则：
 
 1. 根据 actor side 读取 visual profile 和 combat style。
-2. 如果 `visual.action` 存在，先通过 `actionVariants` 转成 style/profile 专用 action；如果专用 action 不存在，回退到原 action。
-3. 如果没有固定 action，读取 `visual.pool` 对应动作池。
-4. 动作池按 `actions -> styles -> profiles -> styleProfiles` 顺序合成候选；每层可以 append 或 replace。
-5. 候选可以带 `weight` 和额外 tags。
-6. 用 `visual.tags` 对候选 action tags + 候选 tags 打分。
-7. 只在最高分候选中按 weight 随机选择。
-8. 如果 pool 不存在或为空，回退到 actor combat style 对应的基础池；最后回退到该 style 的默认 action。
-
-当前池内随机使用 `Math.random()`。这足够满足实时表现；如果以后要做确定性回放，可改为基于 battle/event/move/skill id 的 seeded random。
+2. 读取 `CombatEvent.visual.actionId` 对应 rig action；如果缺失，按 actor combat style 回退到基础动作。
+3. 根据 `CombatResult` 和 action 的 `targetReaction` 选择目标 reaction action。
+4. 输出 `ResolvedBattleTimeline`，其中 actor/target visual 都是 rig visual。
 
 resolver 输出 `ResolvedBattleTimeline`：
 
@@ -307,8 +280,8 @@ interface ResolvedBattleTimeline {
   actorSide: "player" | "enemy";
   targetSide: "player" | "enemy";
   durationMs: number;
-  actor: { side: BattleSide; sprite: string; visual: ActorVisual; motion: ActorMotion };
-  target: { side: BattleSide; sprite: string; visual: ActorVisual; reaction: TargetReaction };
+  actor: { side: BattleSide; visual: ActorVisual; motion: ActorMotion };
+  target: { side: BattleSide; visual: ActorVisual; reaction: TargetReaction };
   result: CombatResult;
   damage: number | null;
   heal: number | null;
@@ -362,7 +335,7 @@ server 侧普通行动节奏当前约为每名 combatant `2.0s` 一次行动。�
 - 渲染 settlement flash。
 - 平滑展示敌我 AP。
 
-素材映射集中在 `animationCatalog.ts`。动作选择集中在 `animationResolver.ts`。命中、闪避、招架、伤害和治疗结果来自 `CombatEventMsg`。
+动作定义集中在 `rig-actions.json`。动作选择由 server 在武功动作池里完成，`animationResolver.ts` 只把最终 `actionId` 转为 timeline。命中、闪避、招架、伤害和治疗结果来自 `CombatEventMsg`。
 
 ## CSS 边界
 

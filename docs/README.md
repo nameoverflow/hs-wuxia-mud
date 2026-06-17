@@ -9,6 +9,7 @@
 - [Tick 循环、心跳与战斗推进](./tick-loop-and-heartbeat.md)：server tick phase、dirty 保存策略、战斗流水线和 busy 规划。
 - [MUD 调研综合结论与落地路线](./mud-design-synthesis.md)：整合公开 mudlib、《夺宝中华》和当前已落地功能后的统一设计判断。
 - [内容与剧情脚本](./content-scripting.md)：YAML 资源格式、剧情事件、物品使用、冷雨客栈章节。
+- [主线剧情大纲](./story-outline.md)：冷雨客栈、津关镇、三门派、黑松路和后续暗线的统一叙事基准。
 - [内容骨架规划](./content-skeleton.md)：第一版中心镇、三门派、野外路线和新手后续任务的制作基准。
 - [战斗、武功与物品](./gameplay-systems.md)：AP/Qi 战斗、主动招式、秘籍学习、奖励与掉落。
 - [角色属性与派生数值设计](./character-attributes.md)：性别/容貌、先天属性、精神资源、DerivedStats、战斗公式、迁移和落地计划。

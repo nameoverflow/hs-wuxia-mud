@@ -7,6 +7,18 @@ requires:
   - art: basic_sword
     level: 1
 max_level: 10
+animation_pools:
+  basic:
+    actions:
+      - action: rig.sword.thrust_a
+        weight: 3
+        tags: ["sword", "stab", "thrust"]
+      - action: rig.sword.chop_a
+        weight: 2
+        tags: ["sword", "slash", "chop"]
+      - action: rig.sword.rising_cut_a
+        weight: 2
+        tags: ["sword", "uppercut", "lift"]
 attack_moves:
   - id: trial_jian_thrust
     name: "试剑一刺"
@@ -15,8 +27,7 @@ attack_moves:
     unlock_level: 1
     damage: 11
     animation:
-      pool: "weapon.sword.basic"
-      action: "sword.stab_a"
+      pool: basic
       tags: ["sword", "stab"]
   - id: trial_jian_cut
     name: "试剑一劈"
@@ -25,8 +36,7 @@ attack_moves:
     unlock_level: 1
     damage: 12
     animation:
-      pool: "weapon.sword.basic"
-      action: "sword.slash_a"
+      pool: basic
       tags: ["sword", "slash"]
   - id: trial_jian_lift
     name: "试剑一撩"
@@ -35,6 +45,5 @@ attack_moves:
     unlock_level: 1
     damage: 12
     animation:
-      pool: "weapon.sword.basic"
-      action: "sword.uppercut_a"
+      pool: basic
       tags: ["sword", "uppercut"]

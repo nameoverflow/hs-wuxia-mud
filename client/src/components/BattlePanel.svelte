@@ -1,10 +1,11 @@
 <script lang="ts">
   import { onDestroy, tick } from "svelte";
-  import { combatStyleFromSnapshot, idleVisualForStyle, visualProfileFromGender } from "../battle/animationCatalog";
+  import { combatStyleFromSnapshot, idleVisualForStyle, visualProfileFromGender } from "../battle/rigActionCatalog";
   import type { ActorVisual } from "../battle/animationTypes";
   import { percent, type BattleSide, type GameState } from "../game";
   import { translate } from "../i18n";
   import ActiveSkillPanel from "./ActiveSkillPanel.svelte";
+  import RigActor from "./RigActor.svelte";
 
   export let state: GameState;
 
@@ -137,10 +138,10 @@
       {#key timelineKey}
         <div class="stage-cue" style={`--cue-ms: ${timeline?.durationMs ?? 840}ms`}>
           <div class={actorClass("player")}>
-            <img src={playerVisual.sprite} alt="" draggable="false" />
+            <RigActor visual={playerVisual} durationMs={timeline?.durationMs ?? 720} />
           </div>
           <div class={actorClass("enemy")}>
-            <img src={enemyVisual.sprite} alt="" draggable="false" />
+            <RigActor visual={enemyVisual} durationMs={timeline?.durationMs ?? 720} />
           </div>
           {#if timeline && timeline.kind !== "settlement"}
             {#each timeline.vfx as vfx (vfx.id)}

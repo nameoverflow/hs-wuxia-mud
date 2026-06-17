@@ -152,11 +152,29 @@ validateWorld wrld =
         | martialArt ^. artMaxLevel <= 0
       ]
         <> validateFoundationRef martialArt
+        <> validateAnimationPools martialArt
         <> concatMap (validateArtRequirement artId') (martialArt ^. artRequires)
-        <> concatMap (validateAttackMoveUnlock artId' $ martialArt ^. artMaxLevel) (martialArt ^. artAttackMoves)
-        <> concatMap (validateActiveSkillUnlock artId' $ martialArt ^. artMaxLevel) (martialArt ^. artActiveSkills)
+        <> concatMap (validateAttackMoveUnlock martialArt $ martialArt ^. artMaxLevel) (martialArt ^. artAttackMoves)
+        <> concatMap (validateActiveSkillUnlock martialArt $ martialArt ^. artMaxLevel) (martialArt ^. artActiveSkills)
       where
         artId' = martialArt ^. artId
+
+    validateAnimationPools martialArt =
+      concat
+        [ [ "martial art " <> martialArt ^. artId <> " animation pool " <> poolId <> " has no actions"
+            | null $ pool ^. animationPoolActions
+          ]
+            <> concatMap (validateAnimationPoolEntry (martialArt ^. artId) poolId) (pool ^. animationPoolActions)
+          | (poolId, pool) <- M.toList $ martialArt ^. artAnimationPools
+        ]
+
+    validateAnimationPoolEntry ownerArtId poolId entry =
+      [ "martial art " <> ownerArtId <> " animation pool " <> poolId <> " has empty action id"
+        | T.null $ entry ^. animationPoolEntryAction
+      ]
+        <> [ "martial art " <> ownerArtId <> " animation pool " <> poolId <> " action " <> entry ^. animationPoolEntryAction <> " has non-positive weight"
+             | entry ^. animationPoolEntryWeight <= 0
+           ]
 
     validateFoundationRef martialArt =
       case martialArt ^. artFoundation of
@@ -177,15 +195,18 @@ validateWorld wrld =
              | req ^. artRequirementLevel <= 0
            ]
 
-    validateAttackMoveUnlock ownerArtId maxLevel attackMove =
+    validateAttackMoveUnlock martialArt maxLevel attackMove =
       [ "martial art " <> ownerArtId <> " attack move " <> attackMove ^. attackMoveId <> " has non-positive unlock_level"
         | attackMove ^. attackMoveUnlockLevel <= 0
       ]
         <> [ "martial art " <> ownerArtId <> " attack move " <> attackMove ^. attackMoveId <> " unlock_level exceeds max_level"
              | attackMove ^. attackMoveUnlockLevel > maxLevel
            ]
+        <> validateAnimationRef martialArt ("attack move " <> attackMove ^. attackMoveId) (attackMove ^. attackMoveAnimation)
+      where
+        ownerArtId = martialArt ^. artId
 
-    validateActiveSkillUnlock ownerArtId maxLevel activeSkill =
+    validateActiveSkillUnlock martialArt maxLevel activeSkill =
       [ "martial art " <> ownerArtId <> " active skill " <> activeSkill ^. activeSkillId <> " has non-positive unlock_level"
         | activeSkill ^. activeSkillUnlockLevel <= 0
       ]
@@ -195,6 +216,22 @@ validateWorld wrld =
         <> [ "martial art " <> ownerArtId <> " active skill " <> activeSkill ^. activeSkillId <> " requires missing martial art " <> reqArt
              | reqArt <- activeSkill ^. activeSkillReqArts,
                M.notMember reqArt (wrld ^. martialArts)
+           ]
+        <> validateAnimationRef martialArt ("active skill " <> activeSkill ^. activeSkillId) (activeSkill ^. activeSkillAnimation)
+      where
+        ownerArtId = martialArt ^. artId
+
+    validateAnimationRef martialArt label animationRef =
+      [ "martial art " <> martialArt ^. artId <> " " <> label <> " animation must define exactly one of action or pool"
+        | isJust (animationRef ^. animationRefAction) == isJust (animationRef ^. animationRefPool)
+      ]
+        <> [ "martial art " <> martialArt ^. artId <> " " <> label <> " references missing animation pool " <> poolId
+             | Just poolId <- [animationRef ^. animationRefPool],
+               M.notMember poolId (martialArt ^. artAnimationPools)
+           ]
+        <> [ "martial art " <> martialArt ^. artId <> " " <> label <> " has empty animation action"
+             | Just actionId <- [animationRef ^. animationRefAction],
+               T.null actionId
            ]
 
     validateLearnArtLevel label artId level =

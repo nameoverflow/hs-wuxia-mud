@@ -10,7 +10,7 @@ module Game.Entity where
 
 import Control.Applicative ((<|>))
 import Control.Lens (makeLenses, (&), (.~), (%~), (^.))
-import Data.Aeson (FromJSON (..), FromJSONKey (..), FromJSONKeyFunction (..), ToJSON (..), ToJSONKey (..), Value (..), object, withObject, (.:), (.:?), (.=))
+import Data.Aeson (FromJSON (..), FromJSONKey (..), FromJSONKeyFunction (..), ToJSON (..), ToJSONKey (..), Value (..), object, withObject, withText, (.:), (.:?), (.!=), (.=))
 -- import Data.Yaml (FromJSON, ParseException, decodeEither', decodeFileEither, withObject, (.:), (.:?))
 -- import Data.Yaml.Aeson (FromJSON (..), Value (..))
 -- import Data.Yaml.Parser (typeMismatch)
@@ -163,27 +163,71 @@ data ActiveSkillTarget = Single | All | Self
 
 instance FromJSON ActiveSkillTarget
 
+data AnimationPoolEntry = AnimationPoolEntry
+  { _animationPoolEntryAction :: Text,
+    _animationPoolEntryWeight :: Int,
+    _animationPoolEntryTags :: [Text]
+  }
+  deriving (Generic, Show, Eq)
+
+data AnimationPool = AnimationPool
+  { _animationPoolActions :: [AnimationPoolEntry]
+  }
+  deriving (Generic, Show, Eq)
+
+data AnimationRef = AnimationRef
+  { _animationRefPool :: Maybe Text,
+    _animationRefAction :: Maybe Text,
+    _animationRefTags :: [Text]
+  }
+  deriving (Generic, Show, Eq)
+
 data CombatVisualHint = CombatVisualHint
-  { _combatVisualPool :: Text,
-    _combatVisualAction :: Maybe Text,
+  { _combatVisualActionId :: Text,
     _combatVisualTags :: [Text]
   }
   deriving (Generic, Show, Eq)
 
+makeLenses ''AnimationPoolEntry
+makeLenses ''AnimationPool
+makeLenses ''AnimationRef
 makeLenses ''CombatVisualHint
+
+instance FromJSON AnimationPoolEntry where
+  parseJSON value =
+    withText "AnimationPoolEntry" (\action -> pure $ AnimationPoolEntry action 1 []) value
+      <|> withObject
+        "AnimationPoolEntry"
+        ( \o -> do
+            _animationPoolEntryAction <- o .: "action"
+            _animationPoolEntryWeight <- o .:? "weight" .!= 1
+            _animationPoolEntryTags <- o .:? "tags" .!= []
+            pure AnimationPoolEntry {..}
+        )
+        value
+
+instance FromJSON AnimationPool where
+  parseJSON = withObject "AnimationPool" $ \o -> do
+    _animationPoolActions <- o .:? "actions" .!= []
+    pure AnimationPool {..}
+
+instance FromJSON AnimationRef where
+  parseJSON = withObject "AnimationRef" $ \o -> do
+    _animationRefPool <- o .:? "pool"
+    _animationRefAction <- o .:? "action"
+    _animationRefTags <- o .:? "tags" .!= []
+    pure AnimationRef {..}
 
 instance FromJSON CombatVisualHint where
   parseJSON = withObject "CombatVisualHint" $ \o -> do
-    _combatVisualPool <- o .: "pool"
-    _combatVisualAction <- o .:? "action"
+    _combatVisualActionId <- o .: "actionId"
     _combatVisualTags <- o .:? "tags" .!= []
     pure CombatVisualHint {..}
 
 instance ToJSON CombatVisualHint where
   toJSON CombatVisualHint {..} =
     object
-      [ "pool" .= _combatVisualPool,
-        "action" .= _combatVisualAction,
+      [ "actionId" .= _combatVisualActionId,
         "tags" .= _combatVisualTags
       ]
 
@@ -201,7 +245,7 @@ data ActiveSkill = ActiveSkill
     _activeSkillReqStatus :: [EffectId],
     _activeSkillHeal :: Maybe Int,
     _activeSkillDamage :: Maybe Int,
-    _activeSkillAnimation :: CombatVisualHint,
+    _activeSkillAnimation :: AnimationRef,
     _activeSkillEffSelf :: [(EffectId, Double, Int)],
     _activeSkillEffTarget :: [(EffectId, Double, Int)]
   }
@@ -265,7 +309,7 @@ data AttackMove = AttackMove
     _attackMoveMsg :: Text,
     _attackMoveUnlockLevel :: Int,
     _attackMoveDamage :: Int,
-    _attackMoveAnimation :: CombatVisualHint
+    _attackMoveAnimation :: AnimationRef
   }
   deriving (Generic, Show, Eq)
 
@@ -339,6 +383,7 @@ data MartialArt = MartialArt
     _artFoundation :: Maybe ArtId,
     _artRequires :: [ArtRequirement],
     _artMaxLevel :: Int,
+    _artAnimationPools :: M.Map Text AnimationPool,
     _artAttackMoves :: [AttackMove],
     _artActiveSkills :: [ActiveSkill]
   }
@@ -360,6 +405,7 @@ instance FromJSON MartialArt where
     _artFoundation <- o .:? "foundation"
     _artRequires <- o .:? "requires" .!= []
     _artMaxLevel <- o .:? "max_level" .!= 100
+    _artAnimationPools <- o .:? "animation_pools" .!= M.empty
     _artAttackMoves <- o .:? "attack_moves" .!= []
     _artActiveSkills <- o .:? "active_skills" .!= []
     pure MartialArt {..}

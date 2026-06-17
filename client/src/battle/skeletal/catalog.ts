@@ -1,5 +1,5 @@
-import { battleActions, spriteForClip } from "../animationCatalog";
-import type { BattleActionDefinition, CombatStyle, VisualProfile } from "../animationTypes";
+import { rigActionEntries } from "../rigActionCatalog";
+import type { VisualProfile } from "../animationTypes";
 import type {
   AnimationRigEntry,
   BindingDefinition,
@@ -397,23 +397,8 @@ const segmentedSwordEntries: AnimationRigEntry[] = segmentedSwordActions.flatMap
 const segmentedRigEntries: AnimationRigEntry[] = [...segmentedBaseEntries, ...segmentedSwordEntries];
 
 export const skeletalAnimationEntries: AnimationRigEntry[] = [
-  ...segmentedRigEntries,
-  ...Object.values(battleActions).flatMap((action) => {
-  const style = styleForAction(action);
-  const poseId = poseForAction(action);
-  return profiles.map((profile) => ({
-    id: `${action.id}.${profile}`,
-    actionId: action.id,
-    clipId: action.clipId,
-    label: `${action.id} / ${profile}`,
-    profile,
-    style,
-    poseId,
-    sprite: action.clipId ? spriteForClip(action.clipId, profile, style) : null,
-    tags: action.tags,
-    durationMs: action.durationMs
-  }));
-  })
+  ...rigActionEntries,
+  ...segmentedRigEntries
 ];
 
 export function createBattleActorRig(entry: AnimationRigEntry): SkeletonRigDefinition {
@@ -730,26 +715,4 @@ function debugBinding(
     strokeColor: "rgba(0, 0, 0, 0.32)",
     tags: ["skin"]
   };
-}
-
-function styleForAction(action: BattleActionDefinition): CombatStyle {
-  const search = `${action.id} ${action.clipId} ${action.tags.join(" ")}`;
-  return search.includes("sword") ? "sword" : "fist";
-}
-
-function poseForAction(action: BattleActionDefinition) {
-  const search = `${action.id} ${action.clipId} ${action.tags.join(" ")}`;
-  if (search.includes("stab")) return "stab";
-  if (search.includes("slash")) return "slash";
-  if (search.includes("uppercut")) return "uppercut";
-  if (search.includes("guard") || search.includes("stance")) return "guard";
-  if (search.includes("punch")) return "punch";
-  if (search.includes("heavy")) return "heavy";
-  if (search.includes("kick")) return "kick";
-  if (search.includes("healing_palm") || search.includes("heal")) return "healing_palm";
-  if (search.includes("hurt")) return "hurt";
-  if (search.includes("dodge")) return "dodge";
-  if (search.includes("parry")) return "parry";
-  if (search.includes("effect") || search.includes("dot") || search.includes("hot")) return "effect";
-  return "idle";
 }

@@ -1,15 +1,15 @@
 id: mountain_pass
-name: "荒山小径"
-desc: "客栈北面的山路，雨水顺着青石一路流向渡口。"
+name: "渡口官道"
+desc: "冷雨客栈外的官道，沿水北上便到津关镇。"
 rooms:
   - position: [0, 0]
     id: mountain_pass_gate
-    name: "荒山小径入口"
-    desc: "山风从林间穿过，回头还能看见冷雨客栈柴棚的檐角。"
+    name: "官道口"
+    desc: "石板路从客栈门前铺出去，雨水沿车辙流向渡口。往北是津关镇，往西回冷雨客栈。"
     exits:
-      south:
+      west:
         map: test_map
-        position: [2, 3]
+        position: [3, 3]
       north:
         map: jinguan_town
         position: [0, -3]

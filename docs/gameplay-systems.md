@@ -43,7 +43,7 @@ attack_moves:
     msg: "在雨声一断时出刀"
     damage: 14
     animation:
-      pool: "weapon.sword.basic"
+      pool: "basic"
       tags: ["sword", "slash"]
 ```
 
@@ -113,12 +113,13 @@ server tick 中如果双方都满足行动条件，可能在一次响应批次�
 
 ```yaml
 animation:
-  pool: "weapon.fist.basic"
-  action: "skill.self_focus.palm" # 可选
+  pool: "basic"
+  # 或固定播放一个 rig 动作：
+  # action: "rig.fist.healing_palm"
   tags: ["fist", "heavy", "strike"]
 ```
 
-server 会把该字段作为 `CombatVisualHint` 放入 `CombatEventMsg.visual`。client 根据 catalog/resolver 选择具体素材、位移、目标反馈和 VFX。
+`pool` 引用当前武功自己的 `animation_pools`，`action` 则直接引用 `client/src/battle/skeletal/data/rig-actions.json` 里的 rig 动作。server 会按池权重和标签选出最终 `actionId` 放入 `CombatEventMsg.visual`；client 只负责按该 action 渲染素材、位移、目标反馈和 VFX。
 
 ## 状态效果
 

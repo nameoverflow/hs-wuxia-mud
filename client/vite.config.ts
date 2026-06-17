@@ -1,13 +1,16 @@
 import { svelte } from "@sveltejs/vite-plugin-svelte";
-import { readFile, writeFile } from "node:fs/promises";
+import { readdir, readFile, writeFile } from "node:fs/promises";
 import type { IncomingMessage } from "node:http";
+import path from "node:path";
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig, type Plugin } from "vite";
 
 const segmentedPosePath = fileURLToPath(new URL("./src/battle/skeletal/data/segmented-v12-poses.json", import.meta.url));
+const rigActionPath = fileURLToPath(new URL("./src/battle/skeletal/data/rig-actions.json", import.meta.url));
+const martialArtsPath = fileURLToPath(new URL("../resources/scripts/martial_arts", import.meta.url));
 
 export default defineConfig({
-  plugins: [svelte(), rigPoseSavePlugin()],
+  plugins: [svelte(), rigProjectSavePlugin()],
   build: {
     rollupOptions: {
       input: {
@@ -28,9 +31,9 @@ export default defineConfig({
   }
 });
 
-function rigPoseSavePlugin(): Plugin {
+function rigProjectSavePlugin(): Plugin {
   return {
-    name: "wuxia-rig-pose-save",
+    name: "wuxia-rig-project-save",
     configureServer(server) {
       server.middlewares.use("/__rig/segmented-v12-poses", async (req, res) => {
         try {
@@ -57,6 +60,75 @@ function rigPoseSavePlugin(): Plugin {
           await writeFile(segmentedPosePath, `${JSON.stringify(parsed.poses, null, 2)}\n`);
           res.setHeader("Content-Type", "application/json");
           res.end(JSON.stringify({ ok: true, path: segmentedPosePath }));
+        } catch (error) {
+          res.statusCode = 500;
+          res.end(error instanceof Error ? error.message : "Save failed");
+        }
+      });
+
+      server.middlewares.use("/__rig/actions", async (req, res) => {
+        try {
+          if (req.method === "GET") {
+            res.setHeader("Content-Type", "application/json");
+            res.end(await readFile(rigActionPath, "utf8"));
+            return;
+          }
+
+          if (req.method !== "POST") {
+            res.statusCode = 405;
+            res.end("Method Not Allowed");
+            return;
+          }
+
+          const body = await readRequestBody(req);
+          const parsed = JSON.parse(body) as unknown;
+          if (!isRigActionManifest(parsed)) {
+            res.statusCode = 400;
+            res.end("Invalid rig action manifest");
+            return;
+          }
+
+          await writeFile(rigActionPath, `${JSON.stringify(parsed, null, 2)}\n`);
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({ ok: true, path: rigActionPath }));
+        } catch (error) {
+          res.statusCode = 500;
+          res.end(error instanceof Error ? error.message : "Save failed");
+        }
+      });
+
+      server.middlewares.use("/__rig/martial-arts", async (req, res) => {
+        try {
+          if (req.method === "GET") {
+            const files = (await readdir(martialArtsPath)).filter((file) => file.endsWith(".yaml")).sort();
+            const payload = await Promise.all(
+              files.map(async (file) => ({
+                file,
+                text: await readFile(path.join(martialArtsPath, file), "utf8")
+              }))
+            );
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ files: payload }));
+            return;
+          }
+
+          if (req.method !== "POST") {
+            res.statusCode = 405;
+            res.end("Method Not Allowed");
+            return;
+          }
+
+          const body = await readRequestBody(req);
+          const parsed = JSON.parse(body) as { file?: unknown; text?: unknown };
+          if (typeof parsed.file !== "string" || typeof parsed.text !== "string" || !parsed.file.endsWith(".yaml") || path.basename(parsed.file) !== parsed.file) {
+            res.statusCode = 400;
+            res.end("Invalid martial art file save");
+            return;
+          }
+
+          await writeFile(path.join(martialArtsPath, parsed.file), parsed.text);
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({ ok: true, file: parsed.file }));
         } catch (error) {
           res.statusCode = 500;
           res.end(error instanceof Error ? error.message : "Save failed");
@@ -94,4 +166,29 @@ function isPoseLibrary(value: unknown): value is Record<string, unknown> {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function isRigActionManifest(value: unknown): value is Record<string, unknown> {
+  if (!isPlainObject(value)) return false;
+  const candidate = value as { schemaVersion?: unknown; actions?: unknown };
+  return (
+    typeof candidate.schemaVersion === "number" &&
+    Array.isArray(candidate.actions) &&
+    candidate.actions.every((action) => {
+      if (!isPlainObject(action)) return false;
+      const item = action as { id?: unknown; label?: unknown; rig?: unknown; style?: unknown; poseId?: unknown; durationMs?: unknown; sequence?: unknown; tags?: unknown };
+      return (
+        typeof item.id === "string" &&
+        typeof item.label === "string" &&
+        item.rig === "segmented-v12" &&
+        (item.style === "sword" || item.style === "fist") &&
+        typeof item.poseId === "string" &&
+        typeof item.durationMs === "number" &&
+        Array.isArray(item.sequence) &&
+        item.sequence.every((poseId) => typeof poseId === "string") &&
+        Array.isArray(item.tags) &&
+        item.tags.every((tag) => typeof tag === "string")
+      );
+    })
+  );
 }

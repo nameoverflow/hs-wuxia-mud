@@ -25,7 +25,7 @@
       actions:
         - type: message
           speaker: "灰衣引路人"
-          text: "从冷雨客栈出来的人，眼神都不太一样。先进镇吧。别急着问哪家门派厉害，先问自己今晚睡在哪里、明天靠什么吃饭。"
+          text: "从冷雨客栈出来的人，眼神都不太一样。你手里那半个“津”字，我认得一点，也只认得一点。先进镇吧。别急着问哪家门派厉害，先问自己今晚睡在哪里、明天靠什么吃饭；站稳了，才有资格追暗记。"
         - type: set_stage
           quest: first_steps_jinguan
           stage: train
@@ -161,7 +161,7 @@
       actions:
         - type: message
           speaker: "黑松剪径人"
-          text: "他跌坐在松针里，斗篷散开，怀里滑出一枚刻着暗记的木牌。看来这条路背后还有人。"
+          text: "他跌坐在松针里，斗篷散开，怀里滑出一枚刻着暗记的木牌。木牌上的折线和伞骨银针尾端一样，只是多了一笔。看来冷雨客栈不是孤案。"
         - type: complete_quest
           quest: black_pine_patrol
         - type: hide_npc
@@ -171,9 +171,9 @@
   name: "三路拜师"
   objectives:
     - stage: visit
-      text: "分别向寒雨门、铁衣帮、药王谷的接引人打听门路，再回南门找引路人。"
+      text: "带着伞骨银针的暗记，分别向寒雨门、铁衣帮、药王谷的接引人打听门路，再回南门找引路人。"
     - stage: completed
-      text: "你已经知道津关镇外的三条入门路。"
+      text: "你已经知道三条入门路各自能查到暗记的一角。"
   reward:
     money: 20
     items:
@@ -192,7 +192,7 @@
       actions:
         - type: message
           speaker: "灰衣引路人"
-          text: "你已经能在镇上站住。接下来才谈门派。西北寒雨门，东边铁衣帮，东头药车通药王谷。三条路都问一遍，再决定自己像哪种人。"
+          text: "你已经能在镇上站住。接下来才谈门派，也才谈那半个“津”字。寒雨门的人懂出手的节奏，铁衣帮的人懂押送的账，药王谷的人懂针上残留的药性。三条路都问一遍，再决定自己像哪种人。"
         - type: set_stage
           quest: faction_intro
           stage: visit
@@ -212,7 +212,7 @@
           flag: faction_intro.hanyi
         - type: message
           speaker: "寒雨接引弟子"
-          text: "寒雨门教剑，也教你在出剑前听见自己心乱。若你喜欢先看清，再出手，可以去山门试试。"
+          text: "你说伞骨银针？寒雨门不管暗器，却管出手前那一息。那几针不是乱刺，是有人借雨声藏了步点。若你想先看清，再出手，可以去山门试试。"
 
     - id: ask_tieyi_runner
       trigger:
@@ -229,7 +229,7 @@
           flag: faction_intro.tieyi
         - type: message
           speaker: "铁衣帮接引"
-          text: "铁衣帮不问你会不会漂亮招式，只问你敢不敢扛事。押镖、巡查、护人，都是拳脚以外的功夫。"
+          text: "半个“津”字不稀奇，稀奇的是谁敢把它刻在证物上。铁衣帮走镖、查账、认路牌，最知道什么东西该到却没到。你若敢扛事，就来分舵问。"
 
     - id: ask_yaowang_runner
       trigger:
@@ -246,7 +246,7 @@
           flag: faction_intro.yaowang
         - type: message
           speaker: "药王谷药童"
-          text: "药王谷先教你调息，再教你辨伤。若你觉得活下来比赢一招更重要，可以随药车入谷。"
+          text: "银针若只为杀人，不必做得那么细。药王谷能从针尾残味里分出它是封口、逼供，还是救不得人的救法。若你觉得活下来比赢一招更重要，可以随药车入谷。"
 
     - id: guide_completes_faction_intro
       trigger:
@@ -265,6 +265,6 @@
       actions:
         - type: message
           speaker: "灰衣引路人"
-          text: "都问过了，就别急着把自己卖给第一个愿意收你的人。真正的师门，收的是你以后许多年。"
+          text: "都问过了，你也该明白：三条路都能查暗记，却都会先问你配不配走这条路。别急着把自己卖给第一个愿意收你的人。真正的师门，收的是你以后许多年。"
         - type: complete_quest
           quest: faction_intro

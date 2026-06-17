@@ -124,8 +124,7 @@ client 根据 `systemMessageKey` / `errorSummaryCode` 和参数做本地化。�
     "heal": null,
     "result": "hit",
     "visual": {
-      "pool": "weapon.fist.basic",
-      "action": null,
+      "actionId": "rig.fist.punch_a",
       "tags": ["fist", "strike"]
     }
   }

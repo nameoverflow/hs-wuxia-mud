@@ -25,6 +25,7 @@ main = do
   testWorldValidationCatchesBrokenRoomExit
   testRandomSelectEmpty
   testDefaultFoundationArts
+  testDefaultTrialSwordAnimation
   testDerivedStats
   testMoveUpdatesRoomOccupancy
   testCrossMapExitMovesPlayerBetweenMaps
@@ -69,6 +70,11 @@ newTestPlayerState :: IO GameState
 newTestPlayerState = do
   gs <- loadFreshState
   snd <$> runOk "create default player" gs (createDefaultPlayer "tester" "resources/scripts/default_player.yaml")
+
+enableStarterFistForTester :: GameState -> GameState
+enableStarterFistForTester =
+  (players . ix "tester" . playerCharacter . charPrepare . at Fist ?~ ArtEntity "nameless_trial_fist" 1 0)
+    . (players . ix "tester" . playerCharacter . charEnabled . at Fist ?~ ArtEntity "nameless_trial_fist" 1 0)
 
 roomPlayersAtMap :: MapId -> GameState -> (Int, Int) -> S.Set PlayerId
 roomPlayersAtMap targetMapId gs pos =
@@ -162,7 +168,7 @@ testWorldValidationCatchesBrokenRoomExit = do
   let broken =
         gs
           ^. world
-          & maps . ix "test_map" . mapRooms . ix (2, 3) . roomExits . ix North . roomRefMapId .~ "missing_map"
+          & maps . ix "test_map" . mapRooms . ix (3, 3) . roomExits . ix East . roomRefMapId .~ "missing_map"
   case validateWorld broken of
     Left err ->
       assert ("missing_map" `T.isInfixOf` err) "world validation error did not identify the missing exit map"
@@ -184,8 +190,9 @@ testDefaultFoundationArts = do
       assert (knowsArtAt "basic_sword" 1 player) "default player is missing basic_sword"
       assert (knowsArtAt "basic_fist" 1 player) "default player is missing basic_fist"
       assert (knowsArtAt "nameless_trial_fist" 1 player) "default player is missing the starter fist art"
-      assert (preparedArtIn Fist "nameless_trial_fist" player) "default player did not prepare the starter fist art"
-      assert (enabledArtIn Fist "nameless_trial_fist" player) "default player did not enable the starter fist art"
+      assert (knowsArtAt "nameless_trial_sword" 1 player) "default player is missing the starter sword art"
+      assert (preparedArtIn Sword "nameless_trial_sword" player) "default player did not prepare the starter sword art"
+      assert (enabledArtIn Sword "nameless_trial_sword" player) "default player did not enable the starter sword art"
       assert ((player ^. playerCharacter . charPrepare . at Foundation) == Nothing) "foundation art should not be prepared"
       assert ((player ^. playerPotential) == 20) "default player potential did not load"
       assert ((player ^. playerCombatExp) == 1000) "default player combat exp did not load"
@@ -193,6 +200,26 @@ testDefaultFoundationArts = do
       assert ((player ^. playerCharacter . charAppearance) == 5) "default player appearance did not load"
       assert ((player ^. playerCharacter . charJing) == 120) "default player jing did not load"
       assert ((player ^. playerCharacter . charInnate) == InnateAttrs 18 18 18) "default player innate attrs did not load"
+
+testDefaultTrialSwordAnimation :: IO ()
+testDefaultTrialSwordAnimation = do
+  gs <- newTestPlayerState
+  case M.lookup "tester" (gs ^. players) of
+    Nothing -> fail "tester missing"
+    Just player ->
+      assert (combatStyleForCharacter (player ^. playerCharacter) == "sword") "default test player did not resolve to sword combat style"
+  case M.lookup "nameless_trial_sword" (gs ^. world . martialArts) of
+    Nothing -> fail "nameless_trial_sword missing"
+    Just martialArt -> do
+      let moves = martialArt ^. artAttackMoves
+          poolActions = map (view animationPoolEntryAction) $ maybe [] (view animationPoolActions) (martialArt ^. artAnimationPools . at "basic")
+      assert (not $ null moves) "nameless_trial_sword has no attack moves"
+      assert (all ((== Just "basic") . view (attackMoveAnimation . animationRefPool)) moves) "trial sword attack moves do not use the local basic animation pool"
+      assert ("rig.sword.thrust_a" `elem` poolActions) "trial sword is missing the thrust rig action"
+      assert ("rig.sword.chop_a" `elem` poolActions) "trial sword is missing the chop rig action"
+      assert ("rig.sword.rising_cut_a" `elem` poolActions) "trial sword is missing the rising cut rig action"
+  npc <- getNpc gs
+  assert (combatStyleForCharacter npc == "sword") "training dummy did not resolve to sword combat style"
 
 testDerivedStats :: IO ()
 testDerivedStats = do
@@ -229,26 +256,25 @@ testMoveUpdatesRoomOccupancy = do
 testCrossMapExitMovesPlayerBetweenMaps :: IO ()
 testCrossMapExitMovesPlayerBetweenMaps = do
   gs <- newTestPlayerState
-  (_, atWoodshed) <- runOk "move west to woodshed" gs (playerMove "tester" West)
-  (responses, inMountainPass) <- runOk "move north to mountain pass" atWoodshed (playerMove "tester" North)
+  (responses, inMountainPass) <- runOk "move east to official road" gs (playerMove "tester" East)
   case M.lookup "tester" (inMountainPass ^. players) of
     Nothing -> fail "tester missing after cross-map movement"
     Just player ->
       assert ((player ^. playerPosition) == ("mountain_pass", (0, 0))) "player position did not switch to the target map"
-  assert (not $ S.member "tester" (roomPlayersAt inMountainPass (2, 3))) "player remained in the source map room"
+  assert (not $ S.member "tester" (roomPlayersAt inMountainPass (3, 3))) "player remained in the source map room"
   assert (S.member "tester" (roomPlayersAtMap "mountain_pass" inMountainPass (0, 0))) "player was not added to the target map room"
   case [exits | (_, ViewMsg _ _ _ exits) <- responses] of
     [] -> fail "cross-map movement did not send a room view"
     exits : _ ->
       assert
-        (any (\exit -> roomExitSummaryMapId exit == "test_map" && roomExitSummaryPosition exit == (2, 3)) exits)
+        (any (\exit -> roomExitSummaryMapId exit == "test_map" && roomExitSummaryPosition exit == (3, 3)) exits)
         "target room view did not preserve the cross-map return exit"
 
-  (_, returned) <- runOk "return south to test map" inMountainPass (playerMove "tester" South)
+  (_, returned) <- runOk "return west to test map" inMountainPass (playerMove "tester" West)
   case M.lookup "tester" (returned ^. players) of
     Nothing -> fail "tester missing after returning from cross-map movement"
     Just player ->
-      assert ((player ^. playerPosition) == ("test_map", (2, 3))) "player did not return to the source map"
+      assert ((player ^. playerPosition) == ("test_map", (3, 3))) "player did not return to the source map"
 
 testMapOverviewIncludesCurrentMapGraph :: IO ()
 testMapOverviewIncludesCurrentMapGraph = do
@@ -369,7 +395,7 @@ testBattleSettlementMarksPlayerDirty = do
 
 testActiveSkillFailureIsSpecific :: IO ()
 testActiveSkillFailureIsSpecific = do
-  gs <- newTestPlayerState
+  gs <- enableStarterFistForTester <$> newTestPlayerState
   (_, inBattle) <- startTrainingBattle gs
   (responses, _) <- runOk "perform active skill without AP" inBattle (playerPerformActiveSkill "tester" "power_strike")
   assert
@@ -378,7 +404,7 @@ testActiveSkillFailureIsSpecific = do
 
 testActiveSkillConsumesApAndSendsSnapshot :: IO ()
 testActiveSkillConsumesApAndSendsSnapshot = do
-  gs <- newTestPlayerState
+  gs <- enableStarterFistForTester <$> newTestPlayerState
   (_, inBattle) <- startTrainingBattle gs
   let ready =
         inBattle
@@ -396,7 +422,7 @@ testActiveSkillConsumesApAndSendsSnapshot = do
         && combatEventActorName event == "无名客"
         && combatEventTargetName event == "沉默木人"
         && combatEventDamage event == Just 37
-        && combatEventVisual event ^. combatVisualPool == "weapon.fist.basic"
+        && combatEventVisual event ^. combatVisualActionId == "rig.fist.heavy_a"
     isActiveSkillEvent _ = False
 
     isBattleStateMsg (BattleStateMsg _) = True

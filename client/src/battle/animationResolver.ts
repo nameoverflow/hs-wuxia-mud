@@ -1,16 +1,7 @@
-import type { CombatEvent, CombatResult, CombatVisualHint } from "../protocol";
-import {
-  actionPools,
-  actionVariants,
-  battleActions,
-  idleVisualForStyle,
-  reactionVisualFor,
-  visualForClip
-} from "./animationCatalog";
+import type { CombatEvent, CombatResult } from "../protocol";
+import { idleVisualForStyle, reactionVisualFor, rigActionFor, visualForRigAction } from "./rigActionCatalog";
 import type {
-  ActionPoolEntry,
-  ActionPoolVariant,
-  ActorVisual,
+  ActionVfxDefinition,
   BattleActionDefinition,
   BattleSide,
   CombatStyle,
@@ -19,22 +10,6 @@ import type {
   TimelineVfx,
   VisualProfile
 } from "./animationTypes";
-
-const defaultActions: Record<CombatStyle, BattleActionDefinition> = {
-  sword: battleActions["sword.slash_a"],
-  fist: battleActions["fist.punch"]
-};
-
-const defaultPools: Record<CombatStyle, string> = {
-  sword: "weapon.sword.basic",
-  fist: "weapon.fist.basic"
-};
-
-interface ResolvedActionCandidate {
-  action: BattleActionDefinition;
-  weight: number;
-  tags: string[];
-}
 
 export function resolveCombatTimeline(
   event: CombatEvent,
@@ -47,10 +22,10 @@ export function resolveCombatTimeline(
   actorStyle: CombatStyle = "fist",
   targetStyle: CombatStyle = "fist"
 ): ResolvedBattleTimeline {
-  const action = selectAction(event.visual, actorProfile, actorStyle);
+  const action = rigActionFor(event.visual?.actionId, actorStyle);
   const result = event.result || "hit";
   const reaction = action.targetReaction[result] || resultReaction(result);
-  const actorVisual = visualForClip(action.clipId, actorProfile, actorStyle);
+  const actorVisual = visualForRigAction(action.id, actorProfile, actorStyle);
   const targetVisual =
     reaction === "effect" || reaction === "none" ? idleVisualForStyle(targetStyle, targetProfile) : reactionVisualFor(reaction, targetProfile, targetStyle);
 
@@ -62,13 +37,11 @@ export function resolveCombatTimeline(
     durationMs: action.durationMs,
     actor: {
       side: actorSide,
-      sprite: spriteFromVisual(actorVisual),
       visual: actorVisual,
       motion: action.actorMotion
     },
     target: {
       side: targetSide,
-      sprite: spriteFromVisual(targetVisual),
       visual: targetVisual,
       reaction
     },
@@ -102,13 +75,11 @@ export function resolveSettlementTimeline(
     durationMs: 900,
     actor: {
       side: actorSide,
-      sprite: spriteFromVisual(actorVisual),
       visual: actorVisual,
       motion: "none"
     },
     target: {
       side: targetSide,
-      sprite: spriteFromVisual(targetVisual),
       visual: targetVisual,
       reaction: "none"
     },
@@ -121,108 +92,9 @@ export function resolveSettlementTimeline(
   };
 }
 
-function spriteFromVisual(visual: ActorVisual) {
-  return visual.sprite;
-}
-
-function selectAction(
-  visual: CombatVisualHint | null | undefined,
-  profile: VisualProfile,
-  fallbackStyle: CombatStyle
-): BattleActionDefinition {
-  const requestedAction = visual?.action;
-  const explicitAction = resolveActionVariant(requestedAction, profile, fallbackStyle);
-  if (explicitAction && battleActions[explicitAction]) {
-    return battleActions[explicitAction];
-  }
-  if (requestedAction && battleActions[requestedAction]) {
-    return battleActions[requestedAction];
-  }
-
-  const defaultAction = defaultActions[fallbackStyle];
-  const candidates = resolveActionPool(visual?.pool || defaultPools[fallbackStyle], profile, fallbackStyle);
-  if (!candidates.length) return defaultAction;
-
-  const requestedTags = new Set((visual?.tags || []).map((tag) => tag.toLowerCase()));
-  const scored = candidates.map((candidate) => ({
-    ...candidate,
-    score: candidate.tags.filter((tag) => requestedTags.has(tag)).length
-  }));
-  const bestScore = Math.max(...scored.map(({ score }) => score));
-  const tagged = bestScore > 0 ? scored.filter(({ score }) => score === bestScore) : [];
-  const pool = tagged.length ? tagged : candidates;
-  return weightedPick(pool)?.action || defaultAction;
-}
-
-function resolveActionPool(
-  poolId: string | null | undefined,
-  profile: VisualProfile,
-  fallbackStyle: CombatStyle,
-  seen: Set<string> = new Set()
-): ResolvedActionCandidate[] {
-  const resolvedPoolId = poolId || defaultPools[fallbackStyle];
-  const pool = actionPools[resolvedPoolId];
-  if (!pool) {
-    return resolvedPoolId === defaultPools[fallbackStyle] ? [] : resolveActionPool(defaultPools[fallbackStyle], profile, fallbackStyle, seen);
-  }
-  if (seen.has(resolvedPoolId)) return [];
-  seen.add(resolvedPoolId);
-
-  const entries = applyPoolVariant(
-    applyPoolVariant(applyPoolVariant(pool.actions, pool.styles?.[fallbackStyle]), pool.profiles?.[profile]),
-    pool.styleProfiles?.[fallbackStyle]?.[profile]
-  );
-  const candidates = entries
-    .map((entry) => resolveActionCandidate(entry, profile, fallbackStyle))
-    .filter((candidate): candidate is ResolvedActionCandidate => Boolean(candidate));
-
-  if (candidates.length) return candidates;
-  if (pool.fallbackPool) return resolveActionPool(pool.fallbackPool, profile, fallbackStyle, seen);
-  return resolvedPoolId === defaultPools[fallbackStyle] ? [] : resolveActionPool(defaultPools[fallbackStyle], profile, fallbackStyle, seen);
-}
-
-function applyPoolVariant(entries: ActionPoolEntry[], variant: ActionPoolVariant | undefined): ActionPoolEntry[] {
-  if (!variant) return entries;
-  return variant.mode === "replace" ? variant.actions : [...entries, ...variant.actions];
-}
-
-function resolveActionCandidate(
-  entry: ActionPoolEntry,
-  profile: VisualProfile,
-  fallbackStyle: CombatStyle
-): ResolvedActionCandidate | null {
-  const rawId = typeof entry === "string" ? entry : entry.id;
-  const actionId = resolveActionVariant(rawId, profile, fallbackStyle) || rawId;
-  const action = battleActions[actionId] || battleActions[rawId];
-  if (!action) return null;
-  const extraTags = typeof entry === "string" ? [] : entry.tags || [];
-  return {
-    action,
-    weight: typeof entry === "string" ? 1 : Math.max(0, entry.weight ?? 1),
-    tags: [...action.tags, ...extraTags].map((tag) => tag.toLowerCase())
-  };
-}
-
-function resolveActionVariant(actionId: string | null | undefined, profile: VisualProfile, fallbackStyle: CombatStyle): string | null {
-  if (!actionId) return null;
-  const variant = actionVariants[actionId];
-  return variant?.styleProfiles?.[fallbackStyle]?.[profile] || variant?.profiles?.[profile] || variant?.styles?.[fallbackStyle] || actionId;
-}
-
-function weightedPick(candidates: ResolvedActionCandidate[]): ResolvedActionCandidate | null {
-  const total = candidates.reduce((sum, candidate) => sum + candidate.weight, 0);
-  if (total <= 0) return candidates[0] || null;
-  let cursor = Math.random() * total;
-  for (const candidate of candidates) {
-    cursor -= candidate.weight;
-    if (cursor <= 0) return candidate;
-  }
-  return candidates[candidates.length - 1] || null;
-}
-
 function resolveVfx(action: BattleActionDefinition, actorSide: BattleSide, targetSide: BattleSide, result: CombatResult): TimelineVfx[] {
   return action.vfx
-    .filter((vfx) => {
+    .filter((vfx: ActionVfxDefinition) => {
       if (vfx.kind === "impact" && result !== "hit") return false;
       if (vfx.kind === "parry" && result !== "parry") return false;
       return true;

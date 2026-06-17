@@ -7,6 +7,18 @@ requires:
   - art: basic_fist
     level: 1
 max_level: 20
+animation_pools:
+  basic:
+    actions:
+      - action: rig.fist.punch_a
+        weight: 3
+        tags: ["fist", "strike", "punch"]
+      - action: rig.fist.heavy_a
+        weight: 3
+        tags: ["fist", "heavy", "strike"]
+      - action: rig.fist.kick_a
+        weight: 1
+        tags: ["fist", "kick"]
 attack_moves:
   - id: basic_punch
     name: "一拳"
@@ -15,7 +27,7 @@ attack_moves:
     unlock_level: 1
     damage: 10
     animation:
-      pool: "weapon.fist.basic"
+      pool: basic
       tags: ["fist", "strike"]
 active_skills:
   - id: power_strike
@@ -30,7 +42,7 @@ active_skills:
     req_status: []
     damage: 35
     animation:
-      pool: "weapon.fist.basic"
+      pool: basic
       tags: ["fist", "heavy", "strike"]
     effect:
       self: []
@@ -48,8 +60,7 @@ active_skills:
     req_status: []
     heal: 40
     animation:
-      pool: "skill.fist_focus"
-      action: "skill.fist_focus.palm"
+      action: rig.fist.healing_palm
       tags: ["heal", "self"]
     effect:
       self: []
@@ -66,8 +77,7 @@ active_skills:
     ap_req: 50
     req_status: []
     animation:
-      pool: "skill.fist_focus"
-      action: "skill.fist_focus.guard"
+      action: rig.fist.guard
       tags: ["buff", "self"]
     effect:
       self:
@@ -87,8 +97,7 @@ active_skills:
     ap_req: 50
     req_status: []
     animation:
-      pool: "skill.fist_focus"
-      action: "skill.fist_focus.guard"
+      action: rig.fist.guard
       tags: ["stance", "self"]
     effect:
       self:
@@ -110,7 +119,7 @@ active_skills:
       - dragon_stance
     damage: 120
     animation:
-      pool: "weapon.fist.basic"
+      pool: basic
       tags: ["fist", "strike", "heavy"]
     effect:
       self: []

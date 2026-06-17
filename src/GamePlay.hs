@@ -30,6 +30,11 @@ import GameState
 import Logging
 import Utils
 
+data PreparedActiveSkill = PreparedActiveSkill
+  { preparedActiveSkillArt :: MartialArt,
+    preparedActiveSkillSkill :: ActiveSkill
+  }
+
 processPlayerAction :: PlayerId -> PlayerAction -> GameStateT ()
 processPlayerAction pid action = do
   player <- getsPlayer pid
@@ -949,11 +954,12 @@ playerPerformActiveSkill pid targetActiveSkillId = do
   battle <- getsBattle pid
   player <- getsPlayer pid
 
-  case find (\s -> s ^. activeSkillId == targetActiveSkillId) (preparedActiveSkills wrld player) of
+  case find (\prepared -> preparedActiveSkillSkill prepared ^. activeSkillId == targetActiveSkillId) (preparedActiveSkills wrld player) of
     Nothing -> do
       tell [(pid, ActiveSkillFailureMsg $ ActiveSkillUnavailable targetActiveSkillId)]
       sendBattleSnapshot pid battle
-    Just activeSkill -> do
+    Just prepared -> do
+      let activeSkill = preparedActiveSkillSkill prepared
       case activeSkillUseFailure activeSkill (battle ^. battleState) of
         Just reason -> do
           tell [(pid, ActiveSkillFailureMsg reason)]
@@ -961,7 +967,7 @@ playerPerformActiveSkill pid targetActiveSkillId = do
         Nothing -> do
           randG <- newStdGen
           (_, battle', activeSkillMsg) <- runCombat randG ExceptionInCombat wrld battle $ do
-            useActiveSkill activeSkill battleState battleEnemyState
+            useActiveSkill (preparedActiveSkillArt prepared) activeSkill battleState battleEnemyState
 
           tell activeSkillMsg
           let enemyDefeated = battle' ^. battleEnemyState . battleChar . charHP <= 0
@@ -973,10 +979,10 @@ playerPerformActiveSkill pid targetActiveSkillId = do
               battles . at pid .= Just battle'
               sendBattleSnapshot pid battle'
 
-preparedActiveSkills :: World -> Player -> [ActiveSkill]
+preparedActiveSkills :: World -> Player -> [PreparedActiveSkill]
 preparedActiveSkills wrld player =
   dedupeActiveSkills
-    [ activeSkill
+    [ PreparedActiveSkill martialArt activeSkill
       | artEntity <- activeSkillArtEntities player,
       Just martialArt <- [M.lookup (artEntity ^. artDef) (wrld ^. martialArts)],
       activeSkill <- martialArt ^. artActiveSkills,
@@ -1002,10 +1008,12 @@ activeSkillReqArtsMet :: Player -> ActiveSkill -> Bool
 activeSkillReqArtsMet player activeSkill =
   all (\reqArt -> fromMaybe 0 (playerKnownArtLevel player reqArt) > 0) (activeSkill ^. activeSkillReqArts)
 
-dedupeActiveSkills :: [ActiveSkill] -> [ActiveSkill]
+dedupeActiveSkills :: [PreparedActiveSkill] -> [PreparedActiveSkill]
 dedupeActiveSkills [] = []
-dedupeActiveSkills (activeSkill : rest) =
-  activeSkill : dedupeActiveSkills (filter ((/= activeSkill ^. activeSkillId) . view activeSkillId) rest)
+dedupeActiveSkills (prepared : rest) =
+  prepared : dedupeActiveSkills (filter ((/= activeSkillId') . view activeSkillId . preparedActiveSkillSkill) rest)
+  where
+    activeSkillId' = preparedActiveSkillSkill prepared ^. activeSkillId
 
 activeSkillUseFailure :: ActiveSkill -> BattleState -> Maybe ActiveSkillFailureReason
 activeSkillUseFailure activeSkill state
@@ -1102,7 +1110,7 @@ sendBattleSnapshot pid battle = do
   wrld <- use world
   player <- getsPlayer pid
   let effectDefs = wrld ^. effects
-      availableActiveSkills = map (activeSkillToSummary effectDefs) $ preparedActiveSkills wrld player
+      availableActiveSkills = map (activeSkillToSummary effectDefs . preparedActiveSkillSkill) $ preparedActiveSkills wrld player
       snapshot =
         BattleSnapshot
           { battleSnapshotPlayer = battleStateToSnapshot effectDefs (battle ^. battleState),

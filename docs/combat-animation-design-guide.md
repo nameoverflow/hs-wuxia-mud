@@ -320,7 +320,7 @@ MUD 战斗不是纯动画，它同时是文字叙事。动画必须服务文字�
 
 ## 与系统设计的关系
 
-本文的原则应落到 [client/src/battle/animationCatalog.ts](../client/src/battle/animationCatalog.ts) 和 [client/src/battle/animationResolver.ts](../client/src/battle/animationResolver.ts)，而不是散落在组件 if/else 里。
+本文的原则应落到 [client/src/battle/skeletal/data/rig-actions.json](../client/src/battle/skeletal/data/rig-actions.json)、[client/src/battle/rigActionCatalog.ts](../client/src/battle/rigActionCatalog.ts) 和 [client/src/battle/animationResolver.ts](../client/src/battle/animationResolver.ts)，而不是散落在组件 if/else 里。
 
 推荐把每个动作拆成：
 
