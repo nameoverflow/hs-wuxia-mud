@@ -11,12 +11,16 @@
 
   let canvasEl: HTMLCanvasElement;
   let renderer: SkeletalCanvasRenderer | null = null;
+  let ctx: CanvasRenderingContext2D | null = null;
   let frame = 0;
   let startedAt = 0;
+  let lastRenderedAt = 0;
 
   $: entry = skeletalAnimationEntries.find((candidate) => candidate.id === visual.entryId) || skeletalAnimationEntries.find((candidate) => candidate.actionId === visual.actionId);
   $: rig = entry ? createBattleActorRig(entry) : null;
   $: sequence = visual.sequence?.length ? visual.sequence : [visual.poseId];
+  $: renderKey = `${visual.entryId}:${visual.actionId}:${sequence.join(",")}:${durationMs}`;
+  $: if (renderer && renderKey) restart();
 
   onMount(() => {
     renderer = new SkeletalCanvasRenderer(queueDraw);
@@ -36,19 +40,32 @@
     frame = 0;
   }
 
+  function restart() {
+    startedAt = 0;
+    lastRenderedAt = 0;
+    queueDraw();
+  }
+
   function draw(now = performance.now()) {
     frame = 0;
     if (!startedAt) startedAt = now;
     if (!canvasEl || !renderer || !rig) return;
+    const elapsed = now - startedAt;
+    const animationMs = Math.max(120, durationMs);
+    if (lastRenderedAt && now - lastRenderedAt < 1000 / 30 && elapsed < animationMs) {
+      frame = requestAnimationFrame(draw);
+      return;
+    }
+    lastRenderedAt = now;
     const rect = canvasEl.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const width = Math.max(256, Math.round(rect.width * dpr));
     const height = Math.max(192, Math.round(rect.height * dpr));
     if (canvasEl.width !== width || canvasEl.height !== height) {
       canvasEl.width = width;
       canvasEl.height = height;
     }
-    const ctx = canvasEl.getContext("2d");
+    ctx = ctx || canvasEl.getContext("2d");
     if (!ctx) return;
     const pose = poseAt(rig, now - startedAt, sequence, durationMs);
     const resolved = resolveRig(rig, pose, { bones: {}, bindings: {} });
@@ -60,10 +77,11 @@
       showImages: false,
       showSkin: true,
       showLabels: false,
+      meshQuality: "full",
       zoom: 1.22,
       background: "transparent"
     });
-    if (now - startedAt < Math.max(120, durationMs)) frame = requestAnimationFrame(draw);
+    if (elapsed < animationMs) frame = requestAnimationFrame(draw);
   }
 
   function poseAt(rigValue: SkeletonRigDefinition, elapsedMs: number, poseIds: string[], totalMs: number): SkeletalPoseDefinition {

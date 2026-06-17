@@ -380,6 +380,7 @@
       selectedBoneId,
       selectedAnchorId,
       selectedBindingId,
+      meshQuality: isPlaying ? "fast" : "full",
       zoom,
       panX: viewportPan.x,
       panY: viewportPan.y

@@ -9,6 +9,8 @@ const defaultOptions: SkeletalRenderOptions = {
   showImages: true,
   showSkin: true,
   showLabels: true,
+  meshQuality: "full",
+  fuseSegmentedSkin: true,
   zoom: 1,
   background: "#070808"
 };
@@ -53,8 +55,9 @@ export class SkeletalCanvasRenderer {
       drawBinding(ctx, rig, binding, viewport, merged, this.loadImage(binding.definition.image));
     }
 
-    if (hasSegmentedSkin(rig, merged)) {
-      fuseSegmentedSkinLayer(ctx, ctx.canvas.width, ctx.canvas.height);
+    if (merged.fuseSegmentedSkin && hasSegmentedSkin(rig, merged)) {
+      const bounds = segmentedSkinLayerBounds(ctx.canvas.width, ctx.canvas.height, rig, viewport);
+      if (bounds) fuseSegmentedSkinLayer(ctx, bounds);
     }
 
     if (merged.showBindings) drawBindingLinks(ctx, rig, viewport, merged);
@@ -85,17 +88,98 @@ function hasSegmentedSkin(rig: ResolvedRig, options: SkeletalRenderOptions) {
   });
 }
 
-function fuseSegmentedSkinLayer(ctx: CanvasRenderingContext2D, width: number, height: number) {
+interface PixelBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+function segmentedSkinLayerBounds(canvasWidth: number, canvasHeight: number, rig: ResolvedRig, viewport: RigViewport): PixelBounds | null {
+  const points: Vec2[] = [];
+  for (const binding of rig.bindings) {
+    const tags = binding.definition.tags || [];
+    if (binding.definition.opacity <= 0.001 || !tags.includes("segmented") || !tags.includes("skin")) continue;
+    for (const point of segmentedSkinBindingPoints(rig, binding)) points.push(rigPointToScreen(point, viewport));
+  }
+  if (points.length === 0) return null;
+
+  const padding = Math.max(14, Math.ceil(10 * viewport.scale));
+  const raw = points.reduce(
+    (acc, point) => ({
+      minX: Math.min(acc.minX, point.x),
+      minY: Math.min(acc.minY, point.y),
+      maxX: Math.max(acc.maxX, point.x),
+      maxY: Math.max(acc.maxY, point.y)
+    }),
+    { minX: Number.POSITIVE_INFINITY, minY: Number.POSITIVE_INFINITY, maxX: Number.NEGATIVE_INFINITY, maxY: Number.NEGATIVE_INFINITY }
+  );
+  const x = Math.max(0, Math.floor(raw.minX - padding));
+  const y = Math.max(0, Math.floor(raw.minY - padding));
+  const right = Math.min(canvasWidth, Math.ceil(raw.maxX + padding));
+  const bottom = Math.min(canvasHeight, Math.ceil(raw.maxY + padding));
+  if (right <= x || bottom <= y) return null;
+  return { x, y, width: right - x, height: bottom - y };
+}
+
+function segmentedSkinBindingPoints(rig: ResolvedRig, binding: ResolvedBinding): Vec2[] {
+  const def = binding.definition;
+  if (def.kind === "mesh" && def.deform?.keypoints.length) {
+    const points: Vec2[] = [];
+    for (const keypoint of def.deform.keypoints) {
+      const anchor = rig.anchorsById[keypoint.anchorId];
+      if (!anchor) continue;
+      const radius = Math.max(keypoint.radius, keypoint.sourceRadius ?? 0, 2);
+      points.push(
+        { x: anchor.position.x - radius, y: anchor.position.y - radius },
+        { x: anchor.position.x + radius, y: anchor.position.y - radius },
+        { x: anchor.position.x + radius, y: anchor.position.y + radius },
+        { x: anchor.position.x - radius, y: anchor.position.y + radius }
+      );
+    }
+    if (points.length > 0) return points;
+  }
+  return transformedBindingPoints(binding);
+}
+
+function transformedBindingPoints(binding: ResolvedBinding): Vec2[] {
+  const def = binding.definition;
+  const local =
+    def.kind === "image" || def.kind === "mesh"
+      ? [
+          { x: -(def.pivotX ?? 0.5) * def.width, y: -(def.pivotY ?? 0.5) * def.height },
+          { x: (1 - (def.pivotX ?? 0.5)) * def.width, y: -(def.pivotY ?? 0.5) * def.height },
+          { x: (1 - (def.pivotX ?? 0.5)) * def.width, y: (1 - (def.pivotY ?? 0.5)) * def.height },
+          { x: -(def.pivotX ?? 0.5) * def.width, y: (1 - (def.pivotY ?? 0.5)) * def.height }
+        ]
+      : [
+          { x: -def.width * 0.5, y: -def.height * 0.5 },
+          { x: def.width * 0.5, y: -def.height * 0.5 },
+          { x: def.width * 0.5, y: def.height * 0.5 },
+          { x: -def.width * 0.5, y: def.height * 0.5 }
+        ];
+  return local.map((point) => matrixPoint(binding.matrix, point));
+}
+
+function matrixPoint(matrix: Mat2D, point: Vec2): Vec2 {
+  return {
+    x: matrix.a * point.x + matrix.c * point.y + matrix.e,
+    y: matrix.b * point.x + matrix.d * point.y + matrix.f
+  };
+}
+
+function fuseSegmentedSkinLayer(ctx: CanvasRenderingContext2D, bounds: PixelBounds) {
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   let imageData: ImageData;
   try {
-    imageData = ctx.getImageData(0, 0, width, height);
+    imageData = ctx.getImageData(bounds.x, bounds.y, bounds.width, bounds.height);
   } catch {
     ctx.restore();
     return;
   }
 
+  const { width, height } = bounds;
   const source = imageData.data;
   const result = new Uint8ClampedArray(source);
   const target = { r: 250, g: 201, b: 28 };
@@ -122,7 +206,7 @@ function fuseSegmentedSkinLayer(ctx: CanvasRenderingContext2D, width: number, he
   }
 
   imageData.data.set(result);
-  ctx.putImageData(imageData, 0, 0);
+  ctx.putImageData(imageData, bounds.x, bounds.y);
   ctx.restore();
 }
 
@@ -246,7 +330,7 @@ function drawBinding(
 
   if (def.kind === "mesh") {
     ctx.globalAlpha = def.opacity;
-    drawMeshBinding(ctx, rig, binding, viewport, image);
+    drawMeshBinding(ctx, rig, binding, viewport, options, image);
   } else if (def.kind === "image") {
     applyMatrix(ctx, binding.matrix);
     ctx.globalAlpha = def.opacity;
@@ -304,6 +388,7 @@ function drawMeshBinding(
   rig: ResolvedRig,
   binding: ResolvedBinding,
   viewport: RigViewport,
+  options: SkeletalRenderOptions,
   image: HTMLImageElement | null
 ) {
   const def = binding.definition;
@@ -322,9 +407,11 @@ function drawMeshBinding(
   const targetRibbon = targetSamples.map((sample) => ribbonPoint(sample.point, sample.tangent, sample.radius));
 
   if (image?.complete && image.naturalWidth > 0) {
-    const alphaMesh = buildSkeletonWarpMesh(image, def.width, def.height, sourceCenters, targetCenters, sourceRadii, radii, deform.segments, {
+    const meshSegments = options.meshQuality === "fast" ? Math.min(deform.segments ?? 12, 12) : deform.segments;
+    const meshGridSize = options.meshQuality === "fast" ? Math.max(deform.gridSize ?? 2, 4) : deform.gridSize;
+    const alphaMesh = buildSkeletonWarpMesh(image, def.width, def.height, sourceCenters, targetCenters, sourceRadii, radii, meshSegments, {
       algorithm: deform.algorithm,
-      gridSize: deform.gridSize,
+      gridSize: meshGridSize,
       influence: deform.influence
     });
     if (alphaMesh) {

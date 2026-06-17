@@ -174,6 +174,8 @@ export interface ResolvedRig {
   bindingsById: Record<string, ResolvedBinding>;
 }
 
+export type SkeletalMeshQuality = "full" | "fast";
+
 export interface SkeletalRenderOptions {
   showStage: boolean;
   showBones: boolean;
@@ -182,6 +184,8 @@ export interface SkeletalRenderOptions {
   showImages: boolean;
   showSkin: boolean;
   showLabels: boolean;
+  meshQuality: SkeletalMeshQuality;
+  fuseSegmentedSkin: boolean;
   selectedBoneId?: string | null;
   selectedAnchorId?: string | null;
   selectedBindingId?: string | null;
