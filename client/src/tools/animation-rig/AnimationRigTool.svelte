@@ -12,6 +12,7 @@
     PoseOverrides,
     ResolvedRig,
     RigViewport,
+    SkeletalPoseDefinition,
     SkeletonRigDefinition,
     Vec2
   } from "../../battle/skeletal/types";
@@ -92,6 +93,7 @@
   $: selectedAnchor = resolvedRig?.anchorsById[selectedAnchorId] || null;
   $: selectedBinding = resolvedRig?.bindingsById[selectedBindingId] || null;
   $: exportText = makeExportText(selectedEntry, selectedPoseId, overrides);
+  $: canSaveProjectPoses = !!selectedEntry?.tags.includes("part-rig");
   $: renderInvalidationKey = [
     showBones,
     showAnchors,
@@ -720,6 +722,28 @@
     saveStatus = "Saved";
   }
 
+  async function saveProjectPoses() {
+    if (!selectedEntry || !rig || !canSaveProjectPoses) {
+      saveStatus = "Project save unavailable";
+      return;
+    }
+
+    try {
+      const response = await fetch("/__rig/segmented-v12-poses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ poses: mergedProjectPoseLibrary(rig) })
+      });
+      if (!response.ok) throw new Error(await response.text());
+      localStorage.removeItem(storageKey(selectedEntry.id));
+      resetAll();
+      saveStatus = "Saved Project";
+      window.setTimeout(() => window.location.reload(), 240);
+    } catch (error) {
+      saveStatus = error instanceof Error ? `Save failed: ${error.message}` : "Save failed";
+    }
+  }
+
   function clearSavedEdits() {
     if (!selectedEntry) return;
     localStorage.removeItem(storageKey(selectedEntry.id));
@@ -770,6 +794,35 @@
 
   function storageKey(entryId: string) {
     return `wuxia-mud.animation-rig.${entryId}.v3`;
+  }
+
+  function mergedProjectPoseLibrary(rigValue: SkeletonRigDefinition): Record<string, SkeletalPoseDefinition> {
+    const poses = clonePoseLibrary(rigValue.poses);
+    for (const [poseId, bones] of Object.entries(boneOverridesByPose)) {
+      if (!poses[poseId]) continue;
+      poses[poseId] = {
+        ...poses[poseId],
+        bones: {
+          ...poses[poseId].bones,
+          ...bones
+        }
+      };
+    }
+    for (const [poseId, anchors] of Object.entries(anchorOverridesByPose)) {
+      if (!poses[poseId]) continue;
+      poses[poseId] = {
+        ...poses[poseId],
+        anchors: {
+          ...(poses[poseId].anchors || {}),
+          ...anchors
+        }
+      };
+    }
+    return poses;
+  }
+
+  function clonePoseLibrary(poses: Record<string, SkeletalPoseDefinition>): Record<string, SkeletalPoseDefinition> {
+    return JSON.parse(JSON.stringify(poses)) as Record<string, SkeletalPoseDefinition>;
   }
 
   function makeExportText(entry: AnimationRigEntry | undefined, poseId: string, value: PoseOverrides) {
@@ -1257,6 +1310,7 @@
         </div>
         <div class="rig-command-row">
           <button type="button" class="rig-primary" on:click={saveEdits}>Save Local</button>
+          <button type="button" class="rig-primary" disabled={!canSaveProjectPoses} on:click={saveProjectPoses}>Save Project Poses</button>
           <button type="button" class="rig-secondary" on:click={copyExport}>Copy</button>
           <button type="button" class="rig-secondary" on:click={clearSavedEdits}>Clear</button>
           <button type="button" class="rig-secondary" on:click={resetAll}>Reset All</button>

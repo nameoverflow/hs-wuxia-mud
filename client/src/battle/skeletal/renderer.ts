@@ -53,6 +53,10 @@ export class SkeletalCanvasRenderer {
       drawBinding(ctx, rig, binding, viewport, merged, this.loadImage(binding.definition.image));
     }
 
+    if (hasSegmentedSkin(rig, merged)) {
+      fuseSegmentedSkinLayer(ctx, ctx.canvas.width, ctx.canvas.height);
+    }
+
     if (merged.showBindings) drawBindingLinks(ctx, rig, viewport, merged);
     if (merged.showBones) drawSkeletonGuides(ctx, rig, viewport, merged);
     if (merged.showAnchors) drawAnchors(ctx, rig, viewport, merged);
@@ -71,6 +75,80 @@ export class SkeletalCanvasRenderer {
     this.images.set(src, image);
     return image;
   }
+}
+
+function hasSegmentedSkin(rig: ResolvedRig, options: SkeletalRenderOptions) {
+  if (!options.showSkin) return false;
+  return rig.bindings.some((binding) => {
+    const tags = binding.definition.tags || [];
+    return binding.definition.opacity > 0.001 && tags.includes("segmented") && tags.includes("skin");
+  });
+}
+
+function fuseSegmentedSkinLayer(ctx: CanvasRenderingContext2D, width: number, height: number) {
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  let imageData: ImageData;
+  try {
+    imageData = ctx.getImageData(0, 0, width, height);
+  } catch {
+    ctx.restore();
+    return;
+  }
+
+  const source = imageData.data;
+  const result = new Uint8ClampedArray(source);
+  const target = { r: 250, g: 201, b: 28 };
+  const targetLuma = 0.299 * target.r + 0.587 * target.g + 0.114 * target.b;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = (y * width + x) * 4;
+      const alpha = source[index + 3];
+      if (alpha <= 8 || !isSkinColorPixel(source, index)) continue;
+
+      const interior = isInteriorSkinPixel(source, width, height, x, y);
+      const luma = 0.299 * source[index] + 0.587 * source[index + 1] + 0.114 * source[index + 2];
+      const shade = interior ? 1 : clampNumber(luma / targetLuma, 0.82, 1.12);
+      const normalizedR = clampNumber(target.r * shade, 0, 255);
+      const normalizedG = clampNumber(target.g * shade, 0, 255);
+      const normalizedB = clampNumber(target.b * shade, 0, 255);
+      const blend = interior ? 1 : 0.42;
+
+      result[index] = Math.round(lerpNumber(source[index], normalizedR, blend));
+      result[index + 1] = Math.round(lerpNumber(source[index + 1], normalizedG, blend));
+      result[index + 2] = Math.round(lerpNumber(source[index + 2], normalizedB, blend));
+    }
+  }
+
+  imageData.data.set(result);
+  ctx.putImageData(imageData, 0, 0);
+  ctx.restore();
+}
+
+function isInteriorSkinPixel(data: Uint8ClampedArray, width: number, height: number, x: number, y: number) {
+  const radius = 2;
+  let skinNeighbors = 0;
+  let sampledNeighbors = 0;
+  for (let dy = -radius; dy <= radius; dy += 1) {
+    for (let dx = -radius; dx <= radius; dx += 1) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || nx >= width || ny < 0 || ny >= height) return false;
+      const index = (ny * width + nx) * 4;
+      sampledNeighbors += 1;
+      if (data[index + 3] >= 48 && isSkinColorPixel(data, index)) skinNeighbors += 1;
+    }
+  }
+  return skinNeighbors >= sampledNeighbors * 0.72;
+}
+
+function isSkinColorPixel(data: Uint8ClampedArray, index: number) {
+  const r = data[index];
+  const g = data[index + 1];
+  const b = data[index + 2];
+  return r > 125 && g > 90 && b < 95 && r >= g * 0.9 && g > b * 1.55;
 }
 
 function waitForImage(image: HTMLImageElement): Promise<void> {
@@ -244,7 +322,11 @@ function drawMeshBinding(
   const targetRibbon = targetSamples.map((sample) => ribbonPoint(sample.point, sample.tangent, sample.radius));
 
   if (image?.complete && image.naturalWidth > 0) {
-    const alphaMesh = buildSkeletonWarpMesh(image, def.width, def.height, sourceCenters, targetCenters, sourceRadii, radii, deform.segments);
+    const alphaMesh = buildSkeletonWarpMesh(image, def.width, def.height, sourceCenters, targetCenters, sourceRadii, radii, deform.segments, {
+      algorithm: deform.algorithm,
+      gridSize: deform.gridSize,
+      influence: deform.influence
+    });
     if (alphaMesh) {
       drawTexturedGridTriangles(ctx, image, def.width, def.height, alphaMesh);
       return;
@@ -288,6 +370,12 @@ export interface TexturedGridMesh {
   mask?: ImageAlphaMask;
 }
 
+interface SkeletonWarpOptions {
+  algorithm?: "path" | "skinned";
+  gridSize?: number;
+  influence?: number;
+}
+
 function drawTexturedGridTriangles(ctx: CanvasRenderingContext2D, image: HTMLImageElement, width: number, height: number, mesh: TexturedGridMesh) {
   const rowCount = Math.min(mesh.sourceRows.length, mesh.targetRows.length);
   for (let row = 0; row < rowCount - 1; row += 1) {
@@ -319,10 +407,12 @@ export function buildSkeletonWarpMesh(
   targetCenters: Vec2[],
   sourceRadii: number[],
   targetRadii: number[],
-  segmentCount = 12
+  segmentCount = 12,
+  options: SkeletonWarpOptions = {}
 ): TexturedGridMesh | null {
   const mask = image ? getImageAlphaMask(image, width, height) : undefined;
   if ((image && !mask) || sourceCenters.length < 2 || sourceCenters.length !== targetCenters.length) return null;
+  const algorithm = options.algorithm ?? "path";
   const sourceSamples = ribbonSamples(sourceCenters, sourceRadii, segmentCount);
   const targetSamples = ribbonSamples(targetCenters, targetRadii, segmentCount);
   const sampleCount = Math.min(sourceSamples.length, targetSamples.length);
@@ -331,8 +421,11 @@ export function buildSkeletonWarpMesh(
   const targetPath = targetSamples.slice(0, sampleCount);
   const sourceRows: Vec2[][] = [];
   const targetRows: Vec2[][] = [];
-  const columnCount = Math.max(5, Math.min(28, Math.ceil(width / 3.5) + 1));
-  const rowCount = Math.max(5, Math.min(38, Math.ceil(height / 3.5) + 1));
+  const gridSize = Math.max(1.2, options.gridSize ?? (algorithm === "skinned" ? 2 : 3.5));
+  const maxColumns = algorithm === "skinned" ? 96 : 28;
+  const maxRows = algorithm === "skinned" ? 140 : 38;
+  const columnCount = Math.max(5, Math.min(maxColumns, Math.ceil(width / gridSize) + 1));
+  const rowCount = Math.max(5, Math.min(maxRows, Math.ceil(height / gridSize) + 1));
 
   for (let row = 0; row < rowCount; row += 1) {
     const sourceRow: Vec2[] = [];
@@ -344,7 +437,11 @@ export function buildSkeletonWarpMesh(
         y
       };
       sourceRow.push(source);
-      targetRow.push(mapSourcePointToTargetPath(source, sourcePath, targetPath));
+      targetRow.push(
+        algorithm === "skinned"
+          ? mapSourcePointWithWeightedSkin(source, sourcePath, targetPath, options.influence ?? 2.6)
+          : mapSourcePointToTargetPath(source, sourcePath, targetPath)
+      );
     }
     sourceRows.push(sourceRow);
     targetRows.push(targetRow);
@@ -373,6 +470,86 @@ function mapSourcePointToTargetPath(point: Vec2, sourcePath: RibbonSample[], tar
   return {
     x: targetPoint.x + targetNormal.x * projection.offset * radiusScale,
     y: targetPoint.y + targetNormal.y * projection.offset * radiusScale
+  };
+}
+
+function mapSourcePointWithWeightedSkin(point: Vec2, sourcePath: RibbonSample[], targetPath: RibbonSample[], influence: number): Vec2 {
+  let totalWeight = 0;
+  let mappedX = 0;
+  let mappedY = 0;
+  let fallback: { point: Vec2; distanceSq: number } | null = null;
+
+  for (let index = 0; index < sourcePath.length - 1; index += 1) {
+    const sourceA = sourcePath[index];
+    const sourceB = sourcePath[index + 1];
+    const targetA = targetPath[index];
+    const targetB = targetPath[index + 1];
+    const projection = projectPointToSampleSegment(point, sourceA, sourceB);
+    if (!projection) continue;
+    const mapped = mapPointBySampleSegment(point, sourceA, sourceB, targetA, targetB, projection.unclampedT);
+    if (!fallback || projection.distanceSq < fallback.distanceSq) fallback = { point: mapped, distanceSq: projection.distanceSq };
+
+    const sourceRadius = Math.max(0.35, lerpNumber(sourceA.radius, sourceB.radius, projection.t));
+    const influenceRadius = Math.max(sourceRadius * influence, 2.4);
+    const distance = Math.sqrt(projection.distanceSq);
+    const normalizedDistance = distance / influenceRadius;
+    const outside = projection.unclampedT < 0 ? -projection.unclampedT : projection.unclampedT > 1 ? projection.unclampedT - 1 : 0;
+    const longitudinalPenalty = 1 / (1 + outside * outside * 36);
+    const weight = (longitudinalPenalty * longitudinalPenalty) / Math.max(0.0001, 0.035 + normalizedDistance ** 4);
+    if (weight <= 0.000001) continue;
+
+    totalWeight += weight;
+    mappedX += mapped.x * weight;
+    mappedY += mapped.y * weight;
+  }
+
+  if (totalWeight <= 0.000001) return fallback?.point ?? point;
+  return { x: mappedX / totalWeight, y: mappedY / totalWeight };
+}
+
+function projectPointToSampleSegment(point: Vec2, start: RibbonSample, end: RibbonSample) {
+  const dx = end.point.x - start.point.x;
+  const dy = end.point.y - start.point.y;
+  const lengthSq = dx * dx + dy * dy;
+  if (lengthSq < 0.000001) return null;
+  const unclampedT = ((point.x - start.point.x) * dx + (point.y - start.point.y) * dy) / lengthSq;
+  const t = clampNumber(unclampedT, 0, 1);
+  const projected = { x: start.point.x + dx * t, y: start.point.y + dy * t };
+  return {
+    t,
+    unclampedT,
+    projected,
+    distanceSq: squaredDistance(point, projected)
+  };
+}
+
+function mapPointBySampleSegment(
+  point: Vec2,
+  sourceA: RibbonSample,
+  sourceB: RibbonSample,
+  targetA: RibbonSample,
+  targetB: RibbonSample,
+  t: number
+): Vec2 {
+  const sourceVector = { x: sourceB.point.x - sourceA.point.x, y: sourceB.point.y - sourceA.point.y };
+  const targetVector = { x: targetB.point.x - targetA.point.x, y: targetB.point.y - targetA.point.y };
+  const sourceLength = Math.max(0.001, Math.hypot(sourceVector.x, sourceVector.y));
+  const targetLength = Math.max(0.001, Math.hypot(targetVector.x, targetVector.y));
+  const sourceDirection = { x: sourceVector.x / sourceLength, y: sourceVector.y / sourceLength };
+  const targetDirection = { x: targetVector.x / targetLength, y: targetVector.y / targetLength };
+  const sourceNormal = normalForTangent(sourceDirection);
+  const targetNormal = normalForTangent(targetDirection);
+  const relative = { x: point.x - sourceA.point.x, y: point.y - sourceA.point.y };
+  const sourceAlong = relative.x * sourceDirection.x + relative.y * sourceDirection.y;
+  const sourceOffset = relative.x * sourceNormal.x + relative.y * sourceNormal.y;
+  const radiusT = clampNumber(t, 0, 1);
+  const sourceRadius = Math.max(0.001, lerpNumber(sourceA.radius, sourceB.radius, radiusT));
+  const targetRadius = Math.max(0.001, lerpNumber(targetA.radius, targetB.radius, radiusT));
+  const alongScale = targetLength / sourceLength;
+  const normalScale = targetRadius / sourceRadius;
+  return {
+    x: targetA.point.x + targetDirection.x * sourceAlong * alongScale + targetNormal.x * sourceOffset * normalScale,
+    y: targetA.point.y + targetDirection.y * sourceAlong * alongScale + targetNormal.y * sourceOffset * normalScale
   };
 }
 
@@ -687,16 +864,32 @@ function drawTexturedTriangle(
 ) {
   const matrix = affineFromTriangles(s0, s1, s2, d0, d1, d2);
   if (!matrix) return;
+  const clipTriangle = expandedTriangle(d0, d1, d2, 0.35);
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(d0.x, d0.y);
-  ctx.lineTo(d1.x, d1.y);
-  ctx.lineTo(d2.x, d2.y);
+  ctx.moveTo(clipTriangle[0].x, clipTriangle[0].y);
+  ctx.lineTo(clipTriangle[1].x, clipTriangle[1].y);
+  ctx.lineTo(clipTriangle[2].x, clipTriangle[2].y);
   ctx.closePath();
   ctx.clip();
   ctx.transform(matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f);
   ctx.drawImage(image, 0, 0, width, height);
   ctx.restore();
+}
+
+function expandedTriangle(a: Vec2, b: Vec2, c: Vec2, amount: number): [Vec2, Vec2, Vec2] {
+  const center = { x: (a.x + b.x + c.x) / 3, y: (a.y + b.y + c.y) / 3 };
+  return [expandFromCenter(a, center, amount), expandFromCenter(b, center, amount), expandFromCenter(c, center, amount)];
+}
+
+function expandFromCenter(point: Vec2, center: Vec2, amount: number): Vec2 {
+  const dx = point.x - center.x;
+  const dy = point.y - center.y;
+  const length = Math.hypot(dx, dy) || 1;
+  return {
+    x: point.x + (dx / length) * amount,
+    y: point.y + (dy / length) * amount
+  };
 }
 
 export function affineFromTriangles(s0: Vec2, s1: Vec2, s2: Vec2, d0: Vec2, d1: Vec2, d2: Vec2): Mat2D | null {

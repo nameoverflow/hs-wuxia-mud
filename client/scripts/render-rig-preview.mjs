@@ -378,7 +378,11 @@ function meshBindingPoints(resolvedRig, def, buildSkeletonWarpMesh) {
   const sourceCenters = keypoints.map((keypoint) => ({ x: keypoint.sourceX, y: keypoint.sourceY }));
   const radii = keypoints.map((keypoint) => keypoint.radius);
   const sourceRadii = keypoints.map((keypoint) => keypoint.sourceRadius ?? keypoint.radius);
-  const mesh = buildSkeletonWarpMesh(null, def.width, def.height, sourceCenters, targetCenters, sourceRadii, radii, def.deform.segments);
+  const mesh = buildSkeletonWarpMesh(null, def.width, def.height, sourceCenters, targetCenters, sourceRadii, radii, def.deform.segments, {
+    algorithm: def.deform.algorithm,
+    gridSize: def.deform.gridSize,
+    influence: def.deform.influence
+  });
   return mesh ? mesh.targetRows.flat() : targetCenters.flatMap((point, index) => radiusBox(point, radii[index] ?? 0));
 }
 

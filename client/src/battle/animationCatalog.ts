@@ -12,31 +12,37 @@ import type {
   VisualProfile
 } from "./animationTypes";
 
-import commonFemaleDodge from "../assets/battle/actors/common/female/dodge.png";
-import commonFemaleHurt from "../assets/battle/actors/common/female/hurt.png";
-import commonFemaleParry from "../assets/battle/actors/common/female/parry.png";
-import commonMaleDodge from "../assets/battle/actors/common/male/dodge.png";
-import commonMaleHurt from "../assets/battle/actors/common/male/hurt.png";
-import commonMaleParry from "../assets/battle/actors/common/male/parry.png";
+import fistFemaleDodge from "../assets/battle/actors/fist/female/dodge.png";
 import fistFemaleGuard from "../assets/battle/actors/fist/female/guard.png";
 import fistFemaleHealingPalm from "../assets/battle/actors/fist/female/healing_palm.png";
 import fistFemaleHeavy from "../assets/battle/actors/fist/female/heavy.png";
+import fistFemaleHurt from "../assets/battle/actors/fist/female/hurt.png";
 import fistFemaleIdle from "../assets/battle/actors/fist/female/idle.png";
 import fistFemaleKick from "../assets/battle/actors/fist/female/kick.png";
+import fistFemaleParry from "../assets/battle/actors/fist/female/parry.png";
 import fistFemalePunch from "../assets/battle/actors/fist/female/punch.png";
+import fistMaleDodge from "../assets/battle/actors/fist/male/dodge.png";
 import fistMaleGuard from "../assets/battle/actors/fist/male/guard.png";
 import fistMaleHealingPalm from "../assets/battle/actors/fist/male/healing_palm.png";
 import fistMaleHeavy from "../assets/battle/actors/fist/male/heavy.png";
+import fistMaleHurt from "../assets/battle/actors/fist/male/hurt.png";
 import fistMaleIdle from "../assets/battle/actors/fist/male/idle.png";
 import fistMaleKick from "../assets/battle/actors/fist/male/kick.png";
+import fistMaleParry from "../assets/battle/actors/fist/male/parry.png";
 import fistMalePunch from "../assets/battle/actors/fist/male/punch.png";
+import swordFemaleDodge from "../assets/battle/actors/sword/female/dodge.png";
 import swordFemaleGuard from "../assets/battle/actors/sword/female/guard.png";
+import swordFemaleHurt from "../assets/battle/actors/sword/female/hurt.png";
 import swordFemaleIdle from "../assets/battle/actors/sword/female/idle.png";
+import swordFemaleParry from "../assets/battle/actors/sword/female/parry.png";
 import swordFemaleSlash from "../assets/battle/actors/sword/female/slash.png";
 import swordFemaleStab from "../assets/battle/actors/sword/female/stab.png";
 import swordFemaleUppercut from "../assets/battle/actors/sword/female/uppercut.png";
+import swordMaleDodge from "../assets/battle/actors/sword/male/dodge.png";
 import swordMaleGuard from "../assets/battle/actors/sword/male/guard.png";
+import swordMaleHurt from "../assets/battle/actors/sword/male/hurt.png";
 import swordMaleIdle from "../assets/battle/actors/sword/male/idle.png";
+import swordMaleParry from "../assets/battle/actors/sword/male/parry.png";
 import swordMaleSlash from "../assets/battle/actors/sword/male/slash.png";
 import swordMaleStab from "../assets/battle/actors/sword/male/stab.png";
 import swordMaleUppercut from "../assets/battle/actors/sword/male/uppercut.png";
@@ -51,22 +57,33 @@ export const spriteClips: Record<string, SpriteClip> = {
   "actor.sword.slash_a": { id: "actor.sword.slash_a", sprites: sprites(swordMaleSlash, swordFemaleSlash) },
   "actor.sword.uppercut_a": { id: "actor.sword.uppercut_a", sprites: sprites(swordMaleUppercut, swordFemaleUppercut) },
   "actor.sword.guard": { id: "actor.sword.guard", sprites: sprites(swordMaleGuard, swordFemaleGuard) },
+  "actor.sword.hurt": { id: "actor.sword.hurt", sprites: sprites(swordMaleHurt, swordFemaleHurt) },
+  "actor.sword.dodge": { id: "actor.sword.dodge", sprites: sprites(swordMaleDodge, swordFemaleDodge) },
+  "actor.sword.parry": { id: "actor.sword.parry", sprites: sprites(swordMaleParry, swordFemaleParry) },
   "actor.fist.idle": { id: "actor.fist.idle", sprites: sprites(fistMaleIdle, fistFemaleIdle) },
   "actor.fist.punch": { id: "actor.fist.punch", sprites: sprites(fistMalePunch, fistFemalePunch) },
   "actor.fist.heavy": { id: "actor.fist.heavy", sprites: sprites(fistMaleHeavy, fistFemaleHeavy) },
   "actor.fist.kick": { id: "actor.fist.kick", sprites: sprites(fistMaleKick, fistFemaleKick) },
   "actor.fist.guard": { id: "actor.fist.guard", sprites: sprites(fistMaleGuard, fistFemaleGuard) },
   "actor.fist.healing_palm": { id: "actor.fist.healing_palm", sprites: sprites(fistMaleHealingPalm, fistFemaleHealingPalm) },
-  "actor.common.hurt": { id: "actor.common.hurt", sprites: sprites(commonMaleHurt, commonFemaleHurt) },
-  "actor.common.dodge": { id: "actor.common.dodge", sprites: sprites(commonMaleDodge, commonFemaleDodge) },
-  "actor.common.parry": { id: "actor.common.parry", sprites: sprites(commonMaleParry, commonFemaleParry) }
+  "actor.fist.hurt": { id: "actor.fist.hurt", sprites: sprites(fistMaleHurt, fistFemaleHurt) },
+  "actor.fist.dodge": { id: "actor.fist.dodge", sprites: sprites(fistMaleDodge, fistFemaleDodge) },
+  "actor.fist.parry": { id: "actor.fist.parry", sprites: sprites(fistMaleParry, fistFemaleParry) }
 };
 
-const reactionClips: Record<Exclude<TargetReaction, "none">, string> = {
-  hit: "actor.common.hurt",
-  dodge: "actor.common.dodge",
-  parry: "actor.common.parry",
-  effect: ""
+const reactionClips: Record<CombatStyle, Record<Exclude<TargetReaction, "none">, string>> = {
+  sword: {
+    hit: "actor.sword.hurt",
+    dodge: "actor.sword.dodge",
+    parry: "actor.sword.parry",
+    effect: ""
+  },
+  fist: {
+    hit: "actor.fist.hurt",
+    dodge: "actor.fist.dodge",
+    parry: "actor.fist.parry",
+    effect: ""
+  }
 };
 
 export const battleActions: Record<string, BattleActionDefinition> = {
@@ -570,7 +587,7 @@ export function idleSpriteForStyle(style: CombatStyle, profile: VisualProfile): 
 }
 
 export function reactionSpriteFor(reaction: Exclude<TargetReaction, "none">, profile: VisualProfile, style: CombatStyle = "fist"): string {
-  const clipId = reactionClips[reaction];
+  const clipId = reactionClips[style]?.[reaction];
   return clipId ? spriteForClip(clipId, profile, style) : idleSpriteForStyle(style, profile);
 }
 

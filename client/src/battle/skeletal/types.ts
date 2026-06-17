@@ -55,6 +55,9 @@ export interface MeshDeformKeypoint {
 export interface MeshDeformDefinition {
   keypoints: MeshDeformKeypoint[];
   segments?: number;
+  algorithm?: "path" | "skinned";
+  gridSize?: number;
+  influence?: number;
 }
 
 export interface BindingDefinition {

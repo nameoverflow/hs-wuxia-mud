@@ -9,6 +9,7 @@ import type {
   SkeletonRigDefinition
 } from "./types";
 
+import segmentedPoseData from "./data/segmented-v12-poses.json";
 import segmentedArmBack from "../../assets/battle/actors/segmented/v12/arm_back.png";
 import segmentedArmFront from "../../assets/battle/actors/segmented/v12/arm_front.png";
 import segmentedHead from "../../assets/battle/actors/segmented/v12/head.png";
@@ -91,19 +92,19 @@ const segmentedBones: BoneDefinition[] = [
   { id: "root", name: "root", parentId: null, x: 128, y: 176, length: 0, rotation: 0, color: "#c8a75a" },
   { id: "hips", name: "hips", parentId: "root", x: segmentedHipsX, y: segmentedHipsY, length: 0, rotation: 0, color: "#c8a75a" },
   { id: "spine", name: "spine", parentId: "hips", x: 0, y: 0, length: segmentedSpineLength, rotation: segmentedSpineRotation, color: "#54c6b1" },
-  { id: "head", name: "head", parentId: "spine", x: segmentedSpineLength, y: 0, length: 0, rotation: segmentedHeadRotation, color: "#54c6b1" },
+  { id: "head", name: "head", parentId: "spine", x: segmentedSpineLength + 3.1, y: -2.6, length: 0, rotation: segmentedHeadRotation, color: "#54c6b1" },
   { id: "ponytailBase", name: "ponytail base", parentId: "head", x: -4.283, y: -32.373, length: 3.554, rotation: -131.016, color: "#c8a75a" },
   { id: "ponytailMid", name: "ponytail mid", parentId: "ponytailBase", x: 3.554, y: 0, length: 13.056, rotation: -40.987, color: "#c8a75a" },
   { id: "ponytailLower", name: "ponytail lower", parentId: "ponytailMid", x: 13.056, y: 0, length: 38.251, rotation: -84.092, color: "#c8a75a" },
   { id: "ponytailTail", name: "ponytail tail", parentId: "ponytailLower", x: 38.251, y: 0, length: 27.699, rotation: 12.133, color: "#c8a75a" },
-  { id: "frontArmRoot", name: "front arm root", parentId: "spine", x: 47.668, y: 1.456, length: segmentedFrontShoulderLength, rotation: 126.712, color: "#6b96d8" },
-  { id: "frontArm", name: "front arm", parentId: "frontArmRoot", x: segmentedFrontShoulderLength, y: 0, length: segmentedFrontArmLength, rotation: -18.353, color: "#6b96d8" },
-  { id: "rearArmRoot", name: "rear arm root", parentId: "spine", x: 53.534, y: -2.64, length: segmentedRearShoulderLength, rotation: 243.39, color: "#6b96d8" },
-  { id: "rearArm", name: "rear arm", parentId: "rearArmRoot", x: segmentedRearShoulderLength, y: 0, length: segmentedRearArmLength, rotation: -35.941, color: "#6b96d8" },
-  { id: "frontLegRoot", name: "front leg root", parentId: "hips", x: -1.674, y: -13.951, length: segmentedFrontHipLength, rotation: 26.565, color: "#78b56b" },
-  { id: "frontLeg", name: "front leg", parentId: "frontLegRoot", x: segmentedFrontHipLength, y: 0, length: segmentedFrontLegLength, rotation: 32.176, color: "#78b56b" },
-  { id: "rearLegRoot", name: "rear leg root", parentId: "hips", x: -5.424, y: -17.604, length: segmentedRearHipLength, rotation: 135.019, color: "#78b56b" },
-  { id: "rearLeg", name: "rear leg", parentId: "rearLegRoot", x: segmentedRearHipLength, y: 0, length: segmentedRearLegLength, rotation: -18.768, color: "#78b56b" },
+  { id: "frontArmRoot", name: "front arm root", parentId: "spine", x: 49, y: -2.66, length: 8.7, rotation: 127.5, color: "#6b96d8" },
+  { id: "frontArm", name: "front arm", parentId: "frontArmRoot", x: 8.7, y: 0, length: segmentedFrontArmLength, rotation: -18.353, color: "#6b96d8" },
+  { id: "rearArmRoot", name: "rear arm root", parentId: "spine", x: 50.65, y: -1.35, length: 6.9, rotation: 240.5, color: "#6b96d8" },
+  { id: "rearArm", name: "rear arm", parentId: "rearArmRoot", x: 6.9, y: 0, length: segmentedRearArmLength, rotation: -35.941, color: "#6b96d8" },
+  { id: "frontLegRoot", name: "front leg root", parentId: "hips", x: -5.8, y: -21, length: 14.5, rotation: 86, color: "#78b56b" },
+  { id: "frontLeg", name: "front leg", parentId: "frontLegRoot", x: 14.5, y: 0, length: segmentedFrontLegLength, rotation: -27.2, color: "#78b56b" },
+  { id: "rearLegRoot", name: "rear leg root", parentId: "hips", x: -6.2, y: -22, length: 13, rotation: 92, color: "#78b56b" },
+  { id: "rearLeg", name: "rear leg", parentId: "rearLegRoot", x: 13, y: 0, length: segmentedRearLegLength, rotation: 24.2, color: "#78b56b" },
   { id: "sword", name: "straight sword", parentId: "frontArm", x: 30.078, y: -9.953, length: 58, rotation: 0, color: "#d35d56" },
   { id: "impact", name: "impact", parentId: "root", x: 76, y: -86, length: 0, rotation: 0, color: "#d35d56" }
 ];
@@ -354,628 +355,7 @@ export const skeletalPoseLibrary: Record<string, SkeletalPoseDefinition> = {
   }
 };
 
-const rawSegmentedPoseLibrary: Record<string, SkeletalPoseDefinition> = {
-  bind: {
-    id: "bind",
-    name: "Anchor reference",
-    durationMs: 360,
-    bones: {},
-    anchors: {}
-  },
-  idle: {
-    id: "idle",
-    name: "Anchor idle",
-    durationMs: 420,
-    bones: {},
-    anchors: {}
-  },
-  windup: {
-    id: "windup",
-    name: "Windup",
-    durationMs: 180,
-    bones: {
-      root: { x: 123, y: 177 },
-      hips: { x: -3, y: -57 },
-      spine: { rotation: -84 },
-      head: { rotation: 84 },
-      ponytailBase: { rotation: 128 },
-      ponytailTail: { rotation: 10 },
-      frontArm: { rotation: 112 },
-      rearArm: { rotation: 122 },
-      frontLeg: { rotation: 96 },
-      rearLeg: { rotation: 104 }
-    },
-    anchors: {
-      frontElbow: { x: 17, y: 10 },
-      frontWrist: { x: 24, y: 24 },
-      rearElbow: { x: 16, y: 10 },
-      rearWrist: { x: 27, y: 23 },
-      frontKnee: { x: 27, y: 9 },
-      frontAnkle: { x: 45, y: 8 },
-      rearKnee: { x: 27, y: 4 },
-      rearAnkle: { x: 48, y: 3 }
-    }
-  },
-  strike: {
-    id: "strike",
-    name: "Strike",
-    durationMs: 160,
-    bones: {
-      root: { x: 142, y: 172 },
-      hips: { x: -1, y: -58 },
-      spine: { rotation: -100 },
-      head: { rotation: 100 },
-      ponytailBase: { rotation: 128 },
-      ponytailTail: { rotation: -12 },
-      frontArm: { rotation: 76 },
-      rearArm: { rotation: 126 },
-      frontLeg: { rotation: 78 },
-      rearLeg: { rotation: 110 }
-    },
-    anchors: {
-      frontElbow: { x: 24, y: 1 },
-      frontWrist: { x: 53, y: -2 },
-      rearElbow: { x: 16, y: 12 },
-      rearWrist: { x: 25, y: 24 },
-      frontKnee: { x: 31, y: -2 },
-      frontAnkle: { x: 57, y: -5 },
-      rearKnee: { x: 27, y: 6 },
-      rearAnkle: { x: 47, y: 10 }
-    }
-  },
-  recover: {
-    id: "recover",
-    name: "Recover",
-    durationMs: 320,
-    bones: {
-      root: { x: 132, y: 175 },
-      hips: { x: -2, y: -58 },
-      spine: { rotation: -94 },
-      head: { rotation: 94 },
-      ponytailBase: { rotation: 128 },
-      ponytailTail: { rotation: 6 },
-      frontArm: { rotation: 94 },
-      rearArm: { rotation: 112 },
-      frontLeg: { rotation: 84 },
-      rearLeg: { rotation: 100 }
-    },
-    anchors: {
-      frontElbow: { x: 22, y: 3 },
-      frontWrist: { x: 45, y: 5 },
-      rearElbow: { x: 17, y: 8 },
-      rearWrist: { x: 31, y: 18 },
-      frontKnee: { x: 30, y: 1 },
-      frontAnkle: { x: 54, y: -2 },
-      rearKnee: { x: 28, y: 0 },
-      rearAnkle: { x: 51, y: 1 }
-    }
-  },
-  guard: {
-    id: "guard",
-    name: "Guard",
-    durationMs: 280,
-    bones: {
-      root: { x: 126, y: 176 },
-      spine: { rotation: -92 },
-      head: { rotation: 92 },
-      ponytailBase: { rotation: 128 },
-      ponytailTail: { rotation: 4 },
-      frontArm: { rotation: 82 },
-      rearArm: { rotation: 120 },
-      frontLeg: { rotation: 88 },
-      rearLeg: { rotation: 98 }
-    },
-    anchors: {
-      frontElbow: { x: 20, y: -2 },
-      frontWrist: { x: 42, y: -8 },
-      rearElbow: { x: 17, y: 9 },
-      rearWrist: { x: 30, y: 20 },
-      frontKnee: { x: 29, y: 2 },
-      frontAnkle: { x: 53, y: -1 },
-      rearKnee: { x: 28, y: 0 },
-      rearAnkle: { x: 51, y: 2 }
-    }
-  },
-  hurt: {
-    id: "hurt",
-    name: "Hurt",
-    durationMs: 260,
-    bones: {
-      root: { x: 112, y: 177 },
-      spine: { rotation: -72 },
-      head: { rotation: 72 },
-      ponytailBase: { rotation: 128 },
-      ponytailTail: { rotation: 26 },
-      frontArm: { rotation: 130 },
-      rearArm: { rotation: 142 },
-      frontLeg: { rotation: 100 },
-      rearLeg: { rotation: 108 }
-    },
-    anchors: {
-      frontElbow: { x: 17, y: 11 },
-      frontWrist: { x: 25, y: 27 },
-      rearElbow: { x: 15, y: 12 },
-      rearWrist: { x: 24, y: 26 },
-      frontKnee: { x: 27, y: 9 },
-      frontAnkle: { x: 46, y: 10 },
-      rearKnee: { x: 26, y: 7 },
-      rearAnkle: { x: 46, y: 9 }
-    }
-  },
-  dodge: {
-    id: "dodge",
-    name: "Dodge",
-    durationMs: 300,
-    bones: {
-      root: { x: 104, y: 178 },
-      hips: { x: -4, y: -54 },
-      spine: { rotation: -78 },
-      head: { rotation: 78 },
-      ponytailBase: { rotation: 128 },
-      ponytailTail: { rotation: 26 },
-      frontArm: { rotation: 124 },
-      rearArm: { rotation: 132 },
-      frontLeg: { rotation: 104 },
-      rearLeg: { rotation: 116 }
-    },
-    anchors: {
-      frontElbow: { x: 18, y: 9 },
-      frontWrist: { x: 30, y: 22 },
-      rearElbow: { x: 17, y: 10 },
-      rearWrist: { x: 28, y: 24 },
-      frontKnee: { x: 25, y: 11 },
-      frontAnkle: { x: 42, y: 15 },
-      rearKnee: { x: 26, y: 8 },
-      rearAnkle: { x: 45, y: 11 }
-    }
-  },
-  swordReady: {
-    id: "swordReady",
-    name: "Sword ready",
-    durationMs: 320,
-    bones: {
-      root: { x: 126, y: 176 },
-      hips: { x: -2, y: -58 },
-      spine: { rotation: -92 },
-      head: { rotation: 92 },
-      ponytailBase: { rotation: 128 },
-      ponytailTail: { rotation: 4 },
-      frontArm: { rotation: 104 },
-      rearArm: { rotation: 178 },
-      frontLeg: { rotation: 84 },
-      rearLeg: { rotation: 102 },
-      sword: { x: 42, y: -8, rotation: -14 }
-    },
-    anchors: {
-      frontElbow: { x: 21, y: -4 },
-      frontWrist: { x: 42, y: -8 },
-      rearElbow: { x: 20, y: 1 },
-      rearWrist: { x: 38, y: 3 },
-      frontKnee: { x: 30, y: 2 },
-      frontAnkle: { x: 54, y: -2 },
-      rearKnee: { x: 27, y: 2 },
-      rearAnkle: { x: 50, y: 3 }
-    },
-    bindings: {
-      "prop.sword": { opacity: 0.95 }
-    }
-  },
-  swordThrustWindup: {
-    id: "swordThrustWindup",
-    name: "Sword thrust windup",
-    durationMs: 150,
-    bones: {
-      root: { x: 120, y: 177 },
-      hips: { x: -4, y: -57 },
-      spine: { rotation: -82 },
-      head: { rotation: 82 },
-      ponytailBase: { rotation: 128 },
-      ponytailTail: { rotation: 12 },
-      frontArm: { rotation: 128 },
-      rearArm: { rotation: 190 },
-      frontLeg: { rotation: 94 },
-      rearLeg: { rotation: 104 },
-      sword: { x: 29, y: 18, rotation: -8 }
-    },
-    anchors: {
-      frontElbow: { x: 17, y: 8 },
-      frontWrist: { x: 29, y: 18 },
-      rearElbow: { x: 20, y: -2 },
-      rearWrist: { x: 40, y: -5 },
-      frontKnee: { x: 27, y: 7 },
-      frontAnkle: { x: 45, y: 6 },
-      rearKnee: { x: 27, y: 4 },
-      rearAnkle: { x: 49, y: 4 }
-    },
-    bindings: {
-      "prop.sword": { opacity: 0.95 }
-    }
-  },
-  swordThrust: {
-    id: "swordThrust",
-    name: "Sword thrust",
-    durationMs: 130,
-    bones: {
-      root: { x: 124, y: 172 },
-      hips: { x: 0, y: -59 },
-      spine: { rotation: -104 },
-      head: { rotation: 98 },
-      ponytailBase: { rotation: 128 },
-      ponytailTail: { rotation: -10 },
-      frontArm: { rotation: 88 },
-      rearArm: { rotation: 172 },
-      frontLeg: { rotation: 76 },
-      rearLeg: { rotation: 112 },
-      sword: { x: 43, y: 0, rotation: -3 }
-    },
-    anchors: {
-      frontElbow: { x: 22, y: 0 },
-      frontWrist: { x: 43, y: 0 },
-      rearElbow: { x: 21, y: 1 },
-      rearWrist: { x: 42, y: 1 },
-      frontKnee: { x: 32, y: -3 },
-      frontAnkle: { x: 58, y: -6 },
-      rearKnee: { x: 28, y: 5 },
-      rearAnkle: { x: 47, y: 10 }
-    },
-    bindings: {
-      "prop.sword": { opacity: 1 }
-    }
-  },
-  swordChopWindup: {
-    id: "swordChopWindup",
-    name: "Sword chop windup",
-    durationMs: 170,
-    bones: {
-      root: { x: 121, y: 176 },
-      hips: { x: -3, y: -57 },
-      spine: { rotation: -82 },
-      head: { rotation: 84 },
-      ponytailBase: { rotation: 128 },
-      ponytailTail: { rotation: 12 },
-      frontArm: { rotation: 156 },
-      rearArm: { rotation: 128 },
-      frontLeg: { rotation: 94 },
-      rearLeg: { rotation: 104 },
-      sword: { x: 31, y: -18, rotation: -58 }
-    },
-    anchors: {
-      frontElbow: { x: 18, y: -10 },
-      frontWrist: { x: 31, y: -18 },
-      rearElbow: { x: 17, y: 8 },
-      rearWrist: { x: 30, y: 18 },
-      frontKnee: { x: 28, y: 7 },
-      frontAnkle: { x: 46, y: 6 },
-      rearKnee: { x: 27, y: 4 },
-      rearAnkle: { x: 49, y: 4 }
-    },
-    bindings: {
-      "prop.sword": { opacity: 0.95 }
-    }
-  },
-  swordChop: {
-    id: "swordChop",
-    name: "Sword chop",
-    durationMs: 150,
-    bones: {
-      root: { x: 126, y: 173 },
-      hips: { x: -1, y: -58 },
-      spine: { rotation: -104 },
-      head: { rotation: 98 },
-      ponytailBase: { rotation: 128 },
-      ponytailTail: { rotation: -8 },
-      frontArm: { rotation: 84 },
-      rearArm: { rotation: 128 },
-      frontLeg: { rotation: 78 },
-      rearLeg: { rotation: 110 },
-      sword: { x: 36, y: 8, rotation: 38 }
-    },
-    anchors: {
-      frontElbow: { x: 19, y: 3 },
-      frontWrist: { x: 36, y: 8 },
-      rearElbow: { x: 17, y: 10 },
-      rearWrist: { x: 29, y: 21 },
-      frontKnee: { x: 31, y: -1 },
-      frontAnkle: { x: 56, y: -5 },
-      rearKnee: { x: 27, y: 6 },
-      rearAnkle: { x: 47, y: 10 }
-    },
-    bindings: {
-      "prop.sword": { opacity: 1 }
-    }
-  },
-  swordLiaoWindup: {
-    id: "swordLiaoWindup",
-    name: "Sword rising cut windup",
-    durationMs: 150,
-    bones: {
-      root: { x: 122, y: 177 },
-      hips: { x: -3, y: -57 },
-      spine: { rotation: -84 },
-      head: { rotation: 84 },
-      ponytailBase: { rotation: 128 },
-      ponytailTail: { rotation: 10 },
-      frontArm: { rotation: 112 },
-      rearArm: { rotation: 178 },
-      frontLeg: { rotation: 96 },
-      rearLeg: { rotation: 104 },
-      sword: { x: 32, y: 20, rotation: 54 }
-    },
-    anchors: {
-      frontElbow: { x: 18, y: 9 },
-      frontWrist: { x: 32, y: 20 },
-      rearElbow: { x: 19, y: 0 },
-      rearWrist: { x: 39, y: 1 },
-      frontKnee: { x: 27, y: 9 },
-      frontAnkle: { x: 45, y: 8 },
-      rearKnee: { x: 27, y: 4 },
-      rearAnkle: { x: 48, y: 3 }
-    },
-    bindings: {
-      "prop.sword": { opacity: 0.95 }
-    }
-  },
-  swordLiao: {
-    id: "swordLiao",
-    name: "Sword rising cut",
-    durationMs: 150,
-    bones: {
-      root: { x: 126, y: 172 },
-      hips: { x: -1, y: -58 },
-      spine: { rotation: -96 },
-      head: { rotation: 94 },
-      ponytailBase: { rotation: 128 },
-      ponytailTail: { rotation: -6 },
-      frontArm: { rotation: 66 },
-      rearArm: { rotation: 146 },
-      frontLeg: { rotation: 78 },
-      rearLeg: { rotation: 112 },
-      sword: { x: 36, y: -10, rotation: -36 }
-    },
-    anchors: {
-      frontElbow: { x: 19, y: -5 },
-      frontWrist: { x: 36, y: -10 },
-      rearElbow: { x: 17, y: 8 },
-      rearWrist: { x: 30, y: 17 },
-      frontKnee: { x: 31, y: -2 },
-      frontAnkle: { x: 56, y: -6 },
-      rearKnee: { x: 27, y: 6 },
-      rearAnkle: { x: 47, y: 10 }
-    },
-    bindings: {
-      "prop.sword": { opacity: 1 }
-    }
-  },
-  swordRecover: {
-    id: "swordRecover",
-    name: "Sword recover",
-    durationMs: 260,
-    bones: {
-      root: { x: 130, y: 175 },
-      hips: { x: -2, y: -58 },
-      spine: { rotation: -94 },
-      head: { rotation: 94 },
-      ponytailBase: { rotation: 128 },
-      ponytailTail: { rotation: 6 },
-      frontArm: { rotation: 96 },
-      rearArm: { rotation: 174 },
-      frontLeg: { rotation: 84 },
-      rearLeg: { rotation: 100 },
-      sword: { x: 45, y: 4, rotation: -8 }
-    },
-    anchors: {
-      frontElbow: { x: 22, y: 2 },
-      frontWrist: { x: 45, y: 4 },
-      rearElbow: { x: 20, y: 0 },
-      rearWrist: { x: 39, y: 1 },
-      frontKnee: { x: 30, y: 1 },
-      frontAnkle: { x: 54, y: -2 },
-      rearKnee: { x: 28, y: 0 },
-      rearAnkle: { x: 51, y: 1 }
-    },
-    bindings: {
-      "prop.sword": { opacity: 0.95 }
-    }
-  },
-  swordParry: {
-    id: "swordParry",
-    name: "Sword parry",
-    durationMs: 220,
-    bones: {
-      root: { x: 125, y: 176 },
-      hips: { x: -3, y: -58 },
-      spine: { rotation: -88 },
-      head: { rotation: 88 },
-      ponytailBase: { rotation: 128 },
-      ponytailTail: { rotation: 8 },
-      frontArm: { rotation: 128 },
-      rearArm: { rotation: 184 },
-      frontLeg: { rotation: 90 },
-      rearLeg: { rotation: 100 },
-      sword: { x: 35, y: -12, rotation: -46 }
-    },
-    anchors: {
-      frontElbow: { x: 20, y: -6 },
-      frontWrist: { x: 35, y: -12 },
-      rearElbow: { x: 20, y: 0 },
-      rearWrist: { x: 40, y: 2 },
-      frontKnee: { x: 29, y: 3 },
-      frontAnkle: { x: 51, y: 1 },
-      rearKnee: { x: 28, y: 1 },
-      rearAnkle: { x: 50, y: 3 }
-    },
-    bindings: {
-      "prop.sword": { opacity: 1 }
-    }
-  },
-  swordHurt: {
-    id: "swordHurt",
-    name: "Sword hurt",
-    durationMs: 260,
-    bones: {
-      root: { x: 111, y: 177 },
-      hips: { x: -3, y: -57 },
-      spine: { rotation: -72 },
-      head: { rotation: 72 },
-      ponytailBase: { rotation: 128 },
-      ponytailTail: { rotation: 28 },
-      frontArm: { rotation: 136 },
-      rearArm: { rotation: 150 },
-      frontLeg: { rotation: 102 },
-      rearLeg: { rotation: 108 },
-      sword: { x: 27, y: 25, rotation: 18 }
-    },
-    anchors: {
-      frontElbow: { x: 17, y: 12 },
-      frontWrist: { x: 27, y: 25 },
-      rearElbow: { x: 15, y: 12 },
-      rearWrist: { x: 24, y: 26 },
-      frontKnee: { x: 27, y: 9 },
-      frontAnkle: { x: 46, y: 10 },
-      rearKnee: { x: 26, y: 7 },
-      rearAnkle: { x: 46, y: 9 }
-    },
-    bindings: {
-      "prop.sword": { opacity: 0.9 }
-    }
-  },
-  swordDodge: {
-    id: "swordDodge",
-    name: "Sword dodge",
-    durationMs: 280,
-    bones: {
-      root: { x: 102, y: 178 },
-      hips: { x: -5, y: -54 },
-      spine: { rotation: -78 },
-      head: { rotation: 78 },
-      ponytailBase: { rotation: 128 },
-      ponytailTail: { rotation: 30 },
-      frontArm: { rotation: 124 },
-      rearArm: { rotation: 184 },
-      frontLeg: { rotation: 106 },
-      rearLeg: { rotation: 116 },
-      sword: { x: 30, y: 20, rotation: -14 }
-    },
-    anchors: {
-      frontElbow: { x: 18, y: 8 },
-      frontWrist: { x: 30, y: 20 },
-      rearElbow: { x: 20, y: 0 },
-      rearWrist: { x: 38, y: 3 },
-      frontKnee: { x: 25, y: 11 },
-      frontAnkle: { x: 42, y: 15 },
-      rearKnee: { x: 26, y: 8 },
-      rearAnkle: { x: 45, y: 11 }
-    },
-    bindings: {
-      "prop.sword": { opacity: 0.95 }
-    }
-  }
-};
-
-const segmentedPoseLibrary = compactSegmentedPoseLibrary(rawSegmentedPoseLibrary);
-
-function compactSegmentedPoseLibrary(library: Record<string, SkeletalPoseDefinition>): Record<string, SkeletalPoseDefinition> {
-  return Object.fromEntries(
-    Object.entries(library).map(([id, pose]) => [
-      id,
-      {
-        ...pose,
-        bones: compactSegmentedBonePoses(pose.bones),
-        anchors: pose.anchors ? compactSegmentedAnchorPoses(pose.anchors) : undefined
-      }
-    ])
-  );
-}
-
-function compactSegmentedBonePoses(bones: SkeletalPoseDefinition["bones"]): SkeletalPoseDefinition["bones"] {
-  const compact = { ...bones };
-  if (compact.hips?.y !== undefined) {
-    compact.hips = { ...compact.hips, y: compactValue(compact.hips.y * (Math.abs(segmentedHipsY) / 58)) };
-  }
-  moveSegmentedLimbRotation(compact, "frontArm", "frontArmRoot");
-  moveSegmentedLimbRotation(compact, "rearArm", "rearArmRoot");
-  moveSegmentedLimbRotation(compact, "frontLeg", "frontLegRoot");
-  moveSegmentedLimbRotation(compact, "rearLeg", "rearLegRoot");
-  if (compact.sword) {
-    compact.sword = {
-      ...compact.sword,
-      ...(compact.sword.x === undefined ? {} : { x: compactValue(compact.sword.x * (segmentedFrontArmLength / 45)) }),
-      ...(compact.sword.y === undefined ? {} : { y: compactValue(compact.sword.y * (segmentedFrontArmLength / 45)) })
-    };
-  }
-  return compact;
-}
-
-function moveSegmentedLimbRotation(bones: SkeletalPoseDefinition["bones"], childId: string, rootId: string) {
-  const child = bones[childId];
-  if (!child?.rotation) return;
-  bones[rootId] = { ...(bones[rootId] || {}), rotation: child.rotation };
-  bones[childId] = { ...child, rotation: 0 };
-}
-
-function compactSegmentedAnchorPoses(
-  anchors: NonNullable<SkeletalPoseDefinition["anchors"]>
-): NonNullable<SkeletalPoseDefinition["anchors"]> {
-  const compact: NonNullable<SkeletalPoseDefinition["anchors"]> = {};
-  for (const [id, anchor] of Object.entries(anchors)) {
-    compact[id] = compactSegmentedAnchorPose(id, anchor);
-  }
-  extendSegmentedTerminalAnchor(compact, "frontElbow", "frontWrist", "frontHand", segmentedFrontHandLength);
-  extendSegmentedTerminalAnchor(compact, "rearElbow", "rearWrist", "rearHand", segmentedRearHandLength);
-  extendSegmentedTerminalAnchor(compact, "frontKnee", "frontAnkle", "frontFoot", segmentedFrontFootLength);
-  extendSegmentedTerminalAnchor(compact, "rearKnee", "rearAnkle", "rearFoot", segmentedRearFootLength);
-  return compact;
-}
-
-function extendSegmentedTerminalAnchor(
-  anchors: NonNullable<SkeletalPoseDefinition["anchors"]>,
-  previousId: string,
-  terminalBaseId: string,
-  terminalId: string,
-  length: number
-) {
-  if (anchors[terminalId] || !anchors[terminalBaseId]) return;
-  const previous = anchors[previousId] || { x: 0, y: 0 };
-  const terminalBase = anchors[terminalBaseId];
-  const baseX = terminalBase.x ?? 0;
-  const baseY = terminalBase.y ?? 0;
-  const previousX = previous.x ?? 0;
-  const previousY = previous.y ?? 0;
-  const dx = baseX - previousX;
-  const dy = baseY - previousY;
-  const distance = Math.hypot(dx, dy) || 1;
-  anchors[terminalId] = {
-    ...terminalBase,
-    x: compactValue(baseX + (dx / distance) * length),
-    y: compactValue(baseY + (dy / distance) * length)
-  };
-}
-
-function compactSegmentedAnchorPose(
-  id: string,
-  anchor: NonNullable<SkeletalPoseDefinition["anchors"]>[string]
-): NonNullable<SkeletalPoseDefinition["anchors"]>[string] {
-  const ratio =
-    id === "frontElbow" || id === "frontWrist" || id === "frontHand"
-      ? segmentedFrontArmLength / 45
-      : id === "rearElbow" || id === "rearWrist" || id === "rearHand"
-        ? segmentedRearArmLength / 43
-        : id === "frontKnee" || id === "frontAnkle" || id === "frontFoot"
-          ? segmentedFrontLegLength / 58
-          : id === "rearKnee" || id === "rearAnkle" || id === "rearFoot"
-            ? segmentedRearLegLength / 57
-            : 1;
-  if (ratio === 1) return anchor;
-  return {
-    ...anchor,
-    ...(anchor.x === undefined ? {} : { x: compactValue(anchor.x * ratio) }),
-    ...(anchor.y === undefined ? {} : { y: compactValue(anchor.y * ratio) })
-  };
-}
-
-function compactValue(value: number): number {
-  return Math.round(value * 10) / 10;
-}
+const segmentedPoseLibrary = segmentedPoseData as Record<string, SkeletalPoseDefinition>;
 
 const segmentedBaseEntries: AnimationRigEntry[] = profiles.map((profile) => ({
   id: `segmented.v12.${profile}`,
@@ -1088,7 +468,7 @@ function segmentedBindingsForEntry(entry: AnimationRigEntry): BindingDefinition[
           { anchorId: "rearAnkle", x: 0.25008, y: 0.86585, radius: 4.8, sourceRadius: 4.8 },
           { anchorId: "rearFoot", x: 0.4578, y: 0.89478, radius: 5.2, sourceRadius: 5.2 }
         ],
-        18
+        24
       )
     ),
     partBinding(
@@ -1114,7 +494,7 @@ function segmentedBindingsForEntry(entry: AnimationRigEntry): BindingDefinition[
           { anchorId: "rearWrist", x: 0.23424, y: 0.74964, radius: 4.3, sourceRadius: 4.3 },
           { anchorId: "rearHand", x: 0.334, y: 0.89925, radius: 5.1, sourceRadius: 5.1 }
         ],
-        18
+        24
       )
     ),
     partBinding(
@@ -1154,7 +534,9 @@ function segmentedBindingsForEntry(entry: AnimationRigEntry): BindingDefinition[
           { anchorId: "ponytailLower", x: 0.45242, y: 0.52281, radius: 5.2, sourceRadius: 5.2 },
           { anchorId: "ponytailTip", x: 0.23373, y: 0.78479, radius: 3.2, sourceRadius: 3.2 }
         ],
-        18
+        30,
+        1.65,
+        3.2
       )
     ),
     partBinding("part.head", "head", "head", -2, segmentedHead, 184, 217, segmentedHeadScale, 0.45755, 0.845, 1),
@@ -1181,7 +563,7 @@ function segmentedBindingsForEntry(entry: AnimationRigEntry): BindingDefinition[
           { anchorId: "frontAnkle", x: 0.72233, y: 0.86675, radius: 4.8, sourceRadius: 4.8 },
           { anchorId: "frontFoot", x: 0.90994, y: 0.89786, radius: 5.2, sourceRadius: 5.2 }
         ],
-        18
+        24
       )
     ),
     partBinding(
@@ -1207,10 +589,10 @@ function segmentedBindingsForEntry(entry: AnimationRigEntry): BindingDefinition[
           { anchorId: "frontWrist", x: 0.77001, y: 0.54628, radius: 4.3, sourceRadius: 4.3 },
           { anchorId: "frontHand", x: 0.88899, y: 0.30976, radius: 5.1, sourceRadius: 5.1 }
         ],
-        18
+        24
       )
     ),
-    debugBinding("prop.sword", "straight sword", "line", "weaponGrip", 18, 0, 0, 0, swordOpacity, 58, 3.6, "rgba(232, 227, 208, 0.98)"),
+    debugBinding("prop.sword", "straight sword", "line", "weaponGrip", 18, 0, 0, 0, swordOpacity, 42, 2.8, "rgba(232, 38, 30, 0.98)"),
     debugBinding("target.impact", "impact target", "target", "impact", 40, 0, 0, 0, 0.78, 18, 18, "rgba(211, 93, 86, 0.88)")
   ];
 }
@@ -1257,9 +639,14 @@ function limbMesh(
   width: number,
   height: number,
   keypoints: { anchorId: string; x: number; y: number; radius: number; sourceRadius?: number }[],
-  segments?: number
+  segments?: number,
+  gridSize = 2,
+  influence = 2.6
 ): MeshDeformDefinition {
   const deform: MeshDeformDefinition = {
+    algorithm: "skinned",
+    gridSize,
+    influence,
     keypoints: keypoints.map((keypoint) => ({
       anchorId: keypoint.anchorId,
       sourceX: keypoint.x * width,

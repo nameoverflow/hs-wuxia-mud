@@ -362,6 +362,11 @@ textarea {
   background: var(--rig-panel-3);
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .rig-anchor-table {
   max-height: 210px;
   overflow: auto;

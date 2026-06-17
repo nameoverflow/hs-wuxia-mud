@@ -36,6 +36,7 @@
 - pose/runtime 解析：[client/src/battle/skeletal/runtime.ts](../client/src/battle/skeletal/runtime.ts)
 - Canvas renderer：[client/src/battle/skeletal/renderer.ts](../client/src/battle/skeletal/renderer.ts)
 - battle action 到 rig 条目映射：[client/src/battle/skeletal/catalog.ts](../client/src/battle/skeletal/catalog.ts)
+- segmented v12 动作 pose 数据：[client/src/battle/skeletal/data/segmented-v12-poses.json](../client/src/battle/skeletal/data/segmented-v12-poses.json)
 - 独立开发工具入口：[client/animation-rig.html](../client/animation-rig.html)
 - 工具组件：[client/src/tools/animation-rig/AnimationRigTool.svelte](../client/src/tools/animation-rig/AnimationRigTool.svelte)
 
@@ -46,6 +47,12 @@ cd client
 npm run dev
 # 打开 http://127.0.0.1:8080/animation-rig.html
 ```
+
+工具页保存方式：
+
+- `Save Local`：只保存当前浏览器的 localStorage，用于临时试 pose。
+- `Save Project Poses`：仅在 `npm run dev` 的 Vite dev server 下可用，会把当前 segmented v12 pose edits 合并写回 `client/src/battle/skeletal/data/segmented-v12-poses.json`，刷新、构建和 PNG 直出都会加载保存后的动作。
+- 当前 project save 只覆盖动作 pose 的 bones/pose anchors；绑定定义、全局锚点和部件资源仍在 `catalog.ts` 与素材文件中维护。
 
 ### Rig PNG 直出审查
 
@@ -81,7 +88,7 @@ npm run render:rig -- --mode review --profile female --style sword --actions dod
 - `segmented.v12` 采用 limb proximal extension 策略：肩/胯融合段不是独立分件，而是四肢靠近身体那一端自带的延长根部；渲染时这些根部藏到头身下面，由躯干和头部遮住拼接缝。
 - `segmented.v12` 提供 `bind`、`idle`、`windup`、`strike`、`recover`、`guard`、`hurt`、`dodge` 离散关键帧；另有 `segmented.v12.sword.*` 条目用于预览中国剑术风格的刺、劈、撩、受击、闪避、格挡关键帧。工具默认停在当前关键帧，Play Preview 只用于临时补间预览。
 - `segmented.v12` 的 `bind` 和 `idle` 现在是 anchor 参考图基准姿态：所有部件共享同一个 source scale，并按参考图 mask bbox / baseline 反推骨骼长度、keypoint 距离和默认节点位置。
-- renderer 支持 source frame、debug skin、骨骼、锚点、binding link、label 和四肢/马尾 alpha-contour mesh 形变分层开关。
+- renderer 支持 source frame、debug skin、骨骼、锚点、binding link、label 和四肢/马尾 weighted mesh skinning 形变分层开关。
 - `Pose` 模式可拖动带 `handleBoneId` 的锚点来旋转对应骨骼。
 - `Pose` 模式也可拖动四肢 deform keypoint（elbow、wrist、knee、ankle），这些调整按当前关键帧保存；`Lock lengths` 默认打开，拖动四肢关键点时用两段 IK 保持骨段长度，避免手动编辑时把四肢拉长或压短。
 - `Anchor` 模式可拖动关节/挂点，或在 inspector 中修改 anchor 所属 bone、局部 X/Y、拖动时控制的 bone。
@@ -92,8 +99,9 @@ npm run render:rig -- --mode review --profile female --style sword --actions dod
 当前约束：
 
 - 大多数正式战斗 PNG 仍是完整帧图；`source.frame` 只是对照 binding，不代表最终骨骼切片资产。
-- `segmented.v12` 当前四肢使用五点 alpha-contour mesh：renderer 从原 PNG alpha 沿 source keypoint 中心线采样截面轮廓，并生成多列三角网格做 affine texture warp。手臂 keypoint 是 hidden root、shoulder、elbow、wrist、hand；腿部 keypoint 是 hidden root、hip、knee、ankle、foot。它不再用半径生成新的圆管外形，所以手脚末端和部件粗细由源图 alpha 决定；当像素采样失败时才回退到 ribbon mesh。它已经支持从弯曲到伸直的关键点形变，但还不是完整的权重刷/多骨骼蒙皮编辑器。
-- 女版马尾使用同一套五点 alpha-contour mesh，`ponytailRoot` 固定到 head，`ponytailBase` 是靠头的固定基座，`ponytailMid`、`ponytailLower`、`ponytailTip` 作为后段链条参与摆动。
+- `segmented.v12` 当前四肢和马尾使用五点 weighted mesh skinning：renderer 生成高密度三角网格，每个 source 网格点按到多段 source keypoint 曲线的距离连续混合权重，再映射到 target keypoint 曲线。相比旧的最近中心线投影，这会保留马尾曲线、尖端和肢体轮廓，避免弯曲后出现方形端面或硬分区。
+- 手臂 keypoint 是 hidden root、shoulder、elbow、wrist、hand；腿部 keypoint 是 hidden root、hip、knee、ankle、foot。它不再用半径生成新的圆管外形，所以手脚末端和部件粗细由源图 alpha 决定；当像素采样失败时才回退到 ribbon mesh。它已经支持从弯曲到伸直的关键点形变，但还不是完整的手工权重刷编辑器。
+- 女版马尾使用同一套 weighted mesh skinning，`ponytailRoot` 固定到 head，`ponytailBase` 是靠头的固定基座，`ponytailMid`、`ponytailLower`、`ponytailTip` 作为后段链条参与摆动；马尾使用更密的网格和更宽的曲线影响半径。
 - 剑术关键帧参考记录在 [harness/animation-qa/references/chinese-jian-keyframe-notes.md](../harness/animation-qa/references/chinese-jian-keyframe-notes.md)。当前剑是挂在 `sword` bone 上的 tool prop line，方便先调动作，不作为最终剑器美术。
 - debug skin 是工具层预览，不作为最终游戏美术。
 - 正式战斗面板仍走现有 sprite/CSS timeline；骨骼渲染接入需要后续单独切换 `ActorVisual` 和 `BattlePanel` 渲染路径。
