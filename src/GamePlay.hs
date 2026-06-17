@@ -27,8 +27,8 @@ import Game.Message
 import Game.Quest
 import Game.World
 import GameState
+import Logging
 import Utils
-import qualified Data.Text.IO as TIO
 
 processPlayerAction :: PlayerId -> PlayerAction -> GameStateT ()
 processPlayerAction pid action = do
@@ -1206,7 +1206,7 @@ updateBattle dt bId = do
   sendBattleStats pid battle'
   if battleOver
     then do
-      liftIO $ TIO.putStrLn "Battle over"
+      liftIO $ logInfo "Battle over"
       let playerDefeated = battle' ^. battleState . battleChar . charHP <= 0
       battleSettlement (not playerDefeated) battle'
     else do

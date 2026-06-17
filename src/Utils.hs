@@ -21,7 +21,7 @@ import System.Directory (doesDirectoryExist, listDirectory)
 import System.FilePath (takeExtension, (</>))
 import Control.Monad.Random (MonadRandom, getRandomR)
 import Control.Lens
-import qualified Data.Text.IO as TIO
+import Logging
 
 class FromJSON a => Configurable a where
   loadConfigFrom :: FilePath -> IO (Either Text a)
@@ -62,7 +62,7 @@ class FromJSON a => Configurable a where
         case errs of
           [] -> do
             let ret = M.fromList $ concat loadedItems
-            TIO.putStrLn $ "Loaded " <> toText (show (M.size ret)) <> " items from " <> toText dir
+            logInfo $ "Loaded " <> toText (show (M.size ret)) <> " items from " <> toText dir
             return $ Right ret
           _ ->
             return $ Left $ "Failed loading " <> toText dir <> ":\n" <> T.unlines errs

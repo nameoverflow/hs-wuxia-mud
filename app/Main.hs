@@ -7,17 +7,15 @@
 
 module Main where
 
-import Control.Monad.IO.Class (liftIO)
-import GamePlay (onGameTick)
-import GameState (GameState, runGameState, loadGameState)
-import System.IO (BufferMode (..), hSetBuffering, stdout)
-import Network.WebSockets
 import Control.Concurrent
-import Control.Monad
-import Data.Time (getCurrentTime, diffUTCTime)
 import Control.Exception (throwIO)
 import qualified Data.Map.Strict as M
+import qualified Data.Text as T
+import GameState (loadGameState)
+import Logging
+import Network.WebSockets
 import Server
+import System.IO (BufferMode (..), hSetBuffering, stderr, stdout)
 
 
 
@@ -25,23 +23,27 @@ main :: IO ()
 main = do
   -- Set up buffered output
   hSetBuffering stdout LineBuffering
+  hSetBuffering stderr LineBuffering
 
-  putStrLn "Initializing game state..."
+  logInfo "Initializing game state..."
   -- Load game data from YAML files and create initial game state
   -- luaState <- newstate
   gameState <- loadGameState "resources/scripts" >>= \case
-    Left err -> error $ "Failed to load game state: " <> show err
+    Left err -> do
+      let errMessage = "Failed to load game state: " <> show err
+      logError $ T.pack errMessage
+      throwIO $ userError errMessage
     Right gs -> return gs
   gameStateMVar <- newMVar gameState
 
   -- Initialize websocket server map
   conns <- newMVar M.empty
 
-  putStrLn "Starting game tick..."
+  logInfo "Starting game tick..."
   -- Run the game tick in a separate thread
   _ <- forkIO $ gameTickLoop conns gameStateMVar
 
-  putStrLn "Starting WebSocket server..."
+  logInfo "Starting WebSocket server on 127.0.0.1:9160..."
   -- Initialize and run the WebSocket server
   runServer "127.0.0.1" 9160 $ serverApplication conns gameStateMVar
 
