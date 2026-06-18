@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { afterUpdate, beforeUpdate } from "svelte";
+  import { afterUpdate, beforeUpdate, onDestroy } from "svelte";
   import { directionVector, exitLabel, sendAction, type GameState } from "../game";
   import { translate } from "../i18n";
   import type { Direction, RoomCharacterSummary, RoomExitSummary, RoomPosition } from "../protocol";
@@ -40,15 +40,30 @@
 
   let selectedCharacter: RoomCharacterSummary | null = null;
   let selectedDirection: Direction | null = null;
-  let pendingMapMove: { direction: Direction; roomName: string | null; roomKey: string } | null = null;
+  let pendingMapMove: {
+    direction: Direction;
+    roomName: string | null;
+    roomKey: string;
+    startRoomName: string;
+    roomArrived: boolean;
+    slideDone: boolean;
+  } | null = null;
   let showFullMap = false;
   let mapMoving = false;
   let mapElement: HTMLDivElement | null = null;
   let previousRects = new Map<string, DOMRect>();
   let mapMoveTimeout: number | null = null;
+  let mapSlideTimeout: number | null = null;
   let mapAnimationCleanup: number | null = null;
+  let transitionMapPoints: MapPoint[] | null = null;
+  let transitionCurrentRoomKey: string | null = null;
+  let transitionCurrentRoomName: string | null = null;
+  let mapTravelOffset: PositionPoint | null = null;
+  let skipNextMapNodeFlip = false;
   let currentRoomKey = roomNameKey("");
   let lastRoomName = "";
+  const mapSlideMs = 150;
+  const mapMoveFallbackMs = 600;
 
   $: if (selectedCharacter && !state.room.characters.some((character) => character.id === selectedCharacter?.id)) {
     selectedCharacter = null;
@@ -57,10 +72,15 @@
   $: if (state.room.name !== lastRoomName) {
     currentRoomKey = resolveCurrentRoomKey(state.room.name);
     lastRoomName = state.room.name;
-    clearMapMove();
+    markMapRoomArrived();
   }
 
   $: mapPoints = buildMapPoints(state.room.exits);
+  $: visibleMapPoints = transitionMapPoints || mapPoints;
+  $: visibleCurrentRoomKey = transitionCurrentRoomKey || currentRoomKey;
+  $: visibleCurrentRoomName = transitionCurrentRoomName ?? state.room.name;
+  $: mapTransitioning = transitionMapPoints !== null;
+  $: mapLayerStyle = mapTravelOffset ? `--map-slide-x: ${mapTravelOffset.x}%; --map-slide-y: ${mapTravelOffset.y}%` : "";
   $: fullMapRooms = buildFullMapRooms(state.mapOverview);
   $: fullMapEdges = buildFullMapEdges(state.mapOverview, fullMapRooms);
   $: fullMapCurrentKey = currentFullMapRoomKey(state.mapOverview);
@@ -70,8 +90,18 @@
   });
 
   afterUpdate(() => {
+    if (skipNextMapNodeFlip) {
+      skipNextMapNodeFlip = false;
+      previousRects = new Map<string, DOMRect>();
+      return;
+    }
     animateMapTransition(previousRects);
     previousRects = new Map<string, DOMRect>();
+  });
+
+  onDestroy(() => {
+    clearMapMoveTimers();
+    if (mapAnimationCleanup !== null) window.clearTimeout(mapAnimationCleanup);
   });
 
   function move(exit: RoomExitSummary) {
@@ -132,25 +162,64 @@
 
   function markMapMove(exit: RoomExitSummary) {
     const label = exitLabel(state.locale, exit);
+    const roomKey = exitRoomKey(exit, label);
+    const targetPoint = mapPoints.find((point) => point.key === roomKey);
     selectedDirection = exit.direction;
     pendingMapMove = {
       direction: exit.direction,
       roomName: exit.roomName,
-      roomKey: exitRoomKey(exit, label)
+      roomKey,
+      startRoomName: state.room.name,
+      roomArrived: false,
+      slideDone: false
     };
+    transitionMapPoints = mapPoints;
+    transitionCurrentRoomKey = currentRoomKey;
+    transitionCurrentRoomName = state.room.name;
+    mapTravelOffset = targetPoint ? { x: currentPoint.x - targetPoint.x, y: currentPoint.y - targetPoint.y } : { x: 0, y: 0 };
+    skipNextMapNodeFlip = true;
     mapMoving = true;
 
-    if (mapMoveTimeout !== null) window.clearTimeout(mapMoveTimeout);
-    mapMoveTimeout = window.setTimeout(clearMapMove, 900);
+    clearMapMoveTimers();
+    mapSlideTimeout = window.setTimeout(() => {
+      if (!pendingMapMove) return;
+      pendingMapMove = { ...pendingMapMove, slideDone: true };
+      finishMapMoveIfReady();
+    }, mapSlideMs);
+    mapMoveTimeout = window.setTimeout(clearMapMove, mapMoveFallbackMs);
+  }
+
+  function markMapRoomArrived() {
+    if (!pendingMapMove) return;
+    pendingMapMove = { ...pendingMapMove, roomArrived: state.room.name !== pendingMapMove.startRoomName };
+    finishMapMoveIfReady();
+  }
+
+  function finishMapMoveIfReady() {
+    if (!pendingMapMove?.roomArrived || !pendingMapMove.slideDone) return;
+    clearMapMove();
   }
 
   function clearMapMove() {
     selectedDirection = null;
     pendingMapMove = null;
     mapMoving = false;
+    transitionMapPoints = null;
+    transitionCurrentRoomKey = null;
+    transitionCurrentRoomName = null;
+    mapTravelOffset = null;
+    skipNextMapNodeFlip = true;
+    clearMapMoveTimers();
+  }
+
+  function clearMapMoveTimers() {
     if (mapMoveTimeout !== null) {
       window.clearTimeout(mapMoveTimeout);
       mapMoveTimeout = null;
+    }
+    if (mapSlideTimeout !== null) {
+      window.clearTimeout(mapSlideTimeout);
+      mapSlideTimeout = null;
     }
   }
 
@@ -403,7 +472,7 @@
         node.style.removeProperty("--move-y");
       });
       mapAnimationCleanup = null;
-    }, 240);
+    }, 200);
   }
 </script>
 
@@ -423,35 +492,43 @@
         <strong>{state.room.name || translate(state.locale, "panel.world")}</strong>
         <p>{state.room.desc || translate(state.locale, "message.initial")}</p>
       </div>
-      <div bind:this={mapElement} class:map-moving={mapMoving} class="direction-map">
-        <svg class="map-links-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-          {#each mapPoints as point (point.key)}
-            <line x1={currentPoint.x} y1={currentPoint.y} x2={point.x} y2={point.y}></line>
-          {/each}
-        </svg>
+      <div bind:this={mapElement} class:map-moving={mapMoving} class:map-transitioning={mapTransitioning} class="direction-map">
+        <div class="map-travel-layer" style={mapLayerStyle}>
+          <svg class="map-links-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            {#each visibleMapPoints as point (point.key)}
+              <line x1={currentPoint.x} y1={currentPoint.y} x2={point.x} y2={point.y}></line>
+            {/each}
+          </svg>
 
-        <div class="map-node map-node-current" data-room-key={currentRoomKey} style={pointStyle(currentPoint)}>
-          {state.room.name || translate(state.locale, "panel.world")}
+          <div
+            class="map-node map-node-current"
+            class:map-node-departing={mapTransitioning}
+            data-room-key={visibleCurrentRoomKey}
+            style={pointStyle(currentPoint)}
+          >
+            {visibleCurrentRoomName || translate(state.locale, "panel.world")}
+          </div>
+
+          {#each visibleMapPoints as point (point.key)}
+            <button
+              type="button"
+              class="map-node map-node-exit"
+              class:map-node-selected={selectedDirection === point.direction}
+              class:map-node-travel-target={mapTransitioning && pendingMapMove?.roomKey === point.key}
+              data-direction={point.direction}
+              data-room-key={point.key}
+              style={pointStyle(point)}
+              disabled={!state.connected}
+              on:click={() => move(state.room.exits.find((exit) => exit.direction === point.direction) || state.room.exits[0])}
+            >
+              {point.label}
+            </button>
+          {/each}
         </div>
 
-        {#if mapPoints.length === 0}
+        {#if visibleMapPoints.length === 0}
           <div class="map-empty">{translate(state.locale, "ui.none")}</div>
         {/if}
-
-        {#each mapPoints as point (point.key)}
-          <button
-            type="button"
-            class="map-node map-node-exit"
-            class:map-node-selected={selectedDirection === point.direction}
-            data-direction={point.direction}
-            data-room-key={point.key}
-            style={pointStyle(point)}
-            disabled={!state.connected}
-            on:click={() => move(state.room.exits.find((exit) => exit.direction === point.direction) || state.room.exits[0])}
-          >
-            {point.label}
-          </button>
-        {/each}
       </div>
     </section>
 

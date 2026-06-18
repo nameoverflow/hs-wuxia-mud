@@ -847,6 +847,17 @@ h3 {
   overflow: hidden;
 }
 
+.map-travel-layer {
+  position: absolute;
+  inset: 0;
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+
+.direction-map.map-transitioning .map-travel-layer {
+  animation: mapLayerTravel 150ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
 .map-heading-actions {
   display: flex;
   align-items: center;
@@ -860,6 +871,7 @@ h3 {
   height: 100%;
   pointer-events: none;
   z-index: 1;
+  transition: opacity 120ms ease;
 }
 
 .map-links-svg line {
@@ -888,7 +900,7 @@ h3 {
     translate3d(var(--move-x), var(--move-y), 0)
     translateY(var(--lift-y));
   transition:
-    transform 180ms cubic-bezier(0.2, 0.75, 0.25, 1),
+    transform 140ms cubic-bezier(0.2, 0.75, 0.25, 1),
     border-color 120ms ease,
     background-color 120ms ease,
     color 120ms ease,
@@ -911,11 +923,23 @@ h3 {
   z-index: 2;
 }
 
+.map-node-departing {
+  border-color: rgba(232, 196, 87, 0.45);
+  color: rgba(232, 196, 87, 0.68);
+}
+
 .map-node-exit {
   border-color: rgba(84, 198, 177, 0.62);
   color: var(--jade);
   background: #0a1110;
   z-index: 3;
+}
+
+.map-node-travel-target {
+  z-index: 5;
+  box-shadow:
+    0 0 0 1px rgba(84, 198, 177, 0.36),
+    0 10px 24px rgba(0, 0, 0, 0.38);
 }
 
 .map-node-exit:hover:not(:disabled),
@@ -928,11 +952,16 @@ h3 {
 }
 
 .direction-map.map-moving .map-node-exit:not(.map-node-selected) {
-  opacity: 0.62;
+  border-color: rgba(84, 198, 177, 0.36);
+  color: rgba(84, 198, 177, 0.68);
 }
 
 .direction-map.map-moving .map-node-exit {
   pointer-events: none;
+}
+
+.direction-map.map-transitioning .map-links-svg {
+  opacity: 0.58;
 }
 
 .map-node-selected {
@@ -1083,6 +1112,15 @@ h3 {
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes mapLayerTravel {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(var(--map-slide-x, 0%), var(--map-slide-y, 0%), 0);
   }
 }
 
@@ -1500,6 +1538,7 @@ h3 {
 
 @media (prefers-reduced-motion: reduce) {
   .map-node,
+  .map-travel-layer,
   .map-links-svg line {
     transition: none;
     animation: none;
