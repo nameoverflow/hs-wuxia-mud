@@ -92,13 +92,22 @@ export interface BonePose {
 }
 
 export interface BindingPose {
+  kind?: BindingDefinition["kind"];
   anchorId?: string;
+  drawOrder?: number;
   offsetX?: number;
   offsetY?: number;
   rotation?: number;
   scaleX?: number;
   scaleY?: number;
   opacity?: number;
+  width?: number;
+  height?: number;
+  image?: string;
+  pivotX?: number;
+  pivotY?: number;
+  color?: string;
+  strokeColor?: string;
 }
 
 export interface AnchorPose {

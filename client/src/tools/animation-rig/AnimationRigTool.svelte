@@ -1,8 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
-  import { createBattleActorRig, skeletalAnimationEntries } from "../../battle/skeletal/catalog";
-  import { rigActions } from "../../battle/rigActionCatalog";
+  import { createBattleActorRig, staticSkeletalAnimationEntries } from "../../battle/skeletal/catalog";
   import { angleBetween, applyToPoint, distance, invert, normalizeDegrees } from "../../battle/skeletal/math";
   import { interpolatePose, resolveRig } from "../../battle/skeletal/runtime";
   import { fitRigViewport, screenPointToRig, SkeletalCanvasRenderer } from "../../battle/skeletal/renderer";
@@ -28,6 +27,18 @@
   type StyleFilter = CombatStyle | "all";
   type DragMode = "pose" | "anchor" | "binding";
   type RigActionManifest = { schemaVersion: number; actions: BattleActionDefinition[] };
+  type ToolSelectionSnapshot = {
+    activeTab?: ToolTab;
+    activeLibraryTab?: LibraryTab;
+    activeInspectorTab?: InspectorTab;
+    selectedRigActionId?: string;
+    selectedEntryId?: string;
+    selectedPoseId?: string;
+    selectedBindingId?: string;
+    selectedAnchorId?: string;
+    selectedBoneId?: string;
+    dragMode?: DragMode;
+  };
   type MartialArtFile = { file: string; text: string };
   type YamlObject = Record<string, any>;
   type MartialParseResult = { root: unknown; arts: ParsedMartialArt[]; error: string };
@@ -39,9 +50,8 @@
     | { mode: "anchor"; anchorId: string }
     | { mode: "binding"; bindingId: string };
 
-  const staticRigEntries = skeletalAnimationEntries.filter((entry) => !entry.actionId.startsWith("rig."));
+  const staticRigEntries = staticSkeletalAnimationEntries;
   const visualProfiles: AnimationRigEntry["profile"][] = ["male", "female"];
-  const initialRigActions = Object.values(rigActions);
   const combatResultLabels: Record<CombatResult, string> = { hit: "命中", dodge: "闪避", parry: "招架", effect: "效果" };
   const targetReactionLabels: Record<TargetReaction, string> = { none: "无目标反应", hit: "受击", dodge: "闪避", parry: "招架", effect: "效果反应" };
   const vfxKindLabels: Record<BattleActionDefinition["vfx"][number]["kind"], string> = {
@@ -63,6 +73,17 @@
     anchor: "锚点模式：拖动挂在骨骼上的命名锚点",
     binding: "贴图模式：拖动图片部件相对锚点的绑定位置"
   };
+  const editableBindingKinds: NonNullable<BindingPose["kind"]>[] = ["image", "capsule", "circle", "line", "target"];
+  const bindingKindLabels: Record<string, string> = {
+    image: "图片",
+    mesh: "蒙皮图片",
+    capsule: "胶囊",
+    circle: "圆形",
+    line: "线条",
+    target: "十字标记"
+  };
+  const selectionStorageKey = "wuxia-mud.animation-rig.selection.v1";
+  const initialSelection = loadToolSelection();
 
   let canvasEl: HTMLCanvasElement;
   let renderer: SkeletalCanvasRenderer | null = null;
@@ -70,11 +91,11 @@
   let resizeObserver: ResizeObserver | null = null;
   let drawFrame = 0;
 
-  let activeTab: ToolTab = "actions";
-  let activeLibraryTab: LibraryTab = "actions";
-  let activeInspectorTab: InspectorTab = "action";
-  let selectedEntryId = "";
-  let selectedPoseId = initialRigActions[0]?.poseId || "idle";
+  let activeTab: ToolTab = initialSelection.activeTab || "actions";
+  let activeLibraryTab: LibraryTab = initialSelection.activeLibraryTab || "actions";
+  let activeInspectorTab: InspectorTab = initialSelection.activeInspectorTab || "action";
+  let selectedEntryId = initialSelection.selectedEntryId || "";
+  let selectedPoseId = initialSelection.selectedPoseId || "";
   let poseIdDraft = selectedPoseId;
   let lastPoseIdDraftSource = selectedPoseId;
   let poseNameDraft = "";
@@ -83,11 +104,12 @@
   let lastEntryId = "";
   let styleFilter: StyleFilter = "all";
   let search = "";
-  let dragMode: DragMode = "pose";
+  let dragMode: DragMode = initialSelection.dragMode || "pose";
   let dragState: DragState | null = null;
-  let selectedBoneId = "frontArm";
-  let selectedAnchorId = "frontWrist";
-  let selectedBindingId = "part.arm_front";
+  let selectedBoneId = initialSelection.selectedBoneId || "frontArm";
+  let selectedAnchorId = initialSelection.selectedAnchorId || "frontWrist";
+  let selectedBindingId = initialSelection.selectedBindingId || "part.arm_front";
+  let isRestoringToolSelection = true;
   let isPlaying = false;
   let playbackTime = 0;
   let playbackLastMs = 0;
@@ -102,13 +124,14 @@
   let viewportPan: Vec2 = { x: 0, y: 0 };
   let boneOverridesByPose: Record<string, Record<string, BonePose>> = {};
   let anchorOverridesByPose: Record<string, Record<string, AnchorPose>> = {};
+  let bindingOverridesByPose: Record<string, Record<string, BindingPose>> = {};
   let anchorOverrides: Record<string, AnchorPose> = {};
   let bindingOverrides: Record<string, BindingPose> = {};
   let importText = "";
   let saveStatus = "";
   let projectPoseLibrary: Record<string, SkeletalPoseDefinition> | null = null;
-  let rigActionManifest: RigActionManifest = { schemaVersion: 1, actions: initialRigActions };
-  let selectedRigActionId = initialRigActions[0]?.id || "";
+  let rigActionManifest: RigActionManifest = { schemaVersion: 1, actions: [] };
+  let selectedRigActionId = initialSelection.selectedRigActionId || "";
   let rigActionStatus = "";
   let martialFiles: MartialArtFile[] = [];
   let selectedMartialFile = "";
@@ -145,14 +168,24 @@
   $: rig = selectedEntry ? createRigWithProjectPoses(selectedEntry, projectPoseLibrary) : null;
   $: if (selectedEntry && selectedEntry.id !== lastEntryId) {
     lastEntryId = selectedEntry.id;
-    selectedPoseId = selectedEntry.poseId;
+    if (!selectedPoseId) selectedPoseId = selectedEntry.poseId;
     isPlaying = false;
     playbackTime = 0;
     playbackLastMs = 0;
-    selectedBoneId = selectedEntry.tags.includes("part-rig") ? "frontArm" : "frontForearm";
-    selectedAnchorId = selectedEntry.tags.includes("part-rig") ? "frontWrist" : "frontHand";
-    selectedBindingId = selectedEntry.tags.includes("part-rig") ? "part.arm_front" : "source.frame";
+    const defaultBoneId = selectedEntry.tags.includes("part-rig") ? "frontArm" : "frontForearm";
+    const defaultAnchorId = selectedEntry.tags.includes("part-rig") ? "frontWrist" : "frontHand";
+    const defaultBindingId = selectedEntry.tags.includes("part-rig") ? "part.arm_front" : "source.frame";
+    if (isRestoringToolSelection) {
+      selectedBoneId = selectedBoneId || defaultBoneId;
+      selectedAnchorId = selectedAnchorId || defaultAnchorId;
+      selectedBindingId = selectedBindingId || defaultBindingId;
+    } else {
+      selectedBoneId = defaultBoneId;
+      selectedAnchorId = defaultAnchorId;
+      selectedBindingId = defaultBindingId;
+    }
     loadSavedEdits(selectedEntry.id);
+    isRestoringToolSelection = false;
   }
   $: selectedPose = rig?.poses[selectedPoseId] || (selectedEntry && rig?.poses[selectedEntry.poseId]) || rig?.poses.idle;
   $: {
@@ -166,8 +199,10 @@
   $: activePose = rig && isPlaying ? playbackPose(rig, playbackTime, selectedPoseId, selectedRigAction?.sequence || []) : selectedPose;
   $: currentBoneOverrides = isPlaying ? {} : boneOverridesByPose[selectedPoseId] || {};
   $: currentPoseAnchorOverrides = isPlaying ? {} : anchorOverridesByPose[selectedPoseId] || {};
+  $: currentPoseBindingOverrides = isPlaying ? {} : bindingOverridesByPose[selectedPoseId] || {};
   $: currentAnchorOverrides = { ...anchorOverrides, ...currentPoseAnchorOverrides };
-  $: overrides = { bones: currentBoneOverrides, anchors: currentAnchorOverrides, bindings: bindingOverrides };
+  $: currentBindingOverrides = { ...bindingOverrides, ...currentPoseBindingOverrides };
+  $: overrides = { bones: currentBoneOverrides, anchors: currentAnchorOverrides, bindings: currentBindingOverrides };
   $: resolvedRig = rig && activePose ? resolveRig(rig, activePose, overrides) : null;
   $: if (resolvedRig && !resolvedRig.bonesById[selectedBoneId]) selectedBoneId = resolvedRig.bones[0]?.id || "";
   $: if (resolvedRig && !resolvedRig.anchorsById[selectedAnchorId]) selectedAnchorId = resolvedRig.anchors[0]?.id || "";
@@ -207,6 +242,52 @@
     };
   });
 
+  function loadToolSelection(): ToolSelectionSnapshot {
+    if (typeof localStorage === "undefined") return {};
+    try {
+      const parsed = JSON.parse(localStorage.getItem(selectionStorageKey) || "{}") as ToolSelectionSnapshot;
+      return {
+        activeTab: parsed.activeTab === "actions" || parsed.activeTab === "mapping" ? parsed.activeTab : undefined,
+        activeLibraryTab: parsed.activeLibraryTab === "actions" || parsed.activeLibraryTab === "poses" ? parsed.activeLibraryTab : undefined,
+        activeInspectorTab: isInspectorTab(parsed.activeInspectorTab) ? parsed.activeInspectorTab : undefined,
+        selectedRigActionId: parsed.selectedRigActionId || undefined,
+        selectedEntryId: parsed.selectedEntryId || undefined,
+        selectedPoseId: parsed.selectedPoseId || undefined,
+        selectedBindingId: parsed.selectedBindingId || undefined,
+        selectedAnchorId: parsed.selectedAnchorId || undefined,
+        selectedBoneId: parsed.selectedBoneId || undefined,
+        dragMode: isDragMode(parsed.dragMode) ? parsed.dragMode : undefined
+      };
+    } catch {
+      return {};
+    }
+  }
+
+  function persistToolSelection() {
+    if (typeof localStorage === "undefined") return;
+    const snapshot: ToolSelectionSnapshot = {
+      activeTab,
+      activeLibraryTab,
+      activeInspectorTab,
+      selectedRigActionId: selectedRigAction?.id || selectedRigActionId,
+      selectedEntryId: selectedEntry?.id || selectedEntryId,
+      selectedPoseId,
+      selectedBindingId,
+      selectedAnchorId,
+      selectedBoneId,
+      dragMode
+    };
+    localStorage.setItem(selectionStorageKey, JSON.stringify(snapshot));
+  }
+
+  function isInspectorTab(value: unknown): value is InspectorTab {
+    return value === "action" || value === "feedback" || value === "pose" || value === "anchor" || value === "binding" || value === "map" || value === "io";
+  }
+
+  function isDragMode(value: unknown): value is DragMode {
+    return value === "pose" || value === "anchor" || value === "binding";
+  }
+
   function filterRigActions(list: BattleActionDefinition[], style: StyleFilter, term: string) {
     const q = term.trim().toLowerCase();
     return list.filter((action) => {
@@ -243,9 +324,7 @@
   }
 
   function createRigWithProjectPoses(entry: AnimationRigEntry, poseLibrary: Record<string, SkeletalPoseDefinition> | null) {
-    const baseRig = createBattleActorRig(entry);
-    if (!entry.tags.includes("part-rig") || !poseLibrary) return baseRig;
-    return { ...baseRig, poses: poseLibrary };
+    return createBattleActorRig(entry, poseLibrary || {});
   }
 
   async function loadProjectPoses() {
@@ -617,7 +696,7 @@
     const binding = resolvedRig.bindingsById[bindingId];
     if (!binding) return;
     const local = applyToPoint(invert(binding.anchor.matrix), point);
-    setBindingOverride(bindingId, { offsetX: round(local.x), offsetY: round(local.y) });
+    setPoseBindingOverride(bindingId, { offsetX: round(local.x), offsetY: round(local.y) });
   }
 
   function dragAnchorTo(anchorId: string, point: Vec2) {
@@ -887,6 +966,18 @@
     };
   }
 
+  function setPoseBindingOverride(bindingId: string, patch: BindingPose) {
+    isPlaying = false;
+    const poseOverrides = bindingOverridesByPose[selectedPoseId] || {};
+    bindingOverridesByPose = {
+      ...bindingOverridesByPose,
+      [selectedPoseId]: {
+        ...poseOverrides,
+        [bindingId]: compactBindingPose({ ...(poseOverrides[bindingId] || {}), ...patch })
+      }
+    };
+  }
+
   function setAnchorOverride(anchorId: string, patch: AnchorPose) {
     anchorOverrides = {
       ...anchorOverrides,
@@ -913,7 +1004,65 @@
 
   function updateSelectedBinding(patch: BindingPose) {
     if (!selectedBindingId) return;
-    setBindingOverride(selectedBindingId, patch);
+    setPoseBindingOverride(selectedBindingId, patch);
+  }
+
+  function selectWeaponBinding() {
+    if (!resolvedRig?.bindingsById["prop.sword"]) return;
+    selectedBindingId = "prop.sword";
+    activeInspectorTab = "binding";
+    dragMode = "binding";
+  }
+
+  function hideSelectedBindingForCurrentPose() {
+    if (!selectedBindingId) return;
+    updateSelectedBinding({ opacity: 0 });
+    saveStatus = `Hidden ${selectedBindingId} in ${selectedPoseId}`;
+  }
+
+  function hideSelectedBindingForAllPoses() {
+    if (!selectedBindingId) return;
+    updateSelectedBindingForAllProjectPoses(selectedBindingId, { opacity: 0 });
+    saveStatus = `Hidden ${selectedBindingId} in all poses`;
+  }
+
+  function applySwordBindingTemplate() {
+    if (!selectedBindingId) return;
+    updateSelectedBinding({
+      kind: "line",
+      width: 82,
+      height: 2.1,
+      color: "rgba(214, 222, 214, 0.95)",
+      strokeColor: "rgba(96, 112, 105, 0.6)",
+      opacity: 0.95,
+      pivotX: 0,
+      pivotY: 0.5
+    });
+    saveStatus = `Updated ${selectedBindingId} shape`;
+  }
+
+  function updateSelectedBindingForAllProjectPoses(bindingId: string, patch: BindingPose) {
+    const library = currentProjectPoseLibrary();
+    projectPoseLibrary = Object.fromEntries(
+      Object.entries(library).map(([poseId, pose]) => [
+        poseId,
+        {
+          ...pose,
+          bindings: {
+            ...(pose.bindings || {}),
+            [bindingId]: compactBindingPose({ ...(pose.bindings?.[bindingId] || {}), ...patch })
+          }
+        }
+      ])
+    );
+    const { [bindingId]: _globalBinding, ...globalRest } = bindingOverrides;
+    const nextBindingOverridesByPose = { ...bindingOverridesByPose };
+    for (const [poseId, poseOverrides] of Object.entries(nextBindingOverridesByPose)) {
+      const { [bindingId]: _poseBinding, ...poseRest } = poseOverrides;
+      nextBindingOverridesByPose[poseId] = poseRest;
+    }
+    bindingOverrides = globalRest;
+    bindingOverridesByPose = nextBindingOverridesByPose;
   }
 
   function updateSelectedAnchor(patch: AnchorPose) {
@@ -945,8 +1094,11 @@
   }
 
   function resetSelectedBinding() {
-    const { [selectedBindingId]: _, ...rest } = bindingOverrides;
-    bindingOverrides = rest;
+    const poseOverrides = bindingOverridesByPose[selectedPoseId] || {};
+    const { [selectedBindingId]: _poseBinding, ...poseRest } = poseOverrides;
+    const { [selectedBindingId]: _globalBinding, ...globalRest } = bindingOverrides;
+    bindingOverridesByPose = { ...bindingOverridesByPose, [selectedPoseId]: poseRest };
+    bindingOverrides = globalRest;
   }
 
   function resetSelectedAnchor() {
@@ -963,6 +1115,7 @@
   function resetAll() {
     boneOverridesByPose = {};
     anchorOverridesByPose = {};
+    bindingOverridesByPose = {};
     anchorOverrides = {};
     bindingOverrides = {};
   }
@@ -980,6 +1133,7 @@
     }
 
     try {
+      persistToolSelection();
       const poses = mergedProjectPoseLibrary(rig);
       const response = await fetch("/__rig/segmented-v12-poses", {
         method: "POST",
@@ -1008,6 +1162,7 @@
     if (!raw) {
       boneOverridesByPose = {};
       anchorOverridesByPose = {};
+      bindingOverridesByPose = {};
       anchorOverrides = {};
       bindingOverrides = {};
       importText = "";
@@ -1025,11 +1180,13 @@
         bones?: Record<string, BonePose>;
         poses?: Record<string, Record<string, BonePose>>;
         anchorPoses?: Record<string, Record<string, AnchorPose>>;
+        bindingPoses?: Record<string, Record<string, BindingPose>>;
         anchors?: Record<string, AnchorPose>;
         bindings?: Record<string, BindingPose>;
       };
       boneOverridesByPose = parsed.poses || (parsed.bones ? { [parsed.poseId || selectedPoseId]: parsed.bones } : {});
       anchorOverridesByPose = parsed.anchorPoses || {};
+      bindingOverridesByPose = parsed.bindingPoses || {};
       anchorOverrides = parsed.anchors || {};
       bindingOverrides = parsed.bindings || {};
       importText = raw;
@@ -1060,6 +1217,7 @@
 
   async function saveRigActions() {
     try {
+      persistToolSelection();
       const response = await fetch("/__rig/actions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1313,7 +1471,8 @@
     const sourcePose = source || { id, name, bones: {}, anchors: {} };
     const bones = { ...(sourcePose.bones || {}), ...(boneOverridesByPose[sourcePose.id] || {}) };
     const anchors = { ...(sourcePose.anchors || {}), ...(anchorOverridesByPose[sourcePose.id] || {}) };
-    const bindings = sourcePose.bindings ? cloneRecord(sourcePose.bindings) : undefined;
+    const bindingOverrides = bindingOverridesByPose[sourcePose.id] || {};
+    const bindings = sourcePose.bindings || Object.keys(bindingOverrides).length ? { ...(sourcePose.bindings || {}), ...bindingOverrides } : undefined;
     return {
       ...JSON.parse(JSON.stringify(sourcePose)),
       id,
@@ -1326,6 +1485,10 @@
 
   function cloneRecord<T>(value: T): T {
     return JSON.parse(JSON.stringify(value)) as T;
+  }
+
+  function compactBindingPose(value: BindingPose): BindingPose {
+    return Object.fromEntries(Object.entries(value).filter(([, entryValue]) => entryValue !== undefined && entryValue !== "")) as BindingPose;
   }
 
   function moveRecordKey<T>(record: Record<string, T>, fromId: string, toId: string) {
@@ -1686,6 +1849,16 @@
         }
       };
     }
+    for (const [poseId, bindings] of Object.entries(bindingOverridesByPose)) {
+      if (!poses[poseId]) continue;
+      poses[poseId] = {
+        ...poses[poseId],
+        bindings: {
+          ...(poses[poseId].bindings || {}),
+          ...bindings
+        }
+      };
+    }
     return poses;
   }
 
@@ -1703,6 +1876,8 @@
         bones: value.bones,
         anchorPoses: anchorOverridesByPose,
         poseAnchors: currentPoseAnchorOverrides,
+        bindingPoses: bindingOverridesByPose,
+        poseBindings: currentPoseBindingOverrides,
         anchors: anchorOverrides,
         bindings: value.bindings
       },
@@ -2464,8 +2639,29 @@
       <section>
         <div class="rig-section-head">
           <h2>贴图绑定</h2>
-          <button type="button" class="rig-secondary" on:click={resetSelectedBinding}>重置</button>
+          <span>{saveStatus}</span>
         </div>
+
+        <div class="rig-binding-card">
+          <span>当前部件</span>
+          <strong>{selectedBinding?.name || "-"}</strong>
+          <code>{selectedBinding?.id || "-"}</code>
+          <small>
+            {bindingKindLabels[selectedBinding?.definition.kind || ""] || selectedBinding?.definition.kind || "-"}
+            · {round(selectedBinding?.definition.width ?? 0)} x {round(selectedBinding?.definition.height ?? 0)}
+            · opacity {round(selectedBinding?.definition.opacity ?? 0)}
+          </small>
+        </div>
+
+        <div class="rig-binding-actions">
+          <button type="button" class="rig-secondary" disabled={!resolvedRig?.bindingsById["prop.sword"]} on:click={selectWeaponBinding}>选中武器</button>
+          <button type="button" class="rig-secondary danger" disabled={!selectedBindingId} on:click={hideSelectedBindingForCurrentPose}>隐藏当前姿势</button>
+          <button type="button" class="rig-secondary danger" disabled={!selectedBindingId} on:click={hideSelectedBindingForAllPoses}>隐藏所有姿势</button>
+          <button type="button" class="rig-secondary" disabled={!selectedBindingId} on:click={applySwordBindingTemplate}>套用细剑模板</button>
+        </div>
+
+        <button type="button" class="rig-primary" disabled={!canSaveProjectPoses} on:click={saveProjectPoses}>保存姿势库</button>
+        <button type="button" class="rig-secondary" on:click={resetSelectedBinding}>重置当前姿势绑定</button>
 
         <label class="rig-field">
           绑定
@@ -2475,6 +2671,29 @@
             {/each}
           </select>
         </label>
+
+        <div class="rig-pair-fields">
+          <label>
+            类型
+            <select value={selectedBinding?.definition.kind || ""} on:change={(event) => updateSelectedBinding({ kind: selectInput(event) as BindingPose["kind"] })}>
+              {#if selectedBinding?.definition.kind === "mesh"}
+                <option value="mesh">蒙皮图片</option>
+              {/if}
+              {#each editableBindingKinds as kind}
+                <option value={kind}>{bindingKindLabels[kind]}</option>
+              {/each}
+            </select>
+          </label>
+          <label>
+            绘制层级
+            <input
+              type="number"
+              step="1"
+              value={round(selectedBinding?.definition.drawOrder ?? 0)}
+              on:input={(event) => updateSelectedBinding({ drawOrder: numericInput(event) })}
+            />
+          </label>
+        </div>
 
         <label class="rig-field">
           挂接锚点
@@ -2528,6 +2747,80 @@
             />
           </label>
         </div>
+
+        <div class="rig-pair-fields">
+          <label>
+            宽度
+            <input
+              type="number"
+              step="0.5"
+              value={round(selectedBinding?.definition.width ?? 0)}
+              on:input={(event) => updateSelectedBinding({ width: numericInput(event) })}
+            />
+          </label>
+          <label>
+            高度
+            <input
+              type="number"
+              step="0.1"
+              value={round(selectedBinding?.definition.height ?? 0)}
+              on:input={(event) => updateSelectedBinding({ height: numericInput(event) })}
+            />
+          </label>
+        </div>
+
+        <div class="rig-pair-fields">
+          <label>
+            颜色
+            <input
+              value={selectedBinding?.definition.color || ""}
+              placeholder="rgba(...) / #rrggbb"
+              on:input={(event) => updateSelectedBinding({ color: (event.currentTarget as HTMLInputElement).value })}
+            />
+          </label>
+          <label>
+            描边
+            <input
+              value={selectedBinding?.definition.strokeColor || ""}
+              placeholder="可选"
+              on:input={(event) => updateSelectedBinding({ strokeColor: (event.currentTarget as HTMLInputElement).value })}
+            />
+          </label>
+        </div>
+
+        <div class="rig-pair-fields">
+          <label>
+            Pivot X
+            <input
+              type="number"
+              min="0"
+              max="1"
+              step="0.05"
+              value={round(selectedBinding?.definition.pivotX ?? 0.5)}
+              on:input={(event) => updateSelectedBinding({ pivotX: numericInput(event) })}
+            />
+          </label>
+          <label>
+            Pivot Y
+            <input
+              type="number"
+              min="0"
+              max="1"
+              step="0.05"
+              value={round(selectedBinding?.definition.pivotY ?? 0.5)}
+              on:input={(event) => updateSelectedBinding({ pivotY: numericInput(event) })}
+            />
+          </label>
+        </div>
+
+        <label class="rig-field">
+          图片路径
+          <input
+            value={selectedBinding?.definition.image || ""}
+            placeholder="可访问的 PNG/WebP 路径；类型设为图片后使用"
+            on:change={(event) => updateSelectedBinding({ image: (event.currentTarget as HTMLInputElement).value })}
+          />
+        </label>
 
         <div class="rig-pair-fields">
           <label>

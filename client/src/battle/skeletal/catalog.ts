@@ -1,4 +1,3 @@
-import { rigActionEntries } from "../rigActionCatalog";
 import type { VisualProfile } from "../animationTypes";
 import type {
   AnimationRigEntry,
@@ -9,7 +8,6 @@ import type {
   SkeletonRigDefinition
 } from "./types";
 
-import segmentedPoseData from "./data/segmented-v12-poses.json";
 import segmentedArmBack from "../../assets/battle/actors/segmented/v12/arm_back.png";
 import segmentedArmFront from "../../assets/battle/actors/segmented/v12/arm_front.png";
 import segmentedHead from "../../assets/battle/actors/segmented/v12/head.png";
@@ -355,8 +353,6 @@ export const skeletalPoseLibrary: Record<string, SkeletalPoseDefinition> = {
   }
 };
 
-const segmentedPoseLibrary = segmentedPoseData as Record<string, SkeletalPoseDefinition>;
-
 const segmentedBaseEntries: AnimationRigEntry[] = profiles.map((profile) => ({
   id: `segmented.v12.${profile}`,
   actionId: "segmented.v12",
@@ -396,13 +392,10 @@ const segmentedSwordEntries: AnimationRigEntry[] = segmentedSwordActions.flatMap
 
 const segmentedRigEntries: AnimationRigEntry[] = [...segmentedBaseEntries, ...segmentedSwordEntries];
 
-export const skeletalAnimationEntries: AnimationRigEntry[] = [
-  ...rigActionEntries,
-  ...segmentedRigEntries
-];
+export const staticSkeletalAnimationEntries: AnimationRigEntry[] = segmentedRigEntries;
 
-export function createBattleActorRig(entry: AnimationRigEntry): SkeletonRigDefinition {
-  if (entry.tags.includes("part-rig")) return createSegmentedActorRig(entry);
+export function createBattleActorRig(entry: AnimationRigEntry, segmentedPoses: Record<string, SkeletalPoseDefinition> = {}): SkeletonRigDefinition {
+  if (entry.tags.includes("part-rig")) return createSegmentedActorRig(entry, segmentedPoses);
   return {
     id: `rig.${entry.id}`,
     name: entry.label,
@@ -414,7 +407,7 @@ export function createBattleActorRig(entry: AnimationRigEntry): SkeletonRigDefin
   };
 }
 
-function createSegmentedActorRig(entry: AnimationRigEntry): SkeletonRigDefinition {
+function createSegmentedActorRig(entry: AnimationRigEntry, poses: Record<string, SkeletalPoseDefinition>): SkeletonRigDefinition {
   return {
     id: `rig.${entry.id}`,
     name: entry.label,
@@ -422,7 +415,7 @@ function createSegmentedActorRig(entry: AnimationRigEntry): SkeletonRigDefinitio
     bones: segmentedBones,
     anchors: segmentedAnchors,
     bindings: segmentedBindingsForEntry(entry),
-    poses: segmentedPoseLibrary
+    poses
   };
 }
 

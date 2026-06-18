@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
   import type { ActorVisual } from "../battle/animationTypes";
-  import { createBattleActorRig, skeletalAnimationEntries } from "../battle/skeletal/catalog";
+  import { rigActionEntries } from "../battle/rigActionCatalog";
+  import { createBattleActorRig, staticSkeletalAnimationEntries } from "../battle/skeletal/catalog";
   import { interpolatePose, resolveRig } from "../battle/skeletal/runtime";
   import { SkeletalCanvasRenderer } from "../battle/skeletal/renderer";
   import type { SkeletalPoseDefinition, SkeletonRigDefinition } from "../battle/skeletal/types";
+  import segmentedPoseData from "../battle/skeletal/data/segmented-v12-poses.json";
 
   export let visual: ActorVisual;
   export let durationMs = 720;
@@ -15,9 +17,11 @@
   let frame = 0;
   let startedAt = 0;
   let lastRenderedAt = 0;
+  const skeletalAnimationEntries = [...rigActionEntries, ...staticSkeletalAnimationEntries];
+  const segmentedPoseLibrary = segmentedPoseData as Record<string, SkeletalPoseDefinition>;
 
   $: entry = skeletalAnimationEntries.find((candidate) => candidate.id === visual.entryId) || skeletalAnimationEntries.find((candidate) => candidate.actionId === visual.actionId);
-  $: rig = entry ? createBattleActorRig(entry) : null;
+  $: rig = entry ? createBattleActorRig(entry, segmentedPoseLibrary) : null;
   $: sequence = visual.sequence?.length ? visual.sequence : [visual.poseId];
   $: renderKey = `${visual.entryId}:${visual.actionId}:${sequence.join(",")}:${durationMs}`;
   $: if (renderer && renderKey) restart();

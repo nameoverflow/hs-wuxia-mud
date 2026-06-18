@@ -145,13 +145,22 @@ export function interpolatePose(
     const a = from.bindings?.[bindingId] || {};
     const b = to.bindings?.[bindingId] || {};
     bindings[bindingId] = {
+      kind: b.kind || a.kind,
       anchorId: b.anchorId || a.anchorId,
+      drawOrder: interpolateOptional(a.drawOrder, b.drawOrder, t),
       offsetX: interpolateOptional(a.offsetX, b.offsetX, t),
       offsetY: interpolateOptional(a.offsetY, b.offsetY, t),
       rotation: interpolateOptionalAngle(a.rotation, b.rotation, t),
       scaleX: interpolateOptional(a.scaleX, b.scaleX, t),
       scaleY: interpolateOptional(a.scaleY, b.scaleY, t),
-      opacity: interpolateOptional(a.opacity, b.opacity, t)
+      opacity: interpolateOptional(a.opacity, b.opacity, t),
+      width: interpolateOptional(a.width, b.width, t),
+      height: interpolateOptional(a.height, b.height, t),
+      image: b.image || a.image,
+      pivotX: interpolateOptional(a.pivotX, b.pivotX, t),
+      pivotY: interpolateOptional(a.pivotY, b.pivotY, t),
+      color: b.color || a.color,
+      strokeColor: b.strokeColor || a.strokeColor
     };
   }
 
@@ -198,13 +207,22 @@ function resolveBindingDefinition(
 ): BindingDefinition {
   return {
     ...definition,
+    kind: override?.kind ?? pose?.kind ?? definition.kind,
     anchorId: override?.anchorId ?? pose?.anchorId ?? definition.anchorId,
+    drawOrder: overrideValue(definition.drawOrder, pose?.drawOrder, override?.drawOrder),
     offsetX: overrideValue(definition.offsetX, pose?.offsetX, override?.offsetX),
     offsetY: overrideValue(definition.offsetY, pose?.offsetY, override?.offsetY),
     rotation: overrideValue(definition.rotation, pose?.rotation, override?.rotation),
     scaleX: overrideValue(definition.scaleX, pose?.scaleX, override?.scaleX),
     scaleY: overrideValue(definition.scaleY, pose?.scaleY, override?.scaleY),
-    opacity: overrideValue(definition.opacity, pose?.opacity, override?.opacity)
+    opacity: overrideValue(definition.opacity, pose?.opacity, override?.opacity),
+    width: overrideValue(definition.width, pose?.width, override?.width),
+    height: overrideValue(definition.height, pose?.height, override?.height),
+    image: override?.image ?? pose?.image ?? definition.image,
+    pivotX: overrideValue(definition.pivotX ?? 0.5, pose?.pivotX, override?.pivotX),
+    pivotY: overrideValue(definition.pivotY ?? 0.5, pose?.pivotY, override?.pivotY),
+    color: override?.color ?? pose?.color ?? definition.color,
+    strokeColor: override?.strokeColor ?? pose?.strokeColor ?? definition.strokeColor
   };
 }
 

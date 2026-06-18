@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 import { createCanvas, Image } from "@napi-rs/canvas";
 import { createServer } from "vite";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const clientRoot = path.resolve(scriptDir, "..");
 const repoRoot = path.resolve(clientRoot, "..");
+const segmentedPoseLibrary = JSON.parse(readFileSync(path.join(clientRoot, "src/battle/skeletal/data/segmented-v12-poses.json"), "utf8"));
 const reviewVariants = [
   { id: "debug", label: "black + guides" },
   { id: "clean-black", label: "black clean" },
@@ -32,15 +33,23 @@ const vite = await createServer({
 });
 
 try {
-  const [{ createBattleActorRig, skeletalAnimationEntries }, { resolveRig }, rendererModule] = await Promise.all([
+  const [{ rigActionEntries }, { createBattleActorRig, staticSkeletalAnimationEntries }, { resolveRig }, rendererModule] = await Promise.all([
+    vite.ssrLoadModule("/src/battle/rigActionCatalog.ts"),
     vite.ssrLoadModule("/src/battle/skeletal/catalog.ts"),
     vite.ssrLoadModule("/src/battle/skeletal/runtime.ts"),
     vite.ssrLoadModule("/src/battle/skeletal/renderer.ts")
   ]);
   const { buildSkeletonWarpMesh, fitRigViewport, SkeletalCanvasRenderer } = rendererModule;
 
+  const skeletalAnimationEntries = [...rigActionEntries, ...staticSkeletalAnimationEntries];
   const items = selectRenderItems(skeletalAnimationEntries, options);
-  const renderContext = { createBattleActorRig, resolveRig, buildSkeletonWarpMesh, fitRigViewport, SkeletalCanvasRenderer };
+  const renderContext = {
+    createBattleActorRig: (entry) => createBattleActorRig(entry, segmentedPoseLibrary),
+    resolveRig,
+    buildSkeletonWarpMesh,
+    fitRigViewport,
+    SkeletalCanvasRenderer
+  };
   const result =
     options.mode === "review"
       ? await renderReviewSheet(items, options, renderContext)
