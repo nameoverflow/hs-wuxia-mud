@@ -25,6 +25,32 @@ export interface NetPlayerAction {
   contents: PlayerAction;
 }
 
+export interface RequestCharacterCreationConfigEvent {
+  tag: "RequestCharacterCreationConfig";
+}
+
+export interface CharacterCreationBonus {
+  strength: number;
+  agility: number;
+  vitality: number;
+  maxQi: number;
+  appearance: number;
+}
+
+export interface CharacterCreationOption {
+  id: string;
+  label: string;
+  story: string;
+  bonus: CharacterCreationBonus;
+}
+
+export interface CharacterCreationConfig {
+  baseStats: CharacterCreationBonus;
+  origins: CharacterCreationOption[];
+  childhood1: CharacterCreationOption[];
+  childhood2: CharacterCreationOption[];
+}
+
 export interface CharacterCreationChoice {
   origin: string;
   childhood1: string;
@@ -237,6 +263,7 @@ export type ServerMessage =
   | { tag: "InventoryMsg"; contents: [number, InventoryItemSummary[]] }
   | { tag: "ArtsMsg"; contents: ArtSummary[] }
   | { tag: "RewardMsg"; contents: RewardSummary[] }
+  | { tag: "CharacterCreationConfigMsg"; contents: CharacterCreationConfig }
   | { tag: "UseItemMsg"; contents: [string, string] }
   | { tag: "DialogueMsg"; contents: [string, string] }
   | { tag: "SayMsg"; contents: [string, string] }

@@ -92,6 +92,14 @@ sendResp conn resp = do
   msg <- formatResp resp
   sendTextData conn msg
 
+sendCharacterCreationConfig :: Connection -> IO ()
+sendCharacterCreationConfig conn = do
+  loadCharacterCreationConfig characterCreationConfigPath >>= \case
+    Left err ->
+      sendResp conn $ ErrorMsg $ ErrorSummary "character_creation_config_load_failed" $ M.singleton "error" err
+    Right config ->
+      sendResp conn $ CharacterCreationConfigMsg config
+
 broadcastResp :: ActionResp -> ServerMap -> IO ()
 broadcastResp resp clients = do
   message <- formatResp resp
@@ -126,6 +134,8 @@ serverApplication conns state pending = do
     msg <- receiveData conn
     c <- readMVar conns
     case decode msg :: Maybe NetEvent of
+      Just RequestCharacterCreationConfig ->
+        sendCharacterCreationConfig conn
       Just Login {username = loginUser, password = pw, creation = creationChoice}
         | member loginUser c -> do
           sendResp conn $ ErrorMsg $ ErrorSummary "user_exists" $ M.singleton "user" loginUser

@@ -10,7 +10,8 @@ import Game.CharacterCreation
 import Game.Message
 
 data NetEvent
-  = Login
+  = RequestCharacterCreationConfig
+  | Login
       { username :: Text,
         password :: Text,
         creation :: Maybe CharacterCreationChoice

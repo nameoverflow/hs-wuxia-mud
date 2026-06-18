@@ -10,6 +10,7 @@ import type {
   ArtSummary,
   BattleSnapshot,
   CharacterCreationChoice,
+  CharacterCreationConfig,
   CombatEvent,
   CombatMessage,
   Direction,
@@ -27,6 +28,8 @@ import type {
   RoomExitSummary,
   ServerMessage
 } from "./protocol";
+
+const websocketUrl = "ws://127.0.0.1:9160";
 
 export interface PlayerStats {
   hp: number;
@@ -201,6 +204,58 @@ export function clearMessages() {
   game.update((state) => ({ ...state, messages: [] }));
 }
 
+export function requestCharacterCreationConfig(): Promise<CharacterCreationConfig> {
+  return new Promise((resolve, reject) => {
+    const configWs = new WebSocket(websocketUrl);
+    let settled = false;
+    const timeout = window.setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      configWs.close();
+      reject(new Error("character creation config request timed out"));
+    }, 5000);
+
+    const finish = (result: CharacterCreationConfig | Error) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      configWs.close();
+      if (result instanceof Error) {
+        reject(result);
+      } else {
+        resolve(result);
+      }
+    };
+
+    configWs.addEventListener("open", () => {
+      configWs.send(JSON.stringify({ tag: "RequestCharacterCreationConfig" }));
+    });
+
+    configWs.addEventListener("message", (event) => {
+      try {
+        const message = JSON.parse(String(event.data)) as ServerMessage;
+        if (message.tag === "CharacterCreationConfigMsg") {
+          finish(message.contents);
+        } else if (message.tag === "ErrorMsg") {
+          finish(new Error(message.contents.errorSummaryCode));
+        }
+      } catch {
+        finish(new Error("invalid character creation config response"));
+      }
+    });
+
+    configWs.addEventListener("error", () => {
+      finish(new Error("character creation config request failed"));
+    });
+
+    configWs.addEventListener("close", () => {
+      if (!settled) {
+        finish(new Error("character creation config connection closed"));
+      }
+    });
+  });
+}
+
 export function connect(username: string, options: { reset?: boolean; creation?: CharacterCreationChoice | null } = {}) {
   const cleanName = username.trim();
   if (!cleanName) {
@@ -221,7 +276,7 @@ export function connect(username: string, options: { reset?: boolean; creation?:
   game.update((state) => ({ ...state, username: cleanName, connecting: true, lastError: null }));
   addMessage("system", withLocale((locale) => t(locale, "connection.connecting", { user: cleanName })));
 
-  ws = new WebSocket("ws://127.0.0.1:9160");
+  ws = new WebSocket(websocketUrl);
 
   ws.addEventListener("open", () => {
     const event: LoginEvent = {
@@ -331,6 +386,8 @@ export function processServerMessage(message: ServerMessage | { tag: string; con
       break;
     case "RewardMsg":
       handleReward((message.contents as RewardSummary[]) || []);
+      break;
+    case "CharacterCreationConfigMsg":
       break;
     case "UseItemMsg":
       addMessage("system", ((message.contents as [string, string]) || ["", ""])[1]);

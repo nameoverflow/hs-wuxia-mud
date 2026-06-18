@@ -4,6 +4,7 @@
 
 module Game.Message where
 
+import Game.CharacterCreation
 import Game.Entity
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
@@ -465,6 +466,7 @@ data ActionResp
   | InventoryMsg Int [InventoryItemSummary]
   | ArtsMsg [ArtSummary]
   | RewardMsg [RewardSummary]
+  | CharacterCreationConfigMsg CharacterCreationConfig
   | SystemMsg SystemMessage
   | ErrorMsg ErrorSummary
   deriving (Show, Eq, Generic)

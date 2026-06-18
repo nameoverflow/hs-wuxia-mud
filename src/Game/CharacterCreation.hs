@@ -4,15 +4,21 @@
 
 module Game.CharacterCreation
   ( CharacterCreationChoice (..),
+    CharacterCreationConfig (..),
+    CreationBonus (..),
+    CreationOption (..),
     applyCharacterCreationChoice,
+    characterCreationConfigPath,
+    loadCharacterCreationConfig,
   )
 where
 
 import Control.Lens hiding ((.=))
-import Data.Aeson (FromJSON (..), ToJSON (..), object, withObject, (.:), (.=))
+import Data.Aeson (FromJSON (..), ToJSON (..), object, withObject, (.:), (.:?), (.!=), (.=))
 import Data.Text (Text)
 import qualified Data.Text as T
 import Game.Entity
+import Utils
 
 data CharacterCreationChoice = CharacterCreationChoice
   { creationOrigin :: Text,
@@ -43,6 +49,84 @@ data CreationBonus = CreationBonus
     bonusMaxQi :: Int,
     bonusAppearance :: Int
   }
+  deriving (Show, Eq)
+
+instance FromJSON CreationBonus where
+  parseJSON = withObject "CreationBonus" $ \o ->
+    CreationBonus
+      <$> o .:? "strength" .!= 0
+      <*> o .:? "agility" .!= 0
+      <*> o .:? "vitality" .!= 0
+      <*> o .:? "maxQi" .!= 0
+      <*> o .:? "appearance" .!= 0
+
+instance ToJSON CreationBonus where
+  toJSON bonus =
+    object
+      [ "strength" .= bonusStrength bonus,
+        "agility" .= bonusAgility bonus,
+        "vitality" .= bonusVitality bonus,
+        "maxQi" .= bonusMaxQi bonus,
+        "appearance" .= bonusAppearance bonus
+      ]
+
+data CreationOption = CreationOption
+  { creationOptionId :: Text,
+    creationOptionLabel :: Text,
+    creationOptionStory :: Text,
+    creationOptionBonus :: CreationBonus
+  }
+  deriving (Show, Eq)
+
+instance FromJSON CreationOption where
+  parseJSON = withObject "CreationOption" $ \o ->
+    CreationOption
+      <$> o .: "id"
+      <*> o .: "label"
+      <*> o .: "story"
+      <*> o .: "bonus"
+
+instance ToJSON CreationOption where
+  toJSON option =
+    object
+      [ "id" .= creationOptionId option,
+        "label" .= creationOptionLabel option,
+        "story" .= creationOptionStory option,
+        "bonus" .= creationOptionBonus option
+      ]
+
+data CharacterCreationConfig = CharacterCreationConfig
+  { creationBaseStats :: CreationBonus,
+    creationOrigins :: [CreationOption],
+    creationChildhoodOneOptions :: [CreationOption],
+    creationChildhoodTwoOptions :: [CreationOption]
+  }
+  deriving (Show, Eq)
+
+instance FromJSON CharacterCreationConfig where
+  parseJSON = withObject "CharacterCreationConfig" $ \o ->
+    CharacterCreationConfig
+      <$> o .: "baseStats"
+      <*> o .: "origins"
+      <*> o .: "childhood1"
+      <*> o .: "childhood2"
+
+instance ToJSON CharacterCreationConfig where
+  toJSON config =
+    object
+      [ "baseStats" .= creationBaseStats config,
+        "origins" .= creationOrigins config,
+        "childhood1" .= creationChildhoodOneOptions config,
+        "childhood2" .= creationChildhoodTwoOptions config
+      ]
+
+instance Configurable CharacterCreationConfig
+
+characterCreationConfigPath :: FilePath
+characterCreationConfigPath = "resources/scripts/character_creation.yaml"
+
+loadCharacterCreationConfig :: FilePath -> IO (Either Text CharacterCreationConfig)
+loadCharacterCreationConfig = loadConfigFrom
 
 emptyBonus :: CreationBonus
 emptyBonus = CreationBonus 0 0 0 0 0
@@ -57,8 +141,8 @@ appendBonus a b =
       bonusAppearance = bonusAppearance a + bonusAppearance b
     }
 
-applyCharacterCreationChoice :: CharacterCreationChoice -> Player -> Player
-applyCharacterCreationChoice choice player =
+applyCharacterCreationChoice :: CharacterCreationConfig -> CharacterCreationChoice -> Player -> Player
+applyCharacterCreationChoice config choice player =
   restoreVitals $
     player
       & playerCharacter . charInnate . innateStrength %~ addClamped (bonusStrength totalBonus)
@@ -66,12 +150,12 @@ applyCharacterCreationChoice choice player =
       & playerCharacter . charInnate . innateVitality %~ addClamped (bonusVitality totalBonus)
       & playerCharacter . charMaxQi %~ max 0 . (+ bonusMaxQi totalBonus)
       & playerCharacter . charAppearance %~ clampAppearanceScore . (+ bonusAppearance totalBonus)
-      & playerCharacter . charDesc .~ characterCreationSummary choice
+      & playerCharacter . charDesc .~ characterCreationSummary config choice
   where
     totalBonus =
-      originBonus (creationOrigin choice)
-        `appendBonus` childhoodBonus (creationChildhoodOne choice)
-        `appendBonus` childhoodBonus (creationChildhoodTwo choice)
+      optionBonus (creationOrigins config) (creationOrigin choice)
+        `appendBonus` optionBonus (creationChildhoodOneOptions config) (creationChildhoodOne choice)
+        `appendBonus` optionBonus (creationChildhoodTwoOptions config) (creationChildhoodTwo choice)
 
     addClamped delta = clampInnateScore . (+ delta)
 
@@ -84,49 +168,25 @@ restoreVitals player =
         & playerCharacter . charQi .~ (derived ^. dsMaxQi)
         & playerCharacter . charJing .~ (derived ^. dsMaxJing)
 
-originBonus :: Text -> CreationBonus
-originBonus = \case
-  "martial_family" -> CreationBonus 3 1 1 12 0
-  "scholar_house" -> CreationBonus 0 2 2 8 1
-  "official_house" -> CreationBonus 1 1 3 0 1
-  "medicine_house" -> CreationBonus 0 1 3 8 1
-  "orphan" -> CreationBonus 2 3 0 0 (-1)
-  _ -> emptyBonus
+optionBonus :: [CreationOption] -> Text -> CreationBonus
+optionBonus options optionId =
+  maybe emptyBonus creationOptionBonus $ findOption options optionId
 
-childhoodBonus :: Text -> CreationBonus
-childhoodBonus = \case
-  "courtyard_practice" -> CreationBonus 2 1 0 0 0
-  "river_chase" -> CreationBonus 0 3 0 0 1
-  "herb_gathering" -> CreationBonus 0 0 3 0 0
-  "night_reading" -> CreationBonus 0 1 2 0 1
-  "market_brawls" -> CreationBonus 2 0 1 0 (-1)
-  "mountain_errands" -> CreationBonus 1 1 1 0 0
-  "breath_lessons" -> CreationBonus 0 0 1 12 1
-  "cold_watch" -> CreationBonus 1 0 2 0 0
-  _ -> emptyBonus
+optionName :: [CreationOption] -> Text -> Text
+optionName options optionId =
+  maybe optionId creationOptionLabel $ findOption options optionId
 
-characterCreationSummary :: CharacterCreationChoice -> Text
-characterCreationSummary CharacterCreationChoice {..} =
+findOption :: [CreationOption] -> Text -> Maybe CreationOption
+findOption options optionId =
+  case filter ((== optionId) . creationOptionId) options of
+    option : _ -> Just option
+    [] -> Nothing
+
+characterCreationSummary :: CharacterCreationConfig -> CharacterCreationChoice -> Text
+characterCreationSummary config CharacterCreationChoice {..} =
   T.intercalate
     "\n"
-    [ "我出身于" <> optionName creationOrigin <> "。",
-      "幼年时，" <> optionName creationChildhoodOne <> "。",
-      "后来，" <> optionName creationChildhoodTwo <> "。"
+    [ "我出身于" <> optionName (creationOrigins config) creationOrigin <> "。",
+      "幼年时，" <> optionName (creationChildhoodOneOptions config) creationChildhoodOne <> "。",
+      "后来，" <> optionName (creationChildhoodTwoOptions config) creationChildhoodTwo <> "。"
     ]
-
-optionName :: Text -> Text
-optionName = \case
-  "martial_family" -> "武学世家"
-  "scholar_house" -> "书香门第"
-  "official_house" -> "官宦人家"
-  "medicine_house" -> "医药之家"
-  "orphan" -> "无亲孤儿"
-  "courtyard_practice" -> "我常在院中偷练拳脚"
-  "river_chase" -> "我追着渡船和流云奔跑"
-  "herb_gathering" -> "我随长辈入山辨草采药"
-  "night_reading" -> "我伴着灯火读旧书"
-  "market_brawls" -> "我在市井里学会挨打和还手"
-  "mountain_errands" -> "我替人翻山送信取物"
-  "breath_lessons" -> "我记住了几句调息口诀"
-  "cold_watch" -> "我在寒夜里守过长门"
-  other -> other

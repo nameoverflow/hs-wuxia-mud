@@ -138,7 +138,13 @@ createDefaultPlayerWithCreation pid path creationChoice = do
     Left err -> throwError $ OtherException err
     Right (player :: Player) -> do
       let playerWithId = player & playerId .~ pid & playerCharacter . charId .~ "player$" <> pid
-          player' = maybe playerWithId (`applyCharacterCreationChoice` playerWithId) creationChoice
+      player' <- case creationChoice of
+        Nothing -> pure playerWithId
+        Just choice -> do
+          configResult <- liftIO $ loadCharacterCreationConfig characterCreationConfigPath
+          case configResult of
+            Left err -> throwError $ OtherException err
+            Right config -> pure $ applyCharacterCreationChoice config choice playerWithId
       players . at pid .= Just player'
       stories . at pid .= Just newPlayerStoryState
 

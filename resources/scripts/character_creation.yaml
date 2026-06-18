@@ -1,0 +1,102 @@
+baseStats:
+  strength: 18
+  agility: 18
+  vitality: 18
+  maxQi: 100
+  appearance: 5
+
+origins:
+  - id: martial_family
+    label: 武学世家
+    story: 我家三代习武，长辈从小教我认拳谱、练剑招，也让我明白家门名声会带来责任。
+    bonus:
+      strength: 3
+      agility: 1
+      vitality: 1
+      maxQi: 12
+  - id: scholar_house
+    label: 书香门第
+    story: 我在书房和案卷旁长大，家中长辈教我识字、记事，也教我分辨证词和文书。
+    bonus:
+      agility: 2
+      vitality: 2
+      maxQi: 8
+      appearance: 1
+  - id: official_house
+    label: 官宦人家
+    story: 我幼时常见衙门公文和差役往来，懂得规矩、礼数，也知道说话做事要先看场合。
+    bonus:
+      strength: 1
+      agility: 1
+      vitality: 3
+      appearance: 1
+  - id: medicine_house
+    label: 医药之家
+    story: 我在药柜、银针和汤药旁长大，跟着家人辨药、包扎，也学会照看伤病之人。
+    bonus:
+      agility: 1
+      vitality: 3
+      maxQi: 8
+      appearance: 1
+  - id: orphan
+    label: 孤儿
+    story: 我没有固定家门，靠帮工、跑腿和街坊照应长大。遇事没人代我出面，只能自己想办法。
+    bonus:
+      strength: 2
+      agility: 3
+      appearance: -1
+
+childhood1:
+  - id: courtyard_practice
+    label: 院中偷练
+    story: 我常在无人时照着旧拳谱练招，反复打木桩，慢慢练出力气和站架。
+    bonus:
+      strength: 2
+      agility: 1
+  - id: river_chase
+    label: 逐水奔跑
+    story: 我常在河岸追着渡船跑，跌倒后再爬起来，慢慢练出脚力和反应。
+    bonus:
+      agility: 3
+      appearance: 1
+  - id: herb_gathering
+    label: 入山采药
+    story: 我随长辈入山辨草采药，背着药篓走山路，学会忍耐，也学会分辨药性。
+    bonus:
+      vitality: 3
+  - id: night_reading
+    label: 夜读旧书
+    story: 我常在夜里读旧书和游记，记住许多地名、门派和江湖传闻。
+    bonus:
+      agility: 1
+      vitality: 2
+      appearance: 1
+
+childhood2:
+  - id: market_brawls
+    label: 市井斗殴
+    story: 我在市井里学会挨打和还手，也学会在人多的地方保护自己。
+    bonus:
+      strength: 2
+      vitality: 1
+      appearance: -1
+  - id: mountain_errands
+    label: 翻山跑腿
+    story: 我替人翻山送信取物，雨天走泥路，晴天走碎石。路越远，我越知道哪一步不能省。
+    bonus:
+      strength: 1
+      agility: 1
+      vitality: 1
+  - id: breath_lessons
+    label: 记住口诀
+    story: 我偶然记住了几句调息口诀，后来反复练习，终于能把气息慢慢稳住。
+    bonus:
+      vitality: 1
+      maxQi: 12
+      appearance: 1
+  - id: cold_watch
+    label: 寒夜守门
+    story: 我在寒夜里守过长门，一夜不敢合眼。天亮时差事没有出错，我也知道自己能熬过苦差。
+    bonus:
+      strength: 1
+      vitality: 2
