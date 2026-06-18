@@ -9,6 +9,7 @@ import type {
   ActiveSkillSummary,
   ArtSummary,
   BattleSnapshot,
+  CharacterCreationChoice,
   CombatEvent,
   CombatMessage,
   Direction,
@@ -200,7 +201,7 @@ export function clearMessages() {
   game.update((state) => ({ ...state, messages: [] }));
 }
 
-export function connect(username: string, options: { reset?: boolean } = {}) {
+export function connect(username: string, options: { reset?: boolean; creation?: CharacterCreationChoice | null } = {}) {
   const cleanName = username.trim();
   if (!cleanName) {
     addMessage("error", withLocale((locale) => t(locale, "error.username_required")));
@@ -226,7 +227,8 @@ export function connect(username: string, options: { reset?: boolean } = {}) {
     const event: LoginEvent = {
       tag: "Login",
       username: cleanName,
-      password: options.reset ? "__dev_reset" : ""
+      password: options.reset ? "__dev_reset" : "",
+      creation: options.creation ?? null
     };
     ws?.send(JSON.stringify(event));
     game.update((state) => ({

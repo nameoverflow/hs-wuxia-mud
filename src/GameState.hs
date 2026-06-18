@@ -25,6 +25,7 @@ import System.Directory (doesDirectoryExist, listDirectory)
 import System.FilePath (takeExtension, (</>))
 import Utils
 import Control.Monad.RWS (MonadWriter)
+import Game.CharacterCreation
 import Game.Message
 import qualified Data.Set as S
 import Relude (ToText)
@@ -127,14 +128,19 @@ loadGameState basePath = do
   return $ newGameState <$> worldResult
 
 createDefaultPlayer :: PlayerId -> FilePath -> GameStateT ()
-createDefaultPlayer pid path = do
+createDefaultPlayer pid path =
+  createDefaultPlayerWithCreation pid path Nothing
+
+createDefaultPlayerWithCreation :: PlayerId -> FilePath -> Maybe CharacterCreationChoice -> GameStateT ()
+createDefaultPlayerWithCreation pid path creationChoice = do
   playerResult <- liftIO $ loadConfigFrom path
   case playerResult of
     Left err -> throwError $ OtherException err
     Right (player :: Player) -> do
-      let player' = player & playerId .~ pid & playerCharacter . charId .~ "player$" <> pid
+      let playerWithId = player & playerId .~ pid & playerCharacter . charId .~ "player$" <> pid
+          player' = maybe playerWithId (`applyCharacterCreationChoice` playerWithId) creationChoice
       players . at pid .= Just player'
       stories . at pid .= Just newPlayerStoryState
 
-      let (mid, pos) = player ^. playerPosition
+      let (mid, pos) = player' ^. playerPosition
       world . maps . ix mid . mapRooms . ix pos . roomPlayer %= S.insert pid

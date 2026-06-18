@@ -1,6 +1,12 @@
 <script lang="ts">
   import { formatStatus, sendAction, type GameState } from "../game";
   import { translate } from "../i18n";
+  import portrait00 from "../assets/portraits/beauty-score-00.png";
+  import portrait02 from "../assets/portraits/beauty-score-02.png";
+  import portrait04 from "../assets/portraits/beauty-score-04.png";
+  import portrait06 from "../assets/portraits/beauty-score-06.png";
+  import portrait08 from "../assets/portraits/beauty-score-08.png";
+  import portrait10 from "../assets/portraits/beauty-score-10.png";
   import ResourceMeter from "./ResourceMeter.svelte";
 
   export let state: GameState;
@@ -15,6 +21,17 @@
   };
 
   const genderLabel = (gender: string) => translate(state.locale, `gender.${gender || "unknown"}`);
+  const portraitByScore: Record<string, string> = {
+    "00": portrait00,
+    "02": portrait02,
+    "04": portrait04,
+    "06": portrait06,
+    "08": portrait08,
+    "10": portrait10
+  };
+
+  const portraitScore = (appearance: number) => Math.max(0, Math.min(10, Math.round(appearance / 2) * 2));
+  const portraitSrc = (appearance: number) => portraitByScore[String(portraitScore(appearance)).padStart(2, "0")] || portrait04;
 </script>
 
 <aside class="shell-panel character-panel">
@@ -48,6 +65,14 @@
   </div>
 
   {#if activeTab === "status"}
+    <figure class="portrait-frame">
+      <img src={portraitSrc(state.stats.appearance)} alt={`${state.username || translate(state.locale, "panel.character")} ${translate(state.locale, "field.appearance")}`} />
+      <figcaption>
+        <strong>{state.username || "-"}</strong>
+        <span>{translate(state.locale, "field.appearance")} {state.stats.appearance}</span>
+      </figcaption>
+    </figure>
+
     <dl class="identity-grid">
       <div>
         <dt>{translate(state.locale, "field.name")}</dt>

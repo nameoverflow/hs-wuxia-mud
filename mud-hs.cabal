@@ -26,6 +26,7 @@ source-repository head
 library
   exposed-modules:
       Database
+      Game.CharacterCreation
       Game.Combat
       Game.Entity
       Game.Message

@@ -25,10 +25,17 @@ export interface NetPlayerAction {
   contents: PlayerAction;
 }
 
+export interface CharacterCreationChoice {
+  origin: string;
+  childhood1: string;
+  childhood2: string;
+}
+
 export interface LoginEvent {
   tag: "Login";
   username: string;
   password: string;
+  creation?: CharacterCreationChoice | null;
 }
 
 export interface RoomCharacterSummary {

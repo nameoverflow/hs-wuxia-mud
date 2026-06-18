@@ -3,10 +3,12 @@
 import Control.Lens
 import Control.Monad (replicateM_, unless)
 import Control.Monad.Random (mkStdGen, runRand)
+import Data.Aeson (eitherDecode)
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import qualified Data.Text as T
 import Database
+import Game.CharacterCreation
 import Game.Combat
 import Game.Entity
 import Game.Message
@@ -14,6 +16,7 @@ import Game.Quest
 import Game.World
 import GamePlay
 import GameState
+import Networking
 import Utils
 
 main :: IO ()
@@ -25,6 +28,9 @@ main = do
   testWorldValidationCatchesBrokenRoomExit
   testRandomSelectEmpty
   testDefaultFoundationArts
+  testCharacterCreationChoiceAppliesInitialAttrs
+  testLoginAcceptsMissingCreation
+  testLoginAcceptsCreation
   testDefaultTrialSwordAnimation
   testDerivedStats
   testMoveUpdatesRoomOccupancy
@@ -200,6 +206,33 @@ testDefaultFoundationArts = do
       assert ((player ^. playerCharacter . charAppearance) == 5) "default player appearance did not load"
       assert ((player ^. playerCharacter . charJing) == 120) "default player jing did not load"
       assert ((player ^. playerCharacter . charInnate) == InnateAttrs 18 18 18) "default player innate attrs did not load"
+
+testCharacterCreationChoiceAppliesInitialAttrs :: IO ()
+testCharacterCreationChoiceAppliesInitialAttrs = do
+  gs <- loadFreshState
+  let choice = CharacterCreationChoice "martial_family" "river_chase" "breath_lessons"
+  (_, gs') <- runOk "create player with character creation" gs (createDefaultPlayerWithCreation "tester" "resources/scripts/default_player.yaml" (Just choice))
+  case M.lookup "tester" (gs' ^. players) of
+    Nothing -> fail "tester missing"
+    Just player -> do
+      assert ((player ^. playerCharacter . charInnate) == InnateAttrs 21 22 20) "character creation did not apply innate bonuses"
+      assert ((player ^. playerCharacter . charMaxQi) == 124) "character creation did not apply max qi bonus"
+      assert ((player ^. playerCharacter . charAppearance) == 7) "character creation did not apply appearance bonus"
+      assert ((player ^. playerCharacter . charMaxHP) == (deriveStats player ^. dsMaxHp)) "character creation did not fill max hp"
+      assert ((player ^. playerCharacter . charQi) == (deriveStats player ^. dsMaxQi)) "character creation did not fill initial qi"
+      assert ("武学世家" `T.isInfixOf` (player ^. playerCharacter . charDesc)) "character creation did not write origin summary"
+
+testLoginAcceptsMissingCreation :: IO ()
+testLoginAcceptsMissingCreation =
+  case eitherDecode "{\"tag\":\"Login\",\"username\":\"tester\",\"password\":\"\"}" of
+    Right Login {username = "tester", password = "", creation = Nothing} -> pure ()
+    other -> fail $ "legacy Login JSON did not parse: " <> show (other :: Either String NetEvent)
+
+testLoginAcceptsCreation :: IO ()
+testLoginAcceptsCreation =
+  case eitherDecode "{\"tag\":\"Login\",\"username\":\"tester\",\"password\":\"\",\"creation\":{\"origin\":\"scholar_house\",\"childhood1\":\"night_reading\",\"childhood2\":\"breath_lessons\"}}" of
+    Right Login {username = "tester", password = "", creation = Just (CharacterCreationChoice "scholar_house" "night_reading" "breath_lessons")} -> pure ()
+    other -> fail $ "Login JSON with creation did not parse: " <> show (other :: Either String NetEvent)
 
 testDefaultTrialSwordAnimation :: IO ()
 testDefaultTrialSwordAnimation = do
@@ -783,6 +816,7 @@ testPlayerSaveRoundTrip = do
           & players . ix "tester" . playerCharacter . charQi .~ 72
           & players . ix "tester" . playerCharacter . charMaxQi .~ 123
           & players . ix "tester" . playerCharacter . charJing .~ 91
+          & players . ix "tester" . playerCharacter . charDesc .~ "我出身于风雨。"
           & players . ix "tester" . playerCharacter . charGender .~ Female
           & players . ix "tester" . playerCharacter . charAppearance .~ 8
           & players . ix "tester" . playerCharacter . charInnate .~ InnateAttrs 21 17 16
@@ -796,7 +830,7 @@ testPlayerSaveRoundTrip = do
     Left err -> fail $ "failed to load player save: " <> T.unpack err
     Right Nothing -> fail "player save was not written"
     Right (Just loaded) -> pure loaded
-  assert (saveVersion save == 3) "player save version was not bumped"
+  assert (saveVersion save == 4) "player save version was not bumped"
   fresh <- newTestPlayerState
   let restored = applyPlayerSaveToGameState save fresh
   assert (questStageOf "cold_rain_inn" restored == Just "accepted") "saved quest stage was not restored"
@@ -811,6 +845,7 @@ testPlayerSaveRoundTrip = do
       assert ((player ^. playerCharacter . charQi) == 72) "saved qi was not restored"
       assert ((player ^. playerCharacter . charMaxQi) == 123) "saved max qi was not restored"
       assert ((player ^. playerCharacter . charJing) == 91) "saved jing was not restored"
+      assert ((player ^. playerCharacter . charDesc) == "我出身于风雨。") "saved desc was not restored"
       assert ((player ^. playerCharacter . charGender) == Female) "saved gender was not restored"
       assert ((player ^. playerCharacter . charAppearance) == 8) "saved appearance was not restored"
       assert ((player ^. playerCharacter . charInnate) == InnateAttrs 21 17 16) "saved innate attrs were not restored"

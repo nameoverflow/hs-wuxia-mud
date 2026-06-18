@@ -172,17 +172,41 @@ client 根据 `systemMessageKey` / `errorSummaryCode` 和参数做本地化。�
 
 ```json
 {
-  "version": 2,
+  "version": 4,
   "player_id": "tester",
   "story": {},
   "inventory": {},
   "money": 0,
   "potential": 20,
   "combat_exp": 1000,
-  "hp": 114,
-  "max_hp": 114,
-  "qi": 100,
-  "max_qi": 100,
+  "profile": {
+    "gender": "unknown",
+    "appearance": 5
+  },
+  "character": {
+    "desc": "我出身于武学世家。",
+    "innate": {
+      "strength": 21,
+      "agility": 22,
+      "vitality": 20
+    },
+    "hp": 180,
+    "max_hp": 180,
+    "qi": 164,
+    "max_qi": 124,
+    "jing": 160
+  },
+  "hp": 180,
+  "max_hp": 180,
+  "qi": 164,
+  "max_qi": 124,
+  "jing": 160,
+  "desc": "我出身于武学世家。",
+  "innate": {
+    "strength": 21,
+    "agility": 22,
+    "vitality": 20
+  },
   "arts": {},
   "prepared": {},
   "enabled": {}
@@ -195,7 +219,7 @@ client 根据 `systemMessageKey` / `errorSummaryCode` 和参数做本地化。�
 - 背包。
 - 金钱。
 - 潜能和实战经验。
-- HP/Qi/MaxQi 等长期资源状态。
+- 角色描述、性别、容貌、先天属性和 HP/Qi/Jing 等长期资源状态。
 - 已学武功，包括基础功和具体武功的等级与熟练度。
 - 已准备武功。基础功不需要进入 prepared。
 - 已启用武功。主动招式会从 prepared/enabled 合并暴露。
@@ -203,7 +227,7 @@ client 根据 `systemMessageKey` / `errorSummaryCode` 和参数做本地化。�
 加载流程：
 
 1. server 使用 `default_player.yaml` 创建玩家。
-2. 如果 `saves/<player>.json` 存在，覆盖 story/inventory/money/potential/combat_exp/HP/Qi/arts/prepared/enabled。
+2. 如果 `saves/<player>.json` 存在，覆盖 story/inventory/money/potential/combat_exp/desc/profile/innate/HP/Qi/Jing/arts/prepared/enabled。
 
 dev reset 登录流程：
 

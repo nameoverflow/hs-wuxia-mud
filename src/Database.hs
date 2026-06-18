@@ -39,6 +39,7 @@ data PlayerSave = PlayerSave
     saveMoney :: Int,
     savePotential :: Int,
     saveCombatExp :: Int,
+    saveDesc :: Maybe Text,
     saveHp :: Maybe Int,
     saveMaxHp :: Maybe Int,
     saveQi :: Maybe Int,
@@ -60,7 +61,8 @@ data SaveProfile = SaveProfile
   deriving (Show, Eq, Generic)
 
 data SaveCharacter = SaveCharacter
-  { saveCharacterHp :: Maybe Int,
+  { saveCharacterDesc :: Maybe Text,
+    saveCharacterHp :: Maybe Int,
     saveCharacterMaxHp :: Maybe Int,
     saveCharacterQi :: Maybe Int,
     saveCharacterMaxQi :: Maybe Int,
@@ -73,7 +75,7 @@ emptySaveProfile :: SaveProfile
 emptySaveProfile = SaveProfile Nothing Nothing
 
 emptySaveCharacter :: SaveCharacter
-emptySaveCharacter = SaveCharacter Nothing Nothing Nothing Nothing Nothing Nothing
+emptySaveCharacter = SaveCharacter Nothing Nothing Nothing Nothing Nothing Nothing Nothing
 
 instance FromJSON SaveProfile where
   parseJSON = withObject "SaveProfile" $ \o -> do
@@ -84,6 +86,7 @@ instance FromJSON SaveProfile where
 
 instance FromJSON SaveCharacter where
   parseJSON = withObject "SaveCharacter" $ \o -> do
+    saveCharacterDesc <- o .:? "desc"
     saveCharacterHp <- o .:? "hp"
     saveCharacterMaxHp <- o .:? "max_hp"
     saveCharacterQi <- o .:? "qi"
@@ -108,6 +111,7 @@ instance FromJSON PlayerSave where
     topQi <- o .:? "qi"
     topMaxQi <- o .:? "max_qi"
     topJing <- o .:? "jing"
+    topDesc <- o .:? "desc"
     topGender <- o .:? "gender"
     topAppearance <- o .:? "appearance"
     topInnate <- o .:? "innate"
@@ -116,6 +120,7 @@ instance FromJSON PlayerSave where
     let saveQi = topQi <|> saveCharacterQi character
     let saveMaxQi = topMaxQi <|> saveCharacterMaxQi character
     let saveJing = topJing <|> saveCharacterJing character
+    let saveDesc = topDesc <|> saveCharacterDesc character
     let saveGender = topGender <|> saveProfileGender profile
     let saveAppearance = (clampAppearanceScore <$> topAppearance) <|> saveProfileAppearance profile
     let saveInnate = topInnate <|> saveCharacterInnate character
@@ -141,7 +146,8 @@ instance ToJSON PlayerSave where
             ],
         "character"
           .= object
-            [ "innate" .= saveInnate,
+            [ "desc" .= saveDesc,
+              "innate" .= saveInnate,
               "hp" .= saveHp,
               "max_hp" .= saveMaxHp,
               "qi" .= saveQi,
@@ -153,6 +159,7 @@ instance ToJSON PlayerSave where
         "qi" .= saveQi,
         "max_qi" .= saveMaxQi,
         "jing" .= saveJing,
+        "desc" .= saveDesc,
         "innate" .= saveInnate,
         "arts" .= saveArts,
         "prepared" .= savePrepared,
@@ -203,6 +210,7 @@ applyPlayerSaveToGameState PlayerSave {..} =
     . maybe id (\qi -> players . ix savePlayerId . playerCharacter . charQi .~ qi) saveQi
     . maybe id (\maxQi -> players . ix savePlayerId . playerCharacter . charMaxQi .~ maxQi) saveMaxQi
     . maybe id (\jing -> players . ix savePlayerId . playerCharacter . charJing .~ jing) saveJing
+    . maybe id (\desc -> players . ix savePlayerId . playerCharacter . charDesc .~ desc) saveDesc
     . maybe id (\gender -> players . ix savePlayerId . playerCharacter . charGender .~ gender) saveGender
     . maybe id (\appearance -> players . ix savePlayerId . playerCharacter . charAppearance .~ clampAppearanceScore appearance) saveAppearance
     . maybe id (\innate -> players . ix savePlayerId . playerCharacter . charInnate .~ innate) saveInnate
@@ -212,12 +220,13 @@ playerSaveFromGameState :: PlayerId -> GameState -> Maybe PlayerSave
 playerSaveFromGameState pid gs = do
   player <- M.lookup pid (gs ^. players)
   let savePlayerId = pid
-      saveVersion = 3
+      saveVersion = 4
       saveStory = fromMaybe newPlayerStoryState $ M.lookup pid (gs ^. stories)
       saveInventory = player ^. playerInventory
       saveMoney = player ^. playerMoney
       savePotential = player ^. playerPotential
       saveCombatExp = player ^. playerCombatExp
+      saveDesc = Just $ player ^. playerCharacter . charDesc
       saveHp = Just $ player ^. playerCharacter . charHP
       saveMaxHp = Just $ player ^. playerCharacter . charMaxHP
       saveQi = Just $ player ^. playerCharacter . charQi

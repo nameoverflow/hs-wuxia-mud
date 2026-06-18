@@ -3,19 +3,17 @@
 
 module Networking where
 
-import Control.Applicative (empty, pure)
 import Data.Aeson
-import qualified Data.HashMap.Lazy as HML (lookup)
-import Data.Serialize (Serialize)
 import Data.Text (Text)
 import GHC.Generics (Generic)
-import GameState
+import Game.CharacterCreation
 import Game.Message
 
 data NetEvent
   = Login
       { username :: Text,
-        password :: Text
+        password :: Text,
+        creation :: Maybe CharacterCreationChoice
       }
   | Disconnect
   | NetPlayerAction PlayerAction
@@ -23,4 +21,3 @@ data NetEvent
 
 instance FromJSON NetEvent
 instance ToJSON NetEvent
-

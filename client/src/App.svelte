@@ -36,26 +36,31 @@
     </div>
   </header>
 
-  <main class="main-layout">
-    <div class="left-column">
-      <CharacterPanel state={$game} />
-      <LoginPanel state={$game} />
-    </div>
+  <main class="main-layout" class:creation-layout={!$game.connected}>
+    {#if !$game.connected}
+      <div class="onboarding-column">
+        <LoginPanel state={$game} />
+      </div>
+    {:else}
+      <div class="left-column">
+        <CharacterPanel state={$game} />
+      </div>
 
-    <div class="center-column">
-      {#if $game.battle.active}
-        <CombatScene state={$game} />
-      {:else}
-        <RoomScene state={$game} />
-      {/if}
-      <MessageLog state={$game} />
-    </div>
+      <div class="center-column">
+        {#if $game.battle.active}
+          <CombatScene state={$game} />
+        {:else}
+          <RoomScene state={$game} />
+        {/if}
+        <MessageLog state={$game} />
+      </div>
 
-    <div class="right-column">
-      <RightRail state={$game} />
-      {#if !$game.battle.active}
-        <MartialArtsPanel state={$game} />
-      {/if}
-    </div>
+      <div class="right-column">
+        <RightRail state={$game} />
+        {#if !$game.battle.active}
+          <MartialArtsPanel state={$game} />
+        {/if}
+      </div>
+    {/if}
   </main>
 </div>

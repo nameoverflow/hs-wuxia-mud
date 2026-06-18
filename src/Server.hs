@@ -26,6 +26,7 @@ import Network.WebSockets
 import Networking
 import Relude (ToText (toText))
 import Database
+import Game.CharacterCreation
 import System.Environment (lookupEnv)
 
 type ServerMap = M.Map PlayerId Connection
@@ -54,12 +55,20 @@ clearPlayerRuntimeState uid gs =
     & dirtyPlayers %~ S.delete uid
     & world . maps . traversed . mapRooms . traversed . roomPlayer %~ S.delete uid
 
-loadOrCreatePlayer :: Bool -> PlayerId -> GameState -> IO GameState
-loadOrCreatePlayer resetPlayer uid gs = do
+loadOrCreatePlayer :: Bool -> Maybe CharacterCreationChoice -> PlayerId -> GameState -> IO GameState
+loadOrCreatePlayer resetPlayer creationChoice uid gs = do
   when resetPlayer $ do
     deletePlayerSave saveDir uid
     logInfo $ "Dev reset player save: " <> uid
-  let gsm = createDefaultPlayer uid "resources/scripts/default_player.yaml"
+  saveResult <-
+    if resetPlayer
+      then pure $ Right Nothing
+      else loadPlayerSave saveDir uid
+  let templateCreation =
+        case saveResult of
+          Right Nothing -> creationChoice
+          _ -> Nothing
+      gsm = createDefaultPlayerWithCreation uid "resources/scripts/default_player.yaml" templateCreation
       baseState =
         if resetPlayer
           then clearPlayerRuntimeState uid gs
@@ -69,18 +78,14 @@ loadOrCreatePlayer resetPlayer uid gs = do
       logError $ "Error loading player: " <> toText err
       return baseState
     Right (_, gs') -> do
-      if resetPlayer
-        then return gs'
-        else do
-          saveResult <- loadPlayerSave saveDir uid
-          case saveResult of
-            Left err -> do
-              logError $ "Error loading player save: " <> err
-              return gs'
-            Right Nothing ->
-              return gs'
-            Right (Just save) ->
-              return $ applyPlayerSaveToGameState save gs'
+      case saveResult of
+        Left err -> do
+          logError $ "Error loading player save: " <> err
+          return gs'
+        Right Nothing ->
+          return gs'
+        Right (Just save) ->
+          return $ applyPlayerSaveToGameState save gs'
 
 sendResp :: Connection -> ActionResp -> IO ()
 sendResp conn resp = do
@@ -94,8 +99,8 @@ broadcastResp resp clients = do
   forM_ clients $ \conn -> do
     sendTextData conn message
 
-userLogin :: PlayerId -> Bool -> Connection -> MVar ServerMap -> MVar GameState -> IO ()
-userLogin user resetPlayer conn cm s = do
+userLogin :: PlayerId -> Bool -> Maybe CharacterCreationChoice -> Connection -> MVar ServerMap -> MVar GameState -> IO ()
+userLogin user resetPlayer creationChoice conn cm s = do
   modifyMVar_ cm $ \c -> do
     broadcastResp (SystemMsg $ SystemMessage "user_joined" $ M.singleton "user" user) c
     sendResp conn $
@@ -105,7 +110,7 @@ userLogin user resetPlayer conn cm s = do
           (M.singleton "users" $ T.intercalate ", " (keys c))
     return $ M.insert user conn c
   modifyMVar_ s $ \ss -> do
-    s' <- loadOrCreatePlayer resetPlayer user ss
+    s' <- loadOrCreatePlayer resetPlayer creationChoice user ss
     logInfo $ "User logged in: " <> user <> if resetPlayer then " (dev reset)" else ""
     logDebug $ "players: " <> toText (show (keys . view players $ s'))
     return s'
@@ -121,7 +126,7 @@ serverApplication conns state pending = do
     msg <- receiveData conn
     c <- readMVar conns
     case decode msg :: Maybe NetEvent of
-      Just Login {username = loginUser, password = pw}
+      Just Login {username = loginUser, password = pw, creation = creationChoice}
         | member loginUser c -> do
           sendResp conn $ ErrorMsg $ ErrorSummary "user_exists" $ M.singleton "user" loginUser
           fail "User already exists"
@@ -129,13 +134,13 @@ serverApplication conns state pending = do
           devMode <- isDevModeEnabled
           if devMode
             then flip finally (disconnectClient loginUser conns state) $ do
-              userLogin loginUser True conn conns state
+              userLogin loginUser True creationChoice conn conns state
               runGameLoop loginUser conns state
             else do
               sendResp conn $ ErrorMsg $ ErrorSummary "dev_mode_required" M.empty
               fail "Dev reset requires MUD_DEV_MODE=1"
         | otherwise -> flip finally (disconnectClient loginUser conns state) $ do
-          userLogin loginUser False conn conns state
+          userLogin loginUser False creationChoice conn conns state
           runGameLoop loginUser conns state
       _ -> do
         sendResp conn $ ErrorMsg $ ErrorSummary "not_logged_in" M.empty
