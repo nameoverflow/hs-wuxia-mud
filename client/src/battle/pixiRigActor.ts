@@ -7,10 +7,11 @@ import { SkeletalCanvasRenderer } from "./skeletal/renderer";
 import { interpolatePose, resolveRig } from "./skeletal/runtime";
 import type { SkeletalPoseDefinition, SkeletonRigDefinition } from "./skeletal/types";
 
-const actorPixelWidth = 340;
-const actorPixelHeight = 248;
+const actorPixelWidth = 272;
+const actorPixelHeight = 198;
 const actorDisplayWidth = 170;
 const actorDisplayHeight = 124;
+const actorFrameMs = 1000 / 18;
 const skeletalAnimationEntries = [...rigActionEntries, ...staticSkeletalAnimationEntries];
 const segmentedPoseLibrary = segmentedPoseData as Record<string, SkeletalPoseDefinition>;
 
@@ -29,6 +30,7 @@ export class PixiRigActor {
   private startedAt = 0;
   private lastRenderedAt = 0;
   private needsRender = true;
+  private completedRender = false;
 
   constructor(side: "player" | "enemy") {
     this.canvas.width = actorPixelWidth;
@@ -70,17 +72,22 @@ export class PixiRigActor {
     this.startedAt = 0;
     this.lastRenderedAt = 0;
     this.needsRender = true;
+    this.completedRender = false;
   }
 
   update(now = performance.now()) {
     if (!this.visual || !this.rig) return;
     if (!this.startedAt) this.startedAt = now;
-    const elapsed = now - this.startedAt;
     const animationMs = Math.max(120, this.durationMs);
-    if (!this.needsRender && this.lastRenderedAt && now - this.lastRenderedAt < 1000 / 30 && elapsed < animationMs) return;
+    const rawElapsed = now - this.startedAt;
+    const elapsed = Math.min(rawElapsed, animationMs);
+    const animationDone = rawElapsed >= animationMs;
+    if (!this.needsRender && this.completedRender && animationDone) return;
+    if (!this.needsRender && !animationDone && this.lastRenderedAt && now - this.lastRenderedAt < actorFrameMs) return;
 
     this.lastRenderedAt = now;
     this.needsRender = false;
+    this.completedRender = animationDone;
     const pose = this.poseAt(elapsed);
     const resolved = resolveRig(this.rig, pose, { bones: {}, bindings: {} });
     this.renderer.render(this.ctx, resolved, {
@@ -91,7 +98,8 @@ export class PixiRigActor {
       showImages: false,
       showSkin: true,
       showLabels: false,
-      meshQuality: "full",
+      meshQuality: "fast",
+      fuseSegmentedSkin: false,
       zoom: 1.22,
       background: "transparent"
     });

@@ -3,6 +3,7 @@
   import type { Application, Container, Graphics } from "pixi.js";
   import { combatStyleFromSnapshot, idleVisualForStyle, visualProfileFromGender } from "../battle/rigActionCatalog";
   import type { ActorMotion, ActorVisual, BattleSide, ResolvedBattleTimeline, TargetReaction, TimelineVfx } from "../battle/animationTypes";
+  import { loadPixiBattleRuntime } from "../battle/pixiBattleRuntime";
   import type { PixiRigActor } from "../battle/pixiRigActor";
   import type { GameState } from "../game";
 
@@ -38,7 +39,7 @@
   $: player = state.battle.player;
   $: enemy = state.battle.enemy;
   $: battleTimeline = state.battle.animation.activeTimeline;
-  $: if (ready) syncScene();
+  $: if (ready) syncScene(player, enemy, battleTimeline, state.stats.gender);
 
   onMount(() => {
     let disposed = false;
@@ -48,7 +49,7 @@
         return;
       }
       ready = true;
-      syncScene();
+      syncScene(player, enemy, battleTimeline, state.stats.gender);
     });
 
     return () => {
@@ -60,15 +61,11 @@
   onDestroy(teardown);
 
   async function setup() {
-    const [pixiModule, gsapModule, rigModule] = await Promise.all([
-      import("pixi.js"),
-      import("gsap"),
-      import("../battle/pixiRigActor")
-    ]);
-    pixi = pixiModule;
-    gsapApi = gsapModule.gsap;
-    PixiRigActorClass = rigModule.PixiRigActor;
-    pixiActorSize = rigModule.pixiActorSize;
+    const runtime = await loadPixiBattleRuntime();
+    pixi = runtime.pixi;
+    gsapApi = runtime.gsap;
+    PixiRigActorClass = runtime.PixiRigActor;
+    pixiActorSize = runtime.pixiActorSize;
 
     app = new pixi.Application();
     await app.init({
@@ -90,6 +87,7 @@
     actorLayer.addChild(playerActor.container, enemyActor.container);
     app.stage.addChild(backgroundLayer, actorLayer, vfxLayer, textLayer);
     hostEl.appendChild(app.canvas);
+    app.ticker.maxFPS = 30;
     app.ticker.add(tickActors);
 
     resizeObserver = new ResizeObserver(() => layoutStage(false));
@@ -111,17 +109,22 @@
     return pixiActorSize?.() ?? { width: 170, height: 124 };
   }
 
-  function syncScene() {
+  function syncScene(
+    currentPlayer: BattleCombatant,
+    currentEnemy: BattleCombatant,
+    currentTimeline: ResolvedBattleTimeline | null,
+    playerGender: string
+  ) {
     if (!app || !playerActor || !enemyActor) return;
-    const durationMs = battleTimeline?.durationMs ?? 720;
-    playerActor.setVisual(visualFor("player", battleTimeline, player, enemy, state.stats.gender), durationMs);
-    enemyActor.setVisual(visualFor("enemy", battleTimeline, player, enemy, state.stats.gender), durationMs);
+    const durationMs = currentTimeline?.durationMs ?? 720;
+    playerActor.setVisual(visualFor("player", currentTimeline, currentPlayer, currentEnemy, playerGender), durationMs);
+    enemyActor.setVisual(visualFor("enemy", currentTimeline, currentPlayer, currentEnemy, playerGender), durationMs);
 
-    const timelineId = battleTimeline?.id ?? null;
+    const timelineId = currentTimeline?.id ?? null;
     if (timelineId !== lastTimelineId) {
       lastTimelineId = timelineId;
-      playTimeline(battleTimeline);
-    } else if (!battleTimeline) {
+      playTimeline(currentTimeline);
+    } else if (!currentTimeline) {
       resetActors();
     }
   }

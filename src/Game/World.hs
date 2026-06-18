@@ -23,6 +23,7 @@ data World = World
     _chars :: M.Map CharId Character,
     _effects :: M.Map EffectId Effect,
     _quests :: M.Map T.Text Quest,
+    _combatActionTimings :: M.Map CombatActionId CombatActionTiming,
     _martialArts :: M.Map ArtId MartialArt
   }
   deriving (Eq, Show, Generic)
@@ -57,10 +58,11 @@ loadAllAssets basePath = do
   effectResult <- loadConfigFromDir _effectId $ basePath </> "effects"
   charResult <- loadConfigFromDir _charId $ basePath </> "characters"
   questResult <- loadConfigFromDir _questId $ basePath </> "quests"
+  combatActionTimingResult <- loadConfigFromDir _combatActionTimingId $ basePath </> "combat_actions"
   mapResult <- loadConfigFromDir _mapId $ basePath </> "maps"
 
-  return $ case (itemResult, charResult, mapResult, martialArtResult, effectResult, questResult) of
-    (Right items, Right chars, Right maps, Right martialArts', Right effects, Right quests) ->
+  return $ case (itemResult, charResult, mapResult, martialArtResult, effectResult, questResult, combatActionTimingResult) of
+    (Right items, Right chars, Right maps, Right martialArts', Right effects, Right quests, Right combatActionTimings') ->
       validateWorld
         World
           { _items = items,
@@ -68,6 +70,7 @@ loadAllAssets basePath = do
             _chars = chars,
             _effects = effects,
             _quests = quests,
+            _combatActionTimings = combatActionTimings',
             _martialArts = martialArts'
           }
     _ ->
@@ -78,6 +81,7 @@ loadAllAssets basePath = do
             fromMaybe "" $ leftToMaybe martialArtResult,
             fromMaybe "" $ leftToMaybe effectResult,
             fromMaybe "" $ leftToMaybe questResult,
+            fromMaybe "" $ leftToMaybe combatActionTimingResult,
             fromMaybe "" $ leftToMaybe charResult
           ]
 
@@ -92,6 +96,8 @@ validateWorld wrld =
         <> validateMapExits
         <> concatMap validateItemUse (M.elems $ wrld ^. items)
         <> concatMap validateCharacter (M.elems $ wrld ^. chars)
+        <> concatMap validateCombatActionTiming (M.elems $ wrld ^. combatActionTimings)
+        <> validateBuiltInCombatActions
         <> concatMap validateMartialArt (M.elems $ wrld ^. martialArts)
         <> concatMap validateQuestRefs (M.elems $ wrld ^. quests)
 
@@ -175,6 +181,15 @@ validateWorld wrld =
         <> [ "martial art " <> ownerArtId <> " animation pool " <> poolId <> " action " <> entry ^. animationPoolEntryAction <> " has non-positive weight"
              | entry ^. animationPoolEntryWeight <= 0
            ]
+        <> requireCombatActionTiming ("martial art " <> ownerArtId <> " animation pool " <> poolId) (entry ^. animationPoolEntryAction)
+
+    validateCombatActionTiming timing =
+      [ "combat action " <> timing ^. combatActionTimingId <> " has non-positive lock_ms"
+        | timing ^. combatActionTimingLockMs <= 0
+      ]
+
+    validateBuiltInCombatActions =
+      concatMap (requireCombatActionTiming "built-in combat effect") ["rig.effect.dot", "rig.effect.hot"]
 
     validateFoundationRef martialArt =
       case martialArt ^. artFoundation of
@@ -233,6 +248,16 @@ validateWorld wrld =
              | Just actionId <- [animationRef ^. animationRefAction],
                T.null actionId
            ]
+        <> concat
+          [ requireCombatActionTiming ("martial art " <> martialArt ^. artId <> " " <> label) actionId
+            | Just actionId <- [animationRef ^. animationRefAction]
+          ]
+
+    requireCombatActionTiming label actionId =
+      [ label <> " references missing combat action timing " <> actionId
+        | not (T.null actionId),
+          M.notMember actionId (wrld ^. combatActionTimings)
+      ]
 
     validateLearnArtLevel label artId level =
       case M.lookup artId (wrld ^. martialArts) of

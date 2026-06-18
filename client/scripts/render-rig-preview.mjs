@@ -28,7 +28,7 @@ const options = parseArgs(process.argv.slice(2));
 const vite = await createServer({
   root: clientRoot,
   logLevel: "error",
-  server: { middlewareMode: true, hmr: false },
+  server: { middlewareMode: true, hmr: false, fs: { allow: [repoRoot] } },
   appType: "custom"
 });
 

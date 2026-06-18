@@ -35,7 +35,6 @@
           <strong>{availability.label}</strong>
           <small>
             {translate(state.locale, "resource.qi")} {skill.activeSkillSummaryCost}
-            · {translate(state.locale, "resource.ap")} {skill.activeSkillSummaryApReq}
           </small>
           {#if skill.activeSkillSummaryDamage}
             <em>伤 {skill.activeSkillSummaryDamage}</em>

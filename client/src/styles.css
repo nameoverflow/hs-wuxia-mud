@@ -411,7 +411,10 @@ h3 {
 .micro-meter span {
   display: block;
   height: 100%;
-  transition: width 180ms linear;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  will-change: transform;
 }
 
 .meter-hp .meter-track span,

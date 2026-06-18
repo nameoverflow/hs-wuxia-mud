@@ -23,9 +23,11 @@ main :: IO ()
 main = do
   testItemsLoad
   testEffectsLoad
+  testCombatActionTimingsLoad
   testQuestLoad
   testWorldValidationCatchesBrokenQuestRefs
   testWorldValidationCatchesBrokenRoomExit
+  testWorldValidationCatchesMissingCombatActionTiming
   testRandomSelectEmpty
   testDefaultFoundationArts
   testCharacterCreationChoiceAppliesInitialAttrs
@@ -41,8 +43,11 @@ main = do
   testDefeatDoesNotKillNpc
   testBattleSettlementMarksPlayerDirty
   testActiveSkillFailureIsSpecific
-  testActiveSkillConsumesApAndSendsSnapshot
+  testActiveSkillIgnoresApAndSendsSnapshot
+  testActiveSkillQueuesDuringActionLock
   testNormalAttackUsesCombatPipeline
+  testBattleActionTickDoesNotSyncApOnly
+  testBattleActionLockBlocksApGrowth
   testDotEffectTicks
   testTrainRaisesFoundationAndUnlocksActiveSkills
   testProgressionActions
@@ -142,6 +147,13 @@ testEffectsLoad = do
   gs <- loadFreshState
   assert (M.size (gs ^. world . effects) == 5) "effect definitions were not loaded"
 
+testCombatActionTimingsLoad :: IO ()
+testCombatActionTimingsLoad = do
+  gs <- loadFreshState
+  case M.lookup "rig.fist.heavy_a" (gs ^. world . combatActionTimings) of
+    Just timing -> assert ((timing ^. combatActionTimingLockMs) == 820) "rig action duration was not loaded from the shared manifest"
+    Nothing -> fail "rig.fist.heavy_a combat action timing was not loaded"
+
 testItemsLoad :: IO ()
 testItemsLoad = do
   gs <- loadFreshState
@@ -179,6 +191,18 @@ testWorldValidationCatchesBrokenRoomExit = do
     Left err ->
       assert ("missing_map" `T.isInfixOf` err) "world validation error did not identify the missing exit map"
     Right _ -> fail "world validation accepted an exit to a missing room"
+
+testWorldValidationCatchesMissingCombatActionTiming :: IO ()
+testWorldValidationCatchesMissingCombatActionTiming = do
+  gs <- loadFreshState
+  let broken =
+        gs
+          ^. world
+          & combatActionTimings . at "rig.fist.heavy_a" .~ Nothing
+  case validateWorld broken of
+    Left err ->
+      assert ("rig.fist.heavy_a" `T.isInfixOf` err) "world validation error did not identify the missing combat action timing"
+    Right _ -> fail "world validation accepted a martial art action without combat timing"
 
 testRandomSelectEmpty :: IO ()
 testRandomSelectEmpty = do
@@ -430,21 +454,24 @@ testActiveSkillFailureIsSpecific :: IO ()
 testActiveSkillFailureIsSpecific = do
   gs <- enableStarterFistForTester <$> newTestPlayerState
   (_, inBattle) <- startTrainingBattle gs
-  (responses, _) <- runOk "perform active skill without AP" inBattle (playerPerformActiveSkill "tester" "power_strike")
+  let drained =
+        inBattle
+          & battles . ix "tester" . battleState . battleQi .~ 0
+  (responses, _) <- runOk "perform active skill without qi" drained (playerPerformActiveSkill "tester" "power_strike")
   assert
-    (any (\(_, resp) -> resp == ActiveSkillFailureMsg (ActiveSkillNeedAp 60 0)) responses)
-    "active skill failure did not report the specific AP requirement"
+    (any (\(_, resp) -> resp == ActiveSkillFailureMsg (ActiveSkillNeedQi 30 0)) responses)
+    "active skill failure did not report the specific Qi requirement"
 
-testActiveSkillConsumesApAndSendsSnapshot :: IO ()
-testActiveSkillConsumesApAndSendsSnapshot = do
+testActiveSkillIgnoresApAndSendsSnapshot :: IO ()
+testActiveSkillIgnoresApAndSendsSnapshot = do
   gs <- enableStarterFistForTester <$> newTestPlayerState
   (_, inBattle) <- startTrainingBattle gs
   let ready =
         inBattle
-          & battles . ix "tester" . battleState . battleAp .~ 60
+          & battles . ix "tester" . battleState . battleAp .~ 0
   (responses, afterSkill) <- runOk "perform power strike" ready (playerPerformActiveSkill "tester" "power_strike")
   battle <- getBattle afterSkill
-  assert ((battle ^. battleState . battleAp) == 0) "active skill did not consume AP"
+  assert ((battle ^. battleState . battleAp) == 0) "active skill changed AP"
   assert ((battle ^. battleState . battleQi) == 70) "active skill did not consume Qi"
   assert ((battle ^. battleEnemyState . battleChar . charHP) == 77) "active skill did not apply derived damage"
   assert (any isActiveSkillEvent responses) "active skill success did not emit a combat event"
@@ -456,10 +483,46 @@ testActiveSkillConsumesApAndSendsSnapshot = do
         && combatEventTargetName event == "沉默木人"
         && combatEventDamage event == Just 37
         && combatEventVisual event ^. combatVisualActionId == "rig.fist.heavy_a"
+        && combatEventVisual event ^. combatVisualDurationMs == Just 820
     isActiveSkillEvent _ = False
 
     isBattleStateMsg (BattleStateMsg _) = True
     isBattleStateMsg _ = False
+
+testActiveSkillQueuesDuringActionLock :: IO ()
+testActiveSkillQueuesDuringActionLock = do
+  gs <- enableStarterFistForTester <$> newTestPlayerState
+  (_, inBattle) <- startTrainingBattle gs
+  let locked =
+        inBattle
+          & battles . ix "tester" . battleState . battleAp .~ 0
+          & battles . ix "tester" . battleActionLockRemaining .~ 0.5
+  (queueResponses, queued) <- runOk "queue skill while action lock is active" locked (playerPerformActiveSkill "tester" "power_strike")
+  queuedBattle <- getBattle queued
+  assert (not $ any (isCombatEvent . snd) queueResponses) "queued active skill executed before action lock expired"
+  assert (queuedBattle ^. battlePendingActiveSkill /= Nothing) "active skill was not queued during action lock"
+  assert ((queuedBattle ^. battleState . battleQi) == 100) "queued active skill consumed Qi before execution"
+
+  (blockedResponses, stillQueued) <- runOk "tick before queued skill can fire" queued (onBattleTick 0.25)
+  stillQueuedBattle <- getBattle stillQueued
+  assert (null blockedResponses) "locked queued skill tick emitted responses too early"
+  assert (stillQueuedBattle ^. battlePendingActiveSkill /= Nothing) "queued active skill fired before lock expired"
+
+  (skillResponses, afterSkill) <- runOk "release queued active skill" stillQueued (onBattleTick 0.5)
+  battle <- getBattle afterSkill
+  assert (any isActiveSkillEvent skillResponses) "queued active skill did not emit a combat event"
+  assert (battle ^. battlePendingActiveSkill == Nothing) "queued active skill was not cleared"
+  assert ((battle ^. battleState . battleAp) == 0) "queued active skill changed AP"
+  assert ((battle ^. battleState . battleQi) == 70) "queued active skill did not consume Qi on execution"
+  assert ((battle ^. battleEnemyState . battleChar . charHP) == 77) "queued active skill did not apply damage"
+  assert ((battle ^. battleActionLockRemaining) > 0) "queued active skill did not set an action lock"
+  where
+    isCombatEvent (CombatEventMsg _) = True
+    isCombatEvent _ = False
+
+    isActiveSkillEvent (_, CombatEventMsg event) =
+      combatEventKind event == CombatEventActiveSkill
+    isActiveSkillEvent _ = False
 
 testNormalAttackUsesCombatPipeline :: IO ()
 testNormalAttackUsesCombatPipeline = do
@@ -487,6 +550,49 @@ testNormalAttackUsesCombatPipeline = do
       assert (damage `elem` expectedDamages) "normal attack damage did not use derived strength and mitigation"
       battle <- getBattle afterTick
       assert ((battle ^. battleEnemyState . battleChar . charHP) == 114 - damage) "normal attack damage was not applied to the enemy"
+
+testBattleActionTickDoesNotSyncApOnly :: IO ()
+testBattleActionTickDoesNotSyncApOnly = do
+  gs <- newTestPlayerState
+  (_, inBattle) <- startTrainingBattle gs
+  (responses, afterTick) <- runOk "fast battle ap-only tick" inBattle (onBattleTick 0.05)
+  battle <- getBattle afterTick
+  assert (null responses) "AP-only battle tick should not send responses"
+  assert ((battle ^. battleState . battleAp) > 0) "fast battle tick did not accumulate player AP"
+  assert ((battle ^. battleEnemyState . battleAp) > 0) "fast battle tick did not accumulate enemy AP"
+
+testBattleActionLockBlocksApGrowth :: IO ()
+testBattleActionLockBlocksApGrowth = do
+  gs <- newTestPlayerState
+  (_, inBattle) <- startTrainingBattle gs
+  let ready =
+        inBattle
+          & battles . ix "tester" . battleState . battleAp .~ 100
+          & battles . ix "tester" . battleEnemyState . battleAp .~ 20
+  (actionResponses, locked) <- runOk "trigger normal attack lock" ready (onBattleTick 0)
+  assert (any (isCombatEvent . snd) actionResponses) "ready combatant did not emit an action"
+  lockedBattle <- getBattle locked
+  let playerApAfterAction = lockedBattle ^. battleState . battleAp
+      enemyApAfterAction = lockedBattle ^. battleEnemyState . battleAp
+      lockRemaining = lockedBattle ^. battleActionLockRemaining
+  assert (lockRemaining > 0) "normal attack did not set an action lock"
+
+  (blockedResponses, blocked) <- runOk "tick during action lock" locked (onBattleTick 0.05)
+  blockedBattle <- getBattle blocked
+  assert (null blockedResponses) "action-locked tick should not emit responses"
+  assert ((blockedBattle ^. battleState . battleAp) == playerApAfterAction) "player AP grew during action lock"
+  assert ((blockedBattle ^. battleEnemyState . battleAp) == enemyApAfterAction) "enemy AP grew during action lock"
+  assert ((blockedBattle ^. battleActionLockRemaining) < lockRemaining) "action lock did not tick down"
+
+  (_, resumed) <- runOk "tick after action lock" blocked (onBattleTick 1)
+  resumedBattle <- getBattle resumed
+  assert ((resumedBattle ^. battleActionLockRemaining) == 0) "action lock did not expire"
+  assert
+    ((resumedBattle ^. battleState . battleAp) > playerApAfterAction || (resumedBattle ^. battleEnemyState . battleAp) > enemyApAfterAction)
+    "AP did not resume after action lock expired"
+  where
+    isCombatEvent (CombatEventMsg _) = True
+    isCombatEvent _ = False
 
 expectedNormalAttackDamages :: GameState -> IO [Int]
 expectedNormalAttackDamages gs = do

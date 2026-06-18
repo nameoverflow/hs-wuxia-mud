@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { onMount } from "svelte";
+  import { preloadPixiBattleRuntime } from "./battle/pixiBattleRuntime";
   import CharacterPanel from "./components/CharacterPanel.svelte";
   import CombatScene from "./components/CombatScene.svelte";
   import LoginPanel from "./components/LoginPanel.svelte";
@@ -8,6 +10,13 @@
   import RoomScene from "./components/RoomScene.svelte";
   import { game, setLocale } from "./game";
   import { translate } from "./i18n";
+
+  onMount(() => {
+    const load = () => preloadPixiBattleRuntime();
+    const idle = window as Window & { requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number };
+    if (idle.requestIdleCallback) idle.requestIdleCallback(load, { timeout: 1500 });
+    else window.setTimeout(load, 300);
+  });
 </script>
 
 <svelte:head>

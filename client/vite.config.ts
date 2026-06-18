@@ -6,7 +6,7 @@ import { fileURLToPath, URL } from "node:url";
 import { defineConfig, type Plugin } from "vite";
 
 const segmentedPosePath = fileURLToPath(new URL("./src/battle/skeletal/data/segmented-v12-poses.json", import.meta.url));
-const rigActionPath = fileURLToPath(new URL("./src/battle/skeletal/data/rig-actions.json", import.meta.url));
+const rigActionPath = fileURLToPath(new URL("../resources/scripts/combat_actions/rig-actions.json", import.meta.url));
 const martialArtsPath = fileURLToPath(new URL("../resources/scripts/martial_arts", import.meta.url));
 
 export default defineConfig({
@@ -22,7 +22,10 @@ export default defineConfig({
   server: {
     host: "127.0.0.1",
     port: 8080,
-    strictPort: false
+    strictPort: false,
+    fs: {
+      allow: [fileURLToPath(new URL("..", import.meta.url))]
+    }
   },
   preview: {
     host: "127.0.0.1",

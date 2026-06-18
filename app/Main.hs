@@ -43,6 +43,9 @@ main = do
   -- Run the game tick in a separate thread
   _ <- forkIO $ gameTickLoop conns gameStateMVar
 
+  logInfo "Starting battle tick..."
+  _ <- forkIO $ battleTickLoop conns gameStateMVar
+
   logInfo "Starting WebSocket server on 127.0.0.1:9160..."
   -- Initialize and run the WebSocket server
   runServer "127.0.0.1" 9160 $ serverApplication conns gameStateMVar

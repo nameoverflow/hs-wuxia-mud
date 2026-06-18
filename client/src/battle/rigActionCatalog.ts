@@ -1,4 +1,4 @@
-import rigActionData from "./skeletal/data/rig-actions.json";
+import rigActionData from "../../../resources/scripts/combat_actions/rig-actions.json";
 import type { AnimationRigEntry } from "./skeletal/types";
 import type {
   ActorVisual,

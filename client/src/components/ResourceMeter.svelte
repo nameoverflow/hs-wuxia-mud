@@ -1,5 +1,6 @@
 <script lang="ts">
   import { percent } from "../game";
+  import { meterTween } from "./meterTween";
 
   export let label: string;
   export let value: number;
@@ -13,6 +14,6 @@
     <strong>{value}/{max}</strong>
   </div>
   <div class="meter-track" aria-label={label}>
-    <span style={`width: ${percent(value, max)}%`}></span>
+    <span use:meterTween={{ value: percent(value, max) / 100 }}></span>
   </div>
 </div>

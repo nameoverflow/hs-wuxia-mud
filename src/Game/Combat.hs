@@ -11,7 +11,6 @@ module Game.Combat where
 
 import Control.Exception (Exception)
 import Control.Lens
-import Control.Monad (forM_, when)
 import Control.Monad.Error.Class
 import Control.Monad.Except
 import Control.Monad.Identity (Identity, runIdentity)
@@ -28,7 +27,7 @@ import qualified Data.Text as T
 import GHC.Generics (Generic)
 import Game.Entity
 import Game.Message
-import Game.World (World, effects, martialArts)
+import Game.World (World, combatActionTimings, effects, martialArts)
 import Utils
 import Relude (ToText (..), whenNothing)
 
@@ -49,6 +48,7 @@ apGainRate = fromIntegral maxAp / (targetCombatantActionSeconds * baselineAgilit
 data BattleState = BattleState
   { _battleActiveSkillCooldowns :: M.Map ActiveSkillId Double,
     _battleAp :: Int,
+    _battleApProgress :: Double,
     _battleQi :: Int,
     _battleCombatExp :: Int,
     _battleChar :: Character,
@@ -59,7 +59,15 @@ data BattleState = BattleState
 data Battle = Battle
   { _battleOwner :: PlayerId,
     _battleState :: !BattleState,
-    _battleEnemyState :: !BattleState
+    _battleEnemyState :: !BattleState,
+    _battleActionLockRemaining :: !Double,
+    _battlePendingActiveSkill :: Maybe PendingActiveSkill
+  }
+  deriving (Show, Eq, Generic)
+
+data PendingActiveSkill = PendingActiveSkill
+  { _pendingActiveSkillMartialArt :: MartialArt,
+    _pendingActiveSkillSkill :: ActiveSkill
   }
   deriving (Show, Eq, Generic)
 
@@ -72,6 +80,8 @@ data PreparedAttack = PreparedAttack
 
 makeLenses ''Battle
 
+makeLenses ''PendingActiveSkill
+
 makeLenses ''BattleState
 
 newBattle :: Player -> Character -> Battle
@@ -79,13 +89,16 @@ newBattle player npc =
   Battle
     { _battleOwner = _playerId player,
       _battleState = newBattleState (player ^. playerCharacter) (player ^. playerCombatExp),
-      _battleEnemyState = newBattleState npc 0
+      _battleEnemyState = newBattleState npc 0,
+      _battleActionLockRemaining = 0,
+      _battlePendingActiveSkill = Nothing
     }
   where
     newBattleState char combatExp =
       BattleState
         { _battleActiveSkillCooldowns = M.empty,
           _battleAp = 0,
+          _battleApProgress = 0,
           _battleQi = _charQi char,
           _battleCombatExp = combatExp,
           _battleChar = char,
@@ -121,6 +134,14 @@ runCombat rand fCatch world battle combat = do
 -- | Run a combat action, return if the battle is over
 flushBattleTick :: Double -> Combat Bool
 flushBattleTick dt = do
+  battleOver <- flushBattleMaintenanceTick dt
+  if battleOver
+    then return True
+    else flushBattleActionTick dt
+
+-- | Run slow resource/effect maintenance without advancing combat AP.
+flushBattleMaintenanceTick :: Double -> Combat Bool
+flushBattleMaintenanceTick dt = do
   -- Update active skill cooldowns
   battleState . battleActiveSkillCooldowns %= M.filter (> 0.0) . M.map (subtract dt)
   battleEnemyState . battleActiveSkillCooldowns %= M.filter (> 0.0) . M.map (subtract dt)
@@ -147,19 +168,60 @@ flushBattleTick dt = do
       battleState . battleQi %= min (playerStats ^. dsMaxQi)
       battleEnemyState . battleQi %= min (enemyStats ^. dsMaxQi)
 
-      -- Accumulate action points
-      battleState . battleAp += apGain dt playerStats
-      battleEnemyState . battleAp += apGain dt enemyStats
+      return False
 
-      -- Check whether to attack the enemy
-      checkApAndAttack battleState battleEnemyState
-      enemyHp <- use $ battleEnemyState . battleChar . charHP
-      if enemyHp <= 0
-        then return True
-        else do
-          checkApAndAttack battleEnemyState battleState
-          playerHp <- use $ battleState . battleChar . charHP
-          return $ playerHp <= 0
+-- | Run fast AP/action advancement. At most one automatic action is emitted per tick.
+flushBattleActionTick :: Double -> Combat Bool
+flushBattleActionTick dt = do
+  lockBefore <- use battleActionLockRemaining
+  actionDt <- consumeBattleActionLock dt
+  playerHpBefore <- use $ battleState . battleChar . charHP
+  enemyHpBefore <- use $ battleEnemyState . battleChar . charHP
+  if playerHpBefore <= 0 || enemyHpBefore <= 0
+    then return True
+    else if lockBefore > 0 && dt < lockBefore
+      then return False
+      else do
+        pendingSkill <- use battlePendingActiveSkill
+        case pendingSkill of
+          Just pending -> do
+            battlePendingActiveSkill .= Nothing
+            useActiveSkill (pending ^. pendingActiveSkillMartialArt) (pending ^. pendingActiveSkillSkill) battleState battleEnemyState
+            enemyHp <- use $ battleEnemyState . battleChar . charHP
+            playerHp <- use $ battleState . battleChar . charHP
+            return $ enemyHp <= 0 || playerHp <= 0
+          Nothing -> do
+            playerStats <- battleDerivedStats battleState
+            enemyStats <- battleDerivedStats battleEnemyState
+
+            -- Accumulate action points with fractional progress so high-frequency ticks
+            -- preserve the same combat pace as the old second-based tick.
+            accumulateAp actionDt playerStats battleState
+            accumulateAp actionDt enemyStats battleEnemyState
+
+            -- Check whether to attack the enemy
+            playerActed <- checkApAndAttack battleState battleEnemyState
+            enemyHp <- use $ battleEnemyState . battleChar . charHP
+            if enemyHp <= 0
+              then return True
+              else do
+                if playerActed
+                  then return ()
+                  else do
+                    _ <- checkApAndAttack battleEnemyState battleState
+                    return ()
+                playerHp <- use $ battleState . battleChar . charHP
+                return $ playerHp <= 0
+
+consumeBattleActionLock :: Double -> Combat Double
+consumeBattleActionLock dt = do
+  lockRemaining <- use battleActionLockRemaining
+  if lockRemaining <= 0
+    then return dt
+    else do
+      let nextLock = lockRemaining - dt
+      battleActionLockRemaining .= max 0 nextLock
+      return $ max 0 (negate nextLock)
 
 applyActiveEffects :: Double -> Lens' Battle BattleState -> Combat ()
 applyActiveEffects dt state = do
@@ -174,6 +236,7 @@ applyActiveEffects dt state = do
         | amount > 0 ->
             case effect ^. effectType of
               DoT -> do
+                visual <- effectTickVisual "dot"
                 state . battleChar . charHP -= amount
                 tell
                   [
@@ -186,10 +249,11 @@ applyActiveEffects dt state = do
                         (Just amount)
                         Nothing
                         CombatHit
-                        (effectTickVisual "dot")
+                        visual
                     )
                   ]
               HoT -> do
+                visual <- effectTickVisual "hot"
                 maxHp <- (^. dsMaxHp) <$> battleDerivedStats state
                 state . battleChar . charHP %= min maxHp . (+ amount)
                 tell
@@ -203,7 +267,7 @@ applyActiveEffects dt state = do
                         Nothing
                         (Just amount)
                         CombatEffect
-                        (effectTickVisual "hot")
+                        visual
                     )
                   ]
               Buff -> return ()
@@ -222,16 +286,33 @@ battleDerivedStats state = do
   effectDefs <- view effects
   pure $ deriveCharacterStats char combatExp (characterDerivedStatSources effectDefs activeEffects char)
 
-checkApAndAttack :: Lens' Battle BattleState -> Lens' Battle BattleState -> Combat ()
+checkApAndAttack :: Lens' Battle BattleState -> Lens' Battle BattleState -> Combat Bool
 checkApAndAttack left right = do
-  leftAp <- use $ left . battleAp
-  when (leftAp >= maxAp) $ do
-    left . battleAp .= 0
-    left `battleAttack` right
+  leftAp <- currentApProgress left
+  if leftAp >= fromIntegral maxAp
+    then do
+      left . battleAp .= 0
+      left . battleApProgress .= 0
+      left `battleAttack` right
+      return True
+    else return False
 
-apGain :: Double -> DerivedStats -> Int
+currentApProgress :: Lens' Battle BattleState -> Combat Double
+currentApProgress state = do
+  visibleAp <- use $ state . battleAp
+  progress <- use $ state . battleApProgress
+  return $ max progress (fromIntegral visibleAp)
+
+accumulateAp :: Double -> DerivedStats -> Lens' Battle BattleState -> Combat ()
+accumulateAp dt stats state = do
+  current <- currentApProgress state
+  let nextAp = min (fromIntegral maxAp) (current + apGain dt stats)
+  state . battleApProgress .= nextAp
+  state . battleAp .= floor nextAp
+
+apGain :: Double -> DerivedStats -> Double
 apGain dt stats =
-  round $ dt * fromIntegral (stats ^. dsAgility) * apGainRate
+  dt * fromIntegral (stats ^. dsAgility) * apGainRate
 
 combatEventResp :: CombatEventKind -> Text -> Text -> CombatMessage -> Maybe Int -> Maybe Int -> CombatResult -> CombatVisualHint -> ActionResp
 combatEventResp kind actorName targetName message damage heal result visual =
@@ -247,22 +328,41 @@ combatEventResp kind actorName targetName message damage heal result visual =
         combatEventVisual = visual
       }
 
-effectTickVisual :: Text -> CombatVisualHint
+lockBattleForVisual :: CombatVisualHint -> Combat ()
+lockBattleForVisual visual = do
+  durationMs <- combatVisualLockDurationMs visual
+  battleActionLockRemaining %= max (fromIntegral durationMs / 1000)
+
+combatVisualLockDurationMs :: CombatVisualHint -> Combat Int
+combatVisualLockDurationMs visual =
+  case visual ^. combatVisualDurationMs of
+    Just durationMs -> pure durationMs
+    Nothing -> combatActionDurationMs $ visual ^. combatVisualActionId
+
+combatActionDurationMs :: Text -> Combat Int
+combatActionDurationMs actionId = do
+  timingMap <- view combatActionTimings
+  pure $ maybe 720 (view combatActionTimingLockMs) (M.lookup actionId timingMap)
+
+combatVisualHint :: Text -> [Text] -> Combat CombatVisualHint
+combatVisualHint actionId tags = do
+  durationMs <- combatActionDurationMs actionId
+  pure
+    CombatVisualHint
+      { _combatVisualActionId = actionId,
+        _combatVisualTags = tags,
+        _combatVisualDurationMs = Just durationMs
+      }
+
+effectTickVisual :: Text -> Combat CombatVisualHint
 effectTickVisual effectKind =
-  CombatVisualHint
-    { _combatVisualActionId = "rig.effect." <> effectKind,
-      _combatVisualTags = ["effect", effectKind]
-    }
+  combatVisualHint ("rig.effect." <> effectKind) ["effect", effectKind]
 
 resolveAnimationRef :: MartialArt -> AnimationRef -> Combat CombatVisualHint
 resolveAnimationRef martialArt animationRef =
   case animationRef ^. animationRefAction of
     Just actionId ->
-      pure $
-        CombatVisualHint
-          { _combatVisualActionId = actionId,
-            _combatVisualTags = animationRef ^. animationRefTags
-          }
+      combatVisualHint actionId (animationRef ^. animationRefTags)
     Nothing ->
       case animationRef ^. animationRefPool of
         Nothing -> throwError $ CombatException "animation must define action or pool"
@@ -271,11 +371,9 @@ resolveAnimationRef martialArt animationRef =
             Nothing -> throwError $ CombatException $ "missing animation pool " <> poolId <> " in martial art " <> martialArt ^. artId
             Just pool -> do
               entry <- selectAnimationPoolEntry (animationRef ^. animationRefTags) pool
-              pure $
-                CombatVisualHint
-                  { _combatVisualActionId = entry ^. animationPoolEntryAction,
-                    _combatVisualTags = animationRef ^. animationRefTags <> entry ^. animationPoolEntryTags
-                  }
+              combatVisualHint
+                (entry ^. animationPoolEntryAction)
+                (animationRef ^. animationRefTags <> entry ^. animationPoolEntryTags)
 
 selectAnimationPoolEntry :: [Text] -> AnimationPool -> Combat AnimationPoolEntry
 selectAnimationPoolEntry requestedTags pool = do
@@ -342,39 +440,44 @@ runAttackPipeline left right preparedAttack attacker defender = do
   defenderName <- use $ right . battleChar . charName
   if not hit
     then
-      tell
-        [ ( uid,
-            combatEventResp
-              CombatEventNormal
-              attackerName
-              defenderName
-              (CombatScriptText $ moveText <> "，却被侧身闪避")
-              (Just 0)
-              Nothing
-              CombatDodge
-              visual
-          )
-        ]
+      do
+        lockBattleForVisual visual
+        tell
+          [ ( uid,
+              combatEventResp
+                CombatEventNormal
+                attackerName
+                defenderName
+                (CombatScriptText $ moveText <> "，却被侧身闪避")
+                (Just 0)
+                Nothing
+                CombatDodge
+                visual
+            )
+          ]
     else do
       parryFailed <- contest attackScore parryScore
       if not parryFailed
         then
-          tell
-            [ ( uid,
-                combatEventResp
-                  CombatEventNormal
-                  attackerName
-                  defenderName
-                  (CombatScriptText $ moveText <> "，被抬手格开")
-                  (Just 0)
-                  Nothing
-                  CombatParry
-                  visual
-              )
-            ]
+          do
+            lockBattleForVisual visual
+            tell
+              [ ( uid,
+                  combatEventResp
+                    CombatEventNormal
+                    attackerName
+                    defenderName
+                    (CombatScriptText $ moveText <> "，被抬手格开")
+                    (Just 0)
+                    Nothing
+                    CombatParry
+                    visual
+                )
+              ]
         else do
           let damage = applyCombatHooks attacker defender preparedAttack $ computeDamage attackerStats defenderStats preparedAttack
           right . battleChar . charHP -= damage
+          lockBattleForVisual visual
           tell
             [ ( uid,
                 combatEventResp
@@ -444,17 +547,15 @@ applyCombatHooks _ _ _ =
 
 canUseActiveSkill :: ActiveSkill -> Lens' Battle BattleState -> Combat Bool
 canUseActiveSkill activeSkill state = do
-  apValue <- use $ state . battleAp
   qi <- use $ state . battleQi
   cds <- use $ state . battleActiveSkillCooldowns
   effects <- use $ state . battleEffects
 
-  let hasEnoughAp = apValue >= activeSkill ^. activeSkillApReq
-      hasEnoughQi = qi >= activeSkill ^. activeSkillCost
+  let hasEnoughQi = qi >= activeSkill ^. activeSkillCost
       isOffCooldown = not $ M.member (activeSkill ^. activeSkillId) cds
       hasRequiredEffects = all (`M.member` effects) (activeSkill ^. activeSkillReqStatus)
 
-  return $ hasEnoughAp && hasEnoughQi && isOffCooldown && hasRequiredEffects
+  return $ hasEnoughQi && isOffCooldown && hasRequiredEffects
 
 useActiveSkill :: MartialArt -> ActiveSkill -> Lens' Battle BattleState -> Lens' Battle BattleState -> Combat ()
 useActiveSkill martialArt activeSkill caster target = do
@@ -466,9 +567,6 @@ useActiveSkill martialArt activeSkill caster target = do
     case activeSkill ^. activeSkillTarget of
       Self -> activeSkillHealAmount activeSkill caster caster
       _ -> activeSkillHealAmount activeSkill caster target
-
-  -- Consume AP
-  caster . battleAp %= max 0 . subtract (activeSkill ^. activeSkillApReq)
 
   -- Consume Qi
   caster . battleQi -= activeSkill ^. activeSkillCost
@@ -489,6 +587,7 @@ useActiveSkill martialArt activeSkill caster target = do
       Self -> use $ caster . battleChar . charName
       _ -> use $ target . battleChar . charName
   visual <- resolveAnimationRef martialArt (activeSkill ^. activeSkillAnimation)
+  lockBattleForVisual visual
   tell
     [ ( uid,
         combatEventResp

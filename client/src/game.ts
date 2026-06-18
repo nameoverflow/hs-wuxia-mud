@@ -69,6 +69,8 @@ export interface BattleState {
   cooldowns: Record<string, number>;
   activeSkills: ActiveSkillSummary[];
   animation: BattleAnimationState;
+  apSyncedAt: number;
+  actionLockUntil: number;
 }
 
 export interface BattleAnimationState {
@@ -130,7 +132,9 @@ const initialState: GameState = {
     enemy: null,
     cooldowns: {},
     activeSkills: [],
-    animation: { activeTimeline: null, queueDepth: 0 }
+    animation: { activeTimeline: null, queueDepth: 0 },
+    apSyncedAt: 0,
+    actionLockUntil: 0
   },
   messages: [{ id: 1, time: now(), type: "system", text: translate("zh", "message.initial") }],
   lastError: null
@@ -320,7 +324,7 @@ export function connect(username: string, options: { reset?: boolean; creation?:
       ...state,
       connected: false,
       connecting: false,
-      battle: { ...state.battle, active: false, animation: { activeTimeline: null, queueDepth: 0 } }
+      battle: { ...state.battle, active: false, animation: { activeTimeline: null, queueDepth: 0 }, actionLockUntil: 0 }
     }));
     addMessage("system", withLocale((locale) => t(locale, "connection.closed")));
     ws = null;
@@ -507,7 +511,9 @@ function handleCombatSettlement([, enemy, won]: [string, string, boolean]) {
           enemy: null,
           activeSkills: [],
           cooldowns: {},
-          animation: { activeTimeline: null, queueDepth: 0 }
+          animation: { activeTimeline: null, queueDepth: 0 },
+          apSyncedAt: 0,
+          actionLockUntil: 0
         }
       }));
       sendAction({ other: "view" });
@@ -531,26 +537,34 @@ function handleBattleState(snapshot: BattleSnapshot) {
     ])
   );
 
-  game.update((state) => ({
-    ...state,
-    stats: {
-      ...state.stats,
-      hp: snapshot.battleSnapshotPlayer.combatantSnapshotHp,
-      maxHp: snapshot.battleSnapshotPlayer.combatantSnapshotMaxHp,
-      qi: snapshot.battleSnapshotPlayer.combatantSnapshotQi,
-      maxQi: snapshot.battleSnapshotPlayer.combatantSnapshotMaxQi,
-      ap: snapshot.battleSnapshotPlayer.combatantSnapshotAp
-    },
-    effects: snapshot.battleSnapshotPlayer.combatantSnapshotEffects || [],
-    battle: {
-      active: true,
-      player: snapshot.battleSnapshotPlayer,
-      enemy: snapshot.battleSnapshotEnemy,
-      cooldowns,
-      activeSkills: snapshot.battleSnapshotActiveSkills || [],
-      animation: state.battle.animation
-    }
-  }));
+  game.update((state) => {
+    const syncedAt = performance.now();
+    const serverLockUntil = syncedAt + Math.max(0, snapshot.battleSnapshotActionLockRemaining || 0) * 1000;
+    const existingLockUntil = state.battle.actionLockUntil > syncedAt ? state.battle.actionLockUntil : 0;
+    const actionLockUntil = Math.max(serverLockUntil, existingLockUntil);
+    return {
+      ...state,
+      stats: {
+        ...state.stats,
+        hp: snapshot.battleSnapshotPlayer.combatantSnapshotHp,
+        maxHp: snapshot.battleSnapshotPlayer.combatantSnapshotMaxHp,
+        qi: snapshot.battleSnapshotPlayer.combatantSnapshotQi,
+        maxQi: snapshot.battleSnapshotPlayer.combatantSnapshotMaxQi,
+        ap: snapshot.battleSnapshotPlayer.combatantSnapshotAp
+      },
+      effects: snapshot.battleSnapshotPlayer.combatantSnapshotEffects || [],
+      battle: {
+        active: true,
+        player: snapshot.battleSnapshotPlayer,
+        enemy: snapshot.battleSnapshotEnemy,
+        cooldowns,
+        activeSkills: snapshot.battleSnapshotActiveSkills || [],
+        animation: state.battle.animation,
+        apSyncedAt: Math.max(syncedAt, actionLockUntil),
+        actionLockUntil
+      }
+    };
+  });
 }
 
 function handlePlayerStats(payload: PlayerStatsPayload) {
@@ -624,6 +638,7 @@ function playNextBattleTimeline() {
     battle: {
       ...state.battle,
       active: true,
+      actionLockUntil: Math.max(state.battle.actionLockUntil, performance.now() + next.timeline.durationMs),
       animation: {
         activeTimeline: next.timeline,
         queueDepth: battleTimelineQueue.length + 1
@@ -896,7 +911,6 @@ export function skillAvailability(state: GameState, skill: ActiveSkillSummary) {
     return { ready: false, reason: "requires", label: translate(state.locale, "active_skill.requires", { value: labels.join(", ") }) };
   }
   if (state.stats.qi < skill.activeSkillSummaryCost) return { ready: false, reason: "qi", label: translate(state.locale, "active_skill.need_qi") };
-  if (state.stats.ap < skill.activeSkillSummaryApReq) return { ready: false, reason: "ap", label: translate(state.locale, "active_skill.need_ap") };
   return { ready: true, reason: "ready", label: translate(state.locale, "active_skill.ready") };
 }
 

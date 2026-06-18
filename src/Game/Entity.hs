@@ -158,6 +158,30 @@ makeLenses ''ActiveEffect
 
 type ActiveSkillId = Text
 
+type CombatActionId = Text
+
+data CombatActionTiming = CombatActionTiming
+  { _combatActionTimingId :: CombatActionId,
+    _combatActionTimingLockMs :: Int
+  }
+  deriving (Generic, Show, Eq)
+
+makeLenses ''CombatActionTiming
+
+instance FromJSON CombatActionTiming where
+  parseJSON = withObject "CombatActionTiming" $ \o -> do
+    _combatActionTimingId <- o .: "id"
+    configuredLockMs <- o .:? "lock_ms"
+    configuredDurationMs <- o .:? "duration_ms"
+    configuredCamelDurationMs <- o .:? "durationMs"
+    _combatActionTimingLockMs <-
+      case configuredLockMs <|> configuredDurationMs <|> configuredCamelDurationMs of
+        Just lockMs -> pure lockMs
+        Nothing -> fail "CombatActionTiming requires lock_ms or durationMs"
+    pure CombatActionTiming {..}
+
+instance Configurable CombatActionTiming
+
 data ActiveSkillTarget = Single | All | Self
   deriving (Generic, Show, Eq)
 
@@ -184,7 +208,8 @@ data AnimationRef = AnimationRef
 
 data CombatVisualHint = CombatVisualHint
   { _combatVisualActionId :: Text,
-    _combatVisualTags :: [Text]
+    _combatVisualTags :: [Text],
+    _combatVisualDurationMs :: Maybe Int
   }
   deriving (Generic, Show, Eq)
 
@@ -222,13 +247,15 @@ instance FromJSON CombatVisualHint where
   parseJSON = withObject "CombatVisualHint" $ \o -> do
     _combatVisualActionId <- o .: "actionId"
     _combatVisualTags <- o .:? "tags" .!= []
+    _combatVisualDurationMs <- o .:? "durationMs"
     pure CombatVisualHint {..}
 
 instance ToJSON CombatVisualHint where
   toJSON CombatVisualHint {..} =
     object
       [ "actionId" .= _combatVisualActionId,
-        "tags" .= _combatVisualTags
+        "tags" .= _combatVisualTags,
+        "durationMs" .= _combatVisualDurationMs
       ]
 
 data ActiveSkill = ActiveSkill

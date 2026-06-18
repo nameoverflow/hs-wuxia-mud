@@ -1,23 +1,26 @@
 <script lang="ts">
-  import { onDestroy, tick } from "svelte";
-  import { percent, type BattleSide, type GameState } from "../game";
+  import { tick } from "svelte";
+  import { percent, type GameState } from "../game";
   import { translate } from "../i18n";
   import ActiveSkillPanel from "./ActiveSkillPanel.svelte";
   import PixiBattleStage from "./PixiBattleStage.svelte";
+  import { apMeterTween, meterTween } from "./meterTween";
 
   export let state: GameState;
 
   let panelEl: HTMLElement;
   let wasActive = false;
-  let displayedPlayerAp = 0;
-  let displayedEnemyAp = 0;
-  let playerApFrame = 0;
-  let enemyApFrame = 0;
 
   $: player = state.battle.player;
   $: enemy = state.battle.enemy;
-  $: smoothAp("player", player?.combatantSnapshotAp ?? state.stats.ap);
-  $: smoothAp("enemy", enemy?.combatantSnapshotAp ?? 0);
+  $: playerAp = player?.combatantSnapshotAp ?? state.stats.ap;
+  $: enemyAp = enemy?.combatantSnapshotAp ?? 0;
+  $: playerAgility = player?.combatantSnapshotAgility ?? state.stats.agility;
+  $: enemyAgility = enemy?.combatantSnapshotAgility ?? 19;
+  $: activeActorSide = state.battle.animation.activeTimeline?.actor.side ?? null;
+  $: activeTimelineId = state.battle.animation.activeTimeline?.id ?? null;
+  $: playerApSnapKey = activeActorSide === "player" ? activeTimelineId : null;
+  $: enemyApSnapKey = activeActorSide === "enemy" ? activeTimelineId : null;
   $: if (state.battle.active && !wasActive) {
     wasActive = true;
     tick().then(() => {
@@ -32,44 +35,6 @@
   function toneClass(tone: string) {
     return `micro-meter ${tone}`;
   }
-
-  function smoothAp(side: BattleSide, target: number) {
-    const current = side === "player" ? displayedPlayerAp : displayedEnemyAp;
-    const frame = side === "player" ? playerApFrame : enemyApFrame;
-    if (frame) cancelAnimationFrame(frame);
-    if (target <= current || Math.abs(target - current) < 1) {
-      setDisplayedAp(side, target);
-      return;
-    }
-
-    const start = current;
-    const startedAt = performance.now();
-    const duration = 900;
-    const nextFrame = (now: number) => {
-      const progress = Math.min(1, (now - startedAt) / duration);
-      setDisplayedAp(side, start + (target - start) * progress);
-      if (progress < 1) {
-        setApFrame(side, requestAnimationFrame(nextFrame));
-      }
-    };
-    setApFrame(side, requestAnimationFrame(nextFrame));
-  }
-
-  function setDisplayedAp(side: BattleSide, value: number) {
-    const clean = Math.max(0, Math.min(100, value));
-    if (side === "player") displayedPlayerAp = clean;
-    else displayedEnemyAp = clean;
-  }
-
-  function setApFrame(side: BattleSide, frame: number) {
-    if (side === "player") playerApFrame = frame;
-    else enemyApFrame = frame;
-  }
-
-  onDestroy(() => {
-    if (playerApFrame) cancelAnimationFrame(playerApFrame);
-    if (enemyApFrame) cancelAnimationFrame(enemyApFrame);
-  });
 </script>
 
 {#if state.battle.active}
@@ -86,32 +51,32 @@
       <div class="combatant player">
         <strong>{player?.combatantSnapshotName || state.username || "Player"}</strong>
         <div class={toneClass("hp")}>
-          <span style={`width: ${percent(player?.combatantSnapshotHp ?? state.stats.hp, player?.combatantSnapshotMaxHp ?? state.stats.maxHp)}%`}></span>
+          <span use:meterTween={{ value: percent(player?.combatantSnapshotHp ?? state.stats.hp, player?.combatantSnapshotMaxHp ?? state.stats.maxHp) / 100 }}></span>
           <em>{player?.combatantSnapshotHp ?? state.stats.hp}/{player?.combatantSnapshotMaxHp ?? state.stats.maxHp}</em>
         </div>
         <div class={toneClass("qi")}>
-          <span style={`width: ${percent(player?.combatantSnapshotQi ?? state.stats.qi, player?.combatantSnapshotMaxQi ?? state.stats.maxQi)}%`}></span>
+          <span use:meterTween={{ value: percent(player?.combatantSnapshotQi ?? state.stats.qi, player?.combatantSnapshotMaxQi ?? state.stats.maxQi) / 100 }}></span>
           <em>{player?.combatantSnapshotQi ?? state.stats.qi}/{player?.combatantSnapshotMaxQi ?? state.stats.maxQi}</em>
         </div>
-        <div class={toneClass("ap")}>
-          <span style={`width: ${percent(displayedPlayerAp, 100)}%`}></span>
-          <em>{Math.round(displayedPlayerAp)}/100</em>
+        <div class={toneClass("ap")} use:apMeterTween={{ value: playerAp, agility: playerAgility, snapKey: playerApSnapKey, resumeAt: state.battle.actionLockUntil }}>
+          <span></span>
+          <em></em>
         </div>
       </div>
 
       <div class="combatant enemy">
         <strong>{enemy?.combatantSnapshotName || "Enemy"}</strong>
         <div class={toneClass("hp")}>
-          <span style={`width: ${percent(enemy?.combatantSnapshotHp ?? 0, enemy?.combatantSnapshotMaxHp ?? 1)}%`}></span>
+          <span use:meterTween={{ value: percent(enemy?.combatantSnapshotHp ?? 0, enemy?.combatantSnapshotMaxHp ?? 1) / 100 }}></span>
           <em>{enemy?.combatantSnapshotHp ?? 0}/{enemy?.combatantSnapshotMaxHp ?? 1}</em>
         </div>
         <div class={toneClass("qi")}>
-          <span style={`width: ${percent(enemy?.combatantSnapshotQi ?? 0, enemy?.combatantSnapshotMaxQi ?? 1)}%`}></span>
+          <span use:meterTween={{ value: percent(enemy?.combatantSnapshotQi ?? 0, enemy?.combatantSnapshotMaxQi ?? 1) / 100 }}></span>
           <em>{enemy?.combatantSnapshotQi ?? 0}/{enemy?.combatantSnapshotMaxQi ?? 1}</em>
         </div>
-        <div class={toneClass("ap")}>
-          <span style={`width: ${percent(displayedEnemyAp, 100)}%`}></span>
-          <em>{Math.round(displayedEnemyAp)}/100</em>
+        <div class={toneClass("ap")} use:apMeterTween={{ value: enemyAp, agility: enemyAgility, snapKey: enemyApSnapKey, resumeAt: state.battle.actionLockUntil }}>
+          <span></span>
+          <em></em>
         </div>
       </div>
     </div>

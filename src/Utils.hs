@@ -9,7 +9,9 @@ import qualified Control.Monad
 import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError))
 import Control.Monad.State.Strict (StateT, mapStateT, MonadState)
 import Control.Monad.Trans.Maybe (MaybeT (runMaybeT))
-import Data.Aeson (FromJSON, Result (..), Value, fromJSON)
+import Data.Aeson (FromJSON, Result (..), Value (..), fromJSON)
+import qualified Data.Aeson.Key as Key
+import qualified Data.Aeson.KeyMap as KM
 import Data.Either (partitionEithers)
 import qualified Data.Map as M
 import Data.Maybe
@@ -37,7 +39,7 @@ class FromJSON a => Configurable a where
     if isDir
       then do
         files <- listDirectory dir
-        let yamlFiles = Prelude.filter ((== ".yaml") . takeExtension) files
+        let yamlFiles = Prelude.filter (isConfigExtension . takeExtension) files
         items <- Control.Monad.forM yamlFiles $ \file -> do
           let path = dir </> file
           result <- decodeFileEither path
@@ -51,13 +53,12 @@ class FromJSON a => Configurable a where
                   case fromJSON value of
                     Success many -> pure $ Right $ map (\item -> (f item, item)) many
                     Error listErr ->
-                      pure $
-                        Left $
-                          toText path
-                            <> ": "
-                            <> toText singleErr
-                            <> "; "
-                            <> toText listErr
+                      case manifestActions value of
+                        Just actionsValue ->
+                          case fromJSON actionsValue of
+                            Success many -> pure $ Right $ map (\item -> (f item, item)) many
+                            Error actionsErr -> pure $ decodeError path singleErr listErr actionsErr
+                        Nothing -> pure $ decodeError path singleErr listErr ("missing actions manifest" :: String)
         let (errs, loadedItems) = partitionEithers items
         case errs of
           [] -> do
@@ -67,6 +68,19 @@ class FromJSON a => Configurable a where
           _ ->
             return $ Left $ "Failed loading " <> toText dir <> ":\n" <> T.unlines errs
       else return $ Left $ "Directory does not exist: " <> toText dir
+    where
+      isConfigExtension ext = ext `elem` [".yaml", ".yml", ".json"]
+      manifestActions (Object o) = KM.lookup (Key.fromString "actions") o
+      manifestActions _ = Nothing
+      decodeError path singleErr listErr actionsErr =
+        Left $
+          toText path
+            <> ": "
+            <> toText singleErr
+            <> "; "
+            <> toText listErr
+            <> "; "
+            <> toText actionsErr
 
 
 liftMaybeT :: Monad m => e -> StateT s (MaybeT m) a -> StateT s (ExceptT e m) a

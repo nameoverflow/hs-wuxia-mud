@@ -3,7 +3,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Server (serverApplication, gameTickLoop) where
+module Server (serverApplication, gameTickLoop, battleTickLoop) where
 
 import Control.Concurrent
 import Control.Exception (finally)
@@ -245,23 +245,27 @@ runGameLoop user conns state = do
         sendResp conn $ ErrorMsg $ gameExceptionToSummary err
 
 gameTickLoop :: MVar ServerMap -> MVar GameState -> IO ()
-gameTickLoop cs gs = do
+gameTickLoop = runTickLoop "Game tick failed" 1000000 onGameTick
+
+battleTickLoop :: MVar ServerMap -> MVar GameState -> IO ()
+battleTickLoop = runTickLoop "Battle tick failed" 50000 onBattleTick
+
+runTickLoop :: Text -> Int -> (Double -> GameStateT ()) -> MVar ServerMap -> MVar GameState -> IO ()
+runTickLoop errorMessage interval tickAction cs gs = do
   currentTime <- getCurrentTime
   -- Sleep for the given interval (in milliseconds)
   threadDelay interval
   loop currentTime
   where
-    -- 1 seconds
-    interval = 1000000
     loop :: UTCTime -> IO ()
     loop lastTime = do
       -- Get the current time
       currentTime <- getCurrentTime
       let diff = diffUTCTime currentTime lastTime
       -- Run the game tick
-      let gsm = onGameTick $ realToFrac diff
+      let gsm = tickAction $ realToFrac diff
       runAndResponseWithPersistence SaveDirtyPlayers gs cs gsm $ \err -> do
-        logError $ "Game tick failed: " <> toText (show err)
+        logError $ errorMessage <> ": " <> toText (show err)
       threadDelay interval
       -- Loop again
       loop currentTime

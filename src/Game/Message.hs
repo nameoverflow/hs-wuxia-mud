@@ -163,6 +163,7 @@ data CombatantSnapshot = CombatantSnapshot
     combatantSnapshotQi :: Int,
     combatantSnapshotMaxQi :: Int,
     combatantSnapshotAp :: Int,
+    combatantSnapshotAgility :: Int,
     combatantSnapshotEffects :: [EffectSummary]
   }
   deriving (Show, Eq, Generic)
@@ -173,7 +174,8 @@ data BattleSnapshot = BattleSnapshot
   { battleSnapshotPlayer :: CombatantSnapshot,
     battleSnapshotEnemy :: CombatantSnapshot,
     battleSnapshotActiveSkillCooldowns :: [ActiveSkillCooldownSummary],
-    battleSnapshotActiveSkills :: [ActiveSkillSummary]
+    battleSnapshotActiveSkills :: [ActiveSkillSummary],
+    battleSnapshotActionLockRemaining :: Double
   }
   deriving (Show, Eq, Generic)
 

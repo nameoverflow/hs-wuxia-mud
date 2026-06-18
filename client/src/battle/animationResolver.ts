@@ -26,6 +26,7 @@ export function resolveCombatTimeline(
   const result = event.result || "hit";
   const reaction = action.targetReaction[result] || resultReaction(result);
   const actorVisual = visualForRigAction(action.id, actorProfile, actorStyle);
+  const durationMs = visualDurationMs(event.visual?.durationMs, action.durationMs);
   const targetVisual =
     reaction === "effect" || reaction === "none" ? idleVisualForStyle(targetStyle, targetProfile) : reactionVisualFor(reaction, targetProfile, targetStyle);
 
@@ -34,7 +35,7 @@ export function resolveCombatTimeline(
     kind: event.kind,
     actorSide,
     targetSide,
-    durationMs: action.durationMs,
+    durationMs,
     actor: {
       side: actorSide,
       visual: actorVisual,
@@ -90,6 +91,10 @@ export function resolveSettlementTimeline(
     text,
     vfx: []
   };
+}
+
+function visualDurationMs(serverDurationMs: number | null | undefined, fallbackDurationMs: number) {
+  return typeof serverDurationMs === "number" && Number.isFinite(serverDurationMs) && serverDurationMs > 0 ? Math.round(serverDurationMs) : fallbackDurationMs;
 }
 
 function resolveVfx(action: BattleActionDefinition, actorSide: BattleSide, targetSide: BattleSide, result: CombatResult): TimelineVfx[] {

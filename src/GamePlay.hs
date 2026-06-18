@@ -35,6 +35,11 @@ data PreparedActiveSkill = PreparedActiveSkill
     preparedActiveSkillSkill :: ActiveSkill
   }
 
+data BattleSyncPolicy
+  = SyncEveryTick
+  | SyncOnVisibleResponse
+  deriving (Eq)
+
 processPlayerAction :: PlayerId -> PlayerAction -> GameStateT ()
 processPlayerAction pid action = do
   player <- getsPlayer pid
@@ -960,24 +965,32 @@ playerPerformActiveSkill pid targetActiveSkillId = do
       sendBattleSnapshot pid battle
     Just prepared -> do
       let activeSkill = preparedActiveSkillSkill prepared
-      case activeSkillUseFailure activeSkill (battle ^. battleState) of
+      case activeSkillUseFailure activeSkill battle of
         Just reason -> do
           tell [(pid, ActiveSkillFailureMsg reason)]
           sendBattleSnapshot pid battle
         Nothing -> do
-          randG <- newStdGen
-          (_, battle', activeSkillMsg) <- runCombat randG ExceptionInCombat wrld battle $ do
-            useActiveSkill (preparedActiveSkillArt prepared) activeSkill battleState battleEnemyState
-
-          tell activeSkillMsg
-          let enemyDefeated = battle' ^. battleEnemyState . battleChar . charHP <= 0
-              playerDefeated = battle' ^. battleState . battleChar . charHP <= 0
-          if enemyDefeated || playerDefeated
-            then battleSettlement enemyDefeated battle'
+          if battle ^. battleActionLockRemaining > 0
+            then do
+              let queued =
+                    battle
+                      & battlePendingActiveSkill ?~ PendingActiveSkill (preparedActiveSkillArt prepared) activeSkill
+              battles . at pid .= Just queued
+              sendBattleSnapshot pid queued
             else do
-              syncBattleEnemyToWorld battle'
-              battles . at pid .= Just battle'
-              sendBattleSnapshot pid battle'
+              randG <- newStdGen
+              (_, battle', activeSkillMsg) <- runCombat randG ExceptionInCombat wrld battle $ do
+                useActiveSkill (preparedActiveSkillArt prepared) activeSkill battleState battleEnemyState
+
+              tell activeSkillMsg
+              let enemyDefeated = battle' ^. battleEnemyState . battleChar . charHP <= 0
+                  playerDefeated = battle' ^. battleState . battleChar . charHP <= 0
+              if enemyDefeated || playerDefeated
+                then battleSettlement enemyDefeated battle'
+                else do
+                  syncBattleEnemyToWorld battle'
+                  battles . at pid .= Just battle'
+                  sendBattleSnapshot pid battle'
 
 preparedActiveSkills :: World -> Player -> [PreparedActiveSkill]
 preparedActiveSkills wrld player =
@@ -1015,10 +1028,8 @@ dedupeActiveSkills (prepared : rest) =
   where
     activeSkillId' = preparedActiveSkillSkill prepared ^. activeSkillId
 
-activeSkillUseFailure :: ActiveSkill -> BattleState -> Maybe ActiveSkillFailureReason
-activeSkillUseFailure activeSkill state
-  | state ^. battleAp < activeSkill ^. activeSkillApReq =
-      Just $ ActiveSkillNeedAp (activeSkill ^. activeSkillApReq) (state ^. battleAp)
+activeSkillUseFailure :: ActiveSkill -> Battle -> Maybe ActiveSkillFailureReason
+activeSkillUseFailure activeSkill battle
   | state ^. battleQi < activeSkill ^. activeSkillCost =
       Just $ ActiveSkillNeedQi (activeSkill ^. activeSkillCost) (state ^. battleQi)
   | Just remaining <- state ^. battleActiveSkillCooldowns . at (activeSkill ^. activeSkillId) =
@@ -1027,6 +1038,7 @@ activeSkillUseFailure activeSkill state
       Just $ ActiveSkillMissingStatus missingReqs
   | otherwise = Nothing
   where
+    state = battle ^. battleState
     missingReqs = filter (not . (`M.member` (state ^. battleEffects))) (activeSkill ^. activeSkillReqStatus)
 
 -- handlePlayerInput :: T.Text -> T.Text -> GameStateT ()
@@ -1045,14 +1057,26 @@ generateId playerId = do
 
 onGameTick :: Double -> GameStateT ()
 onGameTick dt = do
-  tickBattles dt
+  tickBattleMaintenance dt
   tickRespawns dt
   tickPlayerRecovery dt
 
+onBattleTick :: Double -> GameStateT ()
+onBattleTick = tickBattleActions
+
 tickBattles :: Double -> GameStateT ()
-tickBattles dt = do
+tickBattles = tickBattlesWith SyncEveryTick flushBattleTick
+
+tickBattleMaintenance :: Double -> GameStateT ()
+tickBattleMaintenance = tickBattlesWith SyncOnVisibleResponse flushBattleMaintenanceTick
+
+tickBattleActions :: Double -> GameStateT ()
+tickBattleActions = tickBattlesWith SyncOnVisibleResponse flushBattleActionTick
+
+tickBattlesWith :: BattleSyncPolicy -> (Double -> Combat Bool) -> Double -> GameStateT ()
+tickBattlesWith policy combatTick dt = do
   battles' <- use battles
-  forM_ (M.keys battles') $ updateBattle dt
+  forM_ (M.keys battles') $ updateBattleWith policy combatTick dt
 
 tickRespawns :: Double -> GameStateT ()
 tickRespawns dt = do
@@ -1116,7 +1140,8 @@ sendBattleSnapshot pid battle = do
           { battleSnapshotPlayer = battleStateToSnapshot effectDefs (battle ^. battleState),
             battleSnapshotEnemy = battleStateToSnapshot effectDefs (battle ^. battleEnemyState),
             battleSnapshotActiveSkillCooldowns = map cooldownToSummary . M.toList $ battle ^. battleState . battleActiveSkillCooldowns,
-            battleSnapshotActiveSkills = availableActiveSkills
+            battleSnapshotActiveSkills = availableActiveSkills,
+            battleSnapshotActionLockRemaining = battle ^. battleActionLockRemaining
           }
   tell [(pid, BattleStateMsg snapshot)]
   where
@@ -1133,6 +1158,7 @@ sendBattleSnapshot pid battle = do
               combatantSnapshotQi = state ^. battleQi,
               combatantSnapshotMaxQi = derived ^. dsMaxQi,
               combatantSnapshotAp = state ^. battleAp,
+              combatantSnapshotAgility = derived ^. dsAgility,
               combatantSnapshotEffects = map (effectToSummary effectDefs) . M.elems $ state ^. battleEffects
             }
 
@@ -1202,16 +1228,20 @@ combatStyleForCharacter char
     enabled = char ^. charEnabled
 
 updateBattle :: Double -> BattleId -> GameStateT ()
-updateBattle dt bId = do
+updateBattle = updateBattleWith SyncEveryTick flushBattleTick
+
+updateBattleWith :: BattleSyncPolicy -> (Double -> Combat Bool) -> Double -> BattleId -> GameStateT ()
+updateBattleWith syncPolicy combatTick dt bId = do
   wrld <- use world
   battle <- getsBattle bId
   -- Update battle state
   randG <- newStdGen
-  (battleOver, battle', bttlMsg) <- runCombat randG ExceptionInCombat wrld battle $ flushBattleTick dt
+  (battleOver, battle', bttlMsg) <- runCombat randG ExceptionInCombat wrld battle $ combatTick dt
   tell bttlMsg
   -- Send updated player stats after combat
   let pid = battle' ^. battleOwner
-  sendBattleStats pid battle'
+  when (syncPolicy == SyncEveryTick || battleOver || not (null bttlMsg)) $
+    sendBattleStats pid battle'
   if battleOver
     then do
       liftIO $ logInfo "Battle over"

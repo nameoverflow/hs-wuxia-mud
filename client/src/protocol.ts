@@ -137,6 +137,7 @@ export interface CombatantSnapshot {
   combatantSnapshotQi: number;
   combatantSnapshotMaxQi: number;
   combatantSnapshotAp: number;
+  combatantSnapshotAgility?: number;
   combatantSnapshotEffects: EffectSummary[];
 }
 
@@ -145,6 +146,7 @@ export interface BattleSnapshot {
   battleSnapshotEnemy: CombatantSnapshot;
   battleSnapshotActiveSkillCooldowns: ActiveSkillCooldownSummary[];
   battleSnapshotActiveSkills: ActiveSkillSummary[];
+  battleSnapshotActionLockRemaining?: number;
 }
 
 export type PlayerStatsLegacyPayload = [number, number, number, number, number, string];
@@ -225,6 +227,7 @@ export type CombatMessage =
 export interface CombatVisualHint {
   actionId: string;
   tags: string[];
+  durationMs?: number | null;
 }
 
 export type CombatEventKind = "normal" | "active_skill" | "effect_tick";
