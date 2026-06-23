@@ -27,6 +27,7 @@ export class PixiRigActor {
   private sequence: string[] = [];
   private renderKey = "";
   private durationMs = 720;
+  private delayMs = 0;
   private startedAt = 0;
   private lastRenderedAt = 0;
   private needsRender = true;
@@ -56,9 +57,9 @@ export class PixiRigActor {
     this.container.addChild(shadow, this.sprite);
   }
 
-  setVisual(visual: ActorVisual, durationMs: number) {
+  setVisual(visual: ActorVisual, durationMs: number, delayMs = 0) {
     const sequence = visual.sequence?.length ? visual.sequence : [visual.poseId];
-    const renderKey = `${visual.entryId}:${visual.actionId}:${sequence.join(",")}:${durationMs}`;
+    const renderKey = `${visual.entryId}:${visual.actionId}:${sequence.join(",")}:${durationMs}:${delayMs}`;
     if (renderKey === this.renderKey) return;
 
     const entry =
@@ -68,6 +69,7 @@ export class PixiRigActor {
     this.rig = entry ? createBattleActorRig(entry, segmentedPoseLibrary) : null;
     this.sequence = sequence;
     this.durationMs = durationMs;
+    this.delayMs = delayMs;
     this.renderKey = renderKey;
     this.startedAt = 0;
     this.lastRenderedAt = 0;
@@ -79,9 +81,10 @@ export class PixiRigActor {
     if (!this.visual || !this.rig) return;
     if (!this.startedAt) this.startedAt = now;
     const animationMs = Math.max(120, this.durationMs);
+    const delayMs = Math.max(0, this.delayMs);
     const rawElapsed = now - this.startedAt;
-    const elapsed = Math.min(rawElapsed, animationMs);
-    const animationDone = rawElapsed >= animationMs;
+    const elapsed = Math.min(Math.max(0, rawElapsed - delayMs), animationMs);
+    const animationDone = rawElapsed >= delayMs + animationMs;
     if (!this.needsRender && this.completedRender && animationDone) return;
     if (!this.needsRender && !animationDone && this.lastRenderedAt && now - this.lastRenderedAt < actorFrameMs) return;
 

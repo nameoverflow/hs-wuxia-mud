@@ -117,8 +117,10 @@
   ) {
     if (!app || !playerActor || !enemyActor) return;
     const durationMs = currentTimeline?.durationMs ?? 720;
-    playerActor.setVisual(visualFor("player", currentTimeline, currentPlayer, currentEnemy, playerGender), durationMs);
-    enemyActor.setVisual(visualFor("enemy", currentTimeline, currentPlayer, currentEnemy, playerGender), durationMs);
+    const playerTiming = visualTimingFor("player", currentTimeline, durationMs);
+    const enemyTiming = visualTimingFor("enemy", currentTimeline, durationMs);
+    playerActor.setVisual(visualFor("player", currentTimeline, currentPlayer, currentEnemy, playerGender), playerTiming.durationMs, playerTiming.delayMs);
+    enemyActor.setVisual(visualFor("enemy", currentTimeline, currentPlayer, currentEnemy, playerGender), enemyTiming.durationMs, enemyTiming.delayMs);
 
     const timelineId = currentTimeline?.id ?? null;
     if (timelineId !== lastTimelineId) {
@@ -154,6 +156,22 @@
       combatStyleFromSnapshot(combatant?.combatantSnapshotCombatStyle),
       visualProfileFromGender(gender)
     );
+  }
+
+  function visualTimingFor(side: BattleSide, currentTimeline: ResolvedBattleTimeline | null, durationMs: number) {
+    const delayMs = currentTimeline && !prefersReducedMotion() ? visualDelayMsFor(side, currentTimeline) : 0;
+    return {
+      durationMs: Math.max(120, durationMs - delayMs),
+      delayMs
+    };
+  }
+
+  function visualDelayMsFor(side: BattleSide, currentTimeline: ResolvedBattleTimeline) {
+    if (currentTimeline.actor.side === side) return currentTimeline.actor.actionDelayMs;
+    if (currentTimeline.target.side === side && currentTimeline.target.reaction !== "none" && currentTimeline.target.reaction !== "effect") {
+      return currentTimeline.actor.actionDelayMs;
+    }
+    return 0;
   }
 
   function tickActors() {
@@ -200,7 +218,7 @@
     if (!timeline) return;
 
     const seconds = prefersReducedMotion() ? 0.01 : Math.max(0.12, timeline.durationMs / 1000);
-    const animation = requireGsap().timeline({ defaults: { ease: "power2.out", overwrite: true } });
+    const animation = requireGsap().timeline({ defaults: { ease: "power2.out" } });
     cueTimeline = animation;
 
     if (timeline.kind === "settlement") {
@@ -210,10 +228,13 @@
 
     const actor = actorFor(timeline.actor.side);
     const target = actorFor(timeline.target.side);
-    addActorMotion(animation, actor?.container, timeline.actor.motion, timeline.actor.side, seconds);
-    addTargetReaction(animation, target?.container, timeline.target.reaction, timeline.target.side, seconds);
-    timeline.vfx.forEach((vfx) => addVfx(animation, vfx, seconds));
-    if (timeline.floatText) addFloatText(animation, timeline.floatText, timeline.target.side, timeline.result, seconds);
+    const actionDelaySeconds = actionDelaySecondsFor(timeline, seconds);
+    const actionSeconds = Math.max(0.01, seconds - actionDelaySeconds);
+    const impactAt = actionDelaySeconds + actionSeconds * 0.42;
+    addActorMotion(animation, actor?.container, timeline.actor.motion, timeline.actor.side, seconds, actionDelaySeconds, actionSeconds);
+    addTargetReaction(animation, target?.container, timeline.target.reaction, timeline.target.side, actionSeconds, impactAt);
+    timeline.vfx.forEach((vfx) => addVfx(animation, vfx, timeline, actionSeconds, impactAt));
+    if (timeline.floatText) addFloatText(animation, timeline.floatText, timeline.target.side, timeline.result, actionSeconds, impactAt);
   }
 
   function actorFor(side: BattleSide) {
@@ -236,7 +257,15 @@
     actor.container.alpha = 1;
   }
 
-  function addActorMotion(timeline: GsapTimeline, actor: Container | undefined, motion: ActorMotion, side: BattleSide, seconds: number) {
+  function addActorMotion(
+    timeline: GsapTimeline,
+    actor: Container | undefined,
+    motion: ActorMotion,
+    side: BattleSide,
+    seconds: number,
+    actionDelaySeconds: number,
+    actionSeconds: number
+  ) {
     if (!actor || motion === "none") return;
     const direction = side === "player" ? 1 : -1;
     const distance = strikeDistance() * direction;
@@ -247,6 +276,22 @@
       timeline.to(actor, { y: actor.y - 5, duration: seconds * 0.46 }, 0);
       timeline.to(actor, { y: actor.y + 1, duration: seconds * 0.18 }, seconds * 0.46);
       timeline.to(actor, { y: actor.y, duration: seconds * 0.32 }, seconds * 0.64);
+      return;
+    }
+
+    if (actionDelaySeconds > 0) {
+      const origin = actorBase(side);
+      const attack = actorEngagementPoint(side);
+      const hopHeight = clamp(stageHeight * 0.18, 26, 46);
+      const forwardPush = (motion === "drive" ? 22 : motion === "lunge" ? 16 : 10) * direction;
+      const settleBack = (motion === "drive" ? 10 : 7) * direction;
+
+      timeline.to(actor, { x: origin.x - 10 * direction, y: origin.y + 2, duration: actionDelaySeconds * 0.22, ease: "power2.out" }, 0);
+      timeline.to(actor, { x: attack.x, y: attack.y - hopHeight, duration: actionDelaySeconds * 0.56, ease: "power2.inOut" }, actionDelaySeconds * 0.18);
+      timeline.to(actor, { x: attack.x, y: attack.y, duration: actionDelaySeconds * 0.26, ease: "power2.in" }, actionDelaySeconds * 0.74);
+      timeline.to(actor, { x: attack.x + forwardPush, y: attack.y - 3, duration: actionSeconds * 0.2, ease: "power3.out" }, actionDelaySeconds + actionSeconds * 0.12);
+      timeline.to(actor, { x: attack.x - settleBack, y: attack.y, duration: actionSeconds * 0.18 }, actionDelaySeconds + actionSeconds * 0.42);
+      timeline.to(actor, { x: origin.x, y: origin.y, duration: actionSeconds * 0.28, ease: "power2.inOut" }, actionDelaySeconds + actionSeconds * 0.72);
       return;
     }
 
@@ -266,55 +311,55 @@
     timeline.to(actor, { x: actor.x, duration: seconds * 0.26 }, seconds * 0.74);
   }
 
-  function addTargetReaction(timeline: GsapTimeline, target: Container | undefined, reaction: TargetReaction, side: BattleSide, seconds: number) {
+  function addTargetReaction(timeline: GsapTimeline, target: Container | undefined, reaction: TargetReaction, side: BattleSide, actionSeconds: number, impactAt: number) {
     if (!target || reaction === "none") return;
     const direction = side === "player" ? -1 : 1;
 
     if (reaction === "hit") {
-      timeline.to(target, { x: target.x + 18 * direction, angle: 2 * direction, duration: seconds * 0.13 }, seconds * 0.43);
-      timeline.to(target, { x: target.x - 5 * direction, angle: 0, duration: seconds * 0.1 }, seconds * 0.56);
-      timeline.to(target, { x: target.x, duration: seconds * 0.34 }, seconds * 0.66);
+      timeline.to(target, { x: target.x + 18 * direction, angle: 2 * direction, duration: actionSeconds * 0.13 }, impactAt);
+      timeline.to(target, { x: target.x - 5 * direction, angle: 0, duration: actionSeconds * 0.1 }, impactAt + actionSeconds * 0.13);
+      timeline.to(target, { x: target.x, duration: actionSeconds * 0.34 }, impactAt + actionSeconds * 0.23);
       return;
     }
 
     if (reaction === "dodge") {
-      timeline.to(target, { x: target.x + 28 * direction, y: target.y + 4, alpha: 0.76, duration: seconds * 0.18 }, seconds * 0.38);
-      timeline.to(target, { x: target.x + 14 * direction, alpha: 1, duration: seconds * 0.12 }, seconds * 0.56);
-      timeline.to(target, { x: target.x, y: target.y, duration: seconds * 0.32 }, seconds * 0.68);
+      timeline.to(target, { x: target.x + 28 * direction, y: target.y + 4, alpha: 0.76, duration: actionSeconds * 0.18 }, impactAt);
+      timeline.to(target, { x: target.x + 14 * direction, alpha: 1, duration: actionSeconds * 0.12 }, impactAt + actionSeconds * 0.18);
+      timeline.to(target, { x: target.x, y: target.y, duration: actionSeconds * 0.32 }, impactAt + actionSeconds * 0.3);
       return;
     }
 
     if (reaction === "parry") {
-      timeline.to(target, { x: target.x + 4 * direction, duration: seconds * 0.12 }, seconds * 0.42);
-      timeline.to(target, { x: target.x - 3 * direction, duration: seconds * 0.1 }, seconds * 0.54);
-      timeline.to(target, { x: target.x, duration: seconds * 0.26 }, seconds * 0.64);
+      timeline.to(target, { x: target.x + 4 * direction, duration: actionSeconds * 0.12 }, impactAt);
+      timeline.to(target, { x: target.x - 3 * direction, duration: actionSeconds * 0.1 }, impactAt + actionSeconds * 0.12);
+      timeline.to(target, { x: target.x, duration: actionSeconds * 0.26 }, impactAt + actionSeconds * 0.22);
       return;
     }
 
-    timeline.to(target, { y: target.y - 2, duration: seconds * 0.18 }, seconds * 0.34);
-    timeline.to(target, { y: target.y, duration: seconds * 0.34 }, seconds * 0.52);
+    timeline.to(target, { y: target.y - 2, duration: actionSeconds * 0.18 }, impactAt);
+    timeline.to(target, { y: target.y, duration: actionSeconds * 0.34 }, impactAt + actionSeconds * 0.18);
   }
 
-  function addVfx(timeline: GsapTimeline, vfx: TimelineVfx, seconds: number) {
+  function addVfx(timeline: GsapTimeline, vfx: TimelineVfx, battleTimeline: ResolvedBattleTimeline, actionSeconds: number, impactAt: number) {
     if (!vfxLayer) return;
     const item = createVfx(vfx);
-    const point = vfxPoint(vfx);
+    const point = vfxPoint(vfx, battleTimeline);
     item.position.set(point.x, point.y);
     if (vfx.side === "enemy" && (vfx.kind === "trail" || vfx.kind === "parry")) item.scale.x = -1;
     vfxLayer.addChild(item);
 
     if (vfx.kind === "aura" || vfx.kind === "heal") {
       item.scale.set(0.64);
-      timeline.to(item, { alpha: 0.82, duration: seconds * 0.48 }, 0);
-      timeline.to(item.scale, { x: 1.18, y: 1.18, duration: seconds * 0.48 }, 0);
-      timeline.to(item, { alpha: 0, duration: seconds * 0.38 }, seconds * 0.48);
-      timeline.to(item.scale, { x: 1.42, y: 1.42, duration: seconds * 0.38 }, seconds * 0.48);
+      timeline.to(item, { alpha: 0.82, duration: actionSeconds * 0.48 }, 0);
+      timeline.to(item.scale, { x: 1.18, y: 1.18, duration: actionSeconds * 0.48 }, 0);
+      timeline.to(item, { alpha: 0, duration: actionSeconds * 0.38 }, actionSeconds * 0.48);
+      timeline.to(item.scale, { x: 1.42, y: 1.42, duration: actionSeconds * 0.38 }, actionSeconds * 0.48);
       return;
     }
 
-    timeline.to(item, { alpha: 1, duration: seconds * 0.1 }, seconds * 0.42);
-    timeline.to(item.scale, { x: item.scale.x * 1.12, y: 1.12, duration: seconds * 0.16 }, seconds * 0.42);
-    timeline.to(item, { alpha: 0, duration: seconds * 0.34 }, seconds * 0.58);
+    timeline.to(item, { alpha: 1, duration: actionSeconds * 0.1 }, impactAt);
+    timeline.to(item.scale, { x: item.scale.x * 1.12, y: 1.12, duration: actionSeconds * 0.16 }, impactAt);
+    timeline.to(item, { alpha: 0, duration: actionSeconds * 0.34 }, impactAt + actionSeconds * 0.16);
   }
 
   function createVfx(vfx: TimelineVfx) {
@@ -359,7 +404,7 @@
     return g;
   }
 
-  function addFloatText(timeline: GsapTimeline, value: string, side: BattleSide, result: string, seconds: number) {
+  function addFloatText(timeline: GsapTimeline, value: string, side: BattleSide, result: string, actionSeconds: number, impactAt: number) {
     if (!textLayer) return;
     const { Text } = requirePixi();
     const point = floatPoint(side);
@@ -379,9 +424,9 @@
     text.scale.set(0.82);
     textLayer.addChild(text);
 
-    timeline.to(text, { alpha: 1, y: point.y, duration: seconds * 0.14 }, seconds * 0.42);
-    timeline.to(text.scale, { x: 1.06, y: 1.06, duration: seconds * 0.14 }, seconds * 0.42);
-    timeline.to(text, { alpha: 0, y: point.y - 24, duration: seconds * 0.42 }, seconds * 0.68);
+    timeline.to(text, { alpha: 1, y: point.y, duration: actionSeconds * 0.14 }, impactAt);
+    timeline.to(text.scale, { x: 1.06, y: 1.06, duration: actionSeconds * 0.14 }, impactAt);
+    timeline.to(text, { alpha: 0, y: point.y - 24, duration: actionSeconds * 0.42 }, impactAt + actionSeconds * 0.26);
   }
 
   function addSettlement(timeline: ResolvedBattleTimeline, seconds: number, animation: GsapTimeline) {
@@ -421,9 +466,14 @@
     };
   }
 
-  function vfxPoint(vfx: TimelineVfx) {
+  function vfxPoint(vfx: TimelineVfx, timeline: ResolvedBattleTimeline | null = null) {
     const side = vfx.side === "center" ? "player" : vfx.side;
-    const base = vfx.side === "center" ? { x: stageWidth / 2, y: stageHeight * 0.5 } : actorBase(side);
+    const base =
+      vfx.side === "center"
+        ? { x: stageWidth / 2, y: stageHeight * 0.5 }
+        : timeline && vfx.side === timeline.actor.side && isJumpMotion(timeline.actor.motion) && vfx.kind === "trail"
+          ? actorEngagementPoint(timeline.actor.side)
+          : actorBase(side);
     if (vfx.kind === "aura" || vfx.kind === "heal") return { x: base.x, y: stageHeight - 84 };
     if (vfx.kind === "parry") return { x: base.x, y: stageHeight - 108 };
     return { x: base.x, y: stageHeight - 104 };
@@ -448,6 +498,28 @@
 
   function strikeRecoil() {
     return clamp(stageWidth * 0.08, 28, 48);
+  }
+
+  function actorEngagementPoint(side: BattleSide) {
+    const base = actorBase(side);
+    const target = actorBase(side === "player" ? "enemy" : "player");
+    const direction = side === "player" ? 1 : -1;
+    const gap = actorDisplayWidth() * 0.34;
+    const minX = Math.min(base.x, target.x);
+    const maxX = Math.max(base.x, target.x);
+    return {
+      x: clamp(target.x - direction * gap, minX, maxX),
+      y: base.y
+    };
+  }
+
+  function actionDelaySecondsFor(timeline: ResolvedBattleTimeline, seconds: number) {
+    if (prefersReducedMotion()) return 0;
+    return Math.min(Math.max(0, timeline.actor.actionDelayMs) / 1000, seconds * 0.45);
+  }
+
+  function isJumpMotion(motion: ActorMotion) {
+    return motion === "approach" || motion === "lunge" || motion === "drive";
   }
 
   function clamp(value: number, min: number, max: number) {

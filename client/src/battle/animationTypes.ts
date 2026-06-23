@@ -57,6 +57,7 @@ export interface ResolvedBattleTimeline {
     side: BattleSide;
     visual: ActorVisual;
     motion: ActorMotion;
+    actionDelayMs: number;
   };
   target: {
     side: BattleSide;

@@ -2,6 +2,7 @@ import type { CombatEvent, CombatResult } from "../protocol";
 import { idleVisualForStyle, reactionVisualFor, rigActionFor, visualForRigAction } from "./rigActionCatalog";
 import type {
   ActionVfxDefinition,
+  ActorMotion,
   BattleActionDefinition,
   BattleSide,
   CombatStyle,
@@ -26,7 +27,8 @@ export function resolveCombatTimeline(
   const result = event.result || "hit";
   const reaction = action.targetReaction[result] || resultReaction(result);
   const actorVisual = visualForRigAction(action.id, actorProfile, actorStyle);
-  const durationMs = visualDurationMs(event.visual?.durationMs, action.durationMs);
+  const actionDurationMs = visualDurationMs(event.visual?.durationMs, action.durationMs);
+  const actionDelayMs = preActionDelayMs(action.actorMotion);
   const targetVisual =
     reaction === "effect" || reaction === "none" ? idleVisualForStyle(targetStyle, targetProfile) : reactionVisualFor(reaction, targetProfile, targetStyle);
 
@@ -35,11 +37,12 @@ export function resolveCombatTimeline(
     kind: event.kind,
     actorSide,
     targetSide,
-    durationMs,
+    durationMs: actionDurationMs + actionDelayMs,
     actor: {
       side: actorSide,
       visual: actorVisual,
-      motion: action.actorMotion
+      motion: action.actorMotion,
+      actionDelayMs
     },
     target: {
       side: targetSide,
@@ -77,7 +80,8 @@ export function resolveSettlementTimeline(
     actor: {
       side: actorSide,
       visual: actorVisual,
-      motion: "none"
+      motion: "none",
+      actionDelayMs: 0
     },
     target: {
       side: targetSide,
@@ -95,6 +99,13 @@ export function resolveSettlementTimeline(
 
 function visualDurationMs(serverDurationMs: number | null | undefined, fallbackDurationMs: number) {
   return typeof serverDurationMs === "number" && Number.isFinite(serverDurationMs) && serverDurationMs > 0 ? Math.round(serverDurationMs) : fallbackDurationMs;
+}
+
+function preActionDelayMs(motion: ActorMotion) {
+  if (motion === "approach") return 380;
+  if (motion === "lunge") return 400;
+  if (motion === "drive") return 420;
+  return 0;
 }
 
 function resolveVfx(action: BattleActionDefinition, actorSide: BattleSide, targetSide: BattleSide, result: CombatResult): TimelineVfx[] {
