@@ -87,7 +87,7 @@
     actorLayer.addChild(playerActor.container, enemyActor.container);
     app.stage.addChild(backgroundLayer, actorLayer, vfxLayer, textLayer);
     hostEl.appendChild(app.canvas);
-    app.ticker.maxFPS = 30;
+    app.ticker.maxFPS = 60;
     app.ticker.add(tickActors);
 
     resizeObserver = new ResizeObserver(() => layoutStage(false));

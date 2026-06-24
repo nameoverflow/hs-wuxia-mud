@@ -16,6 +16,8 @@ const defaultOptions: SkeletalRenderOptions = {
 };
 
 const alphaMaskCache = new WeakMap<HTMLImageElement, ImageAlphaMask>();
+const compiledWarpSourceCache = new Map<string, CompiledWarpSource>();
+const alphaTriangleCache = new WeakMap<ImageAlphaMask, Map<string, boolean[]>>();
 
 export class SkeletalCanvasRenderer {
   private images = new Map<string, HTMLImageElement>();
@@ -455,6 +457,9 @@ export interface TexturedGridMesh {
   sourceRows: Vec2[][];
   targetRows: Vec2[][];
   mask?: ImageAlphaMask;
+  alphaTriangles?: boolean[];
+  sourceTriangles?: CompiledSourceTriangle[];
+  targetPoints?: Vec2[];
 }
 
 interface SkeletonWarpOptions {
@@ -463,8 +468,109 @@ interface SkeletonWarpOptions {
   influence?: number;
 }
 
+interface CompiledWarpSource {
+  key: string;
+  sourceRows: Vec2[][];
+  targetRows: Vec2[][];
+  targetPoints: Vec2[];
+  sourceTriangles: CompiledSourceTriangle[];
+  pointPlans: CompiledPointPlan[];
+  rowCount: number;
+  columnCount: number;
+}
+
+type CompiledPointPlan = CompiledPathPointPlan | CompiledSkinnedPointPlan;
+
+interface CompiledPathPointPlan {
+  kind: "path";
+  index: number;
+  t: number;
+  offset: number;
+  invSourceRadius: number;
+}
+
+interface CompiledSkinnedPointPlan {
+  kind: "skinned";
+  original: Vec2;
+  weightedSegments: CompiledWeightedSegment[];
+  totalWeight: number;
+  fallback: CompiledSegmentPlan | null;
+}
+
+interface CompiledSegmentPlan {
+  index: number;
+  t: number;
+  sourceAlong: number;
+  sourceOffset: number;
+  invSourceLength: number;
+  invSourceRadius: number;
+}
+
+interface CompiledWeightedSegment extends CompiledSegmentPlan {
+  weight: number;
+}
+
+interface RuntimeTargetSegment {
+  point: Vec2;
+  directionX: number;
+  directionY: number;
+  normalX: number;
+  normalY: number;
+  vectorX: number;
+  vectorY: number;
+  length: number;
+  radiusA: number;
+  radiusB: number;
+  radiusDelta: number;
+}
+
+interface CompiledSourceTriangle {
+  s0: Vec2;
+  s1: Vec2;
+  s2: Vec2;
+  d0: number;
+  d1: number;
+  d2: number;
+  affine: SourceTriangleAffine;
+}
+
+interface SourceTriangleAffine {
+  invDet: number;
+  a0: number;
+  a1: number;
+  a2: number;
+  c0: number;
+  c1: number;
+  c2: number;
+  e0: number;
+  e1: number;
+  e2: number;
+}
+
 function drawTexturedGridTriangles(ctx: CanvasRenderingContext2D, image: HTMLImageElement, width: number, height: number, mesh: TexturedGridMesh) {
+  if (mesh.sourceTriangles && mesh.targetPoints) {
+    for (let triangleIndex = 0; triangleIndex < mesh.sourceTriangles.length; triangleIndex += 1) {
+      if (mesh.alphaTriangles && !mesh.alphaTriangles[triangleIndex]) continue;
+      const triangle = mesh.sourceTriangles[triangleIndex];
+      drawTexturedTriangle(
+        ctx,
+        image,
+        width,
+        height,
+        triangle.s0,
+        triangle.s1,
+        triangle.s2,
+        mesh.targetPoints[triangle.d0],
+        mesh.targetPoints[triangle.d1],
+        mesh.targetPoints[triangle.d2],
+        triangle.affine
+      );
+    }
+    return;
+  }
+
   const rowCount = Math.min(mesh.sourceRows.length, mesh.targetRows.length);
+  let triangleIndex = 0;
   for (let row = 0; row < rowCount - 1; row += 1) {
     const sourceRow = mesh.sourceRows[row];
     const sourceNext = mesh.sourceRows[row + 1];
@@ -480,8 +586,14 @@ function drawTexturedGridTriangles(ctx: CanvasRenderingContext2D, image: HTMLIma
       const d1 = targetNext[column];
       const d2 = targetRow[column + 1];
       const d3 = targetNext[column + 1];
-      if (!mesh.mask || sourceTriangleHasAlpha(mesh.mask, s0, s1, s2)) drawTexturedTriangle(ctx, image, width, height, s0, s1, s2, d0, d1, d2);
-      if (!mesh.mask || sourceTriangleHasAlpha(mesh.mask, s2, s1, s3)) drawTexturedTriangle(ctx, image, width, height, s2, s1, s3, d2, d1, d3);
+      if (mesh.alphaTriangles ? mesh.alphaTriangles[triangleIndex] : !mesh.mask || sourceTriangleHasAlpha(mesh.mask, s0, s1, s2)) {
+        drawTexturedTriangle(ctx, image, width, height, s0, s1, s2, d0, d1, d2);
+      }
+      triangleIndex += 1;
+      if (mesh.alphaTriangles ? mesh.alphaTriangles[triangleIndex] : !mesh.mask || sourceTriangleHasAlpha(mesh.mask, s2, s1, s3)) {
+        drawTexturedTriangle(ctx, image, width, height, s2, s1, s3, d2, d1, d3);
+      }
+      triangleIndex += 1;
     }
   }
 }
@@ -506,14 +618,51 @@ export function buildSkeletonWarpMesh(
   if (sampleCount < 2) return null;
   const sourcePath = sourceSamples.slice(0, sampleCount);
   const targetPath = targetSamples.slice(0, sampleCount);
-  const sourceRows: Vec2[][] = [];
-  const targetRows: Vec2[][] = [];
+  const targetSegments = compileTargetSegments(targetPath);
   const gridSize = Math.max(1.2, options.gridSize ?? (algorithm === "skinned" ? 2 : 3.5));
   const maxColumns = algorithm === "skinned" ? 96 : 28;
   const maxRows = algorithm === "skinned" ? 140 : 38;
   const columnCount = Math.max(5, Math.min(maxColumns, Math.ceil(width / gridSize) + 1));
   const rowCount = Math.max(5, Math.min(maxRows, Math.ceil(height / gridSize) + 1));
+  const compiled = getCompiledWarpSource(width, height, sourceCenters, sourceRadii, sourcePath, segmentCount, algorithm, gridSize, options.influence ?? 2.6, rowCount, columnCount);
 
+  for (let row = 0; row < rowCount; row += 1) {
+    const targetRow = compiled.targetRows[row];
+    for (let column = 0; column < columnCount; column += 1) {
+      mapCompiledPointPlanInto(compiled.pointPlans[row * columnCount + column], targetSegments, targetRow[column]);
+    }
+  }
+
+  return {
+    sourceRows: compiled.sourceRows,
+    targetRows: compiled.targetRows,
+    sourceTriangles: compiled.sourceTriangles,
+    targetPoints: compiled.targetPoints,
+    ...(mask ? { mask, alphaTriangles: getAlphaTriangles(compiled, mask) } : {})
+  };
+}
+
+function getCompiledWarpSource(
+  width: number,
+  height: number,
+  sourceCenters: Vec2[],
+  sourceRadii: number[],
+  sourcePath: RibbonSample[],
+  segmentCount: number,
+  algorithm: "path" | "skinned",
+  gridSize: number,
+  influence: number,
+  rowCount: number,
+  columnCount: number
+): CompiledWarpSource {
+  const key = warpSourceCacheKey(width, height, sourceCenters, sourceRadii, sourcePath.length, segmentCount, algorithm, gridSize, influence, rowCount, columnCount);
+  const cached = compiledWarpSourceCache.get(key);
+  if (cached) return cached;
+
+  const sourceRows: Vec2[][] = [];
+  const targetRows: Vec2[][] = [];
+  const targetPoints: Vec2[] = [];
+  const pointPlans: CompiledPointPlan[] = [];
   for (let row = 0; row < rowCount; row += 1) {
     const sourceRow: Vec2[] = [];
     const targetRow: Vec2[] = [];
@@ -524,17 +673,262 @@ export function buildSkeletonWarpMesh(
         y
       };
       sourceRow.push(source);
-      targetRow.push(
-        algorithm === "skinned"
-          ? mapSourcePointWithWeightedSkin(source, sourcePath, targetPath, options.influence ?? 2.6)
-          : mapSourcePointToTargetPath(source, sourcePath, targetPath)
-      );
+      const target = { x: 0, y: 0 };
+      targetRow.push(target);
+      targetPoints.push(target);
+      pointPlans.push(algorithm === "skinned" ? compileSkinnedPointPlan(source, sourcePath, influence) : compilePathPointPlan(source, sourcePath));
     }
     sourceRows.push(sourceRow);
     targetRows.push(targetRow);
   }
 
-  return { sourceRows, targetRows, ...(mask ? { mask } : {}) };
+  const sourceTriangles = compileSourceTriangles(sourceRows, rowCount, columnCount);
+  const compiled = { key, sourceRows, targetRows, targetPoints, sourceTriangles, pointPlans, rowCount, columnCount };
+  compiledWarpSourceCache.set(key, compiled);
+  return compiled;
+}
+
+function compileSourceTriangles(sourceRows: Vec2[][], rowCount: number, columnCount: number): CompiledSourceTriangle[] {
+  const triangles: CompiledSourceTriangle[] = [];
+  for (let row = 0; row < rowCount - 1; row += 1) {
+    const sourceRow = sourceRows[row];
+    const sourceNext = sourceRows[row + 1];
+    for (let column = 0; column < columnCount - 1; column += 1) {
+      const topLeft = row * columnCount + column;
+      const bottomLeft = (row + 1) * columnCount + column;
+      const topRight = topLeft + 1;
+      const bottomRight = bottomLeft + 1;
+      triangles.push(
+        compileSourceTriangle(sourceRow[column], sourceNext[column], sourceRow[column + 1], topLeft, bottomLeft, topRight),
+        compileSourceTriangle(sourceRow[column + 1], sourceNext[column], sourceNext[column + 1], topRight, bottomLeft, bottomRight)
+      );
+    }
+  }
+  return triangles;
+}
+
+function compileSourceTriangle(s0: Vec2, s1: Vec2, s2: Vec2, d0: number, d1: number, d2: number): CompiledSourceTriangle {
+  return { s0, s1, s2, d0, d1, d2, affine: sourceTriangleAffine(s0, s1, s2) };
+}
+
+function compilePathPointPlan(point: Vec2, sourcePath: RibbonSample[]): CompiledPathPointPlan {
+  const projection = closestSourcePathProjection(point, sourcePath);
+  const sourceA = sourcePath[projection.index];
+  const sourceB = sourcePath[projection.index + 1];
+  return {
+    kind: "path",
+    index: projection.index,
+    t: projection.t,
+    offset: projection.offset,
+    invSourceRadius: 1 / Math.max(0.001, lerpNumber(sourceA.radius, sourceB.radius, projection.t))
+  };
+}
+
+function compileSkinnedPointPlan(point: Vec2, sourcePath: RibbonSample[], influence: number): CompiledSkinnedPointPlan {
+  let totalWeight = 0;
+  let fallback: (CompiledSegmentPlan & { distanceSq: number }) | null = null;
+  const weightedSegments: CompiledWeightedSegment[] = [];
+
+  for (let index = 0; index < sourcePath.length - 1; index += 1) {
+    const sourceA = sourcePath[index];
+    const sourceB = sourcePath[index + 1];
+    const projection = projectPointToSampleSegment(point, sourceA, sourceB);
+    if (!projection) continue;
+    const segmentPlan = compileSegmentPlan(point, sourceA, sourceB, projection.unclampedT, index);
+    if (!fallback || projection.distanceSq < fallback.distanceSq) fallback = { ...segmentPlan, distanceSq: projection.distanceSq };
+
+    const sourceRadius = Math.max(0.35, lerpNumber(sourceA.radius, sourceB.radius, projection.t));
+    const influenceRadius = Math.max(sourceRadius * influence, 2.4);
+    const distance = Math.sqrt(projection.distanceSq);
+    const normalizedDistance = distance / influenceRadius;
+    const outside = projection.unclampedT < 0 ? -projection.unclampedT : projection.unclampedT > 1 ? projection.unclampedT - 1 : 0;
+    const longitudinalPenalty = 1 / (1 + outside * outside * 36);
+    const weight = (longitudinalPenalty * longitudinalPenalty) / Math.max(0.0001, 0.035 + normalizedDistance ** 4);
+    if (weight <= 0.000001) continue;
+
+    totalWeight += weight;
+    weightedSegments.push({ ...segmentPlan, weight });
+  }
+
+  if (totalWeight > 0.000001) {
+    for (const segment of weightedSegments) segment.weight /= totalWeight;
+  }
+
+  return {
+    kind: "skinned",
+    original: point,
+    weightedSegments,
+    totalWeight,
+    fallback: fallback ? stripDistance(fallback) : null
+  };
+}
+
+function compileSegmentPlan(point: Vec2, sourceA: RibbonSample, sourceB: RibbonSample, t: number, index: number): CompiledSegmentPlan {
+  const sourceVector = { x: sourceB.point.x - sourceA.point.x, y: sourceB.point.y - sourceA.point.y };
+  const sourceLength = Math.max(0.001, Math.hypot(sourceVector.x, sourceVector.y));
+  const sourceDirection = { x: sourceVector.x / sourceLength, y: sourceVector.y / sourceLength };
+  const sourceNormal = normalForTangent(sourceDirection);
+  const relative = { x: point.x - sourceA.point.x, y: point.y - sourceA.point.y };
+  const radiusT = clampNumber(t, 0, 1);
+  const sourceRadius = Math.max(0.001, lerpNumber(sourceA.radius, sourceB.radius, radiusT));
+  return {
+    index,
+    t: radiusT,
+    sourceAlong: relative.x * sourceDirection.x + relative.y * sourceDirection.y,
+    sourceOffset: relative.x * sourceNormal.x + relative.y * sourceNormal.y,
+    invSourceLength: 1 / sourceLength,
+    invSourceRadius: 1 / sourceRadius
+  };
+}
+
+function mapCompiledPointPlanInto(plan: CompiledPointPlan, targetSegments: RuntimeTargetSegment[], out: Vec2) {
+  if (plan.kind === "path") {
+    mapCompiledPathPointInto(plan, targetSegments, out);
+    return;
+  }
+  if (plan.totalWeight <= 0.000001) {
+    if (plan.fallback) {
+      mapCompiledSegmentInto(plan.fallback, targetSegments, out);
+    } else {
+      out.x = plan.original.x;
+      out.y = plan.original.y;
+    }
+    return;
+  }
+
+  let mappedX = 0;
+  let mappedY = 0;
+  for (const segment of plan.weightedSegments) {
+    const target = targetSegments[segment.index];
+    const targetRadius = Math.max(0.001, target.radiusA + target.radiusDelta * segment.t);
+    const alongScale = target.length * segment.invSourceLength;
+    const normalScale = targetRadius * segment.invSourceRadius;
+    mappedX += (target.point.x + target.directionX * segment.sourceAlong * alongScale + target.normalX * segment.sourceOffset * normalScale) * segment.weight;
+    mappedY += (target.point.y + target.directionY * segment.sourceAlong * alongScale + target.normalY * segment.sourceOffset * normalScale) * segment.weight;
+  }
+  out.x = mappedX;
+  out.y = mappedY;
+}
+
+function mapCompiledPathPointInto(plan: CompiledPathPointPlan, targetSegments: RuntimeTargetSegment[], out: Vec2) {
+  const target = targetSegments[plan.index];
+  const targetRadius = Math.max(0.001, target.radiusA + target.radiusDelta * plan.t);
+  const radiusScale = targetRadius * plan.invSourceRadius;
+  out.x = target.point.x + target.vectorX * plan.t + target.normalX * plan.offset * radiusScale;
+  out.y = target.point.y + target.vectorY * plan.t + target.normalY * plan.offset * radiusScale;
+}
+
+function mapCompiledSegmentInto(plan: CompiledSegmentPlan, targetSegments: RuntimeTargetSegment[], out: Vec2) {
+  const target = targetSegments[plan.index];
+  const targetRadius = Math.max(0.001, target.radiusA + target.radiusDelta * plan.t);
+  const alongScale = target.length * plan.invSourceLength;
+  const normalScale = targetRadius * plan.invSourceRadius;
+  out.x = target.point.x + target.directionX * plan.sourceAlong * alongScale + target.normalX * plan.sourceOffset * normalScale;
+  out.y = target.point.y + target.directionY * plan.sourceAlong * alongScale + target.normalY * plan.sourceOffset * normalScale;
+}
+
+function compileTargetSegments(targetPath: RibbonSample[]): RuntimeTargetSegment[] {
+  const segments: RuntimeTargetSegment[] = [];
+  for (let index = 0; index < targetPath.length - 1; index += 1) {
+    const targetA = targetPath[index];
+    const targetB = targetPath[index + 1];
+    const vectorX = targetB.point.x - targetA.point.x;
+    const vectorY = targetB.point.y - targetA.point.y;
+    const length = Math.max(0.001, Math.hypot(vectorX, vectorY));
+    const directionX = vectorX / length;
+    const directionY = vectorY / length;
+    segments.push({
+      point: targetA.point,
+      directionX,
+      directionY,
+      normalX: -directionY,
+      normalY: directionX,
+      vectorX,
+      vectorY,
+      length,
+      radiusA: targetA.radius,
+      radiusB: targetB.radius,
+      radiusDelta: targetB.radius - targetA.radius
+    });
+  }
+  return segments;
+}
+
+function getAlphaTriangles(compiled: CompiledWarpSource, mask: ImageAlphaMask): boolean[] {
+  let bySource = alphaTriangleCache.get(mask);
+  if (!bySource) {
+    bySource = new Map<string, boolean[]>();
+    alphaTriangleCache.set(mask, bySource);
+  }
+  const cached = bySource.get(compiled.key);
+  if (cached) return cached;
+
+  const alphaTriangles: boolean[] = [];
+  for (let row = 0; row < compiled.rowCount - 1; row += 1) {
+    const sourceRow = compiled.sourceRows[row];
+    const sourceNext = compiled.sourceRows[row + 1];
+    for (let column = 0; column < compiled.columnCount - 1; column += 1) {
+      const s0 = sourceRow[column];
+      const s1 = sourceNext[column];
+      const s2 = sourceRow[column + 1];
+      const s3 = sourceNext[column + 1];
+      alphaTriangles.push(sourceTriangleHasAlpha(mask, s0, s1, s2), sourceTriangleHasAlpha(mask, s2, s1, s3));
+    }
+  }
+
+  bySource.set(compiled.key, alphaTriangles);
+  return alphaTriangles;
+}
+
+function stripDistance(segment: CompiledSegmentPlan & { distanceSq: number }): CompiledSegmentPlan {
+  return {
+    index: segment.index,
+    t: segment.t,
+    sourceAlong: segment.sourceAlong,
+    sourceOffset: segment.sourceOffset,
+    invSourceLength: segment.invSourceLength,
+    invSourceRadius: segment.invSourceRadius
+  };
+}
+
+function warpSourceCacheKey(
+  width: number,
+  height: number,
+  sourceCenters: Vec2[],
+  sourceRadii: number[],
+  sourcePathLength: number,
+  segmentCount: number,
+  algorithm: "path" | "skinned",
+  gridSize: number,
+  influence: number,
+  rowCount: number,
+  columnCount: number
+) {
+  return [
+    algorithm,
+    numberCacheKey(width),
+    numberCacheKey(height),
+    segmentCount,
+    numberCacheKey(gridSize),
+    numberCacheKey(influence),
+    sourcePathLength,
+    rowCount,
+    columnCount,
+    pointsCacheKey(sourceCenters),
+    numbersCacheKey(sourceRadii)
+  ].join("|");
+}
+
+function pointsCacheKey(points: Vec2[]) {
+  return points.map((point) => `${numberCacheKey(point.x)},${numberCacheKey(point.y)}`).join(";");
+}
+
+function numbersCacheKey(values: number[]) {
+  return values.map(numberCacheKey).join(",");
+}
+
+function numberCacheKey(value: number) {
+  return Number.isFinite(value) ? value.toPrecision(12) : String(value);
 }
 
 function mapSourcePointToTargetPath(point: Vec2, sourcePath: RibbonSample[], targetPath: RibbonSample[]): Vec2 {
@@ -947,36 +1341,38 @@ function drawTexturedTriangle(
   s2: Vec2,
   d0: Vec2,
   d1: Vec2,
-  d2: Vec2
+  d2: Vec2,
+  sourceAffine?: SourceTriangleAffine
 ) {
-  const matrix = affineFromTriangles(s0, s1, s2, d0, d1, d2);
+  const matrix = sourceAffine ? affineFromSourceTriangle(sourceAffine, d0, d1, d2) : affineFromTriangles(s0, s1, s2, d0, d1, d2);
   if (!matrix) return;
-  const clipTriangle = expandedTriangle(d0, d1, d2, 0.35);
+  const centerX = (d0.x + d1.x + d2.x) / 3;
+  const centerY = (d0.y + d1.y + d2.y) / 3;
+  const d0dx = d0.x - centerX;
+  const d0dy = d0.y - centerY;
+  const d0Length = Math.hypot(d0dx, d0dy) || 1;
+  const d0x = d0.x + (d0dx / d0Length) * 0.35;
+  const d0y = d0.y + (d0dy / d0Length) * 0.35;
+  const d1dx = d1.x - centerX;
+  const d1dy = d1.y - centerY;
+  const d1Length = Math.hypot(d1dx, d1dy) || 1;
+  const d1x = d1.x + (d1dx / d1Length) * 0.35;
+  const d1y = d1.y + (d1dy / d1Length) * 0.35;
+  const d2dx = d2.x - centerX;
+  const d2dy = d2.y - centerY;
+  const d2Length = Math.hypot(d2dx, d2dy) || 1;
+  const d2x = d2.x + (d2dx / d2Length) * 0.35;
+  const d2y = d2.y + (d2dy / d2Length) * 0.35;
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(clipTriangle[0].x, clipTriangle[0].y);
-  ctx.lineTo(clipTriangle[1].x, clipTriangle[1].y);
-  ctx.lineTo(clipTriangle[2].x, clipTriangle[2].y);
+  ctx.moveTo(d0x, d0y);
+  ctx.lineTo(d1x, d1y);
+  ctx.lineTo(d2x, d2y);
   ctx.closePath();
   ctx.clip();
   ctx.transform(matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f);
   ctx.drawImage(image, 0, 0, width, height);
   ctx.restore();
-}
-
-function expandedTriangle(a: Vec2, b: Vec2, c: Vec2, amount: number): [Vec2, Vec2, Vec2] {
-  const center = { x: (a.x + b.x + c.x) / 3, y: (a.y + b.y + c.y) / 3 };
-  return [expandFromCenter(a, center, amount), expandFromCenter(b, center, amount), expandFromCenter(c, center, amount)];
-}
-
-function expandFromCenter(point: Vec2, center: Vec2, amount: number): Vec2 {
-  const dx = point.x - center.x;
-  const dy = point.y - center.y;
-  const length = Math.hypot(dx, dy) || 1;
-  return {
-    x: point.x + (dx / length) * amount,
-    y: point.y + (dy / length) * amount
-  };
 }
 
 export function affineFromTriangles(s0: Vec2, s1: Vec2, s2: Vec2, d0: Vec2, d1: Vec2, d2: Vec2): Mat2D | null {
@@ -997,6 +1393,35 @@ export function affineFromTriangles(s0: Vec2, s1: Vec2, s2: Vec2, d0: Vec2, d1: 
         d1.y * (s2.x * s0.y - s0.x * s2.y) +
         d2.y * (s0.x * s1.y - s1.x * s0.y)) /
       det
+  };
+}
+
+function sourceTriangleAffine(s0: Vec2, s1: Vec2, s2: Vec2): SourceTriangleAffine {
+  const det = s0.x * (s1.y - s2.y) + s1.x * (s2.y - s0.y) + s2.x * (s0.y - s1.y);
+  const invDet = Math.abs(det) < 1e-6 ? 0 : 1 / det;
+  return {
+    invDet,
+    a0: s1.y - s2.y,
+    a1: s2.y - s0.y,
+    a2: s0.y - s1.y,
+    c0: s2.x - s1.x,
+    c1: s0.x - s2.x,
+    c2: s1.x - s0.x,
+    e0: s1.x * s2.y - s2.x * s1.y,
+    e1: s2.x * s0.y - s0.x * s2.y,
+    e2: s0.x * s1.y - s1.x * s0.y
+  };
+}
+
+function affineFromSourceTriangle(source: SourceTriangleAffine, d0: Vec2, d1: Vec2, d2: Vec2): Mat2D | null {
+  if (source.invDet === 0) return null;
+  return {
+    a: (d0.x * source.a0 + d1.x * source.a1 + d2.x * source.a2) * source.invDet,
+    b: (d0.y * source.a0 + d1.y * source.a1 + d2.y * source.a2) * source.invDet,
+    c: (d0.x * source.c0 + d1.x * source.c1 + d2.x * source.c2) * source.invDet,
+    d: (d0.y * source.c0 + d1.y * source.c1 + d2.y * source.c2) * source.invDet,
+    e: (d0.x * source.e0 + d1.x * source.e1 + d2.x * source.e2) * source.invDet,
+    f: (d0.y * source.e0 + d1.y * source.e1 + d2.y * source.e2) * source.invDet
   };
 }
 

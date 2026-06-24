@@ -16,6 +16,7 @@ import type {
 } from "./types";
 
 const emptyPose: SkeletalPoseDefinition = { id: "empty", name: "Empty", bones: {} };
+const sortedBindingDefinitionsCache = new WeakMap<SkeletonRigDefinition, BindingDefinition[]>();
 
 export function resolveRig(
   definition: SkeletonRigDefinition,
@@ -48,13 +49,20 @@ export function resolveRig(
     bones.push(resolved);
   }
 
-  const bindingDefs = definition.bindings.map((binding) =>
-    resolveBindingDefinition(binding, activePose.bindings?.[binding.id], overrides.bindings[binding.id])
-  );
-  const bindingIdsByAnchor = bindingDefs.reduce<Record<string, string[]>>((acc, binding) => {
-    acc[binding.anchorId] = [...(acc[binding.anchorId] || []), binding.id];
-    return acc;
-  }, {});
+  const bindingDefs: BindingDefinition[] = [];
+  let needsBindingSort = false;
+  for (const binding of sortedBindingDefinitions(definition)) {
+    const poseBinding = activePose.bindings?.[binding.id];
+    const overrideBinding = overrides.bindings[binding.id];
+    if (poseBinding?.drawOrder !== undefined || overrideBinding?.drawOrder !== undefined) needsBindingSort = true;
+    bindingDefs.push(resolveBindingDefinition(binding, poseBinding, overrideBinding));
+  }
+  const bindingIdsByAnchor: Record<string, string[]> = {};
+  for (const binding of bindingDefs) {
+    const ids = bindingIdsByAnchor[binding.anchorId];
+    if (ids) ids.push(binding.id);
+    else bindingIdsByAnchor[binding.anchorId] = [binding.id];
+  }
 
   const anchorsById: Record<string, ResolvedAnchor> = {};
   const anchors = definition.anchors.map((anchorDefinition) => {
@@ -74,24 +82,23 @@ export function resolveRig(
   });
 
   const bindingsById: Record<string, ResolvedBinding> = {};
-  const bindings = bindingDefs
-    .map((binding) => {
-      const anchor = anchorsById[binding.anchorId] || anchors[0];
-      const matrix = anchor
-        ? multiply(anchor.matrix, composeTransform(binding.offsetX, binding.offsetY, binding.rotation, binding.scaleX, binding.scaleY))
-        : composeTransform(binding.offsetX, binding.offsetY, binding.rotation, binding.scaleX, binding.scaleY);
-      const resolved: ResolvedBinding = {
-        id: binding.id,
-        name: binding.name,
-        definition: binding,
-        anchor,
-        matrix,
-        position: applyToPoint(matrix, { x: 0, y: 0 })
-      };
-      bindingsById[binding.id] = resolved;
-      return resolved;
-    })
-    .sort((a, b) => a.definition.drawOrder - b.definition.drawOrder);
+  const bindings = bindingDefs.map((binding) => {
+    const anchor = anchorsById[binding.anchorId] || anchors[0];
+    const matrix = anchor
+      ? multiply(anchor.matrix, composeTransform(binding.offsetX, binding.offsetY, binding.rotation, binding.scaleX, binding.scaleY))
+      : composeTransform(binding.offsetX, binding.offsetY, binding.rotation, binding.scaleX, binding.scaleY);
+    const resolved: ResolvedBinding = {
+      id: binding.id,
+      name: binding.name,
+      definition: binding,
+      anchor,
+      matrix,
+      position: applyToPoint(matrix, { x: 0, y: 0 })
+    };
+    bindingsById[binding.id] = resolved;
+    return resolved;
+  });
+  if (needsBindingSort) bindings.sort((a, b) => a.definition.drawOrder - b.definition.drawOrder);
 
   return {
     definition,
@@ -103,6 +110,14 @@ export function resolveRig(
     anchorsById,
     bindingsById
   };
+}
+
+function sortedBindingDefinitions(definition: SkeletonRigDefinition): BindingDefinition[] {
+  const cached = sortedBindingDefinitionsCache.get(definition);
+  if (cached) return cached;
+  const sorted = [...definition.bindings].sort((a, b) => a.drawOrder - b.drawOrder);
+  sortedBindingDefinitionsCache.set(definition, sorted);
+  return sorted;
 }
 
 export function interpolatePose(
@@ -175,6 +190,7 @@ export function interpolatePose(
 }
 
 function resolveAnchorDefinition(definition: AnchorDefinition, pose: AnchorPose | undefined, override: AnchorPose | undefined): AnchorDefinition {
+  if (!pose && !override) return definition;
   const handleBoneId =
     override?.handleBoneId === undefined
       ? pose?.handleBoneId === undefined
@@ -205,6 +221,7 @@ function resolveBindingDefinition(
   pose: BindingPose | undefined,
   override: BindingPose | undefined
 ): BindingDefinition {
+  if (!pose && !override) return definition;
   return {
     ...definition,
     kind: override?.kind ?? pose?.kind ?? definition.kind,

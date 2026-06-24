@@ -30,6 +30,7 @@ export class PixiRigActor {
   private delayMs = 0;
   private startedAt = 0;
   private lastRenderedAt = 0;
+  private lastPoseElapsedMs = -1;
   private needsRender = true;
   private completedRender = false;
 
@@ -73,6 +74,7 @@ export class PixiRigActor {
     this.renderKey = renderKey;
     this.startedAt = 0;
     this.lastRenderedAt = 0;
+    this.lastPoseElapsedMs = -1;
     this.needsRender = true;
     this.completedRender = false;
   }
@@ -86,9 +88,11 @@ export class PixiRigActor {
     const elapsed = Math.min(Math.max(0, rawElapsed - delayMs), animationMs);
     const animationDone = rawElapsed >= delayMs + animationMs;
     if (!this.needsRender && this.completedRender && animationDone) return;
+    if (!this.needsRender && !animationDone && Math.abs(elapsed - this.lastPoseElapsedMs) < 1) return;
     if (!this.needsRender && !animationDone && this.lastRenderedAt && now - this.lastRenderedAt < actorFrameMs) return;
 
     this.lastRenderedAt = now;
+    this.lastPoseElapsedMs = elapsed;
     this.needsRender = false;
     this.completedRender = animationDone;
     const pose = this.poseAt(elapsed);
