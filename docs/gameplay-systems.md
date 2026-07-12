@@ -119,7 +119,7 @@ animation:
   tags: ["fist", "heavy", "strike"]
 ```
 
-`pool` 引用当前武功自己的 `animation_pools`，`action` 则直接引用 `client/src/battle/skeletal/data/rig-actions.json` 里的 rig 动作。server 会按池权重和标签选出最终 `actionId` 放入 `CombatEventMsg.visual`；client 只负责按该 action 渲染素材、位移、目标反馈和 VFX。
+每个普通招式和主动技能都通过 `animation.action` 固定引用 `resources/scripts/combat_actions/battle-actions.json` 中的动作。server 把最终 `actionId` 放入 `CombatEventMsg.visual`；client 按 action 播放 raster keyframes、位移、目标反馈和 VFX，不再使用 animation pool。
 
 ## 状态效果
 

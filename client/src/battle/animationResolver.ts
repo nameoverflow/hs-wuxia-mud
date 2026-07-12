@@ -1,5 +1,6 @@
 import type { CombatEvent, CombatResult } from "../protocol";
-import { idleVisualForStyle, reactionVisualFor, rigActionFor, visualForRigAction } from "./rigActionCatalog";
+import { clipImpactOffsetMs } from "./animationClip";
+import { battleActionFor, idleVisualForStyle, reactionVisualFor, visualForBattleAction } from "./battleActionCatalog";
 import type {
   ActionVfxDefinition,
   ActorMotion,
@@ -23,11 +24,12 @@ export function resolveCombatTimeline(
   actorStyle: CombatStyle = "fist",
   targetStyle: CombatStyle = "fist"
 ): ResolvedBattleTimeline {
-  const action = rigActionFor(event.visual?.actionId, actorStyle);
+  const action = battleActionFor(event.visual?.actionId, actorStyle);
   const result = event.result || "hit";
   const reaction = action.targetReaction[result] || resultReaction(result);
-  const actorVisual = visualForRigAction(action.id, actorProfile, actorStyle);
+  const actorVisual = visualForBattleAction(action.id, actorProfile, actorStyle);
   const actionDurationMs = visualDurationMs(event.visual?.durationMs, action.durationMs);
+  const impactAtMs = clipImpactOffsetMs(action.frames, action.impactFrame, actionDurationMs);
   const actionDelayMs = preActionDelayMs(action.actorMotion);
   const targetVisual =
     reaction === "effect" || reaction === "none" ? idleVisualForStyle(targetStyle, targetProfile) : reactionVisualFor(reaction, targetProfile, targetStyle);
@@ -38,6 +40,7 @@ export function resolveCombatTimeline(
     actorSide,
     targetSide,
     durationMs: actionDurationMs + actionDelayMs,
+    impactAtMs: actionDelayMs + impactAtMs,
     actor: {
       side: actorSide,
       visual: actorVisual,
@@ -77,6 +80,7 @@ export function resolveSettlementTimeline(
     actorSide,
     targetSide,
     durationMs: 900,
+    impactAtMs: 0,
     actor: {
       side: actorSide,
       visual: actorVisual,

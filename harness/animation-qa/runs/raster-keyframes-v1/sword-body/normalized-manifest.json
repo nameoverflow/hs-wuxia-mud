@@ -1,0 +1,541 @@
+{
+  "source": "harness/animation-qa/runs/raster-keyframes-v1/sword-body/generated/source-sheet-v3.png",
+  "target_size": [
+    256,
+    192
+  ],
+  "baseline": 176,
+  "reference_slot": "sword_ready",
+  "target_reference_height": 142,
+  "shared_scale": 0.9793103448275862,
+  "frames": [
+    {
+      "slot": "sword_ready",
+      "source_cell": [
+        0,
+        0,
+        314,
+        314
+      ],
+      "source_bbox": [
+        144,
+        151,
+        302,
+        296
+      ],
+      "source_size": [
+        158,
+        145
+      ],
+      "output_bbox": [
+        50,
+        34,
+        205,
+        176
+      ],
+      "output_size": [
+        155,
+        142
+      ],
+      "paste": [
+        50,
+        34
+      ]
+    },
+    {
+      "slot": "sword_parry",
+      "source_cell": [
+        314,
+        0,
+        627,
+        314
+      ],
+      "source_bbox": [
+        90,
+        135,
+        266,
+        296
+      ],
+      "source_size": [
+        176,
+        161
+      ],
+      "output_bbox": [
+        42,
+        18,
+        214,
+        176
+      ],
+      "output_size": [
+        172,
+        158
+      ],
+      "paste": [
+        42,
+        18
+      ]
+    },
+    {
+      "slot": "sword_hurt",
+      "source_cell": [
+        627,
+        0,
+        940,
+        314
+      ],
+      "source_bbox": [
+        67,
+        178,
+        175,
+        295
+      ],
+      "source_size": [
+        108,
+        117
+      ],
+      "output_bbox": [
+        75,
+        61,
+        181,
+        176
+      ],
+      "output_size": [
+        106,
+        115
+      ],
+      "paste": [
+        75,
+        61
+      ]
+    },
+    {
+      "slot": "sword_dodge",
+      "source_cell": [
+        940,
+        0,
+        1254,
+        314
+      ],
+      "source_bbox": [
+        10,
+        175,
+        197,
+        295
+      ],
+      "source_size": [
+        187,
+        120
+      ],
+      "output_bbox": [
+        36,
+        58,
+        219,
+        176
+      ],
+      "output_size": [
+        183,
+        118
+      ],
+      "paste": [
+        36,
+        58
+      ]
+    },
+    {
+      "slot": "thrust_close",
+      "source_cell": [
+        0,
+        314,
+        314,
+        627
+      ],
+      "source_bbox": [
+        136,
+        111,
+        283,
+        240
+      ],
+      "source_size": [
+        147,
+        129
+      ],
+      "output_bbox": [
+        56,
+        50,
+        200,
+        176
+      ],
+      "output_size": [
+        144,
+        126
+      ],
+      "paste": [
+        56,
+        50
+      ]
+    },
+    {
+      "slot": "thrust_prep",
+      "source_cell": [
+        314,
+        314,
+        627,
+        627
+      ],
+      "source_bbox": [
+        72,
+        115,
+        266,
+        240
+      ],
+      "source_size": [
+        194,
+        125
+      ],
+      "output_bbox": [
+        33,
+        54,
+        223,
+        176
+      ],
+      "output_size": [
+        190,
+        122
+      ],
+      "paste": [
+        33,
+        54
+      ]
+    },
+    {
+      "slot": "thrust_strike",
+      "source_cell": [
+        627,
+        314,
+        940,
+        627
+      ],
+      "source_bbox": [
+        37,
+        119,
+        252,
+        240
+      ],
+      "source_size": [
+        215,
+        121
+      ],
+      "output_bbox": [
+        22,
+        58,
+        233,
+        176
+      ],
+      "output_size": [
+        211,
+        118
+      ],
+      "paste": [
+        22,
+        58
+      ]
+    },
+    {
+      "slot": "chop_close",
+      "source_cell": [
+        940,
+        314,
+        1254,
+        627
+      ],
+      "source_bbox": [
+        31,
+        94,
+        119,
+        240
+      ],
+      "source_size": [
+        88,
+        146
+      ],
+      "output_bbox": [
+        85,
+        33,
+        171,
+        176
+      ],
+      "output_size": [
+        86,
+        143
+      ],
+      "paste": [
+        85,
+        33
+      ]
+    },
+    {
+      "slot": "chop_prep",
+      "source_cell": [
+        0,
+        627,
+        314,
+        940
+      ],
+      "source_bbox": [
+        136,
+        50,
+        258,
+        208
+      ],
+      "source_size": [
+        122,
+        158
+      ],
+      "output_bbox": [
+        68,
+        21,
+        187,
+        176
+      ],
+      "output_size": [
+        119,
+        155
+      ],
+      "paste": [
+        68,
+        21
+      ]
+    },
+    {
+      "slot": "chop_strike",
+      "source_cell": [
+        314,
+        627,
+        627,
+        940
+      ],
+      "source_bbox": [
+        96,
+        78,
+        269,
+        208
+      ],
+      "source_size": [
+        173,
+        130
+      ],
+      "output_bbox": [
+        44,
+        49,
+        213,
+        176
+      ],
+      "output_size": [
+        169,
+        127
+      ],
+      "paste": [
+        44,
+        49
+      ]
+    },
+    {
+      "slot": "cut_close",
+      "source_cell": [
+        627,
+        627,
+        940,
+        940
+      ],
+      "source_bbox": [
+        69,
+        76,
+        185,
+        208
+      ],
+      "source_size": [
+        116,
+        132
+      ],
+      "output_bbox": [
+        71,
+        47,
+        185,
+        176
+      ],
+      "output_size": [
+        114,
+        129
+      ],
+      "paste": [
+        71,
+        47
+      ]
+    },
+    {
+      "slot": "cut_prep",
+      "source_cell": [
+        940,
+        627,
+        1254,
+        940
+      ],
+      "source_bbox": [
+        22,
+        81,
+        133,
+        208
+      ],
+      "source_size": [
+        111,
+        127
+      ],
+      "output_bbox": [
+        74,
+        52,
+        183,
+        176
+      ],
+      "output_size": [
+        109,
+        124
+      ],
+      "paste": [
+        74,
+        52
+      ]
+    },
+    {
+      "slot": "rising_close",
+      "source_cell": [
+        0,
+        940,
+        314,
+        1254
+      ],
+      "source_bbox": [
+        103,
+        15,
+        236,
+        144
+      ],
+      "source_size": [
+        133,
+        129
+      ],
+      "output_bbox": [
+        63,
+        50,
+        193,
+        176
+      ],
+      "output_size": [
+        130,
+        126
+      ],
+      "paste": [
+        63,
+        50
+      ]
+    },
+    {
+      "slot": "rising_prep",
+      "source_cell": [
+        314,
+        940,
+        627,
+        1254
+      ],
+      "source_bbox": [
+        56,
+        35,
+        205,
+        144
+      ],
+      "source_size": [
+        149,
+        109
+      ],
+      "output_bbox": [
+        55,
+        69,
+        201,
+        176
+      ],
+      "output_size": [
+        146,
+        107
+      ],
+      "paste": [
+        55,
+        69
+      ]
+    },
+    {
+      "slot": "cut_strike",
+      "source_cell": [
+        627,
+        940,
+        940,
+        1254
+      ],
+      "source_bbox": [
+        45,
+        20,
+        248,
+        147
+      ],
+      "source_size": [
+        203,
+        127
+      ],
+      "output_bbox": [
+        28,
+        52,
+        227,
+        176
+      ],
+      "output_size": [
+        199,
+        124
+      ],
+      "paste": [
+        28,
+        52
+      ]
+    },
+    {
+      "slot": "rising_strike",
+      "source_cell": [
+        940,
+        940,
+        1254,
+        1254
+      ],
+      "source_bbox": [
+        20,
+        41,
+        197,
+        195
+      ],
+      "source_size": [
+        177,
+        154
+      ],
+      "output_bbox": [
+        42,
+        25,
+        215,
+        176
+      ],
+      "output_size": [
+        173,
+        151
+      ],
+      "paste": [
+        42,
+        25
+      ]
+    }
+  ]
+}

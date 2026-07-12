@@ -10,14 +10,17 @@ export type ActorMotion = "none" | "approach" | "lunge" | "drive" | "focus";
 
 export type TargetReaction = "none" | "hit" | "dodge" | "parry" | "effect";
 
+export interface BattleAnimationFrame {
+  frameId: string;
+  holdMs: number;
+}
+
 export interface ActorVisual {
-  kind: "rig";
+  kind: "raster";
   actionId: string;
-  entryId: string;
   profile: VisualProfile;
   style: CombatStyle;
-  poseId: string;
-  sequence: string[];
+  frames: BattleAnimationFrame[];
 }
 
 export interface TimelineVfx {
@@ -36,10 +39,10 @@ export interface ActionVfxDefinition {
 export interface BattleActionDefinition {
   id: string;
   label: string;
-  rig: "segmented-v12";
+  frameset: "raster-v1";
   style: CombatStyle;
-  poseId: string;
-  sequence: string[];
+  frames: BattleAnimationFrame[];
+  impactFrame: number;
   tags: string[];
   durationMs: number;
   actorMotion: ActorMotion;
@@ -53,6 +56,7 @@ export interface ResolvedBattleTimeline {
   actorSide: BattleSide;
   targetSide: BattleSide;
   durationMs: number;
+  impactAtMs: number;
   actor: {
     side: BattleSide;
     visual: ActorVisual;

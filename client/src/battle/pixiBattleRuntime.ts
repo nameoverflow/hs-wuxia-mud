@@ -3,8 +3,8 @@ let runtimePromise: Promise<PixiBattleRuntime> | null = null;
 export type PixiBattleRuntime = {
   pixi: typeof import("pixi.js");
   gsap: typeof import("gsap").gsap;
-  PixiRigActor: typeof import("./pixiRigActor").PixiRigActor;
-  pixiActorSize: typeof import("./pixiRigActor").pixiActorSize;
+  PixiFrameActor: typeof import("./pixiFrameActor").PixiFrameActor;
+  frameActorSize: typeof import("./pixiFrameActor").frameActorSize;
 };
 
 export function preloadPixiBattleRuntime() {
@@ -17,12 +17,12 @@ export async function loadPixiBattleRuntime(): Promise<PixiBattleRuntime> {
     Promise.all([
       import("pixi.js"),
       import("gsap"),
-      import("./pixiRigActor")
-    ]).then(([pixi, gsapModule, rigModule]) => ({
+      import("./pixiFrameActor")
+    ]).then(([pixi, gsapModule, frameModule]) => ({
       pixi,
       gsap: gsapModule.gsap,
-      PixiRigActor: rigModule.PixiRigActor,
-      pixiActorSize: rigModule.pixiActorSize
+      PixiFrameActor: frameModule.PixiFrameActor,
+      frameActorSize: frameModule.frameActorSize
     }));
   return runtimePromise;
 }

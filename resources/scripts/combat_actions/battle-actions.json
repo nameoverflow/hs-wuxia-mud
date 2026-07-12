@@ -1,0 +1,774 @@
+{
+  "schemaVersion": 3,
+  "actions": [
+    {
+      "id": "rig.sword.idle",
+      "label": "Sword idle",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "sword_ready",
+          "holdMs": 640
+        }
+      ],
+      "impactFrame": 0,
+      "durationMs": 640,
+      "tags": [
+        "sword",
+        "idle"
+      ],
+      "actorMotion": "none",
+      "targetReaction": {
+        "hit": "none",
+        "dodge": "none",
+        "parry": "none",
+        "effect": "none"
+      },
+      "vfx": [],
+      "frameset": "raster-v1"
+    },
+    {
+      "id": "rig.sword.thrust_a",
+      "label": "Jian thrust",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "thrust_close",
+          "holdMs": 160
+        },
+        {
+          "frameId": "thrust_prep",
+          "holdMs": 160
+        },
+        {
+          "frameId": "thrust_strike",
+          "holdMs": 200
+        }
+      ],
+      "impactFrame": 2,
+      "durationMs": 520,
+      "tags": [
+        "sword",
+        "jian",
+        "attack",
+        "stab",
+        "thrust",
+        "quick"
+      ],
+      "actorMotion": "approach",
+      "targetReaction": {
+        "hit": "hit",
+        "dodge": "dodge",
+        "parry": "parry",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "trail",
+          "variant": "stab-line",
+          "anchor": "actor"
+        },
+        {
+          "kind": "impact",
+          "variant": "hit-spark",
+          "anchor": "target"
+        },
+        {
+          "kind": "parry",
+          "variant": "parry-arc",
+          "anchor": "target"
+        }
+      ],
+      "frameset": "raster-v1"
+    },
+    {
+      "id": "rig.sword.chop_a",
+      "label": "Jian downward chop",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "chop_close",
+          "holdMs": 170
+        },
+        {
+          "frameId": "chop_prep",
+          "holdMs": 170
+        },
+        {
+          "frameId": "chop_strike",
+          "holdMs": 220
+        }
+      ],
+      "impactFrame": 2,
+      "durationMs": 560,
+      "tags": [
+        "sword",
+        "jian",
+        "attack",
+        "slash",
+        "chop",
+        "heavy"
+      ],
+      "actorMotion": "approach",
+      "targetReaction": {
+        "hit": "hit",
+        "dodge": "dodge",
+        "parry": "parry",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "trail",
+          "variant": "slash-arc",
+          "anchor": "actor"
+        },
+        {
+          "kind": "impact",
+          "variant": "hit-spark",
+          "anchor": "target"
+        },
+        {
+          "kind": "parry",
+          "variant": "parry-arc",
+          "anchor": "target"
+        }
+      ],
+      "frameset": "raster-v1"
+    },
+    {
+      "id": "rig.sword.cut_a",
+      "label": "Jian horizontal cut",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "cut_close",
+          "holdMs": 160
+        },
+        {
+          "frameId": "cut_prep",
+          "holdMs": 160
+        },
+        {
+          "frameId": "cut_strike",
+          "holdMs": 220
+        }
+      ],
+      "impactFrame": 2,
+      "durationMs": 540,
+      "tags": [
+        "sword",
+        "jian",
+        "attack",
+        "slash",
+        "cut",
+        "horizontal"
+      ],
+      "actorMotion": "approach",
+      "targetReaction": {
+        "hit": "hit",
+        "dodge": "dodge",
+        "parry": "parry",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "trail",
+          "variant": "slash-arc",
+          "anchor": "actor"
+        },
+        {
+          "kind": "impact",
+          "variant": "hit-spark",
+          "anchor": "target"
+        },
+        {
+          "kind": "parry",
+          "variant": "parry-arc",
+          "anchor": "target"
+        }
+      ],
+      "frameset": "raster-v1"
+    },
+    {
+      "id": "rig.sword.rising_cut_a",
+      "label": "Jian rising cut",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "rising_close",
+          "holdMs": 170
+        },
+        {
+          "frameId": "rising_prep",
+          "holdMs": 170
+        },
+        {
+          "frameId": "rising_strike",
+          "holdMs": 220
+        }
+      ],
+      "impactFrame": 2,
+      "durationMs": 560,
+      "tags": [
+        "sword",
+        "jian",
+        "attack",
+        "uppercut",
+        "rising-cut",
+        "lift"
+      ],
+      "actorMotion": "lunge",
+      "targetReaction": {
+        "hit": "hit",
+        "dodge": "dodge",
+        "parry": "parry",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "trail",
+          "variant": "uppercut-arc",
+          "anchor": "actor"
+        },
+        {
+          "kind": "impact",
+          "variant": "hit-spark",
+          "anchor": "target"
+        },
+        {
+          "kind": "parry",
+          "variant": "parry-arc",
+          "anchor": "target"
+        }
+      ],
+      "frameset": "raster-v1"
+    },
+    {
+      "id": "rig.sword.guard",
+      "label": "Sword guard",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "sword_ready",
+          "holdMs": 220
+        },
+        {
+          "frameId": "sword_parry",
+          "holdMs": 280
+        },
+        {
+          "frameId": "sword_ready",
+          "holdMs": 220
+        }
+      ],
+      "impactFrame": 1,
+      "durationMs": 720,
+      "tags": [
+        "sword",
+        "guard",
+        "stance",
+        "buff",
+        "self"
+      ],
+      "actorMotion": "focus",
+      "targetReaction": {
+        "hit": "effect",
+        "dodge": "effect",
+        "parry": "effect",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "aura",
+          "variant": "guard-ring",
+          "anchor": "actor"
+        }
+      ],
+      "frameset": "raster-v1"
+    },
+    {
+      "id": "rig.sword.hurt",
+      "label": "Sword hurt",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "sword_hurt",
+          "holdMs": 520
+        }
+      ],
+      "impactFrame": 0,
+      "durationMs": 520,
+      "tags": [
+        "sword",
+        "reaction",
+        "hurt"
+      ],
+      "actorMotion": "none",
+      "targetReaction": {
+        "hit": "none",
+        "dodge": "none",
+        "parry": "none",
+        "effect": "none"
+      },
+      "vfx": [],
+      "frameset": "raster-v1"
+    },
+    {
+      "id": "rig.sword.dodge",
+      "label": "Sword dodge",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "sword_dodge",
+          "holdMs": 560
+        }
+      ],
+      "impactFrame": 0,
+      "durationMs": 560,
+      "tags": [
+        "sword",
+        "reaction",
+        "dodge"
+      ],
+      "actorMotion": "none",
+      "targetReaction": {
+        "hit": "none",
+        "dodge": "none",
+        "parry": "none",
+        "effect": "none"
+      },
+      "vfx": [],
+      "frameset": "raster-v1"
+    },
+    {
+      "id": "rig.sword.parry",
+      "label": "Sword parry",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "sword_parry",
+          "holdMs": 560
+        }
+      ],
+      "impactFrame": 0,
+      "durationMs": 560,
+      "tags": [
+        "sword",
+        "reaction",
+        "parry",
+        "guard"
+      ],
+      "actorMotion": "none",
+      "targetReaction": {
+        "hit": "none",
+        "dodge": "none",
+        "parry": "none",
+        "effect": "none"
+      },
+      "vfx": [],
+      "frameset": "raster-v1"
+    },
+    {
+      "id": "rig.fist.idle",
+      "label": "Fist idle",
+      "style": "fist",
+      "frames": [
+        {
+          "frameId": "idle",
+          "holdMs": 640
+        }
+      ],
+      "impactFrame": 0,
+      "durationMs": 640,
+      "tags": [
+        "fist",
+        "idle"
+      ],
+      "actorMotion": "none",
+      "targetReaction": {
+        "hit": "none",
+        "dodge": "none",
+        "parry": "none",
+        "effect": "none"
+      },
+      "vfx": [],
+      "frameset": "raster-v1"
+    },
+    {
+      "id": "rig.fist.punch_a",
+      "label": "Fist punch",
+      "style": "fist",
+      "frames": [
+        {
+          "frameId": "punch_windup",
+          "holdMs": 280
+        },
+        {
+          "frameId": "punch_strike",
+          "holdMs": 440
+        }
+      ],
+      "impactFrame": 1,
+      "durationMs": 720,
+      "tags": [
+        "fist",
+        "attack",
+        "strike",
+        "punch"
+      ],
+      "actorMotion": "approach",
+      "targetReaction": {
+        "hit": "hit",
+        "dodge": "dodge",
+        "parry": "parry",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "trail",
+          "variant": "stab-line",
+          "anchor": "actor"
+        },
+        {
+          "kind": "impact",
+          "variant": "hit-spark",
+          "anchor": "target"
+        },
+        {
+          "kind": "parry",
+          "variant": "parry-arc",
+          "anchor": "target"
+        }
+      ],
+      "frameset": "raster-v1"
+    },
+    {
+      "id": "rig.fist.heavy_a",
+      "label": "Fist heavy strike",
+      "style": "fist",
+      "frames": [
+        {
+          "frameId": "heavy_windup",
+          "holdMs": 400
+        },
+        {
+          "frameId": "heavy_strike",
+          "holdMs": 420
+        }
+      ],
+      "impactFrame": 1,
+      "durationMs": 820,
+      "tags": [
+        "fist",
+        "attack",
+        "strike",
+        "heavy"
+      ],
+      "actorMotion": "drive",
+      "targetReaction": {
+        "hit": "hit",
+        "dodge": "dodge",
+        "parry": "parry",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "trail",
+          "variant": "slash-arc",
+          "anchor": "actor"
+        },
+        {
+          "kind": "impact",
+          "variant": "hit-spark",
+          "anchor": "target"
+        },
+        {
+          "kind": "parry",
+          "variant": "parry-arc",
+          "anchor": "target"
+        }
+      ],
+      "frameset": "raster-v1"
+    },
+    {
+      "id": "rig.fist.kick_a",
+      "label": "Fist kick",
+      "style": "fist",
+      "frames": [
+        {
+          "frameId": "kick_windup",
+          "holdMs": 360
+        },
+        {
+          "frameId": "kick_strike",
+          "holdMs": 500
+        }
+      ],
+      "impactFrame": 1,
+      "durationMs": 860,
+      "tags": [
+        "fist",
+        "attack",
+        "kick",
+        "uppercut",
+        "lift"
+      ],
+      "actorMotion": "lunge",
+      "targetReaction": {
+        "hit": "hit",
+        "dodge": "dodge",
+        "parry": "parry",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "trail",
+          "variant": "uppercut-arc",
+          "anchor": "actor"
+        },
+        {
+          "kind": "impact",
+          "variant": "hit-spark",
+          "anchor": "target"
+        },
+        {
+          "kind": "parry",
+          "variant": "parry-arc",
+          "anchor": "target"
+        }
+      ],
+      "frameset": "raster-v1"
+    },
+    {
+      "id": "rig.fist.guard",
+      "label": "Fist guard",
+      "style": "fist",
+      "frames": [
+        {
+          "frameId": "idle",
+          "holdMs": 220
+        },
+        {
+          "frameId": "guard",
+          "holdMs": 280
+        },
+        {
+          "frameId": "idle",
+          "holdMs": 220
+        }
+      ],
+      "impactFrame": 1,
+      "durationMs": 720,
+      "tags": [
+        "fist",
+        "guard",
+        "stance",
+        "buff",
+        "self"
+      ],
+      "actorMotion": "focus",
+      "targetReaction": {
+        "hit": "effect",
+        "dodge": "effect",
+        "parry": "effect",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "aura",
+          "variant": "guard-ring",
+          "anchor": "actor"
+        }
+      ],
+      "frameset": "raster-v1"
+    },
+    {
+      "id": "rig.fist.healing_palm",
+      "label": "Healing palm",
+      "style": "fist",
+      "frames": [
+        {
+          "frameId": "idle",
+          "holdMs": 250
+        },
+        {
+          "frameId": "guard",
+          "holdMs": 280
+        },
+        {
+          "frameId": "idle",
+          "holdMs": 250
+        }
+      ],
+      "impactFrame": 1,
+      "durationMs": 780,
+      "tags": [
+        "fist",
+        "heal",
+        "palm",
+        "self"
+      ],
+      "actorMotion": "focus",
+      "targetReaction": {
+        "hit": "effect",
+        "dodge": "effect",
+        "parry": "effect",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "heal",
+          "variant": "heal-pulse",
+          "anchor": "actor"
+        }
+      ],
+      "frameset": "raster-v1"
+    },
+    {
+      "id": "rig.fist.hurt",
+      "label": "Fist hurt",
+      "style": "fist",
+      "frames": [
+        {
+          "frameId": "hurt",
+          "holdMs": 520
+        }
+      ],
+      "impactFrame": 0,
+      "durationMs": 520,
+      "tags": [
+        "fist",
+        "reaction",
+        "hurt"
+      ],
+      "actorMotion": "none",
+      "targetReaction": {
+        "hit": "none",
+        "dodge": "none",
+        "parry": "none",
+        "effect": "none"
+      },
+      "vfx": [],
+      "frameset": "raster-v1"
+    },
+    {
+      "id": "rig.fist.dodge",
+      "label": "Fist dodge",
+      "style": "fist",
+      "frames": [
+        {
+          "frameId": "dodge",
+          "holdMs": 560
+        }
+      ],
+      "impactFrame": 0,
+      "durationMs": 560,
+      "tags": [
+        "fist",
+        "reaction",
+        "dodge"
+      ],
+      "actorMotion": "none",
+      "targetReaction": {
+        "hit": "none",
+        "dodge": "none",
+        "parry": "none",
+        "effect": "none"
+      },
+      "vfx": [],
+      "frameset": "raster-v1"
+    },
+    {
+      "id": "rig.fist.parry",
+      "label": "Fist parry",
+      "style": "fist",
+      "frames": [
+        {
+          "frameId": "guard",
+          "holdMs": 560
+        }
+      ],
+      "impactFrame": 0,
+      "durationMs": 560,
+      "tags": [
+        "fist",
+        "reaction",
+        "parry",
+        "guard"
+      ],
+      "actorMotion": "none",
+      "targetReaction": {
+        "hit": "none",
+        "dodge": "none",
+        "parry": "none",
+        "effect": "none"
+      },
+      "vfx": [],
+      "frameset": "raster-v1"
+    },
+    {
+      "id": "rig.effect.dot",
+      "label": "Damage over time",
+      "style": "fist",
+      "frames": [
+        {
+          "frameId": "idle",
+          "holdMs": 560
+        }
+      ],
+      "impactFrame": 0,
+      "durationMs": 560,
+      "tags": [
+        "effect",
+        "dot"
+      ],
+      "actorMotion": "none",
+      "targetReaction": {
+        "hit": "effect",
+        "dodge": "effect",
+        "parry": "effect",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "impact",
+          "variant": "dot-spark",
+          "anchor": "target"
+        }
+      ],
+      "frameset": "raster-v1"
+    },
+    {
+      "id": "rig.effect.hot",
+      "label": "Heal over time",
+      "style": "fist",
+      "frames": [
+        {
+          "frameId": "idle",
+          "holdMs": 560
+        }
+      ],
+      "impactFrame": 0,
+      "durationMs": 560,
+      "tags": [
+        "effect",
+        "hot"
+      ],
+      "actorMotion": "none",
+      "targetReaction": {
+        "hit": "effect",
+        "dodge": "effect",
+        "parry": "effect",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "heal",
+          "variant": "heal-pulse",
+          "anchor": "target"
+        }
+      ],
+      "frameset": "raster-v1"
+    }
+  ]
+}

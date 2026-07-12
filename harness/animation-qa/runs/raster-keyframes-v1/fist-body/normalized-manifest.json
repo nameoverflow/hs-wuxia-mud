@@ -1,0 +1,343 @@
+{
+  "source": "harness/animation-qa/runs/raster-keyframes-v1/fist-body/generated/source-sheet-v2.png",
+  "target_size": [
+    256,
+    192
+  ],
+  "baseline": 176,
+  "reference_slot": "idle",
+  "target_reference_height": 142,
+  "shared_scale": 0.7932960893854749,
+  "frames": [
+    {
+      "slot": "idle",
+      "source_cell": [
+        0,
+        0,
+        355,
+        444
+      ],
+      "source_bbox": [
+        148,
+        149,
+        276,
+        328
+      ],
+      "source_size": [
+        128,
+        179
+      ],
+      "output_bbox": [
+        77,
+        34,
+        179,
+        176
+      ],
+      "output_size": [
+        102,
+        142
+      ],
+      "paste": [
+        77,
+        34
+      ]
+    },
+    {
+      "slot": "guard",
+      "source_cell": [
+        355,
+        0,
+        710,
+        444
+      ],
+      "source_bbox": [
+        142,
+        151,
+        239,
+        328
+      ],
+      "source_size": [
+        97,
+        177
+      ],
+      "output_bbox": [
+        90,
+        36,
+        167,
+        176
+      ],
+      "output_size": [
+        77,
+        140
+      ],
+      "paste": [
+        90,
+        36
+      ]
+    },
+    {
+      "slot": "hurt",
+      "source_cell": [
+        710,
+        0,
+        1064,
+        444
+      ],
+      "source_bbox": [
+        107,
+        154,
+        253,
+        328
+      ],
+      "source_size": [
+        146,
+        174
+      ],
+      "output_bbox": [
+        70,
+        38,
+        186,
+        176
+      ],
+      "output_size": [
+        116,
+        138
+      ],
+      "paste": [
+        70,
+        38
+      ]
+    },
+    {
+      "slot": "dodge",
+      "source_cell": [
+        1064,
+        0,
+        1419,
+        444
+      ],
+      "source_bbox": [
+        89,
+        157,
+        231,
+        328
+      ],
+      "source_size": [
+        142,
+        171
+      ],
+      "output_bbox": [
+        72,
+        40,
+        185,
+        176
+      ],
+      "output_size": [
+        113,
+        136
+      ],
+      "paste": [
+        72,
+        40
+      ]
+    },
+    {
+      "slot": "punch_windup",
+      "source_cell": [
+        1419,
+        0,
+        1774,
+        444
+      ],
+      "source_bbox": [
+        54,
+        156,
+        213,
+        328
+      ],
+      "source_size": [
+        159,
+        172
+      ],
+      "output_bbox": [
+        65,
+        40,
+        191,
+        176
+      ],
+      "output_size": [
+        126,
+        136
+      ],
+      "paste": [
+        65,
+        40
+      ]
+    },
+    {
+      "slot": "punch_strike",
+      "source_cell": [
+        0,
+        444,
+        355,
+        887
+      ],
+      "source_bbox": [
+        132,
+        78,
+        294,
+        248
+      ],
+      "source_size": [
+        162,
+        170
+      ],
+      "output_bbox": [
+        64,
+        41,
+        193,
+        176
+      ],
+      "output_size": [
+        129,
+        135
+      ],
+      "paste": [
+        64,
+        41
+      ]
+    },
+    {
+      "slot": "heavy_windup",
+      "source_cell": [
+        355,
+        444,
+        710,
+        887
+      ],
+      "source_bbox": [
+        115,
+        97,
+        267,
+        249
+      ],
+      "source_size": [
+        152,
+        152
+      ],
+      "output_bbox": [
+        68,
+        55,
+        189,
+        176
+      ],
+      "output_size": [
+        121,
+        121
+      ],
+      "paste": [
+        68,
+        55
+      ]
+    },
+    {
+      "slot": "heavy_strike",
+      "source_cell": [
+        710,
+        444,
+        1064,
+        887
+      ],
+      "source_bbox": [
+        99,
+        106,
+        308,
+        249
+      ],
+      "source_size": [
+        209,
+        143
+      ],
+      "output_bbox": [
+        45,
+        63,
+        211,
+        176
+      ],
+      "output_size": [
+        166,
+        113
+      ],
+      "paste": [
+        45,
+        63
+      ]
+    },
+    {
+      "slot": "kick_windup",
+      "source_cell": [
+        1064,
+        444,
+        1419,
+        887
+      ],
+      "source_bbox": [
+        134,
+        69,
+        203,
+        253
+      ],
+      "source_size": [
+        69,
+        184
+      ],
+      "output_bbox": [
+        100,
+        30,
+        155,
+        176
+      ],
+      "output_size": [
+        55,
+        146
+      ],
+      "paste": [
+        100,
+        30
+      ]
+    },
+    {
+      "slot": "kick_strike",
+      "source_cell": [
+        1419,
+        444,
+        1774,
+        887
+      ],
+      "source_bbox": [
+        65,
+        73,
+        209,
+        253
+      ],
+      "source_size": [
+        144,
+        180
+      ],
+      "output_bbox": [
+        71,
+        33,
+        185,
+        176
+      ],
+      "output_size": [
+        114,
+        143
+      ],
+      "paste": [
+        71,
+        33
+      ]
+    }
+  ]
+}

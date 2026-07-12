@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run validate:animations && vite build",
     "preview": "vite preview",
-    "check": "svelte-check --tsconfig ./tsconfig.json",
-    "render:rig": "node scripts/render-rig-preview.mjs"
+    "check": "npm run validate:animations && svelte-check --tsconfig ./tsconfig.json",
+    "validate:animations": "node scripts/validate-animation-data.mjs",
+    "render:frames": "node scripts/render-frame-preview.mjs"
   },
   "devDependencies": {
     "@napi-rs/canvas": "^1.0.0",

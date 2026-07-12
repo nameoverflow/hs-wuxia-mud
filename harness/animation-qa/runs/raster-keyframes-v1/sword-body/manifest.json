@@ -1,0 +1,78 @@
+{
+  "name": "raster-v1-sword-body",
+  "action": "sixteen reusable Chinese jian poses: ready, parry, hit recoil, dodge; thrust close/prep/strike; downward chop close/prep/strike; horizontal cut close/prep/strike; rising cut close/prep/strike",
+  "actor": "project baseline male sword actor; one shared body for both genders, no hair, holding one slim straight Chinese jian",
+  "identity_profile": "male",
+  "resolved_actor_card": "project baseline male sword actor; one shared body for both genders, no hair, holding one slim straight Chinese jian. Male baseline actor; plain softened rounded head, simple torso, balanced compact front/rear guard arms, simple legs, no hair, no clothing; slightly squarer stance is acceptable; add a slim straight sword only when the action requires a sword",
+  "style": "simplified compact abstract wuxia little-person silhouette sprite for a dark text-MUD battle UI; match docs/assets/battle-animation/actor-style-reference-male.png or actor-style-reference-female.png proportions; squat compact 2.5-3 head-tall body, low center of gravity, broad readable action shapes; male and female share the same total height, modest softened head size, torso scale, limb thickness, and foot baseline; front and rear arms have balanced thickness and visual weight, with the rear waist-side arm reading as a compact bent arm; must still read as a small person with head above torso, readable arms and legs, and planted feet; flat small-game actor, 1-2 colors, no facial features, no clothing, no hair strands, no gradients",
+  "direction": "right",
+  "background": "#00ff00",
+  "target_size": "256x192",
+  "frames": [
+    {
+      "slot": "sword_ready",
+      "filename": "sword_ready.png"
+    },
+    {
+      "slot": "sword_parry",
+      "filename": "sword_parry.png"
+    },
+    {
+      "slot": "sword_hurt",
+      "filename": "sword_hurt.png"
+    },
+    {
+      "slot": "sword_dodge",
+      "filename": "sword_dodge.png"
+    },
+    {
+      "slot": "thrust_close",
+      "filename": "thrust_close.png"
+    },
+    {
+      "slot": "thrust_prep",
+      "filename": "thrust_prep.png"
+    },
+    {
+      "slot": "thrust_strike",
+      "filename": "thrust_strike.png"
+    },
+    {
+      "slot": "chop_close",
+      "filename": "chop_close.png"
+    },
+    {
+      "slot": "chop_prep",
+      "filename": "chop_prep.png"
+    },
+    {
+      "slot": "chop_strike",
+      "filename": "chop_strike.png"
+    },
+    {
+      "slot": "cut_close",
+      "filename": "cut_close.png"
+    },
+    {
+      "slot": "cut_prep",
+      "filename": "cut_prep.png"
+    },
+    {
+      "slot": "cut_strike",
+      "filename": "cut_strike.png"
+    },
+    {
+      "slot": "rising_close",
+      "filename": "rising_close.png"
+    },
+    {
+      "slot": "rising_prep",
+      "filename": "rising_prep.png"
+    },
+    {
+      "slot": "rising_strike",
+      "filename": "rising_strike.png"
+    }
+  ],
+  "final_asset_root": "client/src/assets/battle/actors/"
+}

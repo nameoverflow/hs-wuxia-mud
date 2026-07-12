@@ -320,7 +320,7 @@ MUD 战斗不是纯动画，它同时是文字叙事。动画必须服务文字�
 
 ## 与系统设计的关系
 
-本文的原则应落到 [client/src/battle/skeletal/data/rig-actions.json](../client/src/battle/skeletal/data/rig-actions.json)、[client/src/battle/rigActionCatalog.ts](../client/src/battle/rigActionCatalog.ts) 和 [client/src/battle/animationResolver.ts](../client/src/battle/animationResolver.ts)，而不是散落在组件 if/else 里。
+本文的原则应落到 [resources/scripts/combat_actions/battle-actions.json](../resources/scripts/combat_actions/battle-actions.json)、[client/src/battle/battleActionCatalog.ts](../client/src/battle/battleActionCatalog.ts) 和 [client/src/battle/animationResolver.ts](../client/src/battle/animationResolver.ts)，而不是散落在组件 if/else 里。
 
 推荐把每个动作拆成：
 
@@ -333,7 +333,7 @@ MUD 战斗不是纯动画，它同时是文字叙事。动画必须服务文字�
 
 server 提供战斗事实和 animation hint。client 根据 catalog 选择表现，战斗结果以 server 事件为准。
 
-当前 `BattlePanel.svelte` 只消费 `ResolvedBattleTimeline`。新增动作时优先改 YAML `animation` 和 catalog；只有新增通用渲染 primitive 时才改组件或 CSS。
+当前 `PixiBattleStage.svelte` 只消费 `ResolvedBattleTimeline`。新增动作时优先改武学 YAML 的固定 `animation.action`、action manifest 和 raster frame；只有新增通用渲染 primitive 时才改舞台组件。
 
 ## 设计检查表
 
@@ -350,7 +350,7 @@ server 提供战斗事实和 animation hint。client 根据 catalog 选择表现
 - recover 后画面是否干净？
 - 普通攻击是否足够短？
 - 队列连续播放时是否有文字可读停顿？
-- 这个动作是否能通过 YAML `animation`、catalog pool 和 tag 复用，而不是写死到组件？
+- 这个动作是否由 YAML `animation.action` 固定绑定，并由 catalog/manifest 复用，而不是写死到组件？
 
 ## QA 建议
 
