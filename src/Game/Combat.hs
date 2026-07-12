@@ -157,15 +157,8 @@ flushBattleMaintenanceTick dt = do
     else do
       playerStats <- battleDerivedStats battleState
       enemyStats <- battleDerivedStats battleEnemyState
-
-      -- Regenerate Qi
-      battleState . battleQi += round (dt * (playerStats ^. dsQiRegen))
-      battleEnemyState . battleQi += round (dt * (enemyStats ^. dsQiRegen))
-
-      -- Cap Qi at max
       battleState . battleQi %= min (playerStats ^. dsMaxQi)
       battleEnemyState . battleQi %= min (enemyStats ^. dsMaxQi)
-
       return False
 
 -- | Run fast AP/action advancement. At most one automatic action is emitted per tick.

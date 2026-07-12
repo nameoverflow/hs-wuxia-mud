@@ -44,6 +44,7 @@ main = do
   testActiveSkillQueuesDuringActionLock
   testNormalAttackUsesCombatPipeline
   testBattleActionTickDoesNotSyncApOnly
+  testBattleMaintenanceDoesNotNaturallyRecoverHpOrQi
   testBattleActionLockBlocksApGrowth
   testDotEffectTicks
   testTrainRaisesFoundationAndUnlocksActiveSkills
@@ -562,6 +563,23 @@ testBattleActionTickDoesNotSyncApOnly = do
   assert (null responses) "AP-only battle tick should not send responses"
   assert ((battle ^. battleState . battleAp) > 0) "fast battle tick did not accumulate player AP"
   assert ((battle ^. battleEnemyState . battleAp) > 0) "fast battle tick did not accumulate enemy AP"
+
+testBattleMaintenanceDoesNotNaturallyRecoverHpOrQi :: IO ()
+testBattleMaintenanceDoesNotNaturallyRecoverHpOrQi = do
+  gs <- newTestPlayerState
+  (_, inBattle) <- startTrainingBattle gs
+  let wounded =
+        inBattle
+          & battles . ix "tester" . battleState . battleChar . charHP .~ 40
+          & battles . ix "tester" . battleState . battleQi .~ 10
+          & battles . ix "tester" . battleEnemyState . battleChar . charHP .~ 50
+          & battles . ix "tester" . battleEnemyState . battleQi .~ 12
+  (_, afterTick) <- runOk "battle maintenance without natural recovery" wounded (tickBattleMaintenance 1)
+  battle <- getBattle afterTick
+  assert ((battle ^. battleState . battleChar . charHP) == 40) "player HP naturally recovered during battle"
+  assert ((battle ^. battleState . battleQi) == 10) "player Qi naturally recovered during battle"
+  assert ((battle ^. battleEnemyState . battleChar . charHP) == 50) "enemy HP naturally recovered during battle"
+  assert ((battle ^. battleEnemyState . battleQi) == 12) "enemy Qi naturally recovered during battle"
 
 testBattleActionLockBlocksApGrowth :: IO ()
 testBattleActionLockBlocksApGrowth = do
