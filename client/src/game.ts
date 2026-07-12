@@ -78,6 +78,12 @@ export interface BattleAnimationState {
   queueDepth: number;
 }
 
+export interface StoryTransitionState {
+  active: boolean;
+  text: string;
+  durationMs: number;
+}
+
 export interface GameState {
   locale: Locale;
   connected: boolean;
@@ -93,6 +99,7 @@ export interface GameState {
   quests: QuestLogEntry[];
   arts: ArtSummary[];
   battle: BattleState;
+  storyTransition: StoryTransitionState;
   messages: MessageEntry[];
   lastError: string | null;
 }
@@ -136,6 +143,7 @@ const initialState: GameState = {
     apSyncedAt: 0,
     actionLockUntil: 0
   },
+  storyTransition: { active: false, text: "", durationMs: 1000 },
   messages: [{ id: 1, time: now(), type: "system", text: translate("zh", "message.initial") }],
   lastError: null
 };
@@ -160,9 +168,19 @@ interface QueuedBattleTimeline {
 const battleTimelineQueue: QueuedBattleTimeline[] = [];
 let battleAnimationId = 0;
 let battleAnimationTimer: number | null = null;
+const storyMessageQueue: (ServerMessage | { tag: string; contents?: unknown })[] = [];
+let storyQueueProcessing = false;
+let storyQueueToken = 0;
+let storyTransitionTimer: number | null = null;
 
 function now() {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
 }
 
 function withLocale(fn: (locale: Locale) => string) {
@@ -194,6 +212,94 @@ function clearBattleAnimationQueue() {
       animation: { activeTimeline: null, queueDepth: 0 }
     }
   }));
+}
+
+function clearStoryMessageQueue() {
+  storyMessageQueue.length = 0;
+  storyQueueProcessing = false;
+  storyQueueToken += 1;
+  if (storyTransitionTimer !== null) {
+    window.clearTimeout(storyTransitionTimer);
+    storyTransitionTimer = null;
+  }
+  game.update((state) => ({
+    ...state,
+    storyTransition: { active: false, text: "", durationMs: 1000 }
+  }));
+}
+
+function normalizeStoryDuration(raw: unknown, fallback: number) {
+  const parsed = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(0, Math.min(8000, Math.round(parsed)));
+}
+
+function parseStoryTransition(contents: unknown) {
+  if (Array.isArray(contents)) {
+    return {
+      text: String(contents[0] ?? ""),
+      durationMs: normalizeStoryDuration(contents[1], 1000)
+    };
+  }
+  if (contents && typeof contents === "object") {
+    const value = contents as Record<string, unknown>;
+    return {
+      text: String(value.text ?? value.storyTransitionText ?? ""),
+      durationMs: normalizeStoryDuration(value.ms ?? value.durationMs, 1000)
+    };
+  }
+  return { text: "", durationMs: 1000 };
+}
+
+async function playStoryTransition(contents: unknown) {
+  const { text, durationMs } = parseStoryTransition(contents);
+  if (durationMs <= 0) return;
+  if (storyTransitionTimer !== null) {
+    window.clearTimeout(storyTransitionTimer);
+  }
+  game.update((state) => ({
+    ...state,
+    storyTransition: { active: true, text, durationMs }
+  }));
+  storyTransitionTimer = window.setTimeout(() => {
+    storyTransitionTimer = null;
+    game.update((state) => ({
+      ...state,
+      storyTransition: { active: false, text: "", durationMs: 1000 }
+    }));
+  }, durationMs);
+  await wait(Math.min(280, Math.max(120, Math.floor(durationMs * 0.25))));
+}
+
+function enqueueServerMessage(message: ServerMessage | { tag: string; contents?: unknown }) {
+  storyMessageQueue.push(message);
+  void processStoryMessageQueue();
+}
+
+async function processStoryMessageQueue() {
+  if (storyQueueProcessing) return;
+  storyQueueProcessing = true;
+  const token = storyQueueToken;
+  try {
+    while (storyMessageQueue.length > 0 && token === storyQueueToken) {
+      const message = storyMessageQueue.shift();
+      if (!message) continue;
+      if (message.tag === "StoryDelayMsg") {
+        await wait(normalizeStoryDuration(message.contents, 600));
+        continue;
+      }
+      if (message.tag === "StoryTransitionMsg") {
+        await playStoryTransition(message.contents);
+        continue;
+      }
+      processServerMessage(message);
+    }
+  } finally {
+    if (token === storyQueueToken) {
+      storyQueueProcessing = false;
+      if (storyMessageQueue.length > 0) void processStoryMessageQueue();
+    }
+  }
 }
 
 function t(locale: Locale, key: string, values: Record<string, unknown> = {}) {
@@ -276,6 +382,7 @@ export function connect(username: string, options: { reset?: boolean; creation?:
     reconnectTimer = null;
   }
   clearBattleAnimationQueue();
+  clearStoryMessageQueue();
 
   game.update((state) => ({ ...state, username: cleanName, connecting: true, lastError: null }));
   addMessage("system", withLocale((locale) => t(locale, "connection.connecting", { user: cleanName })));
@@ -308,7 +415,7 @@ export function connect(username: string, options: { reset?: boolean; creation?:
 
   ws.addEventListener("message", (event) => {
     try {
-      processServerMessage(JSON.parse(String(event.data)) as ServerMessage);
+      enqueueServerMessage(JSON.parse(String(event.data)) as ServerMessage);
     } catch {
       addMessage("system", String(event.data));
     }
@@ -320,6 +427,7 @@ export function connect(username: string, options: { reset?: boolean; creation?:
 
   ws.addEventListener("close", () => {
     clearBattleAnimationQueue();
+    clearStoryMessageQueue();
     game.update((state) => ({
       ...state,
       connected: false,
@@ -333,6 +441,7 @@ export function connect(username: string, options: { reset?: boolean; creation?:
 
 export function disconnect() {
   clearBattleAnimationQueue();
+  clearStoryMessageQueue();
   ws?.close();
   ws = null;
 }

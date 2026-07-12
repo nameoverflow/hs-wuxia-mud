@@ -1,11 +1,15 @@
-- id: town_work_token
-  name: "津关工筹"
-  desc: "一枚木筹，背面刻着津关二字。镇上做过活的人，都会有这么一枚。"
+- id: bianliang_work_token
+  name: "汴梁工筹"
+  desc: "一枚木筹，背面刻着汴梁二字。城里做过活的人，都会有这么一枚。"
 
-- id: black_pine_badge
-  name: "黑松木牌"
-  desc: "从黑松路剪径人身上搜出的木牌。牌面粗糙，暗记的折线却和伞骨银针尾端如出一手。"
+- id: bianliang_room_tag
+  name: "樊楼房牌"
+  desc: "樊楼客舍后院小房的木牌。房间不大，但门闩还能合上。"
 
-- id: faction_intro_note
-  name: "三路引帖"
-  desc: "引路人写下的三条路线：寒雨门可辨银针步点，铁衣帮可查押送暗账，药王谷可验针尾残味。"
+- id: yanmen_wooden_badge
+  name: "雁门木牌"
+  desc: "从雁门探子袖中掉出的递铺木牌，背面刻着一组交接时辰，边角还粘着封信筒用的红蜡。"
+
+- id: three_city_route_pass
+  name: "三城路引"
+  desc: "汴梁引路人签过名的行旅公验。洛阳驿亭、大理商队和太湖药车见到此物，都会留一个同行位置。"

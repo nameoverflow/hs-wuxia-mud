@@ -158,30 +158,11 @@ validateWorld wrld =
         | martialArt ^. artMaxLevel <= 0
       ]
         <> validateFoundationRef martialArt
-        <> validateAnimationPools martialArt
         <> concatMap (validateArtRequirement artId') (martialArt ^. artRequires)
         <> concatMap (validateAttackMoveUnlock martialArt $ martialArt ^. artMaxLevel) (martialArt ^. artAttackMoves)
         <> concatMap (validateActiveSkillUnlock martialArt $ martialArt ^. artMaxLevel) (martialArt ^. artActiveSkills)
       where
         artId' = martialArt ^. artId
-
-    validateAnimationPools martialArt =
-      concat
-        [ [ "martial art " <> martialArt ^. artId <> " animation pool " <> poolId <> " has no actions"
-            | null $ pool ^. animationPoolActions
-          ]
-            <> concatMap (validateAnimationPoolEntry (martialArt ^. artId) poolId) (pool ^. animationPoolActions)
-          | (poolId, pool) <- M.toList $ martialArt ^. artAnimationPools
-        ]
-
-    validateAnimationPoolEntry ownerArtId poolId entry =
-      [ "martial art " <> ownerArtId <> " animation pool " <> poolId <> " has empty action id"
-        | T.null $ entry ^. animationPoolEntryAction
-      ]
-        <> [ "martial art " <> ownerArtId <> " animation pool " <> poolId <> " action " <> entry ^. animationPoolEntryAction <> " has non-positive weight"
-             | entry ^. animationPoolEntryWeight <= 0
-           ]
-        <> requireCombatActionTiming ("martial art " <> ownerArtId <> " animation pool " <> poolId) (entry ^. animationPoolEntryAction)
 
     validateCombatActionTiming timing =
       [ "combat action " <> timing ^. combatActionTimingId <> " has non-positive lock_ms"
@@ -237,21 +218,12 @@ validateWorld wrld =
         ownerArtId = martialArt ^. artId
 
     validateAnimationRef martialArt label animationRef =
-      [ "martial art " <> martialArt ^. artId <> " " <> label <> " animation must define exactly one of action or pool"
-        | isJust (animationRef ^. animationRefAction) == isJust (animationRef ^. animationRefPool)
+      [ "martial art " <> martialArt ^. artId <> " " <> label <> " has empty animation action"
+        | T.null actionId
       ]
-        <> [ "martial art " <> martialArt ^. artId <> " " <> label <> " references missing animation pool " <> poolId
-             | Just poolId <- [animationRef ^. animationRefPool],
-               M.notMember poolId (martialArt ^. artAnimationPools)
-           ]
-        <> [ "martial art " <> martialArt ^. artId <> " " <> label <> " has empty animation action"
-             | Just actionId <- [animationRef ^. animationRefAction],
-               T.null actionId
-           ]
-        <> concat
-          [ requireCombatActionTiming ("martial art " <> martialArt ^. artId <> " " <> label) actionId
-            | Just actionId <- [animationRef ^. animationRefAction]
-          ]
+        <> requireCombatActionTiming ("martial art " <> martialArt ^. artId <> " " <> label) actionId
+      where
+        actionId = animationRef ^. animationRefAction
 
     requireCombatActionTiming label actionId =
       [ label <> " references missing combat action timing " <> actionId
@@ -299,11 +271,20 @@ validateWorld wrld =
 
     validateAction qid eid = \case
       StoryMessage _ _ -> []
+      StoryDelay ms ->
+        [ "quest " <> qid <> " event " <> eid <> " has negative delay"
+          | ms < 0
+        ]
+      StoryTransition _ ms ->
+        [ "quest " <> qid <> " event " <> eid <> " has negative transition duration"
+          | ms < 0
+        ]
       SetQuestStage ref _ -> requireQuest qid eid "set_stage action" ref
       CompleteQuest ref -> requireQuest qid eid "complete_quest action" ref
       SetFlag _ -> []
       ClearFlag _ -> []
       HideNpc cid -> requireChar qid eid "hide_npc action" cid
+      ShowNpc cid -> requireChar qid eid "show_npc action" cid
       GiveItem itemId amount ->
         requireItem qid eid "give_item action" itemId
           <> [ "quest " <> qid <> " event " <> eid <> " gives non-positive item amount for " <> itemId
@@ -320,6 +301,7 @@ validateWorld wrld =
              ]
           <> validateLearnArtLevel ("quest " <> qid <> " event " <> eid <> " learn_art action") artId level
       StartBattle cid -> requireChar qid eid "start_battle action" cid
+      MovePlayer mid pos -> requireRoom qid eid "move_player action" mid pos
 
     validateQuestReward qid reward =
       concatMap validateRewardItem (reward ^. questRewardItems)
@@ -338,6 +320,11 @@ validateWorld wrld =
     requireChar qid eid label cid =
       [ "quest " <> qid <> " event " <> eid <> " " <> label <> " references missing character " <> cid
         | M.notMember cid (wrld ^. chars)
+      ]
+
+    requireRoom qid eid label mid pos =
+      [ "quest " <> qid <> " event " <> eid <> " " <> label <> " references missing room " <> mid <> " " <> toText (show pos)
+        | maybe True (M.notMember pos . view mapRooms) (M.lookup mid (wrld ^. maps))
       ]
 
     requireItem qid eid label itemId =

@@ -51,18 +51,18 @@ server 监听：
 
 ```json
 {"go":"North"}
-{"talk":"cold_rain_innkeeper"}
-{"attack":"paper_umbrella_killer"}
-{"perform":"lamp_cut"}
-{"train":"cold_rain_secret"}
-{"practice":"cold_rain_secret"}
-{"learn":{"teacher":"cold_rain_innkeeper","art":"cold_rain_secret","times":1}}
-{"study":"cold_rain_manual"}
-{"research":"cold_rain_secret"}
+{"talk":"wounded_escort"}
+{"talk":"temple_black_clad"}
+{"perform":"steady_cut"}
+{"train":"weiyuan_sword"}
+{"practice":"weiyuan_sword"}
+{"learn":{"teacher":"wounded_escort","art":"weiyuan_sword","times":1}}
+{"study":"weiyuan_sword_manual"}
+{"research":"weiyuan_sword"}
 {"meditate":40}
-{"enable":{"type":"sword","art":"cold_rain_secret"}}
-{"prepare":{"type":"sword","art":"cold_rain_secret"}}
-{"use":"cold_rain_manual"}
+{"enable":{"type":"sword","art":"weiyuan_sword"}}
+{"prepare":{"type":"sword","art":"weiyuan_sword"}}
+{"use":"weiyuan_sword_manual"}
 {"say":"..."}
 {"other":"view"}
 {"other":"quests"}
@@ -103,7 +103,7 @@ server 不直接返回英文 UI 句子。固定系统文案使用结构化消息
 
 ```json
 {"tag":"SystemMsg","contents":{"systemMessageKey":"welcome","systemMessageParams":{"users":"tester"}}}
-{"tag":"ErrorMsg","contents":{"errorSummaryCode":"unable_to_move","errorSummaryParams":{"direction":"North","room":"冷雨渡口"}}}
+{"tag":"ErrorMsg","contents":{"errorSummaryCode":"unable_to_move","errorSummaryParams":{"direction":"North","room":"汴梁外破庙口"}}}
 ```
 
 client 根据 `systemMessageKey` / `errorSummaryCode` 和参数做本地化。剧情文本、NPC 名字、房间描述、武功招式文案仍由脚本内容决定，不放进 UI i18n 表。
@@ -172,9 +172,10 @@ client 根据 `systemMessageKey` / `errorSummaryCode` 和参数做本地化。�
 
 ```json
 {
-  "version": 4,
+  "version": 5,
   "player_id": "tester",
   "story": {},
+  "position": ["bianliang_city", [0, 1]],
   "inventory": {},
   "money": 0,
   "potential": 20,
@@ -216,6 +217,7 @@ client 根据 `systemMessageKey` / `errorSummaryCode` 和参数做本地化。�
 保存内容：
 
 - 玩家剧情状态：quest stages、flags、hidden NPCs。
+- 当前地图和房间位置。
 - 背包。
 - 金钱。
 - 潜能和实战经验。
@@ -227,7 +229,8 @@ client 根据 `systemMessageKey` / `errorSummaryCode` 和参数做本地化。�
 加载流程：
 
 1. server 使用 `default_player.yaml` 创建玩家。
-2. 如果 `saves/<player>.json` 存在，覆盖 story/inventory/money/potential/combat_exp/desc/profile/innate/HP/Qi/Jing/arts/prepared/enabled。
+2. 如果 `saves/<player>.json` 存在，覆盖 story/position/inventory/money/potential/combat_exp/desc/profile/innate/HP/Qi/Jing/arts/prepared/enabled。
+3. 位置存在且仍指向有效房间时，同步修正新旧房间的玩家占位；旧存档没有位置时保留默认出生点。
 
 dev reset 登录流程：
 
@@ -247,7 +250,6 @@ dev reset 登录流程：
 
 当前没有完整数据库系统。以下内容不是持久化目标，或只以世界配置为准：
 
-- 当前房间位置没有写入 `PlayerSave`。
 - 进行中的 battle 不保存。
 - NPC 全局战斗锁、HP/Qi 运行态、死亡状态和复活倒计时不保存。
 - 世界内容来自 YAML，每次 server 启动重新加载。

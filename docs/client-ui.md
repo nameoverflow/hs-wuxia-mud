@@ -109,7 +109,7 @@ item summary 当前包含：
 只有 `usable = true` 的物品显示“使用”按钮。按钮发送：
 
 ```json
-{"use":"cold_rain_manual"}
+{"use":"weiyuan_sword_manual"}
 ```
 
 server 返回的 `UseItemMsg` 第二个字段是已由脚本定义的显示文案，client 直接显示，不做翻译。
@@ -157,5 +157,5 @@ server 通过 `ArtsMsg` 提供已学武功列表。client 在非战斗状态下�
 可训练的非基础武功显示“修炼/Train”按钮，点击发送：
 
 ```json
-{"train":"cold_rain_secret"}
+{"train":"weiyuan_sword"}
 ```

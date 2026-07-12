@@ -22,11 +22,13 @@ import qualified Data.ByteString.Lazy as BL
 import Data.Char (isAlphaNum)
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromMaybe)
+import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
 import Game.Entity
 import Game.Quest
+import Game.World (maps)
 import GameState
 import System.Directory (createDirectoryIfMissing, doesFileExist, removeFile)
 import System.FilePath ((</>))
@@ -35,6 +37,7 @@ data PlayerSave = PlayerSave
   { saveVersion :: Int,
     savePlayerId :: PlayerId,
     saveStory :: PlayerStoryState,
+    savePosition :: Maybe (MapId, (Int, Int)),
     saveInventory :: M.Map ItemId Int,
     saveMoney :: Int,
     savePotential :: Int,
@@ -102,6 +105,7 @@ instance FromJSON PlayerSave where
     profile <- o .:? "profile" .!= emptySaveProfile
     character <- o .:? "character" .!= emptySaveCharacter
     saveStory <- o .:? "story" .!= newPlayerStoryState
+    savePosition <- o .:? "position"
     saveInventory <- o .:? "inventory" .!= M.empty
     saveMoney <- o .:? "money" .!= 0
     savePotential <- o .:? "potential" .!= 0
@@ -135,6 +139,7 @@ instance ToJSON PlayerSave where
       [ "version" .= saveVersion,
         "player_id" .= savePlayerId,
         "story" .= saveStory,
+        "position" .= savePosition,
         "inventory" .= saveInventory,
         "money" .= saveMoney,
         "potential" .= savePotential,
@@ -197,8 +202,9 @@ deletePlayerSave saveDir pid = do
   when exists $ removeFile path
 
 applyPlayerSaveToGameState :: PlayerSave -> GameState -> GameState
-applyPlayerSaveToGameState PlayerSave {..} =
-  (players . ix savePlayerId . playerInventory .~ saveInventory)
+applyPlayerSaveToGameState PlayerSave {..} gs =
+  restoreSavedPosition savePlayerId savePosition $
+    (players . ix savePlayerId . playerInventory .~ saveInventory)
     . (players . ix savePlayerId . playerMoney .~ saveMoney)
     . (players . ix savePlayerId . playerPotential .~ savePotential)
     . (players . ix savePlayerId . playerCombatExp .~ saveCombatExp)
@@ -215,13 +221,26 @@ applyPlayerSaveToGameState PlayerSave {..} =
     . maybe id (\appearance -> players . ix savePlayerId . playerCharacter . charAppearance .~ clampAppearanceScore appearance) saveAppearance
     . maybe id (\innate -> players . ix savePlayerId . playerCharacter . charInnate .~ innate) saveInnate
     . (stories . at savePlayerId ?~ saveStory)
+    $ gs
+
+restoreSavedPosition :: PlayerId -> Maybe (MapId, (Int, Int)) -> GameState -> GameState
+restoreSavedPosition _ Nothing gs = gs
+restoreSavedPosition pid (Just position@(mapId, roomPos)) gs =
+  case M.lookup mapId (gs ^. world . maps) >>= M.lookup roomPos . view mapRooms of
+    Nothing -> gs
+    Just _ ->
+      gs
+        & world . maps . traversed . mapRooms . traversed . roomPlayer %~ S.delete pid
+        & world . maps . ix mapId . mapRooms . ix roomPos . roomPlayer %~ S.insert pid
+        & players . ix pid . playerPosition .~ position
 
 playerSaveFromGameState :: PlayerId -> GameState -> Maybe PlayerSave
 playerSaveFromGameState pid gs = do
   player <- M.lookup pid (gs ^. players)
   let savePlayerId = pid
-      saveVersion = 4
+      saveVersion = 5
       saveStory = fromMaybe newPlayerStoryState $ M.lookup pid (gs ^. stories)
+      savePosition = Just $ player ^. playerPosition
       saveInventory = player ^. playerInventory
       saveMoney = player ^. playerMoney
       savePotential = player ^. playerPotential

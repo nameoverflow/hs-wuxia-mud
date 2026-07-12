@@ -21,9 +21,7 @@ import Control.Monad.State.Strict (MonadState, StateT (..))
 import Data.List (sortOn)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes)
-import qualified Data.Set as S
 import Data.Text (Text, pack)
-import qualified Data.Text as T
 import GHC.Generics (Generic)
 import Game.Entity
 import Game.Message
@@ -359,60 +357,8 @@ effectTickVisual effectKind =
   combatVisualHint ("rig.effect." <> effectKind) ["effect", effectKind]
 
 resolveAnimationRef :: MartialArt -> AnimationRef -> Combat CombatVisualHint
-resolveAnimationRef martialArt animationRef =
-  case animationRef ^. animationRefAction of
-    Just actionId ->
-      combatVisualHint actionId (animationRef ^. animationRefTags)
-    Nothing ->
-      case animationRef ^. animationRefPool of
-        Nothing -> throwError $ CombatException "animation must define action or pool"
-        Just poolId ->
-          case martialArt ^. artAnimationPools . at poolId of
-            Nothing -> throwError $ CombatException $ "missing animation pool " <> poolId <> " in martial art " <> martialArt ^. artId
-            Just pool -> do
-              entry <- selectAnimationPoolEntry (animationRef ^. animationRefTags) pool
-              combatVisualHint
-                (entry ^. animationPoolEntryAction)
-                (animationRef ^. animationRefTags <> entry ^. animationPoolEntryTags)
-
-selectAnimationPoolEntry :: [Text] -> AnimationPool -> Combat AnimationPoolEntry
-selectAnimationPoolEntry requestedTags pool = do
-  let entries = pool ^. animationPoolActions
-  case entries of
-    [] -> throwError $ CombatException "animation pool has no actions"
-    _ -> do
-      selected <- weightedSelect $ bestTaggedEntries requestedTags entries
-      case selected of
-        Just entry -> pure entry
-        Nothing -> throwError $ CombatException "animation pool has no positive-weight actions"
-
-bestTaggedEntries :: [Text] -> [AnimationPoolEntry] -> [AnimationPoolEntry]
-bestTaggedEntries requestedTags entries =
-  case scored of
-    [] -> []
-    _ ->
-      let bestScore = maximum $ map fst scored
-       in [entry | (score, entry) <- scored, score == bestScore]
-  where
-    requested = S.fromList $ map T.toLower requestedTags
-    scored =
-      [ (length $ filter (`S.member` requested) (map T.toLower $ entry ^. animationPoolEntryTags), entry)
-        | entry <- entries
-      ]
-
-weightedSelect :: [AnimationPoolEntry] -> Combat (Maybe AnimationPoolEntry)
-weightedSelect entries =
-  case [(max 0 $ entry ^. animationPoolEntryWeight, entry) | entry <- entries, entry ^. animationPoolEntryWeight > 0] of
-    [] -> pure Nothing
-    weighted -> do
-      let total = sum $ map fst weighted
-      roll <- getRandomR (1, total)
-      pure $ pickWeighted roll weighted
-  where
-    pickWeighted _ [] = Nothing
-    pickWeighted cursor ((weight, entry) : rest)
-      | cursor <= weight = Just entry
-      | otherwise = pickWeighted (cursor - weight) rest
+resolveAnimationRef _ animationRef =
+  combatVisualHint (animationRef ^. animationRefAction) (animationRef ^. animationRefTags)
 
 battleAttack :: Lens' Battle BattleState -> Lens' Battle BattleState -> Combat ()
 battleAttack left right = do

@@ -1,0 +1,13 @@
+id: weiyuan_road
+name: "汴梁外破庙"
+desc: "汴梁南面官道旁的旧庙，门缝漏风，雨水顺着车辙流到阶前。"
+rooms:
+  - position: [3, 3]
+    id: ruined_temple
+    name: "破庙"
+    desc: "殿里没有点灯，受伤老镖师靠着断柱喘息，一个灰衣少年缩在神龛旁。"
+    char:
+      - wounded_escort
+      - grey_young_escort
+      - temple_black_clad
+    exits: {}

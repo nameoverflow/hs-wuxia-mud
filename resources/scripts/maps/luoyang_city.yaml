@@ -1,0 +1,114 @@
+id: luoyang_city
+name: "洛阳"
+desc: "旧都洛阳，牡丹、白马寺、天津桥和江湖豪客都在这里留下过名声。"
+rooms:
+  - position: [0, 0]
+    id: luoyang_receiving_pavilion
+    name: "洛阳驿亭"
+    desc: "亭中挂着一柄无锋木剑和一张牡丹会旧帖。来客若不说话，驿卒便先看他的路引。"
+    exits:
+      south:
+        map: bianliang_city
+        position: [-2, 2]
+      north: [0, 1]
+
+  - position: [0, 1]
+    id: luoyang_wet_steps
+    name: "洛水石阶"
+    desc: "石阶上常年有水，脚步稍急便会滑出去半寸。"
+    exits:
+      south: [0, 0]
+      north: [0, 2]
+
+  - position: [0, 2]
+    id: luoyang_outer_gate
+    name: "天津桥头"
+    desc: "桥头酒旗和剑穗一起摇。旧都的人最会看名声，也最会听谣言。"
+    char:
+      - luoyang_bridge_swordsman
+    exits:
+      south: [0, 1]
+      north: [0, 3]
+      west: [-1, 2]
+      east: [1, 2]
+
+  - position: [-1, 2]
+    id: luoyang_sword_rack
+    name: "旧剑摊"
+    desc: "木剑和旧剑排列得极齐，每柄剑柄上都有淡淡雨痕。"
+    exits:
+      east: [0, 2]
+      north: [-1, 3]
+
+  - position: [1, 2]
+    id: luoyang_step_gallery
+    name: "步法廊"
+    desc: "廊下铺着青砖，洛阳剑客常在这里练步法和换位。"
+    exits:
+      west: [0, 2]
+      north: [1, 3]
+
+  - position: [0, 3]
+    id: luoyang_practice_court
+    name: "牡丹会场"
+    desc: "会场上没有花，只有空桌、酒坛和等人落座的名帖。"
+    exits:
+      south: [0, 2]
+      north: [0, 4]
+      west: [-1, 3]
+      east: [1, 3]
+
+  - position: [-1, 3]
+    id: luoyang_quiet_room
+    name: "静修房"
+    desc: "房中收着木剑和旧谱，供初学者练基本剑势。"
+    exits:
+      east: [0, 3]
+      south: [-1, 2]
+      north: [-1, 4]
+
+  - position: [1, 3]
+    id: luoyang_guest_room
+    name: "豪客客舍"
+    desc: "客舍里备着竹榻、油灯和茶水，供参加牡丹会的外地豪客暂住。"
+    exits:
+      west: [0, 3]
+      south: [1, 2]
+      north: [1, 4]
+
+  - position: [0, 4]
+    id: luoyang_inner_hall
+    name: "聚义旧堂"
+    desc: "堂中挂着历年聚义名帖，墙边还留着几份未查清的旧契。"
+    char:
+      - luoyang_swordswoman
+    exits:
+      south: [0, 3]
+      north: [0, 5]
+      west: [-1, 4]
+      east: [1, 4]
+
+  - position: [-1, 4]
+    id: luoyang_script_room
+    name: "残谱室"
+    desc: "架上多是残谱，完整的反而少见。守室人说，完整之物多半是假的。"
+    char:
+      - luoyang_teacher
+    exits:
+      east: [0, 4]
+      south: [-1, 3]
+
+  - position: [1, 4]
+    id: luoyang_cold_pool
+    name: "洛水冷泉"
+    desc: "泉水从石缝里流出，剑客常在这里洗剑、醒酒和整理伤口。"
+    exits:
+      west: [0, 4]
+      south: [1, 3]
+
+  - position: [0, 5]
+    id: luoyang_sealed_terrace
+    name: "白马寺外山门"
+    desc: "山门外有一道极深的旧剑痕。知客僧闭门不见外客，只让香客把名帖压在石灯下。"
+    exits:
+      south: [0, 4]

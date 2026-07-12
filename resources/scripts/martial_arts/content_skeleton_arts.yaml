@@ -1,48 +1,36 @@
-- id: hanyi_rain_sword
-  name: "寒雨剑"
+- id: luoyang_sword
+  name: "洛阳剑法"
   type: sword
-  desc: "寒雨门入门剑法。剑不求快，先求在雨声里听见对手换气。"
+  desc: "洛阳旧都流传的入门剑法，讲究步法、出剑角度和截断来势。"
   foundation: basic_sword
   requires:
     - art: basic_sword
       level: 1
   max_level: 40
-  animation_pools:
-    basic:
-      actions:
-        - action: rig.sword.thrust_a
-          weight: 3
-          tags: ["sword", "stab", "thrust"]
-        - action: rig.sword.chop_a
-          weight: 3
-          tags: ["sword", "slash", "chop"]
-        - action: rig.sword.rising_cut_a
-          weight: 1
-          tags: ["sword", "uppercut", "lift"]
   attack_moves:
-    - id: hanyi_drop_cut
-      name: "檐滴一斩"
-      desc: "等檐水落到一半时出剑，斩的不是水，是对方的迟疑。"
-      msg: "听檐水一落，斜斜斩出一剑"
+    - id: luoyang_bridge_cut
+      name: "天津桥斜斩"
+      desc: "借桥头宽阔地势，斜斩对手外门。"
+      msg: "踏上半步，斜斩外门"
       unlock_level: 1
       damage: 13
       animation:
-        pool: basic
+        action: rig.sword.chop_a
         tags: ["sword", "slash"]
-    - id: hanyi_thread_stab
-      name: "雨线一刺"
-      desc: "剑尖顺雨线递出，轻而直。"
-      msg: "顺着雨线平平刺出"
+    - id: luoyang_wine_thread_stab
+      name: "洛水直刺"
+      desc: "剑尖顺酒盏边缘递出，轻而直。"
+      msg: "剑尖平直刺向中路"
       unlock_level: 4
       damage: 16
       animation:
-        pool: basic
+        action: rig.sword.thrust_a
         tags: ["sword", "stab"]
   active_skills:
-    - id: hanyi_listen_cut
-      name: "听声截脉"
-      desc: "先听一步，再截半寸。"
-      msg: "侧耳一听，剑锋从半路截入"
+    - id: luoyang_intercept_cut
+      name: "截脉剑"
+      desc: "看准对手发力，半路截住手臂。"
+      msg: "看准来势，剑锋截入手臂"
       unlock_level: 3
       cd: 8.0
       target: Single
@@ -51,7 +39,7 @@
       req_status: []
       damage: 48
       animation:
-        pool: basic
+        action: rig.sword.chop_a
         tags: ["sword", "slash", "counter"]
       effect:
         self: []
@@ -60,51 +48,39 @@
             duration: 8.0
             value: 1
 
-- id: tieyi_gate_fist
-  name: "铁衣拳"
+- id: dali_guard_fist
+  name: "茶马护身拳"
   type: fist
-  desc: "铁衣帮入门拳法。拳架低，步子沉，出手像推门。"
+  desc: "大理茶马路上传下来的入门拳法。拳架低，步子沉，适合护送和近身防守。"
   foundation: basic_fist
   requires:
     - art: basic_fist
       level: 1
   max_level: 40
-  animation_pools:
-    basic:
-      actions:
-        - action: rig.fist.punch_a
-          weight: 3
-          tags: ["fist", "strike", "punch"]
-        - action: rig.fist.heavy_a
-          weight: 3
-          tags: ["fist", "heavy", "strike"]
-        - action: rig.fist.kick_a
-          weight: 1
-          tags: ["fist", "kick"]
   attack_moves:
-    - id: tieyi_door_push
+    - id: dali_door_push
       name: "推门势"
-      desc: "肩肘同时前压，像把一扇沉门推开。"
+      desc: "肩肘同时前压，逼开近身的对手。"
       msg: "沉肩推肘，拳势如推重门"
       unlock_level: 1
       damage: 12
       animation:
-        pool: basic
+        action: rig.fist.punch_a
         tags: ["fist", "strike"]
-    - id: tieyi_iron_elbow
+    - id: dali_iron_elbow
       name: "铁肘"
       desc: "拳未必到，肘先撞进来。"
       msg: "近身撞出一记铁肘"
       unlock_level: 5
       damage: 18
       animation:
-        pool: basic
+        action: rig.fist.heavy_a
         tags: ["fist", "heavy", "strike"]
   active_skills:
-    - id: tieyi_cover_body
-      name: "披铁衣"
-      desc: "一口气沉入皮骨，硬接该接的一下。"
-      msg: "气沉皮骨，身形像披上一层暗铁"
+    - id: dali_cover_body
+      name: "护身劲"
+      desc: "沉气护住要害，减轻接下来的伤势。"
+      msg: "沉气护身，守住要害"
       unlock_level: 2
       cd: 14.0
       target: Self
@@ -121,17 +97,17 @@
             value: 3
         target: []
 
-- id: yaowang_breath
-  name: "百草调息"
+- id: taihu_breath
+  name: "太湖调息"
   type: internal
-  desc: "药王谷入门内功。先调息，再辨寒热虚实。"
+  desc: "太湖水榭的入门内功。先调息，再辨寒热虚实。"
   foundation: basic_internal
   requires:
     - art: basic_internal
       level: 1
   max_level: 40
   active_skills:
-    - id: yaowang_return_breath
+    - id: taihu_return_breath
       name: "回息"
       desc: "以缓息回护气血，能救急，不能贪用。"
       msg: "缓缓吐纳，气息从伤处回转"

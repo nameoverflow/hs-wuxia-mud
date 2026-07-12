@@ -1,39 +1,27 @@
-id: cold_rain_short_fist
-name: "冷雨短打"
+id: escort_short_fist
+name: "镖局短打"
 type: fist
-desc: "没有门派。只有活下来的手。"
+desc: "镖局新人常练的防身短打，动作简单，适合初入江湖的人。"
 foundation: basic_fist
 requires:
   - art: basic_fist
     level: 1
 max_level: 20
-animation_pools:
-  basic:
-    actions:
-      - action: rig.fist.punch_a
-        weight: 3
-        tags: ["fist", "strike", "punch"]
-      - action: rig.fist.heavy_a
-        weight: 3
-        tags: ["fist", "heavy", "strike"]
-      - action: rig.fist.kick_a
-        weight: 1
-        tags: ["fist", "kick"]
 attack_moves:
   - id: basic_punch
-    name: "一拳"
-    desc: "很直的一拳。直得像一句不肯回头的话。"
-    msg: "只出一拳"
+    name: "直拳"
+    desc: "踏前出拳，动作朴实。"
+    msg: "踏前打出一拳"
     unlock_level: 1
     damage: 10
     animation:
-      pool: basic
+      action: rig.fist.punch_a
       tags: ["fist", "strike"]
 active_skills:
   - id: power_strike
-    name: "断雨一击"
-    desc: "气沉拳锋，出手只在一瞬。"
-    msg: "将一口气压到拳上，一击断雨"
+    name: "沉肩直击"
+    desc: "沉肩压肘，把力道送到拳面。"
+    msg: "沉肩出拳，直击对手"
     unlock_level: 1
     cd: 5.0
     target: Single
@@ -42,16 +30,16 @@ active_skills:
     req_status: []
     damage: 35
     animation:
-      pool: basic
+      action: rig.fist.heavy_a
       tags: ["fist", "heavy", "strike"]
     effect:
       self: []
       target: []
 
   - id: healing_palm
-    name: "回灯掌"
-    desc: "把将熄的气息，从伤口边缘拉回来。"
-    msg: "一掌按下，气息像残灯又亮"
+    name: "回气掌"
+    desc: "以掌按住气口，暂时稳住伤势。"
+    msg: "运气按掌，缓和伤势"
     unlock_level: 2
     cd: 8.0
     target: Self
@@ -67,9 +55,9 @@ active_skills:
       target: []
 
   - id: iron_body
-    name: "铁衣"
-    desc: "不求不伤，只求伤得慢一点。"
-    msg: "气入皮骨，像披了一件看不见的铁衣"
+    name: "护身劲"
+    desc: "屏息护住要害，减轻接下来的伤势。"
+    msg: "沉气护身，守住要害"
     unlock_level: 3
     cd: 15.0
     target: Self
@@ -86,10 +74,10 @@ active_skills:
           value: 5
       target: []
 
-  - id: dragon_stance
-    name: "听雨势"
-    desc: "先听雨，再听风，最后听杀意。"
-    msg: "微微侧身，像在听雨里的刀声"
+  - id: focused_guard
+    name: "凝神式"
+    desc: "收步护身，暂时提升防守。"
+    msg: "收拳护身，凝神应敌"
     unlock_level: 4
     cd: 20.0
     target: Self
@@ -101,25 +89,25 @@ active_skills:
       tags: ["stance", "self"]
     effect:
       self:
-        - id: dragon_stance
+        - id: focused_guard
           duration: 15.0
           value: 1
       target: []
 
-  - id: dragon_burst
-    name: "伞骨八刺"
-    desc: "须先入听雨势。出手时，影子比人更快。"
-    msg: "身影一折，八点寒光从雨里同时刺出"
+  - id: eight_direction_combo
+    name: "八方连击"
+    desc: "须先进入凝神式。连续击打对手的退路。"
+    msg: "连出数拳，压住对手退路"
     unlock_level: 5
     cd: 20.0
     target: Single
     cost: 80
     ap_req: 100
     req_status:
-      - dragon_stance
+      - focused_guard
     damage: 120
     animation:
-      pool: basic
+      action: rig.fist.heavy_a
       tags: ["fist", "strike", "heavy"]
     effect:
       self: []

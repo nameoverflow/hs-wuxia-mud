@@ -514,7 +514,7 @@ studyProgress = 8 + bookQualityBonus + quietPlaceBonus
 ```yaml
 use:
   type: learn_art
-  art: cold_rain_secret
+  art: weiyuan_sword
   level: 1
   min_level: 1
   max_level: 20
@@ -739,7 +739,7 @@ normalizeOldStrength old =
 完成标准：
 
 - 现有战斗测试通过。
-- 沉默木人和纸伞客的 TTK 不出现数量级变化。
+- 威远木桩和黑衣人的 TTK 不出现数量级变化。
 - 命中、闪避、招架在日志中仍能稳定出现。
 
 ### Phase C：精神和 busy
@@ -804,8 +804,8 @@ normalizeOldStrength old =
 
 | 样例 | 目标 |
 | --- | --- |
-| 默认玩家 vs 沉默木人 | 新手训练战，应稳定可胜 |
-| 默认玩家 vs 纸伞客 | 剧情战，应有压力但可通过 |
+| 默认玩家 vs 威远木桩 | 新手训练战，应稳定可胜 |
+| 默认玩家 vs 黑衣人 | 剧情战，应有压力但可通过 |
 | 高身法低臂力角色 vs 同级敌人 | 闪避明显，但伤害偏低 |
 | 高臂力低身法角色 vs 同级敌人 | 伤害高，但被闪避和挨打更多 |
 

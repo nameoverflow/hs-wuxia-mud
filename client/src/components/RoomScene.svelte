@@ -229,8 +229,9 @@
       const label = exitLabel(state.locale, exit);
       const targetPosition = exitPosition(exit);
       const fallbackVector = worldDirectionVector(exit.direction);
-      const dx = targetPosition && currentPosition ? targetPosition.x - currentPosition.x : fallbackVector.x;
-      const dy = targetPosition && currentPosition ? targetPosition.y - currentPosition.y : fallbackVector.y;
+      const shouldUseTargetPosition = canUseTargetPosition(exit, targetPosition, currentPosition, fallbackVector);
+      const dx = shouldUseTargetPosition && targetPosition && currentPosition ? targetPosition.x - currentPosition.x : fallbackVector.x;
+      const dy = shouldUseTargetPosition && targetPosition && currentPosition ? targetPosition.y - currentPosition.y : fallbackVector.y;
       const vector = dx === 0 && dy === 0 ? fallbackVector : { x: dx, y: dy };
 
       return {
@@ -244,8 +245,10 @@
   }
 
   function inferCurrentMapPosition(exits: RoomExitSummary[]) {
+    const currentMapId = currentRoomMapId();
     const candidates = exits
       .map((exit) => {
+        if (currentMapId && exit.mapId && exit.mapId !== currentMapId) return null;
         const position = exitPosition(exit);
         if (!position) return null;
         const vector = worldDirectionVector(exit.direction);
@@ -271,6 +274,38 @@
 
     const [x, y] = bestKey.split(",").map(Number);
     return { x, y };
+  }
+
+  function canUseTargetPosition(
+    exit: RoomExitSummary,
+    targetPosition: PositionPoint | null,
+    currentPosition: PositionPoint | null,
+    fallbackVector: PositionPoint
+  ) {
+    if (!targetPosition || !currentPosition) return false;
+
+    const currentMapId = currentRoomMapId();
+    if (currentMapId && exit.mapId) return exit.mapId === currentMapId;
+
+    return (
+      targetPosition.x === currentPosition.x + fallbackVector.x &&
+      targetPosition.y === currentPosition.y + fallbackVector.y
+    );
+  }
+
+  function currentRoomMapId() {
+    const mapOverview = state.mapOverview;
+    if (!mapOverview?.mapId) return null;
+
+    const currentPosition = positionPoint(mapOverview.currentPosition);
+    if (!currentPosition) return null;
+
+    const currentRoom = mapOverview.rooms.find((room) => {
+      const position = positionPoint(room.position);
+      return position ? positionKey(position) === positionKey(currentPosition) : false;
+    });
+
+    return currentRoom?.roomName === state.room.name ? mapOverview.mapId : null;
   }
 
   function exitPosition(exit: RoomExitSummary) {
@@ -528,6 +563,11 @@
 
         {#if visibleMapPoints.length === 0}
           <div class="map-empty">{translate(state.locale, "ui.none")}</div>
+        {/if}
+        {#if state.storyTransition.active}
+          <div class="story-transition" style={`--story-transition-ms: ${state.storyTransition.durationMs}ms`} aria-live="polite">
+            <span>{state.storyTransition.text}</span>
+          </div>
         {/if}
       </div>
     </section>

@@ -1,6 +1,6 @@
-- id: cold_rain_innkeeper
-  name: "冷雨掌柜"
-  desc: "掌柜的眼睛总看着门外，好像雨里藏着账，也藏着命。"
+- id: wounded_escort
+  name: "受伤老镖师"
+  desc: "威远镖局的老镖师，肩上中了一刀，衣襟上还沾着泥水。"
   actions: [dialogue]
   martial_arts:
     fist:
@@ -10,10 +10,9 @@
     fist:
       id: nameless_trial_fist
       level: 1
-  teaches:
-    cold_rain_secret: 5
+  teaches: {}
   dialogue:
-    - "酒在桌上，人在雨里。客官若要问事，先问自己的胆。"
+    - "别点火。外头有人追着镖车来的，庙里一亮，谁也走不了。"
   respawn: 0
   attr:
     hp: 80
@@ -24,20 +23,20 @@
     agi: 8
     vit: 12
 
-- id: qingyi_guest
-  name: "青衣客"
-  desc: "青衣客的剑很旧，旧得像一段无人敢提的往事。"
+- id: grey_young_escort
+  name: "灰衣少年"
+  desc: "他衣上全是泥水，脸色发白，一只手死死攥着包袱。"
   actions: [dialogue]
   martial_arts:
     sword:
-      - id: cold_rain_secret
+      - id: weiyuan_sword
         level: 1
   prepared:
     sword:
-      id: cold_rain_secret
+      id: weiyuan_sword
       level: 1
   dialogue:
-    - "雨越大，脚步声越清楚。"
+    - "我脑子很乱。老镖师让我听你的，我就先听你的。"
   respawn: 0
   attr:
     hp: 100
@@ -48,11 +47,11 @@
     agi: 16
     vit: 16
 
-- id: paper_umbrella_killer
-  name: "纸伞客"
-  gender: female
-  desc: "她撑着一柄干净的纸伞，伞骨细得像暗器。"
-  actions: [dialogue, attacking]
+- id: temple_black_clad
+  name: "黑衣人"
+  desc: "他穿着黑色短衣，手里提着窄刀，鞋底全是新泥。"
+  actions: [dialogue]
+  hidden: true
   martial_arts:
     fist:
       - id: nameless_trial_fist
@@ -62,7 +61,7 @@
       id: nameless_trial_fist
       level: 1
   dialogue:
-    - "伞是用来遮雨的，也是用来遮眼的。"
+    - "威远镖局的人在这里。你们一个都走不了。"
   respawn: 30
   attr:
     hp: 60

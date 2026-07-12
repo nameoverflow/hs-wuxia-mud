@@ -31,7 +31,10 @@
   };
 
   const portraitScore = (appearance: number) => Math.max(0, Math.min(10, Math.round(appearance / 2) * 2));
-  const portraitSrc = (appearance: number) => portraitByScore[String(portraitScore(appearance)).padStart(2, "0")] || portrait04;
+  const portraitSrc = (gender: string, appearance: number) => {
+    const score = String(portraitScore(appearance)).padStart(2, "0");
+    return portraitByScore[`${gender || "unknown"}-${score}`] || portraitByScore[score] || portrait04;
+  };
 </script>
 
 <aside class="shell-panel character-panel">
@@ -66,7 +69,7 @@
 
   {#if activeTab === "status"}
     <figure class="portrait-frame">
-      <img src={portraitSrc(state.stats.appearance)} alt={`${state.username || translate(state.locale, "panel.character")} ${translate(state.locale, "field.appearance")}`} />
+      <img src={portraitSrc(state.stats.gender, state.stats.appearance)} alt={`${state.username || translate(state.locale, "panel.character")} ${translate(state.locale, "field.appearance")}`} />
       <figcaption>
         <strong>{state.username || "-"}</strong>
         <span>{translate(state.locale, "field.appearance")} {state.stats.appearance}</span>

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { connect, requestCharacterCreationConfig, testEntryFromUrl, type GameState } from "../game";
   import { translate } from "../i18n";
-  import type { CharacterCreationBonus, CharacterCreationChoice, CharacterCreationConfig, CharacterCreationOption } from "../protocol";
+  import type { CharacterCreationBonus, CharacterCreationChoice, CharacterCreationConfig, CharacterCreationGenderOption, CharacterCreationOption } from "../protocol";
   import { onMount } from "svelte";
 
   export let state: GameState;
@@ -12,13 +12,14 @@
   let reset = false;
   let config: CharacterCreationConfig | null = null;
   let configError = "";
+  let gender = "";
   let origin = "";
   let childhood1 = "";
   let childhood2 = "";
   let step = 0;
 
-  const finalStep = 4;
-  const stageLabels = ["名号", "出身", "幼年", "后来", "预览"];
+  const finalStep = 5;
+  const stageLabels = ["名号", "性别", "出身", "幼年", "后来", "预览"];
 
   onMount(() => {
     loadCreationConfig();
@@ -30,27 +31,24 @@
   });
 
   $: baseStats = config?.baseStats ?? emptyBonus;
+  $: genderOptions = config?.genders ?? [];
   $: originOptions = config?.origins ?? [];
   $: childhoodOneOptions = config?.childhood1 ?? [];
   $: childhoodTwoOptions = config?.childhood2 ?? [];
+  $: selectedGender = selectedGenderOption(genderOptions, gender);
   $: selectedOrigin = selectedOption(originOptions, origin);
   $: selectedChildhood1 = selectedOption(childhoodOneOptions, childhood1);
   $: selectedChildhood2 = selectedOption(childhoodTwoOptions, childhood2);
-  $: currentOptions = step === 1
+  $: currentOptions = step === 2
     ? originOptions
-    : step === 2
+    : step === 3
       ? childhoodOneOptions
-      : step === 3
+      : step === 4
         ? childhoodTwoOptions
         : [];
   $: currentTitle = stepTitle(step);
   $: currentPrompt = stepPrompt(step);
-  $: currentSubtitle = subtitleText(step);
-  $: selectedMemories = [
-    step > 1 && selectedOrigin ? `出身：${selectedOrigin.label}` : "",
-    step > 2 && selectedChildhood1 ? `幼年：${selectedChildhood1.label}` : "",
-    step > 3 && selectedChildhood2 ? `后来：${selectedChildhood2.label}` : ""
-  ].filter(Boolean);
+  $: titleIsNarrative = step === 3 || step === 4;
   $: totalBonus = [selectedOrigin, selectedChildhood1, selectedChildhood2].reduce(
     (sum, option) => addBonus(sum, option?.bonus ?? emptyBonus),
     emptyBonus
@@ -63,7 +61,7 @@
     appearance: clampAppearance(baseStats.appearance + totalBonus.appearance)
   };
   $: previewName = username.trim() || "无名客";
-  $: creationReady = Boolean(config && origin && childhood1 && childhood2);
+  $: creationReady = Boolean(config && gender && origin && childhood1 && childhood2);
 
   function submit() {
     if (!config) return;
@@ -72,7 +70,7 @@
       return;
     }
     if (!creationReady) return;
-    const creation: CharacterCreationChoice = { origin, childhood1, childhood2 };
+    const creation: CharacterCreationChoice = { gender, origin, childhood1, childhood2 };
     connect(username, { reset, creation });
   }
 
@@ -82,6 +80,7 @@
     requestCharacterCreationConfig()
       .then((nextConfig) => {
         config = nextConfig;
+        gender = nextConfig.genders[0]?.id ?? "";
         origin = nextConfig.origins[0]?.id ?? "";
         childhood1 = nextConfig.childhood1[0]?.id ?? "";
         childhood2 = nextConfig.childhood2[0]?.id ?? "";
@@ -92,6 +91,10 @@
   }
 
   function selectedOption(options: CharacterCreationOption[], id: string) {
+    return options.find((option) => option.id === id) ?? null;
+  }
+
+  function selectedGenderOption(options: CharacterCreationGenderOption[], id: string) {
     return options.find((option) => option.id === id) ?? null;
   }
 
@@ -120,50 +123,51 @@
     return parts.join(" / ");
   }
 
+  function storyText(option: CharacterCreationOption | null | undefined) {
+    return option?.story.replaceAll("{name}", previewName) ?? "";
+  }
+
   function setStep(next: number) {
     step = Math.max(0, Math.min(finalStep, next));
   }
 
+  function selectGenderOption(option: CharacterCreationGenderOption) {
+    gender = option.id;
+    setStep(step + 1);
+  }
+
   function selectCurrentOption(option: CharacterCreationOption) {
-    if (step === 1) {
+    if (step === 2) {
       origin = option.id;
-    } else if (step === 2) {
-      childhood1 = option.id;
     } else if (step === 3) {
+      childhood1 = option.id;
+    } else if (step === 4) {
       childhood2 = option.id;
     }
     setStep(step + 1);
   }
 
   function selectedAtCurrentStep(option: CharacterCreationOption) {
-    return (step === 1 && origin === option.id)
-      || (step === 2 && childhood1 === option.id)
-      || (step === 3 && childhood2 === option.id);
+    return (step === 2 && origin === option.id)
+      || (step === 3 && childhood1 === option.id)
+      || (step === 4 && childhood2 === option.id);
   }
 
   function stepTitle(index: number) {
     if (index === 0) return "角色姓名";
-    if (index === 1) return `${previewName}出身于：`;
-    if (index === 2) return "幼年经历";
-    if (index === 3) return "第二段经历";
+    if (index === 1) return `${previewName}是：`;
+    if (index === 2) return `${previewName}出身于：`;
+    if (index === 3) return storyText(selectedOrigin) || "幼年经历";
+    if (index === 4) return [storyText(selectedOrigin), storyText(selectedChildhood1)].filter(Boolean).join("\n");
     return "完整预览";
   }
 
   function stepPrompt(index: number) {
-    if (index === 0) return "输入角色姓名，然后继续选择出身和经历。";
-    if (index === 1) return "选择一项出身。不同出身会影响初始属性。";
-    if (index === 2) return "选择第一段幼年经历。";
-    if (index === 3) return "选择第二段幼年经历。";
+    if (index === 0) return "输入角色姓名，然后继续选择性别、出身和经历。";
+    if (index === 1) return "";
+    if (index === 2) return "选择一项出身。不同出身会影响初始属性。";
+    if (index === 3 || index === 4) return "";
     return "确认姓名、经历和初始属性。";
-  }
-
-  function subtitleText(index: number) {
-    if (index === 0) return "姓名会作为角色名显示在状态栏和消息中。";
-    if (index === 1) return "出身决定角色最初的背景，也提供第一组属性加成。";
-    if (index === 2 && selectedOrigin) return `已选择出身：${selectedOrigin.label}。${selectedOrigin.story}`;
-    if (index === 3 && selectedChildhood1) return `已选择幼年经历：${selectedChildhood1.label}。${selectedChildhood1.story}`;
-    if (selectedChildhood2) return `已选择第二段经历：${selectedChildhood2.label}。确认无误后进入江湖。`;
-    return "正在读取角色创建配置。";
   }
 </script>
 
@@ -181,19 +185,13 @@
       </label>
     </div>
 
-    <div class="creation-stage-title">
+    <div class="creation-stage-title" class:narrative-title={titleIsNarrative}>
       <span>{stageLabels[step]}</span>
       <h2>{currentTitle}</h2>
-      <p>{currentPrompt}</p>
+      {#if currentPrompt}
+        <p>{currentPrompt}</p>
+      {/if}
     </div>
-
-    {#if selectedMemories.length}
-      <div class="creation-memory-line" aria-label="已选经历">
-        {#each selectedMemories as memory}
-          <span>{memory}</span>
-        {/each}
-      </div>
-    {/if}
 
     {#if configError}
       <div class="creation-config-state">
@@ -217,8 +215,21 @@
           继续
         </button>
       </div>
+    {:else if step === 1}
+      <div class="creation-option-grid gender-options">
+        {#each genderOptions as option}
+          <button
+            type="button"
+            class:selected={gender === option.id}
+            disabled={state.connected || state.connecting}
+            on:click={() => selectGenderOption(option)}
+          >
+            <strong>{option.label}</strong>
+          </button>
+        {/each}
+      </div>
     {:else if step < finalStep}
-      <div class="creation-option-grid" class:origin-options={step === 1}>
+      <div class="creation-option-grid" class:origin-options={step === 2}>
         {#each currentOptions as option}
           <button
             type="button"
@@ -227,7 +238,7 @@
             on:click={() => selectCurrentOption(option)}
           >
             <strong>{option.label}</strong>
-            <small>{option.story}</small>
+            <small>{storyText(option)}</small>
             <em>{bonusText(option.bonus)}</em>
           </button>
         {/each}
@@ -235,12 +246,16 @@
     {:else}
       <section class="creation-preview" aria-live="polite">
         <div class="creation-preview-copy">
-          <p><strong>{previewName}</strong>出身于：{selectedOrigin?.label ?? ""}。</p>
-          <p>{selectedOrigin?.story ?? ""}</p>
-          <p>{selectedChildhood1?.story ?? ""}</p>
-          <p>{selectedChildhood2?.story ?? ""}</p>
+          <p><strong>{previewName}</strong>，{selectedGender?.label ?? gender}，出身于：{selectedOrigin?.label ?? ""}。</p>
+          <p>{storyText(selectedOrigin)}</p>
+          <p>{storyText(selectedChildhood1)}</p>
+          <p>{storyText(selectedChildhood2)}</p>
         </div>
         <dl class="creation-stat-grid">
+          <div>
+            <dt>性别</dt>
+            <dd>{selectedGender?.label ?? gender}</dd>
+          </div>
           <div>
             <dt>臂力</dt>
             <dd>{previewStats.strength}</dd>
@@ -264,11 +279,6 @@
         </dl>
       </section>
     {/if}
-
-    <div class="creation-subtitle" aria-live="polite">
-      <span>{previewName}</span>
-      <p>{currentSubtitle}</p>
-    </div>
 
     <div class="creation-actions">
       <button type="button" class="ghost-button" disabled={step === 0 || state.connected || state.connecting} on:click={() => setStep(step - 1)}>

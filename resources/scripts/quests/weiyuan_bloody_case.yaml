@@ -1,0 +1,262 @@
+id: weiyuan_bloody_case
+name: "威远镖局旧案"
+objectives:
+  - stage: intruder
+    text: "破庙外有人追来，挡住闯入的黑衣人。"
+  - stage: duel
+    text: "击退黑衣人，保住老镖师和灰衣少年。"
+  - stage: escort_dying
+    text: "回头查看老镖师的伤势。"
+  - stage: escort_road
+    text: "沿汴水官道护送灰衣少年进汴梁。"
+  - stage: branch_gate
+    text: "陪灰衣少年进威远镖局，看看里面是否还有活口。"
+  - stage: completed
+    text: "灰衣少年已从后院独自离开。你收好路单，在汴梁另寻自己的去处。"
+reward:
+  money: 0
+  items: []
+events:
+  - id: young_escort_before_warning
+    trigger:
+      type: talk
+      npc: grey_young_escort
+    conditions:
+      - type: quest_not_started
+        quest: weiyuan_bloody_case
+    actions:
+      - type: message
+        speaker: "灰衣少年"
+        text: "别点火。外头有人循着车辙找我们，我也不知道还能躲多久。老镖师伤得重，你先听他说。"
+
+  - id: old_escort_warns_in_temple
+    trigger:
+      type: talk
+      npc: wounded_escort
+    conditions:
+      - type: quest_not_started
+        quest: weiyuan_bloody_case
+    actions:
+      - type: message
+        speaker: "受伤老镖师"
+        text: "别点火。追兵循着镖车的辙印摸到了这里，庙里一亮，谁也走不了。"
+      - type: set_stage
+        quest: weiyuan_bloody_case
+        stage: intruder
+      - type: message
+        speaker: "旁白"
+        text: "话音未落，庙门外响起急促脚步。半扇破门被人一脚踹开，雨水和冷风一起灌进殿里。"
+      - type: show_npc
+        npc: temple_black_clad
+      - type: message
+        speaker: "黑衣人"
+        text: "威远的人果然在这里。今夜这座庙里，不该再有活口。"
+      - type: message
+        speaker: "受伤老镖师"
+        text: "少侠，若我倒下，替我把这孩子带进汴梁。"
+
+  - id: old_escort_urges_fight
+    trigger:
+      type: talk
+      npc: wounded_escort
+    conditions:
+      - type: quest_stage
+        quest: weiyuan_bloody_case
+        stage: intruder
+    actions:
+      - type: message
+        speaker: "受伤老镖师"
+        text: "他既然进了庙，就不会放人出去。别让他靠近孩子。"
+
+  - id: young_escort_urges_fight
+    trigger:
+      type: talk
+      npc: grey_young_escort
+    conditions:
+      - type: quest_stage
+        quest: weiyuan_bloody_case
+        stage: intruder
+    actions:
+      - type: message
+        speaker: "灰衣少年"
+        text: "他的刀上还有血。少侠，小心。"
+
+  - id: black_clad_forces_fight
+    trigger:
+      type: talk
+      npc: temple_black_clad
+    conditions:
+      - type: quest_stage
+        quest: weiyuan_bloody_case
+        stage: intruder
+    actions:
+      - type: message
+        speaker: "黑衣人"
+        text: "你不是威远的人，本可以晚死一步。现在既然站在这里，就一起留下。"
+      - type: set_stage
+        quest: weiyuan_bloody_case
+        stage: duel
+      - type: start_battle
+        target: temple_black_clad
+
+  - id: black_clad_defeated
+    trigger:
+      type: kill
+      npc: temple_black_clad
+    conditions:
+      - type: quest_stage
+        quest: weiyuan_bloody_case
+        stage: duel
+    actions:
+      - type: hide_npc
+        npc: temple_black_clad
+      - type: set_stage
+        quest: weiyuan_bloody_case
+        stage: escort_dying
+      - type: message
+        speaker: "旁白"
+        text: "黑衣人倒在门边。老镖师扶着断柱站起，才迈出半步，便又重重坐了下去。"
+
+  - id: young_escort_after_fight
+    trigger:
+      type: talk
+      npc: grey_young_escort
+    conditions:
+      - type: quest_stage
+        quest: weiyuan_bloody_case
+        stage: escort_dying
+    actions:
+      - type: message
+        speaker: "灰衣少年"
+        text: "他方才一直撑着。少侠，快去看看他。"
+
+  - id: old_escort_last_request
+    trigger:
+      type: talk
+      npc: wounded_escort
+    conditions:
+      - type: quest_stage
+        quest: weiyuan_bloody_case
+        stage: escort_dying
+    actions:
+      - type: message
+        speaker: "受伤老镖师"
+        text: "我走不动了。包袱底有三十文盘缠，你拿着。把这孩子送到威远分局门前，到了那里，你欠我的便算还清。"
+      - type: give_money
+        amount: 30
+      - type: delay
+        ms: 800
+      - type: message
+        speaker: "受伤老镖师"
+        text: "若镖局也出了事，不要逞强。人活着，才有资格管别人的旧账。"
+      - type: set_stage
+        quest: weiyuan_bloody_case
+        stage: escort_road
+      - type: hide_npc
+        npc: wounded_escort
+      - type: transition
+        text: "你与少年冒雨离开破庙，踏上汴水官道。"
+        ms: 1100
+      - type: move_player
+        map: bianshui_road
+        position: [0, 0]
+      - type: delay
+        ms: 500
+      - type: message
+        speaker: "灰衣少年"
+        text: "沿汴水往北就是城门。追兵未必只有一个，我们别在路上停。"
+
+  - id: young_escort_on_road
+    trigger:
+      type: talk
+      npc: grey_young_escort
+    conditions:
+      - type: quest_stage
+        quest: weiyuan_bloody_case
+        stage: escort_road
+    actions:
+      - type: message
+        speaker: "灰衣少年"
+        text: "北面已经能看见城灯了。进城以后，威远分局在渡口东边。"
+
+  - id: reach_bianliang_with_young_escort
+    trigger:
+      type: enter_room
+      map: bianliang_city
+      position: [0, -3]
+    conditions:
+      - type: quest_stage
+        quest: weiyuan_bloody_case
+        stage: escort_road
+    actions:
+      - type: set_stage
+        quest: weiyuan_bloody_case
+        stage: branch_gate
+      - type: message
+        speaker: "旁白"
+        text: "城门后的灯火映在汴水上。少年抹去脸上的雨，指向渡口东边一块黑漆门匾。"
+      - type: message
+        speaker: "灰衣少年"
+        text: "那里就是威远分局。送到这里已经够了，但我想进去看一眼。"
+
+  - id: young_escort_at_branch_gate
+    trigger:
+      type: talk
+      npc: grey_young_escort
+    conditions:
+      - type: quest_stage
+        quest: weiyuan_bloody_case
+        stage: branch_gate
+    actions:
+      - type: message
+        speaker: "灰衣少年"
+        text: "门没上闩，里面却没有灯。你若肯，再陪我走到前厅。"
+
+  - id: enter_weiyuan_branch_hall
+    trigger:
+      type: enter_room
+      map: bianliang_city
+      position: [2, -3]
+    conditions:
+      - type: quest_stage
+        quest: weiyuan_bloody_case
+        stage: branch_gate
+    actions:
+      - type: message
+        speaker: "旁白"
+        text: "前厅门扇半开。镖旗被砍断，账册散在血水里，廊柱后倒着几名镖师，已经没了声息。"
+      - type: delay
+        ms: 700
+      - type: message
+        speaker: "灰衣少年"
+        text: "早上离开时，他们还在点账……我爹娘住在内院。"
+      - type: delay
+        ms: 700
+      - type: message
+        speaker: "旁白"
+        text: "少年从被撬开的账柜下抽出半张水浸路单，又从包袱里取出一本薄薄的剑谱。"
+      - type: give_item
+        item: soaked_route_note
+        amount: 1
+      - type: give_item
+        item: weiyuan_sword_manual
+        amount: 1
+      - type: message
+        speaker: "灰衣少年"
+        text: "路单和剑谱都不能留在这里。你衣上有血，若被巡铺堵住，反而说不清。拿着它们，从前门走，去南门附近找地方落脚。"
+      - type: delay
+        ms: 700
+      - type: message
+        speaker: "灰衣少年"
+        text: "我从后院走。往后是藏起来、查下去，还是投奔谁，我自己决定。你已经救过我一次，不必再替威远还债，也不要来找我。"
+      - type: set_flag
+        flag: weiyuan.youth_separated
+      - type: set_flag
+        flag: weiyuan.route_note_kept
+      - type: hide_npc
+        npc: grey_young_escort
+      - type: set_stage
+        quest: first_steps_bianliang
+        stage: guide
+      - type: complete_quest
+        quest: weiyuan_bloody_case

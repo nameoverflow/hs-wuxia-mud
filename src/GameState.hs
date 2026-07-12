@@ -39,6 +39,7 @@ data GameState = GameState
     _battles :: !(M.Map PlayerId Battle),
     _respawn :: !(M.Map CharId Double),
     _stories :: !(M.Map PlayerId PlayerStoryState),
+    _isolatedBattles :: !(S.Set PlayerId),
     _dirtyPlayers :: !(S.Set PlayerId)
   }
   deriving (Show, Eq, Generic)
@@ -116,7 +117,7 @@ runGameState :: (MonadIO m) => GameState -> GameStateT a -> m (Either GameExcept
 runGameState gs m = liftIO $ Control.Monad.Except.runExceptT $ runStateT (execWriterT $ unGameStateT m) gs
 
 newGameState :: World -> GameState
-newGameState w = GameState w M.empty M.empty M.empty M.empty S.empty
+newGameState w = GameState w M.empty M.empty M.empty M.empty S.empty S.empty
 
 markPlayerDirty :: PlayerId -> GameStateT ()
 markPlayerDirty pid =
@@ -146,7 +147,21 @@ createDefaultPlayerWithCreation pid path creationChoice = do
             Left err -> throwError $ OtherException err
             Right config -> pure $ applyCharacterCreationChoice config choice playerWithId
       players . at pid .= Just player'
-      stories . at pid .= Just newPlayerStoryState
+      characterMap <- use $ world . chars
+      let baseStoryState = newPlayerStoryStateFor characterMap
+          storyState =
+            case creationChoice of
+              Nothing -> baseStoryState
+              Just choice -> baseStoryState & storyFlags %~ S.union (characterCreationFlags choice)
+      stories . at pid .= Just storyState
 
       let (mid, pos) = player' ^. playerPosition
       world . maps . ix mid . mapRooms . ix pos . roomPlayer %= S.insert pid
+  where
+    characterCreationFlags choice =
+      S.fromList
+        [ "creation.gender." <> genderToText (creationGender choice),
+          "creation.origin." <> creationOrigin choice,
+          "creation.childhood1." <> creationChildhoodOne choice,
+          "creation.childhood2." <> creationChildhoodTwo choice
+        ]

@@ -1,31 +1,31 @@
-id: yaowang_gu
-name: "药王谷"
-desc: "药王谷夹在两道青山之间。谷中不问胜负，先问脉象。"
+id: taihu_water_pavilion
+name: "太湖水榭"
+desc: "太湖边的水榭与药庐相连。湖风、花笺、医者和旧书信在这里相互牵扯。"
 rooms:
   - position: [0, 0]
-    id: yaowang_cart_stop
+    id: taihu_cart_stop
     name: "药车停处"
-    desc: "药车停在谷口，车铃轻轻晃着。回头就是津关镇。"
+    desc: "药车停在湖岸，车铃轻轻晃着。回头就是汴梁来路。"
     exits:
       south:
-        map: jinguan_town
+        map: bianliang_city
         position: [3, 2]
       north: [0, 1]
 
   - position: [0, 1]
-    id: yaowang_bamboo_path
-    name: "竹径"
+    id: taihu_bamboo_path
+    name: "湖边竹径"
     desc: "竹叶被雨洗得很亮，路边插着写有药名的小木牌。"
     exits:
       south: [0, 0]
       north: [0, 2]
 
   - position: [0, 2]
-    id: yaowang_outer_valley
-    name: "外谷"
-    desc: "外谷里晒着草药。药童走路很轻，怕踩坏刚冒头的新芽。"
+    id: taihu_outer_valley
+    name: "水榭外院"
+    desc: "外院里晒着草药。药童走路很轻，怕踩坏刚冒头的新芽。"
     char:
-      - yaowang_herb_boy
+      - taihu_herb_boy
     exits:
       south: [0, 1]
       north: [0, 3]
@@ -33,7 +33,7 @@ rooms:
       east: [1, 2]
 
   - position: [-1, 2]
-    id: yaowang_drying_rack
+    id: taihu_drying_rack
     name: "晒药架"
     desc: "木架上铺着根茎叶花，每一格味道都不同。"
     exits:
@@ -41,7 +41,7 @@ rooms:
       north: [-1, 3]
 
   - position: [1, 2]
-    id: yaowang_stream
+    id: taihu_stream
     name: "洗药溪"
     desc: "溪水很浅，水底压着细白石。药根在水里轻轻摆动。"
     exits:
@@ -49,8 +49,8 @@ rooms:
       north: [1, 3]
 
   - position: [0, 3]
-    id: yaowang_medical_yard
-    name: "药圃"
+    id: taihu_medical_yard
+    name: "湖畔药圃"
     desc: "药圃分成许多小畦，每畦都挂着禁采的牌子。"
     exits:
       south: [0, 2]
@@ -59,7 +59,7 @@ rooms:
       east: [1, 3]
 
   - position: [-1, 3]
-    id: yaowang_pulse_room
+    id: taihu_pulse_room
     name: "切脉房"
     desc: "房中只有一张木榻和三盏小灯。灯火用来照脸色，不用来照刀。"
     exits:
@@ -68,7 +68,7 @@ rooms:
       north: [-1, 4]
 
   - position: [1, 3]
-    id: yaowang_decoction_room
+    id: taihu_decoction_room
     name: "煎药房"
     desc: "数十只药罐同时冒着白气，苦味里有一点回甘。"
     exits:
@@ -77,11 +77,11 @@ rooms:
       north: [1, 4]
 
   - position: [0, 4]
-    id: yaowang_hall
-    name: "百草堂"
+    id: taihu_hall
+    name: "水榭药堂"
     desc: "堂中悬着一块木匾：医人先医心。木匾下坐着一位白发医者。"
     char:
-      - yaowang_senior
+      - taihu_senior
     exits:
       south: [0, 3]
       north: [0, 5]
@@ -89,26 +89,26 @@ rooms:
       east: [1, 4]
 
   - position: [-1, 4]
-    id: yaowang_teacher_room
+    id: taihu_teacher_room
     name: "静息室"
     desc: "室内铺着蒲草席，墙上画着简单经络图。"
     char:
-      - yaowang_teacher
+      - taihu_teacher
     exits:
       east: [0, 4]
       south: [-1, 3]
 
   - position: [1, 4]
-    id: yaowang_formula_room
+    id: taihu_formula_room
     name: "方书阁"
-    desc: "架上医书很多，夹在书页里的药香比墨香更重。"
+    desc: "架上医书和花笺很多，夹在书页里的药香比墨香更重。"
     exits:
       west: [0, 4]
       south: [1, 3]
 
   - position: [0, 5]
-    id: yaowang_inner_grove
-    name: "内谷林"
-    desc: "林中更深处暂未开放。以后这里会接入采药、解毒和疗伤 job。"
+    id: taihu_inner_grove
+    name: "湖心花阵"
+    desc: "花径在水雾里分成数岔，深处偶有橹声。无人引路时，每条小径最后都会绕回原地。"
     exits:
       south: [0, 4]

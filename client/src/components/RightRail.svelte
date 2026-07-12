@@ -19,7 +19,7 @@
           <article class:complete={quest.questLogEntryCompleted}>
             <div>
               <strong>{quest.questLogEntryName}</strong>
-              <span>{quest.questLogEntryCompleted ? translate(state.locale, "quest.completed") : quest.questLogEntryStage}</span>
+              <span>{translate(state.locale, quest.questLogEntryCompleted ? "quest.completed" : "quest.active")}</span>
             </div>
             {#if quest.questLogEntryObjective}
               <p>{quest.questLogEntryObjective}</p>

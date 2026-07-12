@@ -1,0 +1,25 @@
+id: bianliang_training_dummy
+name: "练招木人"
+desc: "一具装着回弹木臂的练招木人，胸口和肩头布满深浅不一的击痕。"
+actions: [dialogue]
+hidden: true
+martial_arts:
+  fist:
+    - id: nameless_trial_fist
+      level: 1
+prepared:
+  fist:
+    id: nameless_trial_fist
+    level: 1
+dialogue:
+  - "木人的两条横臂被绳索绷紧，稍一触碰便会弹回。"
+respawn: 0
+attr:
+  hp: 55
+  qi: 40
+  max_qi: 40
+  qi_regen: 1.0
+  innate:
+    strength: 12
+    agility: 8
+    vitality: 10

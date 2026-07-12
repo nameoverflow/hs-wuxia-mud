@@ -187,21 +187,8 @@ data ActiveSkillTarget = Single | All | Self
 
 instance FromJSON ActiveSkillTarget
 
-data AnimationPoolEntry = AnimationPoolEntry
-  { _animationPoolEntryAction :: Text,
-    _animationPoolEntryWeight :: Int,
-    _animationPoolEntryTags :: [Text]
-  }
-  deriving (Generic, Show, Eq)
-
-data AnimationPool = AnimationPool
-  { _animationPoolActions :: [AnimationPoolEntry]
-  }
-  deriving (Generic, Show, Eq)
-
 data AnimationRef = AnimationRef
-  { _animationRefPool :: Maybe Text,
-    _animationRefAction :: Maybe Text,
+  { _animationRefAction :: Text,
     _animationRefTags :: [Text]
   }
   deriving (Generic, Show, Eq)
@@ -213,33 +200,12 @@ data CombatVisualHint = CombatVisualHint
   }
   deriving (Generic, Show, Eq)
 
-makeLenses ''AnimationPoolEntry
-makeLenses ''AnimationPool
 makeLenses ''AnimationRef
 makeLenses ''CombatVisualHint
 
-instance FromJSON AnimationPoolEntry where
-  parseJSON value =
-    withText "AnimationPoolEntry" (\action -> pure $ AnimationPoolEntry action 1 []) value
-      <|> withObject
-        "AnimationPoolEntry"
-        ( \o -> do
-            _animationPoolEntryAction <- o .: "action"
-            _animationPoolEntryWeight <- o .:? "weight" .!= 1
-            _animationPoolEntryTags <- o .:? "tags" .!= []
-            pure AnimationPoolEntry {..}
-        )
-        value
-
-instance FromJSON AnimationPool where
-  parseJSON = withObject "AnimationPool" $ \o -> do
-    _animationPoolActions <- o .:? "actions" .!= []
-    pure AnimationPool {..}
-
 instance FromJSON AnimationRef where
   parseJSON = withObject "AnimationRef" $ \o -> do
-    _animationRefPool <- o .:? "pool"
-    _animationRefAction <- o .:? "action"
+    _animationRefAction <- o .: "action"
     _animationRefTags <- o .:? "tags" .!= []
     pure AnimationRef {..}
 
@@ -410,7 +376,6 @@ data MartialArt = MartialArt
     _artFoundation :: Maybe ArtId,
     _artRequires :: [ArtRequirement],
     _artMaxLevel :: Int,
-    _artAnimationPools :: M.Map Text AnimationPool,
     _artAttackMoves :: [AttackMove],
     _artActiveSkills :: [ActiveSkill]
   }
@@ -432,7 +397,6 @@ instance FromJSON MartialArt where
     _artFoundation <- o .:? "foundation"
     _artRequires <- o .:? "requires" .!= []
     _artMaxLevel <- o .:? "max_level" .!= 100
-    _artAnimationPools <- o .:? "animation_pools" .!= M.empty
     _artAttackMoves <- o .:? "attack_moves" .!= []
     _artActiveSkills <- o .:? "active_skills" .!= []
     pure MartialArt {..}
@@ -667,6 +631,7 @@ data Character = Character
     _charAppearance :: Int,
     _charDialogue :: [Text],
     _charActions :: S.Set CharAction,
+    _charInitiallyHidden :: Bool,
     _charRespawn :: Int,
     -- The character's original attributes.
     _charHP :: Int,
@@ -702,6 +667,7 @@ newCharacter cid cname =
       _charAppearance = defaultAppearanceScore,
       _charDialogue = [],
       _charActions = S.empty,
+      _charInitiallyHidden = False,
       _charRespawn = 0,
       _charHP = 0,
       _charMaxHP = 0,
@@ -733,6 +699,7 @@ instance FromJSON Character where
     let _charAppearance = clampAppearanceScore $ fromMaybe (profileConfigAppearance profile) rootAppearance
     _charDialogue <- o .: "dialogue"
     _charActions <- o .: "actions"
+    _charInitiallyHidden <- o .:? "hidden" .!= False
     _charRespawn <- o .: "respawn"
 
     attr <- o .: "attr"

@@ -243,7 +243,7 @@ TechniqueInstance
 
 ### 10. 任务方向：剧情 quest 和循环 job 分开
 
-当前 YAML quest 是 narrative quest，适合冷雨客栈这种章节。传统 MUD 和《夺宝中华》还需要另一类系统：可重复、随机目标、限时、按 streak 奖励的江湖任务。
+当前 YAML quest 是 narrative quest，适合威远镖局旧案这种章节。传统 MUD 和《夺宝中华》还需要另一类系统：可重复、随机目标、限时、按 streak 奖励的江湖任务。
 
 建议拆成：
 

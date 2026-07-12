@@ -52,6 +52,7 @@ clearPlayerRuntimeState uid gs =
     & players . at uid .~ Nothing
     & battles . at uid .~ Nothing
     & stories . at uid .~ Nothing
+    & isolatedBattles %~ S.delete uid
     & dirtyPlayers %~ S.delete uid
     & world . maps . traversed . mapRooms . traversed . roomPlayer %~ S.delete uid
 

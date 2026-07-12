@@ -75,15 +75,19 @@ data StoryCondition
 
 data StoryAction
   = StoryMessage Text Text
+  | StoryDelay Int
+  | StoryTransition Text Int
   | SetQuestStage QuestId QuestStage
   | CompleteQuest QuestId
   | SetFlag FlagId
   | ClearFlag FlagId
   | HideNpc CharId
+  | ShowNpc CharId
   | GiveItem ItemId Int
   | GiveMoney Int
   | LearnArt ArtId Int
   | StartBattle CharId
+  | MovePlayer MapId (Int, Int)
   deriving (Show, Eq, Generic)
 
 data PlayerStoryState = PlayerStoryState
@@ -95,6 +99,11 @@ data PlayerStoryState = PlayerStoryState
 
 newPlayerStoryState :: PlayerStoryState
 newPlayerStoryState = PlayerStoryState M.empty S.empty S.empty
+
+newPlayerStoryStateFor :: M.Map CharId Character -> PlayerStoryState
+newPlayerStoryStateFor characterMap = PlayerStoryState M.empty S.empty hiddenNpcs
+  where
+    hiddenNpcs = M.keysSet $ M.filter _charInitiallyHidden characterMap
 
 makeLenses ''Quest
 makeLenses ''QuestObjective
@@ -167,21 +176,29 @@ instance FromJSON StoryAction where
   parseJSON = withTypedObject "StoryAction" $ \typ o ->
     case typ of
       "message" -> StoryMessage <$> o .: "speaker" <*> o .: "text"
+      "delay" -> StoryDelay <$> o .: "ms"
+      "transition" -> StoryTransition <$> o .: "text" <*> o .: "ms"
       "set_stage" -> SetQuestStage <$> o .: "quest" <*> o .: "stage"
       "complete_quest" -> CompleteQuest <$> o .: "quest"
       "set_flag" -> SetFlag <$> o .: "flag"
       "clear_flag" -> ClearFlag <$> o .: "flag"
       "hide_npc" -> HideNpc <$> o .: "npc"
+      "show_npc" -> ShowNpc <$> o .: "npc"
       "give_item" -> GiveItem <$> o .: "item" <*> (o .:? "amount" .!= 1)
       "give_money" -> GiveMoney <$> o .: "amount"
       "learn_art" -> LearnArt <$> o .: "art" <*> (o .:? "level" .!= 1)
       "start_battle" -> StartBattle <$> o .: "target"
+      "move_player" -> MovePlayer <$> o .: "map" <*> o .: "position"
       _ -> fail $ "Invalid story action type: " <> show typ
 
 instance ToJSON StoryAction where
   toJSON = \case
     StoryMessage speaker text ->
       object ["type" .= ("message" :: Text), "speaker" .= speaker, "text" .= text]
+    StoryDelay ms ->
+      object ["type" .= ("delay" :: Text), "ms" .= ms]
+    StoryTransition text ms ->
+      object ["type" .= ("transition" :: Text), "text" .= text, "ms" .= ms]
     SetQuestStage quest stage ->
       object ["type" .= ("set_stage" :: Text), "quest" .= quest, "stage" .= stage]
     CompleteQuest quest ->
@@ -192,6 +209,8 @@ instance ToJSON StoryAction where
       object ["type" .= ("clear_flag" :: Text), "flag" .= flag]
     HideNpc npc ->
       object ["type" .= ("hide_npc" :: Text), "npc" .= npc]
+    ShowNpc npc ->
+      object ["type" .= ("show_npc" :: Text), "npc" .= npc]
     GiveItem itemId amount ->
       object ["type" .= ("give_item" :: Text), "item" .= itemId, "amount" .= amount]
     GiveMoney amount ->
@@ -200,6 +219,8 @@ instance ToJSON StoryAction where
       object ["type" .= ("learn_art" :: Text), "art" .= artId, "level" .= level]
     StartBattle target ->
       object ["type" .= ("start_battle" :: Text), "target" .= target]
+    MovePlayer mapId position ->
+      object ["type" .= ("move_player" :: Text), "map" .= mapId, "position" .= position]
 
 instance FromJSON PlayerStoryState where
   parseJSON = withObject "PlayerStoryState" $ \o -> do

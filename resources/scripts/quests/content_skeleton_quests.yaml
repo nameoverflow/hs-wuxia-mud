@@ -1,270 +1,644 @@
-- id: first_steps_jinguan
-  name: "津关初到"
+- id: first_steps_bianliang
+  name: "汴梁落脚"
   objectives:
-    - stage: train
-      text: "去南门西边的孤灯武馆，找江教头确认基础功。"
-    - stage: errands
-      text: "去书院、铁匠铺或药铺问一份新手活计。"
+    - stage: guide
+      text: "离开威远镖局，到汴梁南门找人问路。"
+    - stage: inn
+      text: "去鼓楼西边的樊楼客舍，先找个能过夜的地方。"
+    - stage: training
+      text: "去御街武馆见梁教头，为自己选一条安身练功的路。"
+    - stage: practice
+      text: "与武馆练招木人试几招，熟悉汴梁武馆的规矩。"
+    - stage: first_job
+      text: "在太学、铁铺或药铺做一份活，挣到第一笔工钱。"
     - stage: completed
-      text: "你在津关镇站稳了第一步。"
+      text: "你有了住处、练功门路和一枚工筹，可以自行安排往后的江湖生活。"
   reward:
-    money: 30
-    items:
-      - id: town_work_token
-        amount: 1
+    money: 0
+    items: []
   events:
-    - id: guide_after_cold_rain
+    - id: guide_after_weiyuan_orphan
       trigger:
         type: talk
-        npc: town_guide
-      conditions:
-        - type: quest_completed
-          quest: cold_rain_inn
-        - type: quest_not_started
-          quest: first_steps_jinguan
-      actions:
-        - type: message
-          speaker: "灰衣引路人"
-          text: "从冷雨客栈出来的人，眼神都不太一样。你手里那半个“津”字，我认得一点，也只认得一点。先进镇吧。别急着问哪家门派厉害，先问自己今晚睡在哪里、明天靠什么吃饭；站稳了，才有资格追暗记。"
-        - type: set_stage
-          quest: first_steps_jinguan
-          stage: train
-        - type: message
-          speaker: "旁白"
-          text: "他指了指南门西边：孤灯武馆的灯还亮着。"
-
-    - id: meet_martial_hall_instructor
-      trigger:
-        type: talk
-        npc: martial_hall_instructor
+        npc: bianliang_guide
       conditions:
         - type: quest_stage
-          quest: first_steps_jinguan
-          stage: train
+          quest: first_steps_bianliang
+          stage: guide
+        - type: flag
+          flag: creation.origin.orphan
       actions:
         - type: message
-          speaker: "江教头"
-          text: "会一招半式不算会活。你要先明白四件事：拳脚护身，轻功跑路，内功续命，兵器拉开距离。想拜师，先别把基础功丢了。"
+          speaker: "京城引路人"
+          text: "看你站门洞、避巡铺的样子，像是从小自己讨生活。汴梁不比小地方，先找张能闩门的床。鼓楼西边有樊楼客舍，报我姓周，伙计会给你留间后房。"
         - type: set_stage
-          quest: first_steps_jinguan
-          stage: errands
+          quest: first_steps_bianliang
+          stage: inn
+
+    - id: guide_after_weiyuan
+      trigger:
+        type: talk
+        npc: bianliang_guide
+      conditions:
+        - type: quest_stage
+          quest: first_steps_bianliang
+          stage: guide
+        - type: not_flag
+          flag: creation.origin.orphan
+      actions:
+        - type: message
+          speaker: "京城引路人"
+          text: "第一次进汴梁，别急着问事。鼓楼西边有樊楼客舍，报我姓周，伙计会给你留间后房。先把湿衣换了，再想明日往哪里走。"
+        - type: set_stage
+          quest: first_steps_bianliang
+          stage: inn
+
+    - id: guide_after_weiyuan_unstarted
+      trigger:
+        type: talk
+        npc: bianliang_guide
+      conditions:
+        - type: quest_completed
+          quest: weiyuan_bloody_case
+        - type: quest_not_started
+          quest: first_steps_bianliang
+      actions:
+        - type: message
+          speaker: "京城引路人"
+          text: "第一次进汴梁，先找住处。鼓楼西边有樊楼客舍，报我姓周，伙计会给你留间后房。"
+        - type: set_stage
+          quest: first_steps_bianliang
+          stage: inn
+
+    - id: guide_reminds_fanlou
+      trigger:
+        type: talk
+        npc: bianliang_guide
+      conditions:
+        - type: quest_stage
+          quest: first_steps_bianliang
+          stage: inn
+      actions:
+        - type: message
+          speaker: "京城引路人"
+          text: "沿御街往北到鼓楼，再往西一拐就是樊楼客舍。先住下，别在门洞里过夜。"
+
+    - id: fanlou_refuses_before_guide
+      trigger:
+        type: talk
+        npc: fanlou_innkeeper
+      conditions:
+        - type: quest_stage
+          quest: first_steps_bianliang
+          stage: guide
+      actions:
+        - type: message
+          speaker: "樊楼伙计"
+          text: "客房不缺，肯替生客作保的人难找。南门周引路若让你来，我便给你开后院那间。"
+
+    - id: lodge_at_fanlou
+      trigger:
+        type: talk
+        npc: fanlou_innkeeper
+      conditions:
+        - type: quest_stage
+          quest: first_steps_bianliang
+          stage: inn
+      actions:
+        - type: message
+          speaker: "樊楼伙计"
+          text: "周引路的人情只够一晚。往后房钱照算，若愿意替店里跑腿，也能抵账。"
+        - type: transition
+          text: "伙计领你穿过灶房，在后院推开一扇窄门。"
+          ms: 800
+        - type: give_item
+          item: bianliang_room_tag
+          amount: 1
         - type: message
           speaker: "旁白"
-          text: "江教头把一枚空木筹丢给你：镇上书院、铁匠铺、药铺都缺人手。做一份活，才算在津关镇留下脚印。"
+          text: "房里只有竹榻、油灯和一只旧木箱。地方虽小，门闩尚算结实。你把水浸路单压进箱底，没有再看。"
+        - type: set_flag
+          flag: bianliang.has_room
+        - type: set_stage
+          quest: first_steps_bianliang
+          stage: training
+        - type: message
+          speaker: "樊楼伙计"
+          text: "明早若想找练功门路，去御街武馆见梁教头。若只想挣钱，城里也有的是活。"
 
-    - id: work_at_academy
+    - id: fanlou_after_lodging
+      trigger:
+        type: talk
+        npc: fanlou_innkeeper
+      conditions:
+        - type: quest_completed
+          quest: first_steps_bianliang
+      actions:
+        - type: message
+          speaker: "樊楼伙计"
+          text: "后院房牌既在你手里，天黑前回来便有人留门。若欠了房钱，我也会记得。"
+
+    - id: confirm_basics_martial_family
+      trigger:
+        type: talk
+        npc: bianliang_martial_instructor
+      conditions:
+        - type: quest_stage
+          quest: first_steps_bianliang
+          stage: training
+        - type: flag
+          flag: creation.origin.martial_family
+      actions:
+        - type: message
+          speaker: "梁教头"
+          text: "你这站架有人教过，只是一路赶得心浮。家传的规矩我不问，到了我的场子，先对木人把呼吸和脚步找回来。"
+        - type: show_npc
+          npc: bianliang_training_dummy
+        - type: set_stage
+          quest: first_steps_bianliang
+          stage: practice
+
+    - id: confirm_basics_at_martial_hall
+      trigger:
+        type: talk
+        npc: bianliang_martial_instructor
+      conditions:
+        - type: quest_stage
+          quest: first_steps_bianliang
+          stage: training
+        - type: not_flag
+          flag: creation.origin.martial_family
+      actions:
+        - type: message
+          speaker: "梁教头"
+          text: "你脚步虚，心却急。先别忙着拜师，对场边木人试几招。我只看你会不会护住自己。"
+        - type: show_npc
+          npc: bianliang_training_dummy
+        - type: set_stage
+          quest: first_steps_bianliang
+          stage: practice
+
+    - id: start_martial_hall_practice
+      trigger:
+        type: talk
+        npc: bianliang_training_dummy
+      conditions:
+        - type: quest_stage
+          quest: first_steps_bianliang
+          stage: practice
+      actions:
+        - type: message
+          speaker: "梁教头"
+          text: "木人不会留手，你也不必留力。站稳了再出招。"
+        - type: start_battle
+          target: bianliang_training_dummy
+
+    - id: finish_martial_hall_practice
+      trigger:
+        type: kill
+        npc: bianliang_training_dummy
+      conditions:
+        - type: quest_stage
+          quest: first_steps_bianliang
+          stage: practice
+      actions:
+        - type: hide_npc
+          npc: bianliang_training_dummy
+        - type: set_stage
+          quest: first_steps_bianliang
+          stage: first_job
+        - type: message
+          speaker: "梁教头"
+          text: "还不算稳，但知道什么时候该退。往后想学什么，拿潜能和工夫来换。眼下先去挣顿饭钱。"
+
+    - id: first_job_scribe_scholar
       trigger:
         type: talk
         npc: old_scribe
       conditions:
         - type: quest_stage
-          quest: first_steps_jinguan
-          stage: errands
+          quest: first_steps_bianliang
+          stage: first_job
+        - type: flag
+          flag: creation.origin.scholar_house
       actions:
         - type: message
           speaker: "沈抄书"
-          text: "抄书不丢人。能把一行字抄稳的人，出刀时也不会乱。今日先替我誊一页告示。"
+          text: "这笔画不像临时学的。替我誊完这页失物榜，字要清楚，人名尤其不能错。"
+        - type: delay
+          ms: 700
+        - type: give_money
+          amount: 10
+        - type: give_item
+          item: bianliang_work_token
+          amount: 1
+        - type: set_flag
+          flag: bianliang.first_job.scribe
         - type: complete_quest
-          quest: first_steps_jinguan
+          quest: first_steps_bianliang
 
-    - id: work_at_smithy
+    - id: first_job_scribe_official
       trigger:
         type: talk
-        npc: town_blacksmith
+        npc: old_scribe
       conditions:
         - type: quest_stage
-          quest: first_steps_jinguan
-          stage: errands
+          quest: first_steps_bianliang
+          stage: first_job
+        - type: flag
+          flag: creation.origin.official_house
+      actions:
+        - type: message
+          speaker: "沈抄书"
+          text: "你拿公牒的手势像见过衙门文书。替我把这页告示誊清，别把官样文章写进百姓名字里。"
+        - type: delay
+          ms: 700
+        - type: give_money
+          amount: 10
+        - type: give_item
+          item: bianliang_work_token
+          amount: 1
+        - type: set_flag
+          flag: bianliang.first_job.scribe
+        - type: complete_quest
+          quest: first_steps_bianliang
+
+    - id: first_job_scribe
+      trigger:
+        type: talk
+        npc: old_scribe
+      conditions:
+        - type: quest_stage
+          quest: first_steps_bianliang
+          stage: first_job
+        - type: not_flag
+          flag: creation.origin.scholar_house
+        - type: not_flag
+          flag: creation.origin.official_house
+      actions:
+        - type: message
+          speaker: "沈抄书"
+          text: "照着这一页慢慢誊，认不准的字便问。名字写错一笔，寻人的路就会多绕十里。"
+        - type: delay
+          ms: 700
+        - type: give_money
+          amount: 10
+        - type: give_item
+          item: bianliang_work_token
+          amount: 1
+        - type: set_flag
+          flag: bianliang.first_job.scribe
+        - type: complete_quest
+          quest: first_steps_bianliang
+
+    - id: first_job_blacksmith
+      trigger:
+        type: talk
+        npc: bianliang_blacksmith
+      conditions:
+        - type: quest_stage
+          quest: first_steps_bianliang
+          stage: first_job
       actions:
         - type: message
           speaker: "赵铁匠"
-          text: "来得正好。拉一阵风箱，记住火候。江湖上很多事也一样，火不到不成，火过了就废。"
+          text: "替我踩住风箱。火色发白便慢，发暗便加力，别光顾着看热闹。"
+        - type: delay
+          ms: 700
+        - type: message
+          speaker: "旁白"
+          text: "一炉铁烧透时，你的衣背也被汗浸透。赵铁匠把十文钱和一枚工筹拍在砧边。"
+        - type: give_money
+          amount: 10
+        - type: give_item
+          item: bianliang_work_token
+          amount: 1
+        - type: set_flag
+          flag: bianliang.first_job.blacksmith
         - type: complete_quest
-          quest: first_steps_jinguan
+          quest: first_steps_bianliang
 
-    - id: work_at_apothecary
+    - id: first_job_physician_family
       trigger:
         type: talk
-        npc: town_physician
+        npc: bianliang_physician
       conditions:
         - type: quest_stage
-          quest: first_steps_jinguan
-          stage: errands
+          quest: first_steps_bianliang
+          stage: first_job
+        - type: flag
+          flag: creation.origin.medicine_house
       actions:
         - type: message
           speaker: "柳药师"
-          text: "帮我把这几味药分开。药分错了，只是苦；人看错了，可能就是命。"
+          text: "你闻药时先辨根叶，家里应当开过药柜。替我分这几包止血散，分量照旧，不必卖弄方子。"
+        - type: delay
+          ms: 700
+        - type: give_money
+          amount: 10
+        - type: give_item
+          item: bianliang_work_token
+          amount: 1
+        - type: set_flag
+          flag: bianliang.first_job.physician
         - type: complete_quest
-          quest: first_steps_jinguan
+          quest: first_steps_bianliang
 
-- id: black_pine_patrol
-  name: "黑松路巡查"
+    - id: first_job_physician
+      trigger:
+        type: talk
+        npc: bianliang_physician
+      conditions:
+        - type: quest_stage
+          quest: first_steps_bianliang
+          stage: first_job
+        - type: not_flag
+          flag: creation.origin.medicine_house
+      actions:
+        - type: message
+          speaker: "柳药师"
+          text: "把写着止血二字的药包分到左边，认不准便闻一闻。错一包，伤者就要多流一碗血。"
+        - type: delay
+          ms: 700
+        - type: give_money
+          amount: 10
+        - type: give_item
+          item: bianliang_work_token
+          amount: 1
+        - type: set_flag
+          flag: bianliang.first_job.physician
+        - type: complete_quest
+          quest: first_steps_bianliang
+
+- id: yanmen_patrol
+  name: "雁门旧道巡查"
   objectives:
     - stage: accepted
-      text: "沿北门出镇，到黑松路递铺亭查探。"
+      text: "沿北门出城，到雁门旧道递铺亭查探失信之事。"
     - stage: found_tracks
-      text: "去松林岔口西边的小径，找到拦路的剪径人。"
+      text: "循着被擦过的马蹄印，到旧道西侧小径查问拦路人。"
+    - stage: confronting
+      text: "制住拦路探子，找回递铺失去的信物。"
+    - stage: report
+      text: "回汴梁巡铺向顾巡捕复命。"
     - stage: completed
-      text: "黑松路暂时安静下来。"
+      text: "失信案已经报回开封府，雁门旧道暂时恢复通行。"
   reward:
-    money: 80
-    items:
-      - id: black_pine_badge
-        amount: 1
+    money: 0
+    items: []
   events:
     - id: constable_starts_patrol
       trigger:
         type: talk
-        npc: town_constable
+        npc: bianliang_constable
       conditions:
         - type: quest_completed
-          quest: first_steps_jinguan
+          quest: first_steps_bianliang
         - type: quest_not_started
-          quest: black_pine_patrol
+          quest: yanmen_patrol
       actions:
         - type: message
           speaker: "顾巡捕"
-          text: "黑松路少了两封递信。不是大案，却最适合试脚。你沿北门出去，到递铺亭看看。记住，打不过就回来，活人比线索值钱。"
+          text: "北门递铺少了两封边报。你若想接一件正经差事，就去亭里看一眼；见到人先问话，别追过旧道岔口。"
         - type: set_stage
-          quest: black_pine_patrol
+          quest: yanmen_patrol
           stage: accepted
 
     - id: inspect_relay_pavilion
       trigger:
         type: enter_room
-        map: black_pine_road
+        map: yanmen_old_road
         position: [0, 2]
       conditions:
         - type: quest_stage
-          quest: black_pine_patrol
+          quest: yanmen_patrol
           stage: accepted
         - type: not_flag
-          flag: black_pine.tracks_seen
+          flag: yanmen.tracks_seen
       actions:
         - type: set_flag
-          flag: black_pine.tracks_seen
+          flag: yanmen.tracks_seen
+        - type: show_npc
+          npc: yanmen_spy
         - type: set_stage
-          quest: black_pine_patrol
+          quest: yanmen_patrol
           stage: found_tracks
         - type: message
           speaker: "旁白"
-          text: "递铺亭墙根有一串湿脚印，绕向西边松林小径。脚印很浅，像走路的人一直在回头。"
+          text: "亭柱后有一串被松枝扫过的马蹄印，仍能看出向西折进小径。泥里还压着半截断掉的信筒铜扣。"
 
-    - id: defeat_black_pine_bandit
+    - id: confront_yanmen_spy
       trigger:
-        type: kill
-        npc: black_pine_bandit
+        type: talk
+        npc: yanmen_spy
       conditions:
         - type: quest_stage
-          quest: black_pine_patrol
+          quest: yanmen_patrol
           stage: found_tracks
       actions:
         - type: message
-          speaker: "黑松剪径人"
-          text: "他跌坐在松针里，斗篷散开，怀里滑出一枚刻着暗记的木牌。木牌上的折线和伞骨银针尾端一样，只是多了一笔。看来冷雨客栈不是孤案。"
-        - type: complete_quest
-          quest: black_pine_patrol
-        - type: hide_npc
-          npc: black_pine_bandit
+          speaker: "雁门探子"
+          text: "开封府养的脚倒快。信已经不在我身上，你若还想问，只能先让我闭不了你的嘴。"
+        - type: set_stage
+          quest: yanmen_patrol
+          stage: confronting
+        - type: start_battle
+          target: yanmen_spy
 
-- id: faction_intro
-  name: "三路拜师"
-  objectives:
-    - stage: visit
-      text: "带着伞骨银针的暗记，分别向寒雨门、铁衣帮、药王谷的接引人打听门路，再回南门找引路人。"
-    - stage: completed
-      text: "你已经知道三条入门路各自能查到暗记的一角。"
-  reward:
-    money: 20
-    items:
-      - id: faction_intro_note
-        amount: 1
-  events:
-    - id: guide_opens_faction_intro
+    - id: defeat_yanmen_spy
+      trigger:
+        type: kill
+        npc: yanmen_spy
+      conditions:
+        - type: quest_stage
+          quest: yanmen_patrol
+          stage: confronting
+      actions:
+        - type: hide_npc
+          npc: yanmen_spy
+        - type: give_item
+          item: yanmen_wooden_badge
+          amount: 1
+        - type: set_stage
+          quest: yanmen_patrol
+          stage: report
+        - type: message
+          speaker: "旁白"
+          text: "探子袖中掉出一块递铺木牌，背面刻着交接时辰。失去的边报已被送往更北处，眼下只能先把木牌带回开封府。"
+
+    - id: constable_completes_patrol
       trigger:
         type: talk
-        npc: town_guide
+        npc: bianliang_constable
+      conditions:
+        - type: quest_stage
+          quest: yanmen_patrol
+          stage: report
+      actions:
+        - type: message
+          speaker: "顾巡捕"
+          text: "木牌留下，后面的路由官差去追。你守住了我说的分寸，这五十文是巡铺出的脚钱。"
+        - type: give_money
+          amount: 50
+        - type: complete_quest
+          quest: yanmen_patrol
+
+- id: three_city_leads
+  name: "远行门路"
+  objectives:
+    - stage: choose_route
+      text: "到北街问洛阳驿亭、大理商队或太湖药车，选定第一次远行的方向。"
+    - stage: completed
+      text: "三处接引点已经认得你。往后想远行时，找对应接引人即可。"
+  reward:
+    money: 0
+    items: []
+  events:
+    - id: guide_opens_travel_routes
+      trigger:
+        type: talk
+        npc: bianliang_guide
       conditions:
         - type: quest_completed
-          quest: first_steps_jinguan
+          quest: first_steps_bianliang
         - type: quest_not_started
-          quest: faction_intro
+          quest: three_city_leads
       actions:
         - type: message
-          speaker: "灰衣引路人"
-          text: "你已经能在镇上站住。接下来才谈门派，也才谈那半个“津”字。寒雨门的人懂出手的节奏，铁衣帮的人懂押送的账，药王谷的人懂针上残留的药性。三条路都问一遍，再决定自己像哪种人。"
+          speaker: "京城引路人"
+          text: "住处和工筹都有了，便不必总守着南门。北街有三拨远行人：洛阳驿亭、大理商队、太湖药车。先选一处走走，余下的路以后再认。"
         - type: set_stage
-          quest: faction_intro
-          stage: visit
+          quest: three_city_leads
+          stage: choose_route
 
-    - id: ask_hanyi_runner
+    - id: choose_luoyang_route
       trigger:
         type: talk
-        npc: hanyi_runner
+        npc: luoyang_runner
       conditions:
         - type: quest_stage
-          quest: faction_intro
-          stage: visit
-        - type: not_flag
-          flag: faction_intro.hanyi
+          quest: three_city_leads
+          stage: choose_route
       actions:
+        - type: message
+          speaker: "洛阳接引人"
+          text: "洛阳的车午后出发。那里的人先看名帖，再看剑；你若没有名帖，就带一件愿意当众说清来历的东西。"
+        - type: give_item
+          item: three_city_route_pass
+          amount: 1
         - type: set_flag
-          flag: faction_intro.hanyi
-        - type: message
-          speaker: "寒雨接引弟子"
-          text: "你说伞骨银针？寒雨门不管暗器，却管出手前那一息。那几针不是乱刺，是有人借雨声藏了步点。若你想先看清，再出手，可以去山门试试。"
-
-    - id: ask_tieyi_runner
-      trigger:
-        type: talk
-        npc: tieyi_runner
-      conditions:
-        - type: quest_stage
-          quest: faction_intro
-          stage: visit
-        - type: not_flag
-          flag: faction_intro.tieyi
-      actions:
-        - type: set_flag
-          flag: faction_intro.tieyi
-        - type: message
-          speaker: "铁衣帮接引"
-          text: "半个“津”字不稀奇，稀奇的是谁敢把它刻在证物上。铁衣帮走镖、查账、认路牌，最知道什么东西该到却没到。你若敢扛事，就来分舵问。"
-
-    - id: ask_yaowang_runner
-      trigger:
-        type: talk
-        npc: yaowang_runner
-      conditions:
-        - type: quest_stage
-          quest: faction_intro
-          stage: visit
-        - type: not_flag
-          flag: faction_intro.yaowang
-      actions:
-        - type: set_flag
-          flag: faction_intro.yaowang
-        - type: message
-          speaker: "药王谷药童"
-          text: "银针若只为杀人，不必做得那么细。药王谷能从针尾残味里分出它是封口、逼供，还是救不得人的救法。若你觉得活下来比赢一招更重要，可以随药车入谷。"
-
-    - id: guide_completes_faction_intro
-      trigger:
-        type: talk
-        npc: town_guide
-      conditions:
-        - type: quest_stage
-          quest: faction_intro
-          stage: visit
-        - type: flag
-          flag: faction_intro.hanyi
-        - type: flag
-          flag: faction_intro.tieyi
-        - type: flag
-          flag: faction_intro.yaowang
-      actions:
-        - type: message
-          speaker: "灰衣引路人"
-          text: "都问过了，你也该明白：三条路都能查暗记，却都会先问你配不配走这条路。别急着把自己卖给第一个愿意收你的人。真正的师门，收的是你以后许多年。"
+          flag: travel.first.luoyang
         - type: complete_quest
-          quest: faction_intro
+          quest: three_city_leads
+        - type: transition
+          text: "车轮沿驿道向西，汴梁城声渐渐落在身后。"
+          ms: 1000
+        - type: move_player
+          map: luoyang_city
+          position: [0, 0]
+
+    - id: choose_dali_route
+      trigger:
+        type: talk
+        npc: dali_runner
+      conditions:
+        - type: quest_stage
+          quest: three_city_leads
+          stage: choose_route
+      actions:
+        - type: message
+          speaker: "大理商队护卫"
+          text: "南下路远，商队不白载人。一路替我照看后车，到了大理，吃住和脚钱都按护卫例算。"
+        - type: give_item
+          item: three_city_route_pass
+          amount: 1
+        - type: set_flag
+          flag: travel.first.dali
+        - type: complete_quest
+          quest: three_city_leads
+        - type: transition
+          text: "商队沿茶马道南下，城郭、平原与山路依次退向身后。"
+          ms: 1000
+        - type: move_player
+          map: dali_city
+          position: [0, 0]
+
+    - id: choose_taihu_route
+      trigger:
+        type: talk
+        npc: taihu_runner
+      conditions:
+        - type: quest_stage
+          quest: three_city_leads
+          stage: choose_route
+      actions:
+        - type: message
+          speaker: "太湖药童"
+          text: "药车不赶夜路，也不收闲客。你若肯沿途看着药箱，到了湖边，我替你向水榭报一声姓名。"
+        - type: give_item
+          item: three_city_route_pass
+          amount: 1
+        - type: set_flag
+          flag: travel.first.taihu
+        - type: complete_quest
+          quest: three_city_leads
+        - type: transition
+          text: "药铃一路向东，空气里的水气渐渐重了。"
+          ms: 1000
+        - type: move_player
+          map: taihu_water_pavilion
+          position: [0, 0]
+
+    - id: travel_to_luoyang_again
+      trigger:
+        type: talk
+        npc: luoyang_runner
+      conditions:
+        - type: quest_completed
+          quest: three_city_leads
+      actions:
+        - type: message
+          speaker: "洛阳接引人"
+          text: "西行车马正要出发。路引带好，途中少管驿卒不肯说的事。"
+        - type: transition
+          text: "车轮沿驿道向西，汴梁城声渐渐落在身后。"
+          ms: 900
+        - type: move_player
+          map: luoyang_city
+          position: [0, 0]
+
+    - id: travel_to_dali_again
+      trigger:
+        type: talk
+        npc: dali_runner
+      conditions:
+        - type: quest_completed
+          quest: three_city_leads
+      actions:
+        - type: message
+          speaker: "大理商队护卫"
+          text: "后车还缺一个照看货绳的人。想南下便跟紧，掉队没人回头找。"
+        - type: transition
+          text: "商队沿茶马道南下，城郭、平原与山路依次退向身后。"
+          ms: 900
+        - type: move_player
+          map: dali_city
+          position: [0, 0]
+
+    - id: travel_to_taihu_again
+      trigger:
+        type: talk
+        npc: taihu_runner
+      conditions:
+        - type: quest_completed
+          quest: three_city_leads
+      actions:
+        - type: message
+          speaker: "太湖药童"
+          text: "药箱已经点齐。若去太湖，帮我听着车铃，少一声便要停车。"
+        - type: transition
+          text: "药铃一路向东，空气里的水气渐渐重了。"
+          ms: 900
+        - type: move_player
+          map: taihu_water_pavilion
+          position: [0, 0]

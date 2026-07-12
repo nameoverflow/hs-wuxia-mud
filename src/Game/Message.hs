@@ -464,6 +464,8 @@ data ActionResp
   | ActiveSkillFailureMsg ActiveSkillFailureReason
   | BattleStateMsg BattleSnapshot
   | StoryMsg T.Text T.Text
+  | StoryDelayMsg Int
+  | StoryTransitionMsg T.Text Int
   | QuestLogMsg [QuestLogEntry]
   | InventoryMsg Int [InventoryItemSummary]
   | ArtsMsg [ArtSummary]

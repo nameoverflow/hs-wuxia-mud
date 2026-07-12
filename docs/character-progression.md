@@ -38,8 +38,8 @@ type: foundation | internal | lightness | sword | fist
 每门武功都可以带以下字段：
 
 ```yaml
-id: cold_rain_secret
-name: "听雨残谱"
+id: weiyuan_sword
+name: "威远剑法"
 type: sword
 desc: "..."
 foundation: basic_sword
@@ -60,7 +60,7 @@ active_skills: []
 玩家已学武功记录为 `ArtEntity`：
 
 ```yaml
-id: cold_rain_secret
+id: weiyuan_sword
 level: 3
 progress: 0
 ```
@@ -97,8 +97,8 @@ max_level: 100
 具体武功声明自己依附的基础功：
 
 ```yaml
-id: cold_rain_secret
-name: "听雨残谱"
+id: weiyuan_sword
+name: "威远剑法"
 type: sword
 foundation: basic_sword
 requires:
@@ -133,8 +133,8 @@ max_level: 20
 例如：
 
 - 玩家有 `basic_sword` level 1。
-- 学会 `cold_rain_secret` level 1。
-- 执行 `train cold_rain_secret` 到 level 2。
+- 学会 `weiyuan_sword` level 1。
+- 执行 `train weiyuan_sword` 到 level 2。
 - `basic_sword` 自动提升到 level 2。
 
 这个规则的优点：
@@ -150,11 +150,11 @@ max_level: 20
 `train` 是旧客户端兼容入口，服务端等价处理为 `practice`：
 
 ```json
-{"train":"cold_rain_secret"}
+{"train":"weiyuan_sword"}
 ```
 
 ```json
-{"practice":"cold_rain_secret"}
+{"practice":"weiyuan_sword"}
 ```
 
 规则：
@@ -176,12 +176,12 @@ max_level: 20
 额外养成动作：
 
 ```json
-{"learn":{"teacher":"cold_rain_innkeeper","art":"cold_rain_secret","times":2}}
-{"study":"cold_rain_manual"}
-{"research":"cold_rain_secret"}
+{"learn":{"teacher":"wounded_escort","art":"weiyuan_sword","times":2}}
+{"study":"weiyuan_sword_manual"}
+{"research":"weiyuan_sword"}
 {"meditate":40}
-{"enable":{"type":"sword","art":"cold_rain_secret"}}
-{"prepare":{"type":"sword","art":"cold_rain_secret"}}
+{"enable":{"type":"sword","art":"weiyuan_sword"}}
+{"prepare":{"type":"sword","art":"weiyuan_sword"}}
 ```
 
 - `learn` 需要 NPC 在同房间且 `Character.teaches` 声明可教该武功，消耗潜能。
@@ -199,14 +199,14 @@ max_level: 20
 
 ```yaml
 attack_moves:
-  - id: cold_rain_cut
-    name: "雨后一刀"
+  - id: weiyuan_slash
+    name: "护镖横斩"
     unlock_level: 1
     damage: 14
 
 active_skills:
-  - id: umbrella_spine_eight
-    name: "伞骨八刺"
+  - id: eight_direction_thrusts
+    name: "八方连刺"
     unlock_level: 5
     cost: 80
 ```
@@ -226,7 +226,7 @@ active_skills:
 ```yaml
 use:
   type: learn_art
-  art: cold_rain_secret
+  art: weiyuan_sword
   level: 1
   consume: false
 ```
@@ -271,8 +271,8 @@ use:
 
 ```json
 {
-  "artSummaryId": "cold_rain_secret",
-  "artSummaryName": "听雨残谱",
+  "artSummaryId": "weiyuan_sword",
+  "artSummaryName": "威远剑法",
   "artSummaryType": "sword",
   "artSummaryLevel": 3,
   "artSummaryProgress": 0,
@@ -282,9 +282,9 @@ use:
   "artSummaryRequirements": [
     {"artRequirementSummaryId":"basic_sword","artRequirementSummaryName":"基础剑法","artRequirementSummaryLevel":1}
   ],
-  "artSummaryUnlockedAttackMoves": ["雨后一刀"],
-  "artSummaryUnlockedActiveSkills": ["灯下一刀"],
-  "artSummaryNextUnlocks": ["伞骨八刺"]
+  "artSummaryUnlockedAttackMoves": ["护镖横斩"],
+  "artSummaryUnlockedActiveSkills": ["定步斩"],
+  "artSummaryNextUnlocks": ["八方连刺"]
 }
 ```
 

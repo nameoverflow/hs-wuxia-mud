@@ -1,24 +1,24 @@
-- id: dragon_stance
-  name: "听雨势"
+- id: focused_guard
+  name: "凝神式"
   type: buff
-  desc: "雨里有声，声里有杀机。"
+  desc: "架势收稳，短时间内更容易守住身形。"
 
 - id: iron_body_buff
-  name: "铁衣"
+  name: "护身劲"
   type: buff
-  desc: "伤仍会来，只是慢一点。"
+  desc: "护住要害，短时间内减轻伤势。"
 
 - id: bleeding
   name: "血线"
   type: dot
-  desc: "血从很细的地方流出来。"
+  desc: "伤口持续流血。"
 
 - id: poisoned
   name: "青毒"
   type: dot
-  desc: "毒不急。人急。"
+  desc: "中毒后气血会持续下降。"
 
 - id: weakened
   name: "力竭"
   type: debuff
-  desc: "手还在，力已不在。"
+  desc: "体力下降，出手受到影响。"

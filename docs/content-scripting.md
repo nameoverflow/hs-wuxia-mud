@@ -48,7 +48,7 @@ exits:
 ```yaml
 exits:
   north:
-    map: mountain_pass
+    map: bianshui_road
     position: [0, 0]
 ```
 
@@ -62,18 +62,19 @@ NPC YAML 定义：
 - `actions`: `dialogue`, `attacking`, `sparring`
 - `martial_arts` / `prepared`
 - `dialogue`
+- `hidden`: 可选，`true` 表示新玩家初始不可见，需要剧情 `show_npc` 放出。
 - `respawn`
 - `attr`: `hp`, `qi`, `max_qi`, `qi_regen`, `str`, `agi`, `vit`
 
-当前 UI 中 NPC 交互通过弹框完成：点击 NPC 后按其 `actions` 显示可用按钮。剧情完成后的青衣客只保留 `dialogue`，纸伞客则通过玩家故事状态隐藏。
+当前 UI 中 NPC 交互通过弹框完成：点击 NPC 后按其 `actions` 显示可用按钮。破庙黑衣人初始隐藏，由老镖师对话里的 `show_npc` 放出；战斗结束后再通过玩家故事状态隐藏。
 
 ## 剧情事件
 
 剧情定义在 [resources/scripts/quests/](../resources/scripts/quests)。核心结构：
 
 ```yaml
-id: cold_rain_inn
-name: "冷雨客栈"
+id: weiyuan_bloody_case
+name: "威远镖局旧案"
 objectives:
   - stage: accepted
     text: "..."
@@ -81,7 +82,7 @@ reward:
   money: 80
   items: []
 events:
-  - id: intro_innkeeper
+  - id: intro_wounded_escort
     trigger: ...
     conditions: ...
     actions: ...
@@ -112,17 +113,21 @@ events:
 当前支持：
 
 - `message`: 发送剧情文本。
+- `delay`: 暂停后续剧情消息，字段 `ms`。
+- `transition`: 地图区域转场，字段 `text` / `ms`。
 - `set_stage`
 - `complete_quest`
 - `set_flag`
 - `clear_flag`
 - `hide_npc`
+- `show_npc`
 - `give_item`
 - `give_money`
 - `learn_art`
 - `start_battle`
+- `move_player`
 
-`learn_art` 仍作为通用剧情动作存在，但当前冷雨客栈设计中不直接用它教玩家武功；青衣客只给秘籍，真正学习发生在玩家使用秘籍物品时。
+`learn_art` 仍作为通用剧情动作存在，但当前威远镖局旧案设计中不直接用它教玩家武功；玩家后续通过秘籍物品学习武功。
 
 ## 线性剧情推进
 
@@ -131,29 +136,32 @@ events:
 ```yaml
 actions:
   - type: message
-    speaker: "冷雨掌柜"
-    text: "这杯酒已经冷了三次。"
+    speaker: "受伤老镖师"
+    text: "别点火。后面有人追着我们镖局的车来，庙里一亮，暴露了我们都凶多吉少。"
   - type: set_stage
-    quest: cold_rain_inn
-    stage: accepted
+    quest: weiyuan_bloody_case
+    stage: intruder
   - type: message
     speaker: "旁白"
-    text: "酒杯入手很轻，杯底却像压着一场旧案。"
+    text: "庙门外响起急促脚步。有人一脚踹开半扇破门，雨水和冷风一起灌进殿里。"
+  - type: show_npc
+    npc: temple_black_clad
 ```
 
 server 会按 action 顺序执行。client 只把 `StoryMsg` 正文追加到消息历史；玩家再通过移动、交谈或攻击继续推进。
+`delay` 会让 client 暂停后续剧情消息，`transition` 会在地图区域播放短暂淡入淡出遮罩，适合接 `move_player` 做场景切换。
 
 ## 物品使用脚本
 
 物品定义支持可选 `use`：
 
 ```yaml
-id: cold_rain_manual
-name: "听雨残谱"
-desc: "薄薄几页纸，没有招式图。只有几行字：先听雨，再出手。"
+id: weiyuan_sword_manual
+name: "威远剑谱"
+desc: "威远镖局的入门剑谱，记着押镖护身常用的基础步法和几式剑招。"
 use:
   type: learn_art
-  art: cold_rain_secret
+  art: weiyuan_sword
   level: 1
   consume: false
   message: "..."
@@ -185,8 +193,8 @@ max_level: 100
 具体武功：
 
 ```yaml
-id: cold_rain_secret
-name: "听雨残谱"
+id: weiyuan_sword
+name: "威远剑法"
 type: sword
 desc: "..."
 foundation: basic_sword
@@ -195,15 +203,15 @@ requires:
     level: 1
 max_level: 20
 attack_moves:
-  - id: cold_rain_cut
-    name: "雨后一刀"
+  - id: weiyuan_slash
+    name: "护镖横斩"
     unlock_level: 1
     desc: "..."
     msg: "..."
     damage: 14
 active_skills:
-  - id: umbrella_spine_eight
-    name: "伞骨八刺"
+  - id: eight_direction_thrusts
+    name: "八方连刺"
     unlock_level: 5
     desc: "..."
     msg: "..."
@@ -240,22 +248,20 @@ active_skills:
 
 这能在 server 启动阶段尽早暴露配置错误。
 
-## 冷雨客栈章节
+## 威远镖局旧案章节
 
-当前唯一完整章节是 `cold_rain_inn`：
+当前唯一完整章节是 `weiyuan_bloody_case`：
 
-1. 玩家带着半张无名短笺来到渡口；短笺写着“今夜，冷雨客栈，问青衣客”。
-2. 玩家在渡口与冷雨掌柜对话，接冷酒。
-3. 去大堂见青衣客，听他说出旧案。
-4. 到后院天井看见纸伞客。
-5. 与纸伞客对话，打翻灯笼并进入战斗。
-6. 杀死纸伞客后：
-   - 完成章节。
-   - 玩家获得 `80` 铜钱。
-   - 纸伞客对该玩家隐藏。
-   - 掉落 `伞骨银针`，针尾暗记把玩家指向津关镇。
-7. 回大堂与青衣客对话：
-   - 首次给 `听雨残谱`。
-   - 指引玩家沿官道进津关镇，去南门找灰衣引路人。
-   - 后续只给固定回应。
-8. 使用 `听雨残谱` 后学习并准备 `cold_rain_secret`。
+1. 玩家在汴梁外破庙遇见受伤老镖师和灰衣少年。
+2. 老镖师第一句阻止点火，说明有人追着镖车而来。
+3. 旁白触发闯门，隐藏的黑衣人通过 `show_npc` 出现在同一房间并放话。
+4. 玩家与黑衣人对话进入战斗。
+5. 黑衣人由 `start_battle` 开启玩家独立剧情战斗，不占用全局 NPC 战斗锁。杀死黑衣人后：
+   - 黑衣人对该玩家隐藏。
+   - 任务进入 `escort_dying` 阶段，提示玩家回头找老镖师。
+6. 与老镖师对话后，获得来源明确的三十文盘缠，并被送到 `汴水官道`。
+7. 玩家亲自沿官道护送少年进汴梁，再进入威远镖局前厅：
+   - 旁白描述前厅惨状。
+   - 灰衣少年把水浸路单和威远剑谱交给玩家。
+   - 设置长期分离 flag，少年独自离开，不自动开启追案任务。
+8. 序章之后的 `first_steps_bianliang` 属于玩家自己的住宿、试招和谋生流程。

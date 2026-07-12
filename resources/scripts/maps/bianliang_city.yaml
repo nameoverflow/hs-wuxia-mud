@@ -1,0 +1,382 @@
+id: bianliang_city
+name: "汴梁"
+desc: "御街、开封府、太学、驿站和南北行旅在汴水两岸挤作一城。"
+rooms:
+  - position: [0, -3]
+    id: bianliang_south_ferry
+    name: "汴水南渡"
+    desc: "渡口木桩被水泡得发黑。往北便是汴梁南桥，往东能看见威远镖局的门匾。"
+    exits:
+      north: [0, -2]
+      east: [1, -3]
+      south:
+        map: bianshui_road
+        position: [0, 0]
+
+  - position: [1, -3]
+    id: weiyuan_branch_gate
+    name: "威远镖局门口"
+    desc: "黑漆门匾上写着威远镖局，门前车辙被雨水泡得发亮，门内却静得不正常。"
+    char:
+      - grey_young_escort
+    exits:
+      east: [2, -3]
+      west: [0, -3]
+
+  - position: [2, -3]
+    id: weiyuan_branch_hall
+    name: "威远镖局前厅"
+    desc: "前厅门扇半开，镖旗斜倒在地，空气里混着雨水、血腥和翻乱账册的纸墨味。"
+    char:
+      - grey_young_escort
+    exits:
+      west: [1, -3]
+
+  - position: [0, -2]
+    id: bianliang_stone_bridge
+    name: "州桥"
+    desc: "桥下汴水急急流过，桥栏上挤满车辙、马蹄和江湖人留下的刀痕。"
+    exits:
+      north: [0, -1]
+      south: [0, -3]
+      west: [-1, -2]
+      east: [1, -2]
+
+  - position: [-1, -2]
+    id: bianliang_willow_bank
+    name: "柳岸码头"
+    desc: "几株老柳伏在水边，脚夫在树下等船，也等一份能换饭钱的差事。"
+    exits:
+      east: [0, -2]
+      north: [-1, -1]
+
+  - position: [1, -2]
+    id: bianliang_boat_shed
+    name: "船棚"
+    desc: "棚下堆着缆绳、破桨和几盏备用风灯。雨水从棚角滴下来，正落在一串新车辙旁。"
+    exits:
+      west: [0, -2]
+      north: [1, -1]
+
+  - position: [0, -1]
+    id: bianliang_south_gate
+    name: "汴梁南门"
+    desc: "南门不高，门洞里避雨的人却不少。一个京城引路人靠墙等候，常给外地江湖客指路。"
+    char:
+      - bianliang_guide
+    exits:
+      north: [0, 0]
+      south: [0, -2]
+      west: [-1, -1]
+      east: [1, -1]
+
+  - position: [-1, -1]
+    id: bianliang_training_yard
+    name: "御街演武场"
+    desc: "地面铺着粗砂，雨水一落就被踩碎。墙边立着木桩、竹刀和几面开封府借来的旧盾。"
+    char:
+      - bianliang_martial_instructor
+      - bianliang_training_dummy
+    exits:
+      east: [0, -1]
+      west: [-2, -1]
+      south: [-1, -2]
+
+  - position: [-2, -1]
+    id: bianliang_martial_hall
+    name: "御街武馆"
+    desc: "武馆里灯火明亮，墙上写着四个字：先站得住。"
+    exits:
+      east: [-1, -1]
+      west: [-3, -1]
+
+  - position: [-3, -1]
+    id: bianliang_money_house
+    name: "汴梁钱庄"
+    desc: "柜台后的铁算盘不停作响，掌柜正核对外地客人的路费和押金。"
+    exits:
+      east: [-2, -1]
+      north: [-3, 0]
+
+  - position: [1, -1]
+    id: bianliang_academy
+    name: "太学外舍"
+    desc: "檐下挂着半卷竹帘，案上堆着告示、旧牒和太学抄本。"
+    char:
+      - old_scribe
+    exits:
+      west: [0, -1]
+      east: [2, -1]
+      south: [1, -2]
+
+  - position: [2, -1]
+    id: bianliang_yamen
+    name: "开封府外堂"
+    desc: "门口有两面褪色鼓，衙役在檐下维持队伍，告状的人一直排到街边。"
+    exits:
+      west: [1, -1]
+      east: [3, -1]
+      north: [2, 0]
+
+  - position: [3, -1]
+    id: bianliang_warehouse
+    name: "官仓"
+    desc: "仓门紧闭，门缝里透出谷米、潮木头和封泥文书的气味。"
+    exits:
+      west: [2, -1]
+
+  - position: [0, 0]
+    id: bianliang_market_cross
+    name: "御街十字"
+    desc: "四条街在此交汇。摊贩的叫卖声、驿马的鼻息和茶客的低语混在一起。"
+    exits:
+      north: [0, 1]
+      south: [0, -1]
+      west: [-1, 0]
+      east: [1, 0]
+
+  - position: [-1, 0]
+    id: bianliang_west_market
+    name: "西市"
+    desc: "西市多卖旧物，刀鞘、药瓶、破书和无主的鞋都在雨棚下排着。"
+    exits:
+      east: [0, 0]
+      west: [-2, 0]
+      north: [-1, 1]
+
+  - position: [-2, 0]
+    id: bianliang_west_lane
+    name: "甜水巷"
+    desc: "巷子窄得两个人错身也要侧肩。墙根有新旧不一的脚印，夜里常有信使从这里穿过。"
+    exits:
+      east: [-1, 0]
+      west: [-3, 0]
+
+  - position: [-3, 0]
+    id: bianliang_pawnshop
+    name: "当铺"
+    desc: "当铺门匾写着一个很大的当字。掌柜看人的眼神比秤砣还沉。"
+    exits:
+      east: [-2, 0]
+      south: [-3, -1]
+      north: [-3, 1]
+
+  - position: [1, 0]
+    id: bianliang_east_market
+    name: "东市"
+    desc: "东市卖的多是新货。铁器、药材、伞布和灯油挤满了摊子。"
+    exits:
+      west: [0, 0]
+      east: [2, 0]
+      north: [1, 1]
+
+  - position: [2, 0]
+    id: bianliang_east_lane
+    name: "府后东巷"
+    desc: "东巷通向开封府后墙，来往的多是脚步很急的人。"
+    exits:
+      west: [1, 0]
+      east: [3, 0]
+      south: [2, -1]
+
+  - position: [3, 0]
+    id: bianliang_apothecary
+    name: "仁和药铺"
+    desc: "柜上放着药碾，墙上挂满抽屉。药师正在按方分药。"
+    char:
+      - bianliang_physician
+    exits:
+      west: [2, 0]
+      north: [3, 1]
+
+  - position: [0, 1]
+    id: bianliang_drum_tower
+    name: "鼓楼"
+    desc: "鼓楼高过两边屋脊。雨天看不远，却能听见四面来的脚步声。"
+    exits:
+      north: [0, 2]
+      south: [0, 0]
+      west: [-1, 1]
+      east: [1, 1]
+
+  - position: [-1, 1]
+    id: bianliang_inn
+    name: "樊楼客舍"
+    desc: "客舍里火盆烧得正旺，住客围着桌子谈路引、房钱和外地消息。"
+    char:
+      - fanlou_innkeeper
+    exits:
+      east: [0, 1]
+      west: [-2, 1]
+      south: [-1, 0]
+
+  - position: [-2, 1]
+    id: bianliang_tea_house
+    name: "瓦子茶楼"
+    desc: "茶楼没有几面正经墙，只有竹帘和说书人的醒木。这里的闲话，第二天就能传到半个汴梁。"
+    char:
+      - tea_storyteller
+    exits:
+      east: [-1, 1]
+      west: [-3, 1]
+      north: [-2, 2]
+
+  - position: [-3, 1]
+    id: bianliang_notice_wall
+    name: "公告墙"
+    desc: "墙上贴着寻人、悬赏、失物和外地路引。新雨把墨迹洇成一片。"
+    exits:
+      east: [-2, 1]
+      south: [-3, 0]
+      north: [-3, 2]
+
+  - position: [1, 1]
+    id: bianliang_smithy
+    name: "御街铁铺"
+    desc: "炉火照亮半条街。铁匠把一截红铁放进雨水里，白气轰然升起。"
+    char:
+      - bianliang_blacksmith
+    exits:
+      west: [0, 1]
+      east: [2, 1]
+      south: [1, 0]
+
+  - position: [2, 1]
+    id: bianliang_stable
+    name: "驿马院"
+    desc: "几匹驿马在棚下甩着鬃毛。驿卒说雁门旧道近来不太平。"
+    char:
+      - post_runner
+    exits:
+      west: [1, 1]
+      east: [3, 1]
+      north: [2, 2]
+
+  - position: [3, 1]
+    id: bianliang_herb_stall
+    name: "药材摊"
+    desc: "摊上晒着半干的草药。摊主逐一报出药名、产地和用法。"
+    exits:
+      west: [2, 1]
+      south: [3, 0]
+      north: [3, 2]
+
+  - position: [0, 2]
+    id: bianliang_north_street
+    name: "北街"
+    desc: "北街比南街冷清，行人多带兵器，话也少。"
+    exits:
+      north: [0, 3]
+      south: [0, 1]
+      west: [-1, 2]
+      east: [1, 2]
+
+  - position: [-1, 2]
+    id: bianliang_shrine
+    name: "小武庙"
+    desc: "庙小，香火却不冷。墙角放着几只给新手避祸用的旧灯笼。"
+    exits:
+      east: [0, 2]
+      west: [-2, 2]
+
+  - position: [-2, 2]
+    id: bianliang_luoyang_lodge
+    name: "洛阳接引亭"
+    desc: "亭里挂着一柄无锋木剑。亭柱上贴着洛阳牡丹会的旧帖，候车人把姓名写在帖后。"
+    char:
+      - luoyang_runner
+    exits:
+      east: [-1, 2]
+      west: [-3, 2]
+      south: [-2, 1]
+
+  - position: [-3, 2]
+    id: bianliang_old_well
+    name: "老井"
+    desc: "井水很深，井台石沿被磨得发亮，附近居民常在这里打水。"
+    exits:
+      east: [-2, 2]
+      south: [-3, 1]
+
+  - position: [1, 2]
+    id: bianliang_patrol_office
+    name: "开封府巡铺"
+    desc: "墙上挂着几张新悬赏，巡捕正在登记近来的失踪和盗信案。"
+    char:
+      - bianliang_constable
+    exits:
+      west: [0, 2]
+      east: [2, 2]
+      north: [1, 3]
+
+  - position: [2, 2]
+    id: bianliang_dali_post
+    name: "大理商队驻院"
+    desc: "门前堆着茶包、马鞍和短棍。一个商队护卫坐在雨棚下补护腕。"
+    char:
+      - dali_runner
+    exits:
+      west: [1, 2]
+      east: [3, 2]
+      south: [2, 1]
+
+  - position: [3, 2]
+    id: bianliang_taihu_cart
+    name: "太湖药车棚"
+    desc: "车棚下停着一辆太湖药车，药童正在清点药箱。"
+    char:
+      - taihu_runner
+    exits:
+      west: [2, 2]
+      south: [3, 1]
+
+  - position: [0, 3]
+    id: bianliang_north_gate
+    name: "汴梁北门"
+    desc: "北门外接着通往边关的雁门递道南线。风从门外吹来，带着树脂、马汗和刀油的味道。"
+    exits:
+      north: [0, 4]
+      south: [0, 2]
+      west: [-1, 3]
+      east: [1, 3]
+
+  - position: [-1, 3]
+    id: bianliang_west_watch
+    name: "西望台"
+    desc: "望台能看见通往洛阳的驿路，驿卒在这里记录过往车马。"
+    exits:
+      east: [0, 3]
+      west: [-2, 3]
+
+  - position: [-2, 3]
+    id: bianliang_back_alley
+    name: "后巷"
+    desc: "后巷通向几户闭门人家，门口有衙役留下的查访记号。"
+    exits:
+      east: [-1, 3]
+
+  - position: [1, 3]
+    id: bianliang_east_watch
+    name: "东望台"
+    desc: "望台下能看见大理商队和太湖药车两条路线，守门人按时核验路引。"
+    exits:
+      west: [0, 3]
+      east: [2, 3]
+      south: [1, 2]
+
+  - position: [2, 3]
+    id: bianliang_pack_yard
+    name: "脚夫场"
+    desc: "脚夫们把货担搁在棚下，等雨小，也等雇主心软。"
+    exits:
+      west: [1, 3]
+
+  - position: [0, 4]
+    id: bianliang_north_outskirts
+    name: "北郊驿路"
+    desc: "城声在身后渐远，雁门旧道的南线在前方铺开。路边石碑写着：夜行自负。"
+    exits:
+      south: [0, 3]
+      north:
+        map: yanmen_old_road
+        position: [0, 0]

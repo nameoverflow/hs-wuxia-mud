@@ -37,10 +37,10 @@ tick 时：
 
 ```yaml
 attack_moves:
-  - id: cold_rain_cut
-    name: "雨后一刀"
+  - id: weiyuan_slash
+    name: "护镖横斩"
     unlock_level: 1
-    msg: "在雨声一断时出刀"
+    msg: "横剑封路，顺势斩出"
     damage: 14
     animation:
       pool: "basic"
@@ -77,7 +77,7 @@ selectPreparedAttack
 主动招式由客户端发送：
 
 ```json
-{"perform":"lamp_cut"}
+{"perform":"steady_cut"}
 ```
 
 server 会在当前准备的武功中查找已解锁 `ActiveSkill`，并检查：
@@ -135,7 +135,7 @@ animation:
 ```yaml
 effect:
   self:
-    - id: dragon_stance
+    - id: focused_guard
       duration: 15.0
       value: 1
   target: []
@@ -201,7 +201,7 @@ effect:
 ```yaml
 use:
   type: learn_art
-  art: cold_rain_secret
+  art: weiyuan_sword
   level: 1
   consume: false
 ```
@@ -226,9 +226,9 @@ use:
 - 战斗胜利：发实战经验和潜能。
 - 打坐：发内力上限成长。
 
-冷雨客栈当前设计：
+威远镖局旧案当前设计：
 
-- 完成章节获得 80 铜钱。
-- 杀死纸伞客后获得 `伞骨银针`。
-- 与青衣客结尾对话获得 `听雨残谱`。
-- 使用 `听雨残谱` 后获得 `听雨残谱` 武功。
+- 剧情敌人使用玩家独立战斗，不与其他玩家争抢同一个序章 NPC。
+- 击败黑衣人后回头找老镖师，取得三十文盘缠并进入汴水官道。
+- 玩家亲自护送少年进城；前厅惨状后少年独自离开，旧案不继续占据任务栏。
+- 使用 `威远剑谱` 后获得 `威远剑法` 武功。

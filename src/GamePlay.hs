@@ -94,17 +94,22 @@ playerMove pid direction = do
   case currentRoom ^. roomExits . at direction of
     Nothing -> throwError $ UnableToMove direction currentRoom
     Just dst -> do
-      newRoom <- liftWorld $ getsRoomRef dst
       let dstMapId = dst ^. roomRefMapId
           dstPos = dst ^. roomRefPos
-      players . at pid . _Just . playerPosition .= (dstMapId, dstPos)
-      -- broadcastMessage $ T.concat [playerId, " has entered ", newRoom ^. roomName]
-      world . maps . ix curMapId . mapRooms . ix curPos . roomPlayer %= S.delete pid
-      world . maps . ix dstMapId . mapRooms . ix dstPos . roomPlayer %= S.insert pid
+      newRoom <- movePlayerToRoom pid dstMapId dstPos
       tell [(pid, MoveMsg $ newRoom ^. roomName)]
       playerView pid
       _ <- runStoryTrigger pid (TriggerEnterRoom dstMapId dstPos)
       return ()
+
+movePlayerToRoom :: PlayerId -> MapId -> (Int, Int) -> GameStateT Room
+movePlayerToRoom pid dstMapId dstPos = do
+  (curMapId, curPos) <- (^. playerPosition) <$> getsPlayer pid
+  newRoom <- liftWorld $ getsMapRoom dstMapId dstPos
+  players . at pid . _Just . playerPosition .= (dstMapId, dstPos)
+  world . maps . ix curMapId . mapRooms . ix curPos . roomPlayer %= S.delete pid
+  world . maps . ix dstMapId . mapRooms . ix dstPos . roomPlayer %= S.insert pid
+  return newRoom
 
 
 sendPlayerStats :: PlayerId -> GameStateT ()
@@ -269,6 +274,17 @@ playerAttack pid target = do
     charAttackable :: Character -> Bool
     charAttackable char = isJust (char ^. charActions . at Attacking) && char ^. charStatus == CharAlive
 
+startStoryBattle :: PlayerId -> CharId -> GameStateT ()
+startStoryBattle pid target = do
+  player <- getsPlayer pid
+  npc <- getsRoomCharacter pid target Dialogue
+  let battle = newBattle player npc
+  isolatedBattles %= S.insert pid
+  battles . at pid .= Just battle
+  players . ix pid . playerStatus .= PlayerInBattle
+  tell [(pid, AttackMsg (player ^. playerCharacter . charName) (npc ^. charName))]
+  sendBattleSnapshot pid battle
+
 runStoryTrigger :: PlayerId -> StoryTrigger -> GameStateT Bool
 runStoryTrigger pid trigger = do
   _ <- ensureStoryState pid
@@ -317,19 +333,23 @@ storyConditionMet pid condition = do
 executeStoryActions :: PlayerId -> [StoryAction] -> GameStateT ()
 executeStoryActions pid actions = do
   mapM_ execute actions
-  if any actionChangesRoomView actions
-    then playerView pid
-    else do
-      sendPlayerInventory pid
-      playerQuestLog pid
+  when (any actionChangesRoomView actions) $
+    playerView pid
+  sendPlayerInventory pid
+  playerQuestLog pid
   where
     actionChangesRoomView = \case
       HideNpc _ -> True
+      ShowNpc _ -> True
       _ -> False
 
     execute = \case
       StoryMessage speaker text ->
         tell [(pid, StoryMsg speaker text)]
+      StoryDelay ms ->
+        tell [(pid, StoryDelayMsg ms)]
+      StoryTransition text ms ->
+        tell [(pid, StoryTransitionMsg text ms)]
       SetQuestStage quest stage ->
         stories . ix pid . storyQuestStages . at quest .= Just stage
       CompleteQuest quest -> do
@@ -341,6 +361,8 @@ executeStoryActions pid actions = do
         stories . ix pid . storyFlags %= S.delete flag
       HideNpc npc ->
         stories . ix pid . storyHiddenNpcs %= S.insert npc
+      ShowNpc npc ->
+        stories . ix pid . storyHiddenNpcs %= S.delete npc
       GiveItem itemId amount ->
         grantItem pid itemId amount
       GiveMoney amount ->
@@ -348,7 +370,11 @@ executeStoryActions pid actions = do
       LearnArt artId level ->
         grantArt pid artId level
       StartBattle target ->
-        playerAttack pid target
+        startStoryBattle pid target
+      MovePlayer mapId position -> do
+        newRoom <- movePlayerToRoom pid mapId position
+        tell [(pid, MoveMsg $ newRoom ^. roomName)]
+        playerView pid
 
 playerQuestLog :: PlayerId -> GameStateT ()
 playerQuestLog pid = do
@@ -932,8 +958,10 @@ ensureStoryState pid = do
   case maybeState of
     Just storyState -> return storyState
     Nothing -> do
-      stories . at pid .= Just newPlayerStoryState
-      return newPlayerStoryState
+      characterMap <- use $ world . chars
+      let storyState = newPlayerStoryStateFor characterMap
+      stories . at pid .= Just storyState
+      return storyState
 
 npcVisibleToPlayer :: PlayerId -> CharId -> GameStateT Bool
 npcVisibleToPlayer pid target = do
@@ -1249,7 +1277,8 @@ updateBattleWith syncPolicy combatTick dt bId = do
       battleSettlement (not playerDefeated) battle'
     else do
       -- Update battle state
-      syncBattleEnemyToWorld battle'
+      isolated <- S.member pid <$> use isolatedBattles
+      unless isolated $ syncBattleEnemyToWorld battle'
       battles . at bId .= Just battle'
 
 battleSettlement :: Bool -> Battle -> GameStateT ()
@@ -1257,25 +1286,28 @@ battleSettlement won battle = do
   let pChar = battle ^. battleState . battleChar
   let eChar = battle ^. battleEnemyState . battleChar
   let player = battle ^. battleOwner
+  isolated <- S.member player <$> use isolatedBattles
 
   -- update status
   battles . at player .= Nothing
+  isolatedBattles %= S.delete player
   players . ix player . playerStatus .= PlayerNormal
   players . ix player . playerCharacter . charHP .= max 1 (pChar ^. charHP)
   players . ix player . playerCharacter . charQi .= battle ^. battleState . battleQi
 
-  if won
-    then writeBattleEnemyToWorld CharDead battle
-    else writeBattleEnemyToWorld CharAlive battle
+  unless isolated $
+    if won
+      then writeBattleEnemyToWorld CharDead battle
+      else writeBattleEnemyToWorld CharAlive battle
 
-  when won $ do
+  when (won && not isolated) $ do
     -- set respawn time
     respawn . at (eChar ^. charId) .= Just (fromIntegral (eChar ^. charRespawn))
-    grantBattleGrowthReward player eChar
 
   -- send message
   tell [(player, CombatSettlementMsg player (eChar ^. charName) won)]
   when won $ do
+    grantBattleGrowthReward player eChar
     _ <- runStoryTrigger player (TriggerKill (eChar ^. charId))
     return ()
   sendPlayerStats player
@@ -1300,11 +1332,14 @@ battleEnemyCharacter battle =
 
 releasePlayerBattleLock :: PlayerId -> GameState -> GameState
 releasePlayerBattleLock pid gs =
-  case M.lookup pid (gs ^. battles) of
-    Nothing -> gs
-    Just battle ->
+  case (S.member pid $ gs ^. isolatedBattles, M.lookup pid $ gs ^. battles) of
+    (_, Nothing) -> gs & isolatedBattles %~ S.delete pid
+    (True, Just _) -> gs & isolatedBattles %~ S.delete pid
+    (False, Just battle) ->
       let battleEnemy = battleEnemyCharacter battle & charStatus .~ CharAlive
-       in gs & world . chars . ix (battleEnemy ^. charId) .~ battleEnemy
+       in gs
+            & isolatedBattles %~ S.delete pid
+            & world . chars . ix (battleEnemy ^. charId) .~ battleEnemy
 
 grantBattleGrowthReward :: PlayerId -> Character -> GameStateT ()
 grantBattleGrowthReward pid enemy = do

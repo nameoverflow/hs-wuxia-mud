@@ -1,6 +1,6 @@
-- id: town_guide
-  name: "灰衣引路人"
-  desc: "他站在南门阴影里，衣摆很旧，眼神却很清。"
+- id: bianliang_guide
+  name: "京城引路人"
+  desc: "他靠在南门门洞里，腰间挂着几块不同客舍的旧木牌，见人先看鞋上的泥。"
   actions: [dialogue]
   martial_arts:
     foundation:
@@ -11,7 +11,7 @@
   prepared: {}
   teaches: {}
   dialogue:
-    - "冷雨客栈来的？那种半个“津”字的暗记，我见过。先进镇吧。想活得久些，先去武馆，再问活计，最后才谈门派。"
+    - "南门只管问路，不管断案。想在汴梁久留，先有住处，再谈别的。"
   respawn: 0
   attr:
     hp: 100
@@ -24,9 +24,9 @@
       agility: 16
       vitality: 14
 
-- id: martial_hall_instructor
-  name: "江教头"
-  desc: "孤灯武馆的教头，袖口卷得很高，手背上全是旧伤。"
+- id: bianliang_martial_instructor
+  name: "梁教头"
+  desc: "御街武馆的教头，袖口卷得很高，手背上全是旧伤。"
   actions: [dialogue]
   martial_arts:
     foundation:
@@ -55,9 +55,9 @@
     basic_internal: 10
     nameless_trial_fist: 5
     nameless_trial_sword: 5
-    cold_rain_short_fist: 5
+    escort_short_fist: 5
   dialogue:
-    - "武馆不教你赢，只先教你别死。拳脚、轻功、内功，少一样都不算入门。"
+    - "京城武馆先教基础。拳脚护身，轻功跑路，内功续命，兵器拉开距离，少一样都不算入门。"
   respawn: 0
   attr:
     hp: 180
@@ -72,7 +72,7 @@
 
 - id: old_scribe
   name: "沈抄书"
-  desc: "旧书院的抄书先生，写字很慢，像怕漏掉纸里的旧事。"
+  desc: "太学外舍的抄书先生，正在誊抄告示和案卷。"
   actions: [dialogue]
   martial_arts:
     foundation:
@@ -82,7 +82,7 @@
   teaches:
     basic_internal: 6
   dialogue:
-    - "不愿动刀的人，可以先抄书。字写稳了，心也就稳一点。"
+    - "不愿动刀的人，可以先抄书。字写稳了，看案卷时也不容易被人牵着走。"
   respawn: 0
   attr:
     hp: 80
@@ -95,9 +95,9 @@
       agility: 12
       vitality: 13
 
-- id: town_blacksmith
+- id: bianliang_blacksmith
   name: "赵铁匠"
-  desc: "赵铁匠说话像落锤，短，重，不绕弯。"
+  desc: "赵铁匠守着炉火，手臂粗壮，说话直接。"
   actions: [dialogue]
   martial_arts:
     foundation:
@@ -108,7 +108,7 @@
       id: nameless_trial_fist
       level: 3
   dialogue:
-    - "没钱就帮我看炉、鼓风、淬火。江湖上不少第一口饭，都是从铁匠铺挣的。"
+    - "没钱就帮我看炉、鼓风、淬火。京城不少江湖人的第一口饭，都是从铁铺挣的。"
   respawn: 0
   attr:
     hp: 130
@@ -121,7 +121,7 @@
       agility: 10
       vitality: 18
 
-- id: town_physician
+- id: bianliang_physician
   name: "柳药师"
   desc: "柳药师眉眼温和，拿药刀的手却稳得吓人。"
   actions: [dialogue]
@@ -130,17 +130,17 @@
       - id: basic_internal
         level: 10
     internal:
-      - id: yaowang_breath
+      - id: taihu_breath
         level: 6
   prepared:
     internal:
-      id: yaowang_breath
+      id: taihu_breath
       level: 6
   teaches:
     basic_internal: 8
-    yaowang_breath: 4
+    taihu_breath: 4
   dialogue:
-    - "伤口会说话。你若听不懂，就先学会别让它越说越大声。"
+    - "伤口若不及时处理，小伤也会拖成大事。先学会止血，再谈行走江湖。"
   respawn: 0
   attr:
     hp: 100
@@ -155,7 +155,7 @@
 
 - id: tea_storyteller
   name: "茶棚说书人"
-  desc: "他说书时总留半句，像故意让听客自己走进江湖。"
+  desc: "他守着茶棚，一块醒木用了许多年，边角已经磨得发亮。"
   actions: [dialogue]
   martial_arts:
     foundation:
@@ -163,7 +163,7 @@
         level: 4
   prepared: {}
   dialogue:
-    - "江湖从来不缺大侠，缺的是知道自己下一步该去哪的人。"
+    - "洛阳人爱听名声，大理人认路上的担当，太湖人先看你肯不肯替陌生人停船。三处风土不同，说成一个江湖就没意思了。"
   respawn: 0
   attr:
     hp: 90
@@ -174,6 +174,29 @@
     innate:
       strength: 10
       agility: 18
+      vitality: 12
+
+- id: fanlou_innkeeper
+  name: "樊楼伙计"
+  desc: "他肩上搭着白巾，眼睛很亮，看见血水也不多问。"
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_fist
+        level: 4
+  prepared: {}
+  dialogue:
+    - "住店先洗手，问事后开口。汴梁客多，少说一句能少惹一件事。"
+  respawn: 0
+  attr:
+    hp: 90
+    qi: 70
+    max_qi: 70
+    jing: 120
+    qi_regen: 1.5
+    innate:
+      strength: 11
+      agility: 16
       vitality: 12
 
 - id: post_runner
@@ -195,7 +218,7 @@
     basic_lightness: 8
     mist_step: 4
   dialogue:
-    - "送信第一条规矩：信可以湿，人不能停。"
+    - "送信第一条规矩：信可以湿，人不能停。雁门旧道上的信，更不能停。"
   respawn: 0
   attr:
     hp: 100
@@ -208,7 +231,7 @@
       agility: 24
       vitality: 14
 
-- id: town_constable
+- id: bianliang_constable
   name: "顾巡捕"
   desc: "顾巡捕腰间的刀不新，刀鞘却擦得很亮。"
   actions: [dialogue]
@@ -219,17 +242,17 @@
       - id: basic_sword
         level: 10
     fist:
-      - id: tieyi_gate_fist
+      - id: dali_guard_fist
         level: 7
   prepared:
     fist:
-      id: tieyi_gate_fist
+      id: dali_guard_fist
       level: 7
   teaches:
     basic_fist: 8
-    tieyi_gate_fist: 4
+    dali_guard_fist: 4
   dialogue:
-    - "黑松路最近不安生。你若真想见江湖，先从能回来的一趟开始。"
+    - "雁门旧道最近不安生。你若真想见江湖，先从能回来的一趟开始。"
   respawn: 0
   attr:
     hp: 180
@@ -242,9 +265,9 @@
       agility: 17
       vitality: 19
 
-- id: hanyi_runner
-  name: "寒雨接引弟子"
-  desc: "她怀里抱着木剑，站着不动时像一笔很淡的墨。"
+- id: luoyang_runner
+  name: "洛阳接引人"
+  desc: "她怀里抱着木剑和一张牡丹会旧帖，靴边沾着尚未干透的驿路黄泥。"
   gender: female
   actions: [dialogue]
   martial_arts:
@@ -254,14 +277,14 @@
       - id: basic_lightness
         level: 8
     sword:
-      - id: hanyi_rain_sword
+      - id: luoyang_sword
         level: 5
   prepared:
     sword:
-      id: hanyi_rain_sword
+      id: luoyang_sword
       level: 5
   dialogue:
-    - "寒雨门不问你从哪里来，只问你能不能听见雨里的第二个声音。伞骨银针若真出自雨夜，也该有它的步点。"
+    - "洛阳的酒桌从不缺空位，缺的是敢把姓名和来历一起摆上桌的人。"
   respawn: 0
   attr:
     hp: 120
@@ -274,9 +297,9 @@
       agility: 22
       vitality: 15
 
-- id: tieyi_runner
-  name: "铁衣帮接引"
-  desc: "他坐在麻包上补护腕，针脚粗得像帮规。"
+- id: dali_runner
+  name: "大理商队护卫"
+  desc: "他坐在茶包上补护腕，旁边放着茶马道的护送名册。"
   actions: [dialogue]
   martial_arts:
     foundation:
@@ -285,14 +308,14 @@
       - id: basic_internal
         level: 8
     fist:
-      - id: tieyi_gate_fist
+      - id: dali_guard_fist
         level: 5
   prepared:
     fist:
-      id: tieyi_gate_fist
+      id: dali_guard_fist
       level: 5
   dialogue:
-    - "铁衣帮收人不看出身，看你挨一下之后还肯不肯站稳。暗记和路牌一样，刻出来就是给懂路的人看的。"
+    - "茶马道不问出身。走到第三场雨还肯替后车拴绳的人，才算自己人。"
   respawn: 0
   attr:
     hp: 150
@@ -305,8 +328,8 @@
       agility: 12
       vitality: 22
 
-- id: yaowang_runner
-  name: "药王谷药童"
+- id: taihu_runner
+  name: "太湖药童"
   desc: "药童背着小药箱，药箱上挂着一枚清脆的小铃。"
   actions: [dialogue]
   martial_arts:
@@ -316,14 +339,14 @@
       - id: basic_lightness
         level: 5
     internal:
-      - id: yaowang_breath
+      - id: taihu_breath
         level: 5
   prepared:
     internal:
-      id: yaowang_breath
+      id: taihu_breath
       level: 5
   dialogue:
-    - "谷里不急着教你救人。先学会分清什么时候该退，什么时候该扶。针尾有味，伤口也有话。"
+    - "药车怕颠，病人怕等。真想去太湖，先学会在赶路和停步之间拿主意。"
   respawn: 0
   attr:
     hp: 95
@@ -346,7 +369,7 @@
         level: 3
   prepared: {}
   dialogue:
-    - "昨夜有人在西边小径吹了一声哨，今早递铺就少了两封信。"
+    - "昨夜有人在西边小径吹了一声哨，今早递铺就少了两封边报。"
   respawn: 0
   attr:
     hp: 80
@@ -359,10 +382,11 @@
       agility: 17
       vitality: 10
 
-- id: black_pine_bandit
-  name: "黑松剪径人"
-  desc: "他披着湿斗篷，腰间别着短刀。眼神比路边松针还冷。"
-  actions: [dialogue, attacking]
+- id: yanmen_spy
+  name: "雁门探子"
+  desc: "他披着湿斗篷，腰间别着短刀，正在小径上拦查行人。"
+  actions: [dialogue]
+  hidden: true
   martial_arts:
     foundation:
       - id: basic_fist
@@ -370,14 +394,14 @@
       - id: basic_lightness
         level: 4
     fist:
-      - id: tieyi_gate_fist
+      - id: dali_guard_fist
         level: 3
   prepared:
     fist:
-      id: tieyi_gate_fist
+      id: dali_guard_fist
       level: 3
   dialogue:
-    - "这条路归谁管？谁能站着走出去，就归谁管。"
+    - "这条旧道归谁管？谁能站着走出去，就归谁管。"
   respawn: 45
   attr:
     hp: 95
@@ -390,23 +414,23 @@
       agility: 15
       vitality: 14
 
-- id: hanyi_gate_disciple
-  name: "寒雨守门弟子"
-  desc: "守门弟子手中木剑没有开锋，但握剑的指节很白。"
+- id: luoyang_bridge_swordsman
+  name: "天津桥剑客"
+  desc: "剑客手中木剑没有开锋，但握剑的指节很白。"
   actions: [dialogue]
   martial_arts:
     foundation:
       - id: basic_sword
         level: 10
     sword:
-      - id: hanyi_rain_sword
+      - id: luoyang_sword
         level: 8
   prepared:
     sword:
-      id: hanyi_rain_sword
+      id: luoyang_sword
       level: 8
   dialogue:
-    - "进门之前，先把脚步放轻。这里最忌人声盖过雨声。"
+    - "过桥之前，先把脚步放稳。洛阳剑法重步法，站不稳就不要急着出剑。"
   respawn: 0
   attr:
     hp: 130
@@ -419,9 +443,9 @@
       agility: 22
       vitality: 15
 
-- id: hanyi_senior
-  name: "寒雨门大师姐"
-  desc: "她的剑总在鞘中，像一句从不急着出口的话。"
+- id: luoyang_swordswoman
+  name: "洛阳女剑客"
+  desc: "她佩着一柄窄长剑，鞋底沾着练步时磨下的青砖细屑。"
   gender: female
   actions: [dialogue]
   martial_arts:
@@ -431,19 +455,19 @@
       - id: basic_lightness
         level: 20
     sword:
-      - id: hanyi_rain_sword
+      - id: luoyang_sword
         level: 16
   prepared:
     sword:
-      id: hanyi_rain_sword
+      id: luoyang_sword
       level: 16
   teaches:
     basic_sword: 16
     basic_lightness: 14
-    hanyi_rain_sword: 10
+    luoyang_sword: 10
     mist_step: 8
   dialogue:
-    - "寒雨剑不怕慢，怕的是你还没听清，就急着证明自己。"
+    - "洛阳剑不怕练得慢，怕的是基础没稳就急着比试。先把步法练熟。"
   respawn: 0
   attr:
     hp: 190
@@ -456,9 +480,9 @@
       agility: 28
       vitality: 18
 
-- id: hanyi_teacher
-  name: "闻雨先生"
-  desc: "他守着残谱室，说话前总会先停一息，像在确认雨声。"
+- id: luoyang_teacher
+  name: "闻声先生"
+  desc: "他守着残谱室，案头摊着几页真假难辨的旧契，右耳总朝着门外。"
   actions: [dialogue]
   martial_arts:
     foundation:
@@ -469,23 +493,20 @@
       - id: basic_internal
         level: 16
     sword:
-      - id: hanyi_rain_sword
+      - id: luoyang_sword
         level: 20
-      - id: cold_rain_secret
-        level: 8
   prepared:
     sword:
-      id: hanyi_rain_sword
+      id: luoyang_sword
       level: 20
   teaches:
     basic_sword: 20
     basic_lightness: 18
     basic_internal: 12
-    hanyi_rain_sword: 14
-    cold_rain_secret: 6
+    luoyang_sword: 14
     mist_step: 10
   dialogue:
-    - "残谱残的是纸，不是路。你若只想要完整答案，便不适合寒雨门。"
+    - "完整的契书多半有人精心做过，反倒是残页肯留下不该留下的字。"
   respawn: 0
   attr:
     hp: 210
@@ -498,8 +519,8 @@
       agility: 26
       vitality: 22
 
-- id: tieyi_caravan_guard
-  name: "押车帮众"
+- id: dali_caravan_guard
+  name: "茶马护卫"
   desc: "他把短棍横在膝上，眼睛一直看着车辙尽头。"
   actions: [dialogue]
   martial_arts:
@@ -507,14 +528,14 @@
       - id: basic_fist
         level: 10
     fist:
-      - id: tieyi_gate_fist
+      - id: dali_guard_fist
         level: 7
   prepared:
     fist:
-      id: tieyi_gate_fist
+      id: dali_guard_fist
       level: 7
   dialogue:
-    - "押车不是往前走这么简单。该停时不停，该走时不走，都要死人。"
+    - "护送不是一路往前走。什么时候停、什么时候绕路，都要听护卫长的安排。"
   respawn: 0
   attr:
     hp: 150
@@ -527,9 +548,9 @@
       agility: 13
       vitality: 21
 
-- id: tieyi_senior
-  name: "铁衣帮二当家"
-  desc: "他坐在堂中，身形很宽，像能替半个堂口挡雨。"
+- id: dali_guard_captain
+  name: "大理王府护卫长"
+  desc: "他坐在堂中，身形高大，正在查看商队护送名单。"
   actions: [dialogue]
   martial_arts:
     foundation:
@@ -538,19 +559,19 @@
       - id: basic_internal
         level: 20
     fist:
-      - id: tieyi_gate_fist
+      - id: dali_guard_fist
         level: 18
   prepared:
     fist:
-      id: tieyi_gate_fist
+      id: dali_guard_fist
       level: 18
   teaches:
     basic_fist: 18
     basic_internal: 16
-    tieyi_gate_fist: 12
-    cold_rain_short_fist: 8
+    dali_guard_fist: 12
+    escort_short_fist: 8
   dialogue:
-    - "帮中不怕你拳慢，怕你接了事又退。拳可以练，肩膀也可以练。"
+    - "王府不怕你拳慢，怕你接了事又退。拳可以练，肩膀也可以练。"
   respawn: 0
   attr:
     hp: 260
@@ -563,7 +584,7 @@
       agility: 14
       vitality: 28
 
-- id: tieyi_teacher
+- id: dali_teacher
   name: "韩铁臂"
   desc: "韩铁臂的左臂比常人粗一圈，袖子从来扣不上。"
   actions: [dialogue]
@@ -576,20 +597,20 @@
       - id: basic_lightness
         level: 12
     fist:
-      - id: tieyi_gate_fist
+      - id: dali_guard_fist
         level: 22
   prepared:
     fist:
-      id: tieyi_gate_fist
+      id: dali_guard_fist
       level: 22
   teaches:
     basic_fist: 22
     basic_internal: 18
     basic_lightness: 10
-    tieyi_gate_fist: 16
-    cold_rain_short_fist: 10
+    dali_guard_fist: 16
+    escort_short_fist: 10
   dialogue:
-    - "铁衣拳先练挨打。你若连自己怕什么都不知道，拳架再漂亮也没用。"
+    - "护身拳先练站架和受击。你要知道哪里能挡，哪里必须躲。"
   respawn: 0
   attr:
     hp: 280
@@ -602,8 +623,8 @@
       agility: 14
       vitality: 30
 
-- id: yaowang_herb_boy
-  name: "采药童子"
+- id: taihu_herb_boy
+  name: "太湖采药童"
   desc: "他蹲在药畦边，用小竹片拨开泥土。"
   actions: [dialogue]
   martial_arts:
@@ -613,11 +634,11 @@
       - id: basic_lightness
         level: 8
     internal:
-      - id: yaowang_breath
+      - id: taihu_breath
         level: 5
   prepared:
     internal:
-      id: yaowang_breath
+      id: taihu_breath
       level: 5
   dialogue:
     - "这畦不能碰，碰了会麻半条手臂。那畦也不能碰，碰了会睡到明天。"
@@ -633,8 +654,8 @@
       agility: 18
       vitality: 18
 
-- id: yaowang_senior
-  name: "白发医者"
+- id: taihu_senior
+  name: "太湖白发医者"
   desc: "他看人时先看眼，再看手，最后才问伤在哪里。"
   actions: [dialogue]
   martial_arts:
@@ -644,19 +665,19 @@
       - id: basic_lightness
         level: 16
     internal:
-      - id: yaowang_breath
+      - id: taihu_breath
         level: 18
   prepared:
     internal:
-      id: yaowang_breath
+      id: taihu_breath
       level: 18
   teaches:
     basic_internal: 20
     basic_lightness: 12
-    yaowang_breath: 12
+    taihu_breath: 12
     mist_step: 8
   dialogue:
-    - "江湖人来谷中，多半先问怎么治伤。其实该先问，为什么总让自己受伤。"
+    - "来水榭求医的人，多半只肯说伤在哪里，不肯说伤从哪里来。医者可以不问，学医的人却要会看。"
   respawn: 0
   attr:
     hp: 190
@@ -669,9 +690,9 @@
       agility: 18
       vitality: 30
 
-- id: yaowang_teacher
+- id: taihu_teacher
   name: "苏静息"
-  desc: "她说话很轻，像每一句都怕惊动病人的脉。"
+  desc: "她常年守着静息室，袖口带着淡淡艾草气，走路几乎听不见脚步。"
   gender: female
   actions: [dialogue]
   martial_arts:
@@ -681,19 +702,19 @@
       - id: basic_lightness
         level: 18
     internal:
-      - id: yaowang_breath
+      - id: taihu_breath
         level: 24
   prepared:
     internal:
-      id: yaowang_breath
+      id: taihu_breath
       level: 24
   teaches:
     basic_internal: 24
     basic_lightness: 14
-    yaowang_breath: 16
+    taihu_breath: 16
     mist_step: 10
   dialogue:
-    - "调息不是坐着不动。真正的静，是刀到眼前时还知道自己下一口气在哪里。"
+    - "调息不是坐着不动。练熟以后，受伤和奔跑时也能稳住气息。"
   respawn: 0
   attr:
     hp: 200

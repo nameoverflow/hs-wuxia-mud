@@ -1,0 +1,85 @@
+id: weiyuan_sword
+name: "威远剑法"
+type: sword
+desc: "威远镖局传给新镖师的入门剑法，重在稳步、护身和封路。"
+foundation: basic_sword
+requires:
+  - art: basic_sword
+    level: 1
+max_level: 20
+attack_moves:
+  - id: weiyuan_slash
+    name: "护镖横斩"
+    desc: "横剑截住来势，再顺势斩出。"
+    msg: "横剑护身，顺势斩出"
+    unlock_level: 1
+    damage: 14
+    animation:
+      action: rig.sword.chop_a
+      tags: ["sword", "slash"]
+  - id: weiyuan_thrust
+    name: "押镖直刺"
+    desc: "稳住前脚，剑尖直取对手中路。"
+    msg: "踏前一步，直刺中路"
+    unlock_level: 3
+    damage: 16
+    animation:
+      action: rig.sword.thrust_a
+      tags: ["sword", "stab"]
+active_skills:
+  - id: steady_cut
+    name: "定步斩"
+    desc: "站定发力，斩向对手空门。"
+    msg: "站定身形，挥剑斩向空门"
+    unlock_level: 1
+    cd: 6.0
+    target: Single
+    cost: 35
+    ap_req: 65
+    req_status: []
+    damage: 45
+    animation:
+      action: rig.sword.chop_a
+      tags: ["sword", "slash", "heavy"]
+    effect:
+      self: []
+      target: []
+
+  - id: focused_guard
+    name: "凝神式"
+    desc: "收步护身，暂时提升防守。"
+    msg: "收剑护身，凝神应敌"
+    unlock_level: 2
+    cd: 18.0
+    target: Self
+    cost: 35
+    ap_req: 45
+    req_status: []
+    animation:
+      action: rig.sword.guard
+      tags: ["stance", "self"]
+    effect:
+      self:
+        - id: focused_guard
+          duration: 15.0
+          value: 1
+      target: []
+
+  - id: eight_direction_thrusts
+    name: "八方连刺"
+    desc: "须先进入凝神式。连续刺向对手周身空处。"
+    msg: "连刺数剑，压住对手退路"
+    unlock_level: 5
+    cd: 20.0
+    target: Single
+    cost: 80
+    ap_req: 100
+    req_status:
+      - focused_guard
+    damage: 120
+    animation:
+      action: rig.sword.thrust_a
+      tags: ["sword", "stab", "heavy"]
+    effect:
+      self: []
+      target: []

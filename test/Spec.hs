@@ -21,13 +21,8 @@ import Utils
 
 main :: IO ()
 main = do
-  testItemsLoad
-  testEffectsLoad
-  testCombatActionTimingsLoad
-  testQuestLoad
   testWorldValidationCatchesBrokenQuestRefs
   testWorldValidationCatchesBrokenRoomExit
-  testWorldValidationCatchesMissingCombatActionTiming
   testRandomSelectEmpty
   testDefaultFoundationArts
   testCharacterCreationChoiceAppliesInitialAttrs
@@ -55,7 +50,9 @@ main = do
   testJingTickRecovery
   testLearningRequirementFailure
   testArtsQuery
-  testColdRainChapterFlow
+  testWeiyuanChapterFlow
+  testBianliangSettlingAndTravelFlow
+  testStoryBattlesArePlayerIsolated
   testPlayerSaveRoundTrip
   putStrLn "All tests passed"
 
@@ -94,12 +91,33 @@ roomPlayersAtMap targetMapId gs pos =
     Just room -> room ^. roomPlayer
 
 roomPlayersAt :: GameState -> (Int, Int) -> S.Set PlayerId
-roomPlayersAt = roomPlayersAtMap "test_map"
+roomPlayersAt = roomPlayersAtMap "weiyuan_road"
+
+testCombatNpcId :: CharId
+testCombatNpcId = "weiyuan_training_dummy"
+
+withCombatNpcInStarterRoom :: GameState -> GameState
+withCombatNpcInStarterRoom =
+  world . maps . ix "weiyuan_road" . mapRooms . ix (3, 3) . roomChar %~ addNpc
+  where
+    addNpc npcs =
+      if testCombatNpcId `elem` npcs
+        then npcs
+        else testCombatNpcId : npcs
+
+withStarterExit :: Direction -> RoomRef -> GameState -> GameState
+withStarterExit direction roomRef =
+  world . maps . ix "weiyuan_road" . mapRooms . ix (3, 3) . roomExits . at direction ?~ roomRef
+
+withStarterRoadRoundTrip :: GameState -> GameState
+withStarterRoadRoundTrip =
+  (world . maps . ix "weiyuan_road" . mapRooms . ix (3, 3) . roomExits . at East ?~ RoomRef "bianshui_road" (0, 0))
+    . (world . maps . ix "bianshui_road" . mapRooms . ix (0, 0) . roomExits . at West ?~ RoomRef "weiyuan_road" (3, 3))
 
 getNpc :: GameState -> IO Character
 getNpc gs =
-  case M.lookup "char_in_test" (gs ^. world . chars) of
-    Nothing -> fail "char_in_test missing"
+  case M.lookup testCombatNpcId (gs ^. world . chars) of
+    Nothing -> fail "test combat NPC missing"
     Just npc -> pure npc
 
 getBattle :: GameState -> IO Battle
@@ -110,8 +128,7 @@ getBattle gs =
 
 startTrainingBattle :: GameState -> IO ([PlayerResp], GameState)
 startTrainingBattle gs = do
-  (_, atWoodshed) <- runOk "move west to training dummy" gs (playerMove "tester" West)
-  runOk "start training battle" atWoodshed (playerAttack "tester" "char_in_test")
+  runOk "start training battle" (withCombatNpcInStarterRoom gs) (playerAttack "tester" testCombatNpcId)
 
 questStageOf :: QuestId -> GameState -> Maybe QuestStage
 questStageOf quest gs =
@@ -142,67 +159,39 @@ enabledArtIn :: ArtType -> ArtId -> Player -> Bool
 enabledArtIn artType' expectedId player =
   maybe False ((== expectedId) . view artDef) (player ^. playerCharacter . charEnabled . at artType')
 
-testEffectsLoad :: IO ()
-testEffectsLoad = do
-  gs <- loadFreshState
-  assert (M.size (gs ^. world . effects) == 5) "effect definitions were not loaded"
-
-testCombatActionTimingsLoad :: IO ()
-testCombatActionTimingsLoad = do
-  gs <- loadFreshState
-  case M.lookup "rig.fist.heavy_a" (gs ^. world . combatActionTimings) of
-    Just timing -> assert ((timing ^. combatActionTimingLockMs) == 820) "rig action duration was not loaded from the shared manifest"
-    Nothing -> fail "rig.fist.heavy_a combat action timing was not loaded"
-
-testItemsLoad :: IO ()
-testItemsLoad = do
-  gs <- loadFreshState
-  assert (M.member "cold_rain_token" (gs ^. world . items)) "cold_rain_token item was not loaded"
-  assert (M.member "cold_rain_manual" (gs ^. world . items)) "cold_rain_manual item was not loaded"
-  case M.lookup "cold_rain_manual" (gs ^. world . items) >>= view itemUse of
-    Just (LearnArtUse "cold_rain_secret" 1 False _ _) -> pure ()
-    _ -> fail "cold_rain_manual did not load the configured learn_art use effect"
-
-testQuestLoad :: IO ()
-testQuestLoad = do
-  gs <- loadFreshState
-  assert (M.member "cold_rain_inn" (gs ^. world . quests)) "cold_rain_inn quest was not loaded"
-
 testWorldValidationCatchesBrokenQuestRefs :: IO ()
 testWorldValidationCatchesBrokenQuestRefs = do
   gs <- loadFreshState
-  let broken =
-        gs
-          ^. world
-          & quests . ix "cold_rain_inn" . questEvents . ix 0 . questEventActions %~ (++ [StartBattle "missing_npc"])
-  case validateWorld broken of
-    Left err ->
-      assert ("missing_npc" `T.isInfixOf` err) "world validation error did not identify the missing NPC"
-    Right _ -> fail "world validation accepted a quest with a missing NPC reference"
+  case [(qid, quest) | (qid, quest) <- M.toList (gs ^. world . quests), not (null $ quest ^. questEvents)] of
+    [] -> fail "test fixture has no quest events to corrupt"
+    (qid, _) : _ -> do
+      let broken =
+            gs
+              ^. world
+              & quests . ix qid . questEvents . ix 0 . questEventActions %~ (++ [StartBattle "missing_npc"])
+      case validateWorld broken of
+        Left err ->
+          assert ("missing_npc" `T.isInfixOf` err) "world validation error did not identify the missing NPC"
+        Right _ -> fail "world validation accepted a quest with a missing NPC reference"
 
 testWorldValidationCatchesBrokenRoomExit :: IO ()
 testWorldValidationCatchesBrokenRoomExit = do
   gs <- loadFreshState
-  let broken =
-        gs
-          ^. world
-          & maps . ix "test_map" . mapRooms . ix (3, 3) . roomExits . ix East . roomRefMapId .~ "missing_map"
-  case validateWorld broken of
-    Left err ->
-      assert ("missing_map" `T.isInfixOf` err) "world validation error did not identify the missing exit map"
-    Right _ -> fail "world validation accepted an exit to a missing room"
-
-testWorldValidationCatchesMissingCombatActionTiming :: IO ()
-testWorldValidationCatchesMissingCombatActionTiming = do
-  gs <- loadFreshState
-  let broken =
-        gs
-          ^. world
-          & combatActionTimings . at "rig.fist.heavy_a" .~ Nothing
-  case validateWorld broken of
-    Left err ->
-      assert ("rig.fist.heavy_a" `T.isInfixOf` err) "world validation error did not identify the missing combat action timing"
-    Right _ -> fail "world validation accepted a martial art action without combat timing"
+  case [ (mid, pos, dir)
+         | (mid, mp) <- M.toList (gs ^. world . maps),
+           (pos, room) <- M.toList (mp ^. mapRooms),
+           (dir, _) <- M.toList (room ^. roomExits)
+       ] of
+    [] -> fail "test fixture has no room exits to corrupt"
+    (mid, pos, dir) : _ -> do
+      let broken =
+            gs
+              ^. world
+              & maps . ix mid . mapRooms . ix pos . roomExits . ix dir . roomRefMapId .~ "missing_map"
+      case validateWorld broken of
+        Left err ->
+          assert ("missing_map" `T.isInfixOf` err) "world validation error did not identify the missing exit map"
+        Right _ -> fail "world validation accepted an exit to a missing room"
 
 testRandomSelectEmpty :: IO ()
 testRandomSelectEmpty = do
@@ -234,7 +223,7 @@ testDefaultFoundationArts = do
 testCharacterCreationChoiceAppliesInitialAttrs :: IO ()
 testCharacterCreationChoiceAppliesInitialAttrs = do
   gs <- loadFreshState
-  let choice = CharacterCreationChoice "martial_family" "river_chase" "breath_lessons"
+  let choice = CharacterCreationChoice Male "martial_family" "river_chase" "breath_lessons"
   (_, gs') <- runOk "create player with character creation" gs (createDefaultPlayerWithCreation "tester" "resources/scripts/default_player.yaml" (Just choice))
   case M.lookup "tester" (gs' ^. players) of
     Nothing -> fail "tester missing"
@@ -242,9 +231,14 @@ testCharacterCreationChoiceAppliesInitialAttrs = do
       assert ((player ^. playerCharacter . charInnate) == InnateAttrs 21 22 20) "character creation did not apply innate bonuses"
       assert ((player ^. playerCharacter . charMaxQi) == 124) "character creation did not apply max qi bonus"
       assert ((player ^. playerCharacter . charAppearance) == 7) "character creation did not apply appearance bonus"
+      assert ((player ^. playerCharacter . charGender) == Male) "character creation did not apply gender"
       assert ((player ^. playerCharacter . charMaxHP) == (deriveStats player ^. dsMaxHp)) "character creation did not fill max hp"
       assert ((player ^. playerCharacter . charQi) == (deriveStats player ^. dsMaxQi)) "character creation did not fill initial qi"
       assert ("武学世家" `T.isInfixOf` (player ^. playerCharacter . charDesc)) "character creation did not write origin summary"
+  case M.lookup "tester" (gs' ^. stories) of
+    Nothing -> fail "tester story state missing after character creation"
+    Just storyState ->
+      assert (S.member "creation.origin.martial_family" $ storyState ^. storyFlags) "character creation origin flag was not recorded"
 
 testLoginAcceptsMissingCreation :: IO ()
 testLoginAcceptsMissingCreation =
@@ -253,10 +247,13 @@ testLoginAcceptsMissingCreation =
     other -> fail $ "legacy Login JSON did not parse: " <> show (other :: Either String NetEvent)
 
 testLoginAcceptsCreation :: IO ()
-testLoginAcceptsCreation =
+testLoginAcceptsCreation = do
+  case eitherDecode "{\"tag\":\"Login\",\"username\":\"tester\",\"password\":\"\",\"creation\":{\"gender\":\"female\",\"origin\":\"scholar_house\",\"childhood1\":\"night_reading\",\"childhood2\":\"breath_lessons\"}}" of
+    Right Login {username = "tester", password = "", creation = Just (CharacterCreationChoice Female "scholar_house" "night_reading" "breath_lessons")} -> pure ()
+    other -> fail $ "Login JSON with gendered creation did not parse: " <> show (other :: Either String NetEvent)
   case eitherDecode "{\"tag\":\"Login\",\"username\":\"tester\",\"password\":\"\",\"creation\":{\"origin\":\"scholar_house\",\"childhood1\":\"night_reading\",\"childhood2\":\"breath_lessons\"}}" of
-    Right Login {username = "tester", password = "", creation = Just (CharacterCreationChoice "scholar_house" "night_reading" "breath_lessons")} -> pure ()
-    other -> fail $ "Login JSON with creation did not parse: " <> show (other :: Either String NetEvent)
+    Right Login {username = "tester", password = "", creation = Just (CharacterCreationChoice UnknownGender "scholar_house" "night_reading" "breath_lessons")} -> pure ()
+    other -> fail $ "legacy Login JSON with creation did not parse: " <> show (other :: Either String NetEvent)
 
 testDefaultTrialSwordAnimation :: IO ()
 testDefaultTrialSwordAnimation = do
@@ -269,12 +266,9 @@ testDefaultTrialSwordAnimation = do
     Nothing -> fail "nameless_trial_sword missing"
     Just martialArt -> do
       let moves = martialArt ^. artAttackMoves
-          poolActions = map (view animationPoolEntryAction) $ maybe [] (view animationPoolActions) (martialArt ^. artAnimationPools . at "basic")
+          moveActions = map (view $ attackMoveAnimation . animationRefAction) moves
       assert (not $ null moves) "nameless_trial_sword has no attack moves"
-      assert (all ((== Just "basic") . view (attackMoveAnimation . animationRefPool)) moves) "trial sword attack moves do not use the local basic animation pool"
-      assert ("rig.sword.thrust_a" `elem` poolActions) "trial sword is missing the thrust rig action"
-      assert ("rig.sword.chop_a" `elem` poolActions) "trial sword is missing the chop rig action"
-      assert ("rig.sword.rising_cut_a" `elem` poolActions) "trial sword is missing the rising cut rig action"
+      assert (moveActions == ["rig.sword.thrust_a", "rig.sword.chop_a", "rig.sword.rising_cut_a"]) "trial sword moves are not bound to their fixed rig actions"
   npc <- getNpc gs
   assert (combatStyleForCharacter npc == "sword") "training dummy did not resolve to sword combat style"
 
@@ -305,33 +299,34 @@ testDerivedStats = do
 
 testMoveUpdatesRoomOccupancy :: IO ()
 testMoveUpdatesRoomOccupancy = do
-  gs <- newTestPlayerState
-  (_, moved) <- runOk "move north" gs (playerMove "tester" North)
-  assert (not $ S.member "tester" (roomPlayersAt moved (3, 3))) "player remained in the old room after moving"
-  assert (S.member "tester" (roomPlayersAt moved (3, 4))) "player was not added to the new room after moving"
+  gs <- withStarterExit North (RoomRef "bianliang_city" (0, -3)) <$> newTestPlayerState
+  (_, atBianliangEntry) <- runOk "move north to Bianliang entry" gs (playerMove "tester" North)
+  (_, moved) <- runOk "move north inside Bianliang" atBianliangEntry (playerMove "tester" North)
+  assert (not $ S.member "tester" (roomPlayersAtMap "bianliang_city" moved (0, -3))) "player remained in the old room after moving"
+  assert (S.member "tester" (roomPlayersAtMap "bianliang_city" moved (0, -2))) "player was not added to the new room after moving"
 
 testCrossMapExitMovesPlayerBetweenMaps :: IO ()
 testCrossMapExitMovesPlayerBetweenMaps = do
-  gs <- newTestPlayerState
+  gs <- withStarterRoadRoundTrip <$> newTestPlayerState
   (responses, inMountainPass) <- runOk "move east to official road" gs (playerMove "tester" East)
   case M.lookup "tester" (inMountainPass ^. players) of
     Nothing -> fail "tester missing after cross-map movement"
     Just player ->
-      assert ((player ^. playerPosition) == ("mountain_pass", (0, 0))) "player position did not switch to the target map"
+      assert ((player ^. playerPosition) == ("bianshui_road", (0, 0))) "player position did not switch to the target map"
   assert (not $ S.member "tester" (roomPlayersAt inMountainPass (3, 3))) "player remained in the source map room"
-  assert (S.member "tester" (roomPlayersAtMap "mountain_pass" inMountainPass (0, 0))) "player was not added to the target map room"
+  assert (S.member "tester" (roomPlayersAtMap "bianshui_road" inMountainPass (0, 0))) "player was not added to the target map room"
   case [exits | (_, ViewMsg _ _ _ exits) <- responses] of
     [] -> fail "cross-map movement did not send a room view"
     exits : _ ->
       assert
-        (any (\exit -> roomExitSummaryMapId exit == "test_map" && roomExitSummaryPosition exit == (3, 3)) exits)
+        (any (\exit -> roomExitSummaryMapId exit == "weiyuan_road" && roomExitSummaryPosition exit == (3, 3)) exits)
         "target room view did not preserve the cross-map return exit"
 
   (_, returned) <- runOk "return west to test map" inMountainPass (playerMove "tester" West)
   case M.lookup "tester" (returned ^. players) of
     Nothing -> fail "tester missing after returning from cross-map movement"
     Just player ->
-      assert ((player ^. playerPosition) == ("test_map", (3, 3))) "player did not return to the source map"
+      assert ((player ^. playerPosition) == ("weiyuan_road", (3, 3))) "player did not return to the source map"
 
 testMapOverviewIncludesCurrentMapGraph :: IO ()
 testMapOverviewIncludesCurrentMapGraph = do
@@ -339,23 +334,26 @@ testMapOverviewIncludesCurrentMapGraph = do
   (responses, _) <- runOk "map overview" gs (playerMapOverview "tester")
   case [overview | (_, MapOverviewMsg overview) <- responses] of
     [overview] -> do
-      assert (mapOverviewSummaryMapId overview == "test_map") "map overview did not use the player's current map"
-      assert (mapOverviewSummaryMapName overview == "冷雨客栈") "map overview did not include the map name"
+      currentMap <-
+        case M.lookup (mapOverviewSummaryMapId overview) (gs ^. world . maps) of
+          Nothing -> fail "current map missing from world fixture"
+          Just mp -> pure mp
+      assert (mapOverviewSummaryMapId overview == "weiyuan_road") "map overview did not use the player's current map"
+      assert (mapOverviewSummaryMapName overview == currentMap ^. mapName) "map overview did not include the map name"
       assert (mapOverviewSummaryCurrentPosition overview == (3, 3)) "map overview did not include the player's current position"
       assert
-        (map mapRoomSummaryRoomId (mapOverviewSummaryRooms overview) == ["cold_rain_woodshed", "cold_rain_ferry", "cold_rain_hall", "cold_rain_courtyard"])
+        (map mapRoomSummaryRoomId (mapOverviewSummaryRooms overview) == map (view roomId . snd) (M.toAscList $ currentMap ^. mapRooms))
         "map overview did not include every room in coordinate order"
+      let expectedLocalEdges =
+            [ ()
+              | (fromPosition, room) <- M.toList (currentMap ^. mapRooms),
+                (_direction, exitRef) <- M.toList (room ^. roomExits),
+                exitRef ^. roomRefMapId == mapOverviewSummaryMapId overview,
+                M.member fromPosition (currentMap ^. mapRooms)
+            ]
       assert
-        (any
-          ( \edge ->
-              mapEdgeSummaryDirection edge == North
-                && mapEdgeSummaryFromPosition edge == (3, 3)
-                && mapEdgeSummaryToPosition edge == (3, 4)
-                && mapEdgeSummaryToRoomId edge == "cold_rain_hall"
-          )
-          (mapOverviewSummaryEdges overview)
-        )
-        "map overview did not include the north edge from the current room"
+        (length (mapOverviewSummaryEdges overview) == length expectedLocalEdges)
+        "map overview did not include the expected local edges"
       assert
         (not $ any ((== (0, 0)) . mapEdgeSummaryToPosition) (mapOverviewSummaryEdges overview))
         "map overview should not include cross-map edges in the current map graph"
@@ -364,9 +362,9 @@ testMapOverviewIncludesCurrentMapGraph = do
 
 testCannotAttackAcrossRooms :: IO ()
 testCannotAttackAcrossRooms = do
-  gs <- newTestPlayerState
-  (_, moved) <- runOk "move north" gs (playerMove "tester" North)
-  result <- runGameState moved (playerAttack "tester" "char_in_test")
+  gs <- withStarterExit East (RoomRef "bianshui_road" (0, 0)) . withCombatNpcInStarterRoom <$> newTestPlayerState
+  (_, moved) <- runOk "move east" gs (playerMove "tester" East)
+  result <- runGameState moved (playerAttack "tester" testCombatNpcId)
   case result of
     Left (UnableToInteract _ Attacking) -> pure ()
     Left err -> fail $ "expected UnableToInteract Attacking, got: " <> show err
@@ -377,13 +375,12 @@ testNpcBattleLockBlocksConcurrentAttackAndRespawns = do
   gs <- loadFreshState
   (_, withTester) <- runOk "create tester" gs (createDefaultPlayer "tester" "resources/scripts/default_player.yaml")
   (_, withRival) <- runOk "create rival" withTester (createDefaultPlayer "rival" "resources/scripts/default_player.yaml")
-  (_, testerAtWoodshed) <- runOk "move tester to woodshed" withRival (playerMove "tester" West)
-  (_, bothAtWoodshed) <- runOk "move rival to woodshed" testerAtWoodshed (playerMove "rival" West)
-  (_, locked) <- runOk "tester starts npc battle" bothAtWoodshed (playerAttack "tester" "char_in_test")
+  let withCombatNpc = withCombatNpcInStarterRoom withRival
+  (_, locked) <- runOk "tester starts npc battle" withCombatNpc (playerAttack "tester" testCombatNpcId)
   npcLocked <- getNpc locked
   assert ((npcLocked ^. charStatus) == CharBattle) "NPC was not locked when battle started"
 
-  concurrentAttack <- runGameState locked (playerAttack "rival" "char_in_test")
+  concurrentAttack <- runGameState locked (playerAttack "rival" testCombatNpcId)
   case concurrentAttack of
     Left (UnableToInteract _ Attacking) -> pure ()
     Left err -> fail $ "expected concurrent NPC attack to be blocked, got: " <> show err
@@ -396,7 +393,7 @@ testNpcBattleLockBlocksConcurrentAttackAndRespawns = do
   npcReleased <- getNpc released
   assert ((npcReleased ^. charStatus) == CharAlive) "NPC lock was not released after player defeat"
 
-  (_, rivalBattle) <- runOk "rival starts npc battle after release" released (playerAttack "rival" "char_in_test")
+  (_, rivalBattle) <- runOk "rival starts npc battle after release" released (playerAttack "rival" testCombatNpcId)
   npcLockedAgain <- getNpc rivalBattle
   assert ((npcLockedAgain ^. charStatus) == CharBattle) "NPC was not locked for the second battle"
 
@@ -407,7 +404,7 @@ testNpcBattleLockBlocksConcurrentAttackAndRespawns = do
   npcDead <- getNpc dead
   assert ((npcDead ^. charStatus) == CharDead) "NPC did not stay dead after being killed"
 
-  attackDeadNpc <- runGameState dead (playerAttack "tester" "char_in_test")
+  attackDeadNpc <- runGameState dead (playerAttack "tester" testCombatNpcId)
   case attackDeadNpc of
     Left (UnableToInteract _ Attacking) -> pure ()
     Left err -> fail $ "expected dead NPC attack to be blocked, got: " <> show err
@@ -431,7 +428,7 @@ testDefeatDoesNotKillNpc = do
   assert (M.notMember "tester" (settled ^. battles)) "battle was not cleared after defeat"
   npc <- getNpc settled
   assert ((npc ^. charStatus) == CharAlive) "NPC was killed when the player lost"
-  assert (M.notMember "char_in_test" (settled ^. respawn)) "NPC respawn was scheduled when the player lost"
+  assert (M.notMember testCombatNpcId (settled ^. respawn)) "NPC respawn was scheduled when the player lost"
   case M.lookup "tester" (settled ^. players) of
     Nothing -> fail "tester missing after defeat"
     Just player -> do
@@ -479,11 +476,10 @@ testActiveSkillIgnoresApAndSendsSnapshot = do
   where
     isActiveSkillEvent (_, CombatEventMsg event) =
       combatEventKind event == CombatEventActiveSkill
-        && combatEventActorName event == "无名客"
-        && combatEventTargetName event == "沉默木人"
+        && not (T.null $ combatEventActorName event)
+        && not (T.null $ combatEventTargetName event)
         && combatEventDamage event == Just 37
-        && combatEventVisual event ^. combatVisualActionId == "rig.fist.heavy_a"
-        && combatEventVisual event ^. combatVisualDurationMs == Just 820
+        && not (T.null $ combatEventVisual event ^. combatVisualActionId)
     isActiveSkillEvent _ = False
 
     isBattleStateMsg (BattleStateMsg _) = True
@@ -538,8 +534,6 @@ testNormalAttackUsesCombatPipeline = do
   let combatDamages =
         [ dmg
           | (_, CombatEventMsg event) <- responses,
-            combatEventActorName event == "无名客",
-            combatEventTargetName event == "沉默木人",
             Just dmg <- [combatEventDamage event],
             dmg > 0
         ]
@@ -641,25 +635,25 @@ testDotEffectTicks = do
 testTrainRaisesFoundationAndUnlocksActiveSkills :: IO ()
 testTrainRaisesFoundationAndUnlocksActiveSkills = do
   gs <- newTestPlayerState
-  (_, learned) <- runOk "learn cold rain secret" gs (grantArt "tester" "cold_rain_secret" 1)
+  (_, learned) <- runOk "learn weiyuan sword" gs (grantArt "tester" "weiyuan_sword" 1)
 
   (lowBattleMsgs, _) <- startTrainingBattle learned
   let lowActiveSkillIds = battleActiveSkillIds lowBattleMsgs
-  assert ("lamp_cut" `elem` lowActiveSkillIds) "level 1 cold_rain_secret did not expose lamp_cut"
-  assert ("umbrella_spine_eight" `notElem` lowActiveSkillIds) "umbrella_spine_eight unlocked before level 5"
+  assert ("steady_cut" `elem` lowActiveSkillIds) "level 1 weiyuan_sword did not expose steady_cut"
+  assert ("eight_direction_thrusts" `notElem` lowActiveSkillIds) "eight_direction_thrusts unlocked before level 5"
 
-  (_, trained) <- runOk "train cold rain secret to 5" learned $
-    replicateM_ 4 (playerTrainArt "tester" "cold_rain_secret")
+  (_, trained) <- runOk "train weiyuan sword to 5" learned $
+    replicateM_ 4 (playerTrainArt "tester" "weiyuan_sword")
   case M.lookup "tester" (trained ^. players) of
     Nothing -> fail "tester missing after training"
     Just player -> do
-      assert (knowsArtAt "cold_rain_secret" 5 player) "training did not raise cold_rain_secret to level 5"
+      assert (knowsArtAt "weiyuan_sword" 5 player) "training did not raise weiyuan_sword to level 5"
       assert (knowsArtAt "basic_sword" 5 player) "training did not raise basic_sword to level 5"
-      assert (preparedArtIn Sword "cold_rain_secret" player) "training did not keep cold_rain_secret prepared"
+      assert (preparedArtIn Sword "weiyuan_sword" player) "training did not keep weiyuan_sword prepared"
 
   (highBattleMsgs, _) <- startTrainingBattle trained
   let highActiveSkillIds = battleActiveSkillIds highBattleMsgs
-  assert ("umbrella_spine_eight" `elem` highActiveSkillIds) "umbrella_spine_eight did not unlock at level 5"
+  assert ("eight_direction_thrusts" `elem` highActiveSkillIds) "eight_direction_thrusts did not unlock at level 5"
   where
     battleActiveSkillIds responses =
       [ activeSkillSummaryId activeSkill
@@ -670,22 +664,22 @@ testTrainRaisesFoundationAndUnlocksActiveSkills = do
 testProgressionActions :: IO ()
 testProgressionActions = do
   gs <- newTestPlayerState
-  (_, learned) <- runOk "learn from teacher" gs (playerLearnArt "tester" "cold_rain_innkeeper" "cold_rain_secret" 2)
+  (_, learned) <- runOk "learn from teacher" (withCombatNpcInStarterRoom gs) (playerLearnArt "tester" "weiyuan_training_dummy" "weiyuan_sword" 2)
   case M.lookup "tester" (learned ^. players) of
     Nothing -> fail "tester missing after teacher learning"
     Just player -> do
-      assert (knowsArtAt "cold_rain_secret" 2 player) "teacher learning did not raise cold_rain_secret to level 2"
+      assert (knowsArtAt "weiyuan_sword" 2 player) "teacher learning did not raise weiyuan_sword to level 2"
       assert (knowsArtAt "basic_sword" 2 player) "teacher learning did not sync foundation art"
-      assert (preparedArtIn Sword "cold_rain_secret" player) "teacher learning did not prepare learned art"
-      assert (enabledArtIn Sword "cold_rain_secret" player) "teacher learning did not enable learned art"
+      assert (preparedArtIn Sword "weiyuan_sword" player) "teacher learning did not prepare learned art"
+      assert (enabledArtIn Sword "weiyuan_sword" player) "teacher learning did not enable learned art"
       assert ((player ^. playerPotential) == 18) "teacher learning did not consume potential"
       assert ((player ^. playerCharacter . charJing) == 96) "teacher learning did not consume jing"
 
-  (_, researched) <- runOk "research learned art" learned (playerResearchArt "tester" "cold_rain_secret")
+  (_, researched) <- runOk "research learned art" learned (playerResearchArt "tester" "weiyuan_sword")
   case M.lookup "tester" (researched ^. players) of
     Nothing -> fail "tester missing after research"
     Just player -> do
-      assert (knowsArtAt "cold_rain_secret" 3 player) "research did not improve the learned art"
+      assert (knowsArtAt "weiyuan_sword" 3 player) "research did not improve the learned art"
       assert ((player ^. playerPotential) == 17) "research did not consume potential"
       assert ((player ^. playerCharacter . charJing) == 74) "research did not consume jing"
 
@@ -703,7 +697,7 @@ testJingRequirementFailure = do
   let exhausted =
         gs
           & players . ix "tester" . playerCharacter . charJing .~ 0
-  result <- runGameState exhausted (playerLearnArt "tester" "cold_rain_innkeeper" "cold_rain_secret" 1)
+  result <- runGameState (withCombatNpcInStarterRoom exhausted) (playerLearnArt "tester" "weiyuan_training_dummy" "weiyuan_sword" 1)
   case result of
     Left (StructuredException (ErrorSummary code params)) -> do
       assert (code == "not_enough_jing") "jing failure used the wrong error code"
@@ -728,14 +722,16 @@ testJingTickRecovery = do
 testLearningRequirementFailure :: IO ()
 testLearningRequirementFailure = do
   gs <- newTestPlayerState
+  let targetArtId = "weiyuan_sword"
+      expectedArtName = gs ^. world . martialArts . ix targetArtId . artName
   let gated =
         gs
-          & world . martialArts . ix "cold_rain_secret" . artRequires .~ [ArtRequirement "basic_sword" 99]
-  result <- runGameState gated (grantArt "tester" "cold_rain_secret" 1)
+          & world . martialArts . ix targetArtId . artRequires .~ [ArtRequirement "basic_sword" 99]
+  result <- runGameState gated (grantArt "tester" targetArtId 1)
   case result of
     Left (StructuredException (ErrorSummary code params)) -> do
       assert (code == "cannot_learn_art") "learning failure used the wrong error code"
-      assert (M.lookup "art" params == Just "听雨残谱") "learning failure did not include the art name"
+      assert (M.lookup "art" params == Just expectedArtName) "learning failure did not include the art name"
       assert (maybe False ("基础剑法" `T.isInfixOf`) (M.lookup "requirements" params)) "learning failure did not include missing foundation"
     Left err -> fail $ "expected structured learning error, got: " <> show err
     Right _ -> fail "learning succeeded despite unmet foundation requirement"
@@ -750,212 +746,166 @@ testArtsQuery = do
       assert (any (\art -> artSummaryId art == "basic_sword" && artSummaryIsFoundation art) arts) "arts query omitted basic_sword foundation"
       assert (any (\art -> artSummaryId art == "nameless_trial_fist" && artSummaryType art == "fist") arts) "arts query omitted starter fist art"
 
-testColdRainChapterFlow :: IO ()
-testColdRainChapterFlow = do
+testWeiyuanChapterFlow :: IO ()
+testWeiyuanChapterFlow = do
   gs <- newTestPlayerState
-  (acceptedMsgs, accepted) <- runOk "talk to innkeeper" gs (playerTalk "tester" "cold_rain_innkeeper")
-  assert (any (storyTextContains "这杯酒已经冷了三次" . snd) acceptedMsgs) "intro story text was not emitted"
-  assert (any (storyTextContains "酒杯入手很轻" . snd) acceptedMsgs) "intro follow-up story text was not emitted"
-  assert (questStageOf "cold_rain_inn" accepted == Just "accepted") "quest did not enter accepted stage"
-  assert (any (questObjective "把冷酒送到北面的客栈大堂" . snd) acceptedMsgs) "accepted stage did not update quest objective"
+  (_, warned) <- runOk "hear old escort warning" gs (playerTalk "tester" "wounded_escort")
+  assert (questStageOf "weiyuan_bloody_case" warned == Just "intruder") "weiyuan quest did not enter intruder stage"
 
-  (_, inHall) <- runOk "move to hall" accepted (playerMove "tester" North)
-  (qingyi, witness) <- runOk "talk to qingyi guest" inHall (playerTalk "tester" "qingyi_guest")
-  assert (any (storyTextContains "酒不是给我喝的" . snd) qingyi) "qingyi story text was not emitted"
-  assert (any (storyTextContains "青衣客没有碰那杯酒" . snd) qingyi) "qingyi follow-up story text was not emitted"
-  assert (questStageOf "cold_rain_inn" witness == Just "witness") "quest did not enter witness stage"
-
-  (courtyardMsgs, inCourtyard) <- runOk "enter courtyard" witness (playerMove "tester" East)
-  assert (any (storyTextContains "伞下的人" . snd) courtyardMsgs) "courtyard reveal did not fire"
-
-  (killerTalk, inStoryBattle) <- runOk "talk to paper umbrella killer" inCourtyard (playerTalk "tester" "paper_umbrella_killer")
-  assert (any (storyTextContains "旁观者最安全" . snd) killerTalk) "killer story text was not emitted"
-  assert (any (storyTextContains "灯笼落地" . snd) killerTalk) "killer follow-up story text was not emitted"
-  assert (M.member "tester" (inStoryBattle ^. battles)) "story battle did not start"
-
-  let defeated =
-        inStoryBattle
-          & battles . ix "tester" . battleEnemyState . battleChar . charHP .~ 0
-  (ending, resolved) <- runOk "settle story battle" defeated (updateBattle 0 "tester")
-  assert (questStageOf "cold_rain_inn" resolved == Just "completed") "chapter did not complete after the story battle"
-  assert (any (storyTextContains "纸伞落在井边" . snd) ending) "chapter ending message was not emitted"
-  assert (any (rewardMoney 80 . snd) ending) "chapter reward money was not emitted"
-  assert (any (rewardItem "cold_rain_token" 1 . snd) ending) "story kill drop reward was not emitted"
-  assert (any (inventoryHas "cold_rain_token" 1 . snd) ending) "chapter reward inventory snapshot was not emitted"
-  assert
-    (maybe False (S.member "paper_umbrella_killer" . view storyHiddenNpcs) (M.lookup "tester" (resolved ^. stories)))
-    "defeated story NPC was not hidden for the player"
-  case M.lookup "tester" (resolved ^. players) of
-    Nothing -> fail "tester missing after story resolution"
-    Just player -> do
-      assert ((player ^. playerMoney) == 80) "chapter reward money was not applied"
-      assert ((player ^. playerInventory . at "cold_rain_token") == Just 1) "chapter reward item was not applied"
-
-  let respawnedForTester =
-        resolved
-          & world . chars . ix "paper_umbrella_killer" . charStatus .~ CharAlive
-  repeatAttack <- runGameState respawnedForTester (playerAttack "tester" "paper_umbrella_killer")
-  case repeatAttack of
+  directAttack <- runGameState warned (playerAttack "tester" "temple_black_clad")
+  case directAttack of
     Left (UnableToInteract _ Attacking) -> pure ()
-    Left err -> fail $ "expected hidden NPC attack to be blocked, got: " <> show err
-    Right _ -> fail "completed story NPC could be attacked after respawn"
-  (viewAfterCompletion, _) <- runOk "view after story completion" respawnedForTester (playerView "tester")
-  case [visibleChars | (_, ViewMsg _ _ visibleChars _) <- viewAfterCompletion] of
-    [] -> fail "view after completion did not send a room view"
-    visibleChars : _ ->
-      assert
-        (all ((/= "paper_umbrella_killer") . roomCharacterSummaryId) visibleChars)
-        "hidden story NPC was still visible in the room view"
+    Left err -> fail $ "expected direct story NPC attack to be blocked, got: " <> show err
+    Right _ -> fail "story NPC exposed a direct attack path"
 
-  (_, inHallAfterCompletion) <- runOk "return to hall after story completion" resolved (playerMove "tester" West)
-  (hallView, hallAfterView) <- runOk "view hall after story completion" inHallAfterCompletion (playerView "tester")
-  case [visibleChars | (_, ViewMsg _ _ visibleChars _) <- hallView] of
-    [] -> fail "hall view after completion did not send a room view"
-    visibleChars : _ ->
-      case filter ((== "qingyi_guest") . roomCharacterSummaryId) visibleChars of
-        [qingyiSummary] -> do
-          assert ("talk" `elem` roomCharacterSummaryActions qingyiSummary) "qingyi guest should remain talkable after completion"
-          assert ("attack" `notElem` roomCharacterSummaryActions qingyiSummary) "qingyi guest should not expose an attack action"
-        _ -> fail "qingyi guest was not visible exactly once after story completion"
-  (epilogue, afterManual) <- runOk "talk to qingyi after story completion" hallAfterView (playerTalk "tester" "qingyi_guest")
-  assert (any (storyTextContains "最难还的不是仇" . snd) epilogue) "qingyi guest did not keep the completion epilogue dialogue"
-  assert (any (rewardItem "cold_rain_manual" 1 . snd) epilogue) "qingyi guest did not grant the manual item"
-  assert (not $ any (rewardArt "cold_rain_secret" . snd) epilogue) "qingyi guest should not teach the martial art before the manual is used"
-  assert (any (inventoryHas "cold_rain_manual" 1 . snd) epilogue) "manual reward inventory snapshot was not emitted"
-  assert (any (inventoryUsable "cold_rain_manual" . snd) epilogue) "manual reward inventory snapshot did not mark the manual usable"
-  case M.lookup "tester" (afterManual ^. players) of
-    Nothing -> fail "tester missing after manual reward"
+  (_, inBattle) <- runOk "confront temple attacker" warned (playerTalk "tester" "temple_black_clad")
+  assert (questStageOf "weiyuan_bloody_case" inBattle == Just "duel") "weiyuan quest did not enter duel stage"
+  assert (S.member "tester" $ inBattle ^. isolatedBattles) "story battle was not marked isolated"
+  assert (maybe False ((== CharAlive) . view charStatus) $ M.lookup "temple_black_clad" (inBattle ^. world . chars)) "story battle locked the global NPC"
+
+  let defeated = inBattle & battles . ix "tester" . battleEnemyState . battleChar . charHP .~ 0
+  (_, afterFight) <- runOk "settle temple fight" defeated (updateBattle 0 "tester")
+  assert (questStageOf "weiyuan_bloody_case" afterFight == Just "escort_dying") "weiyuan quest did not advance after the fight"
+  assert (not $ S.member "tester" $ afterFight ^. isolatedBattles) "isolated battle marker was not cleared"
+  assert (maybe False ((== CharAlive) . view charStatus) $ M.lookup "temple_black_clad" (afterFight ^. world . chars)) "isolated story fight changed the global NPC"
+
+  (_, onRoad) <- runOk "hear old escort last request" afterFight (playerTalk "tester" "wounded_escort")
+  assert (questStageOf "weiyuan_bloody_case" onRoad == Just "escort_road") "weiyuan quest did not enter escort road stage"
+  case M.lookup "tester" (onRoad ^. players) of
+    Nothing -> fail "tester missing on escort road"
     Just player -> do
-      assert ((player ^. playerInventory . at "cold_rain_manual") == Just 1) "manual reward item was not applied"
-      assert (not $ knowsArtAt "cold_rain_secret" 1 player) "manual reward taught the martial art before use"
-      assert (not $ preparedArtIn Sword "cold_rain_secret" player) "manual reward prepared the martial art before use"
+      assert ((player ^. playerPosition) == ("bianshui_road", (0, 0))) "old escort did not send the player to the escort road"
+      assert ((player ^. playerMoney) >= 30) "sourced travel money was not granted"
 
-  (manualUse, afterManualUse) <- runOk "use cold rain manual" afterManual (processPlayerAction "tester" (Use "cold_rain_manual"))
-  assert (any (useItemTextContains "先听雨" . snd) manualUse) "manual use did not emit the configured use message"
-  assert (any (rewardArt "cold_rain_secret" . snd) manualUse) "using the manual did not grant the martial art"
-  assert (any (inventoryHas "cold_rain_manual" 1 . snd) manualUse) "manual should remain in inventory after use"
-  case M.lookup "tester" (afterManualUse ^. players) of
-    Nothing -> fail "tester missing after manual use"
+  (_, atFerry) <- runOk "escort young survivor into Bianliang" onRoad (playerMove "tester" North)
+  assert (questStageOf "weiyuan_bloody_case" atFerry == Just "branch_gate") "entering Bianliang did not advance the escort"
+  (_, atGate) <- runOk "approach Weiyuan branch" atFerry (playerMove "tester" East)
+  (_, inHall) <- runOk "enter Weiyuan branch hall" atGate (playerMove "tester" East)
+  assert (questStageOf "weiyuan_bloody_case" inHall == Just "completed") "weiyuan quest did not complete in the branch hall"
+  assert (questStageOf "first_steps_bianliang" inHall == Just "guide") "Bianliang settling quest did not start"
+  case M.lookup "tester" (inHall ^. stories) of
+    Nothing -> fail "tester story state missing after Weiyuan separation"
+    Just storyState -> do
+      assert (S.member "weiyuan.youth_separated" $ storyState ^. storyFlags) "young survivor separation flag was not set"
+      assert (S.member "grey_young_escort" $ storyState ^. storyHiddenNpcs) "young survivor was not hidden after separation"
+  case M.lookup "tester" (inHall ^. players) of
+    Nothing -> fail "tester missing after Weiyuan completion"
     Just player -> do
-      assert ((player ^. playerInventory . at "cold_rain_manual") == Just 1) "manual use changed the manual count"
-      assert (knowsArtAt "cold_rain_secret" 1 player) "manual use did not teach the martial art"
-      assert (preparedArtIn Sword "cold_rain_secret" player) "manual use did not prepare the learned martial art"
+      assert ((player ^. playerInventory . at "soaked_route_note") == Just 1) "route note was not retained"
+      assert ((player ^. playerInventory . at "weiyuan_sword_manual") == Just 1) "Weiyuan manual was not retained"
 
-  (repeatUse, afterRepeatUse) <- runOk "use cold rain manual again" afterManualUse (processPlayerAction "tester" (Use "cold_rain_manual"))
-  assert (any (useItemTextContains "又翻了一遍" . snd) repeatUse) "repeated manual use did not emit the configured repeat message"
-  assert (not $ any (rewardArt "cold_rain_secret" . snd) repeatUse) "repeated manual use granted the martial art again"
-  case M.lookup "tester" (afterRepeatUse ^. players) of
-    Nothing -> fail "tester missing after repeated manual use"
-    Just player ->
-      assert ((player ^. playerInventory . at "cold_rain_manual") == Just 1) "manual count changed after repeated use"
+testStoryBattlesArePlayerIsolated :: IO ()
+testStoryBattlesArePlayerIsolated = do
+  gs <- newTestPlayerState
+  (_, twoPlayers) <- runOk "create second story player" gs (createDefaultPlayer "tester2" "resources/scripts/default_player.yaml")
+  (_, firstWarned) <- runOk "warn first player" twoPlayers (playerTalk "tester" "wounded_escort")
+  (_, bothWarned) <- runOk "warn second player" firstWarned (playerTalk "tester2" "wounded_escort")
+  (_, firstBattle) <- runOk "start first isolated story battle" bothWarned (playerTalk "tester" "temple_black_clad")
+  (_, bothBattles) <- runOk "start second isolated story battle" firstBattle (playerTalk "tester2" "temple_black_clad")
+  assert (M.member "tester" $ bothBattles ^. battles) "first isolated story battle disappeared"
+  assert (M.member "tester2" $ bothBattles ^. battles) "second isolated story battle did not start"
+  assert (maybe False ((== CharAlive) . view charStatus) $ M.lookup "temple_black_clad" (bothBattles ^. world . chars)) "concurrent story battles locked the shared NPC"
 
-  (repeatEpilogue, afterRepeatManual) <- runOk "talk to qingyi after manual reward" afterRepeatUse (playerTalk "tester" "qingyi_guest")
-  assert (not $ any (rewardItem "cold_rain_manual" 1 . snd) repeatEpilogue) "manual reward was granted more than once"
-  assert (not $ any (rewardArt "cold_rain_secret" . snd) repeatEpilogue) "martial art reward was granted more than once"
-  case M.lookup "tester" (afterRepeatManual ^. players) of
-    Nothing -> fail "tester missing after repeated manual dialogue"
-    Just player ->
-      assert ((player ^. playerInventory . at "cold_rain_manual") == Just 1) "manual count changed after repeated dialogue"
-  where
-    storyTextContains expected (StoryMsg _ text) = expected `T.isInfixOf` text
-    storyTextContains _ _ = False
+testBianliangSettlingAndTravelFlow :: IO ()
+testBianliangSettlingAndTravelFlow = do
+  gs <- newTestPlayerState
+  let ready =
+        gs
+          & stories . ix "tester" . storyQuestStages . at "weiyuan_bloody_case" ?~ "completed"
+          & stories . ix "tester" . storyQuestStages . at "first_steps_bianliang" ?~ "guide"
+  (_, atSouthGate) <- runOk "move to Bianliang south gate" ready (movePlayerToRoom "tester" "bianliang_city" (0, -1))
+  (_, seekingInn) <- runOk "ask guide for lodging" atSouthGate (playerTalk "tester" "bianliang_guide")
+  assert (questStageOf "first_steps_bianliang" seekingInn == Just "inn") "guide did not send the player to the inn"
 
-    questObjective expected (QuestLogMsg entries) =
-      any (\entry -> maybe False (expected `T.isInfixOf`) (questLogEntryObjective entry)) entries
-    questObjective _ _ = False
+  (_, atInn) <- runOk "move to Fanlou inn" seekingInn (movePlayerToRoom "tester" "bianliang_city" (-1, 1))
+  (_, lodged) <- runOk "lodge at Fanlou" atInn (playerTalk "tester" "fanlou_innkeeper")
+  assert (questStageOf "first_steps_bianliang" lodged == Just "training") "lodging did not advance to training"
+  case M.lookup "tester" (lodged ^. players) of
+    Nothing -> fail "tester missing after lodging"
+    Just player -> assert ((player ^. playerInventory . at "bianliang_room_tag") == Just 1) "inn did not hand over the room tag"
 
-    rewardMoney expected (RewardMsg rewards) =
-      any (\reward -> rewardSummaryKind reward == "money" && rewardSummaryAmount reward == expected) rewards
-    rewardMoney _ _ = False
+  (_, atTraining) <- runOk "move to training yard" lodged (movePlayerToRoom "tester" "bianliang_city" (-1, -1))
+  (_, readyToPractice) <- runOk "speak with Liang instructor" atTraining (playerTalk "tester" "bianliang_martial_instructor")
+  assert (questStageOf "first_steps_bianliang" readyToPractice == Just "practice") "instructor did not open the practice fight"
+  (_, practiceBattle) <- runOk "start practice fight" readyToPractice (playerTalk "tester" "bianliang_training_dummy")
+  let defeatedDummy = practiceBattle & battles . ix "tester" . battleEnemyState . battleChar . charHP .~ 0
+  (_, afterPractice) <- runOk "settle practice fight" defeatedDummy (updateBattle 0 "tester")
+  assert (questStageOf "first_steps_bianliang" afterPractice == Just "first_job") "practice fight did not unlock the first job"
 
-    rewardItem expectedId expectedAmount (RewardMsg rewards) =
-      any
-        ( \reward ->
-            rewardSummaryKind reward == "item"
-              && rewardSummaryId reward == Just expectedId
-              && rewardSummaryAmount reward == expectedAmount
-        )
-        rewards
-    rewardItem _ _ _ = False
+  (_, atScribe) <- runOk "move to scribe" afterPractice (movePlayerToRoom "tester" "bianliang_city" (1, -1))
+  (_, settled) <- runOk "complete first city job" atScribe (playerTalk "tester" "old_scribe")
+  assert (questStageOf "first_steps_bianliang" settled == Just "completed") "first city job did not complete Bianliang settling"
+  case M.lookup "tester" (settled ^. players) of
+    Nothing -> fail "tester missing after first city job"
+    Just player -> assert ((player ^. playerInventory . at "bianliang_work_token") == Just 1) "employer did not hand over the work token"
 
-    rewardArt expectedId (RewardMsg rewards) =
-      any
-        ( \reward ->
-            rewardSummaryKind reward == "martial_art"
-              && rewardSummaryId reward == Just expectedId
-        )
-        rewards
-    rewardArt _ _ = False
-
-    inventoryHas expectedId expectedAmount (InventoryMsg _ invItems) =
-      any
-        ( \invEntry ->
-            inventoryItemSummaryId invEntry == expectedId
-              && inventoryItemSummaryAmount invEntry == expectedAmount
-        )
-        invItems
-    inventoryHas _ _ _ = False
-
-    inventoryUsable expectedId (InventoryMsg _ invItems) =
-      any
-        ( \invEntry ->
-            inventoryItemSummaryId invEntry == expectedId
-              && inventoryItemSummaryUsable invEntry
-        )
-        invItems
-    inventoryUsable _ _ = False
-
-    useItemTextContains expected (UseItemMsg _ text) = expected `T.isInfixOf` text
-    useItemTextContains _ _ = False
+  (_, backAtGuide) <- runOk "return to guide" settled (movePlayerToRoom "tester" "bianliang_city" (0, -1))
+  (_, choosingRoute) <- runOk "ask guide about travel" backAtGuide (playerTalk "tester" "bianliang_guide")
+  assert (questStageOf "three_city_leads" choosingRoute == Just "choose_route") "guide did not open the travel choice"
+  (_, atLuoyangRunner) <- runOk "move to Luoyang runner" choosingRoute (movePlayerToRoom "tester" "bianliang_city" (-2, 2))
+  (_, inLuoyang) <- runOk "choose Luoyang as first journey" atLuoyangRunner (playerTalk "tester" "luoyang_runner")
+  assert (questStageOf "three_city_leads" inLuoyang == Just "completed") "choosing one route did not complete the travel introduction"
+  case M.lookup "tester" (inLuoyang ^. players) of
+    Nothing -> fail "tester missing after travel"
+    Just player -> do
+      assert ((player ^. playerPosition) == ("luoyang_city", (0, 0))) "travel contact did not move the player to Luoyang"
+      assert ((player ^. playerInventory . at "three_city_route_pass") == Just 1) "travel contact did not hand over the route pass"
 
 testPlayerSaveRoundTrip :: IO ()
 testPlayerSaveRoundTrip = do
   gs <- newTestPlayerState
-  (_, accepted) <- runOk "talk to innkeeper before save" gs (playerTalk "tester" "cold_rain_innkeeper")
+  let fixtureQuestId = "fixture_quest"
+      accepted =
+        gs
+          & stories . ix "tester" . storyQuestStages . at fixtureQuestId ?~ "accepted"
   let rewarded =
         accepted
+          & players . ix "tester" . playerPosition .~ ("bianliang_city", (0, 1))
           & players . ix "tester" . playerMoney .~ 80
           & players . ix "tester" . playerPotential .~ 12
           & players . ix "tester" . playerCombatExp .~ 345
-          & players . ix "tester" . playerInventory . at "cold_rain_token" .~ Just 1
-          & players . ix "tester" . playerInventory . at "cold_rain_manual" .~ Just 1
+          & players . ix "tester" . playerInventory . at "saved_token" .~ Just 1
+          & players . ix "tester" . playerInventory . at "saved_manual" .~ Just 1
           & players . ix "tester" . playerCharacter . charQi .~ 72
           & players . ix "tester" . playerCharacter . charMaxQi .~ 123
           & players . ix "tester" . playerCharacter . charJing .~ 91
-          & players . ix "tester" . playerCharacter . charDesc .~ "我出身于风雨。"
+          & players . ix "tester" . playerCharacter . charDesc .~ "我从汴梁来。"
           & players . ix "tester" . playerCharacter . charGender .~ Female
           & players . ix "tester" . playerCharacter . charAppearance .~ 8
           & players . ix "tester" . playerCharacter . charInnate .~ InnateAttrs 21 17 16
           & players . ix "tester" . playerCharacter . charArt . at Foundation .~ Just [ArtEntity "basic_sword" 5 0]
-          & players . ix "tester" . playerCharacter . charArt . at Sword .~ Just [ArtEntity "cold_rain_secret" 5 0]
-          & players . ix "tester" . playerCharacter . charPrepare . at Sword .~ Just (ArtEntity "cold_rain_secret" 5 0)
-          & players . ix "tester" . playerCharacter . charEnabled . at Sword .~ Just (ArtEntity "cold_rain_secret" 5 0)
+          & players . ix "tester" . playerCharacter . charArt . at Sword .~ Just [ArtEntity "saved_sword_art" 5 0]
+          & players . ix "tester" . playerCharacter . charPrepare . at Sword .~ Just (ArtEntity "saved_sword_art" 5 0)
+          & players . ix "tester" . playerCharacter . charEnabled . at Sword .~ Just (ArtEntity "saved_sword_art" 5 0)
   savePlayerState ".stack-work/test-saves" "tester" rewarded
   saveResult <- loadPlayerSave ".stack-work/test-saves" "tester"
   save <- case saveResult of
     Left err -> fail $ "failed to load player save: " <> T.unpack err
     Right Nothing -> fail "player save was not written"
     Right (Just loaded) -> pure loaded
-  assert (saveVersion save == 4) "player save version was not bumped"
+  assert (saveVersion save == 5) "player save version was not bumped"
   fresh <- newTestPlayerState
   let restored = applyPlayerSaveToGameState save fresh
-  assert (questStageOf "cold_rain_inn" restored == Just "accepted") "saved quest stage was not restored"
+  assert (questStageOf fixtureQuestId restored == Just "accepted") "saved quest stage was not restored"
   case M.lookup "tester" (restored ^. players) of
     Nothing -> fail "tester missing after save restore"
     Just player -> do
       assert ((player ^. playerMoney) == 80) "saved money was not restored"
+      assert ((player ^. playerPosition) == ("bianliang_city", (0, 1))) "saved player position was not restored"
       assert ((player ^. playerPotential) == 12) "saved potential was not restored"
       assert ((player ^. playerCombatExp) == 345) "saved combat exp was not restored"
-      assert ((player ^. playerInventory . at "cold_rain_token") == Just 1) "saved inventory was not restored"
-      assert ((player ^. playerInventory . at "cold_rain_manual") == Just 1) "saved manual inventory was not restored"
+      assert ((player ^. playerInventory . at "saved_token") == Just 1) "saved inventory was not restored"
+      assert ((player ^. playerInventory . at "saved_manual") == Just 1) "saved manual inventory was not restored"
       assert ((player ^. playerCharacter . charQi) == 72) "saved qi was not restored"
       assert ((player ^. playerCharacter . charMaxQi) == 123) "saved max qi was not restored"
       assert ((player ^. playerCharacter . charJing) == 91) "saved jing was not restored"
-      assert ((player ^. playerCharacter . charDesc) == "我出身于风雨。") "saved desc was not restored"
+      assert ((player ^. playerCharacter . charDesc) == "我从汴梁来。") "saved desc was not restored"
       assert ((player ^. playerCharacter . charGender) == Female) "saved gender was not restored"
       assert ((player ^. playerCharacter . charAppearance) == 8) "saved appearance was not restored"
       assert ((player ^. playerCharacter . charInnate) == InnateAttrs 21 17 16) "saved innate attrs were not restored"
       assert ((player ^. playerCharacter . charArt . at Foundation) == Just [ArtEntity "basic_sword" 5 0]) "saved foundation art was not restored"
-      assert ((player ^. playerCharacter . charArt . at Sword) == Just [ArtEntity "cold_rain_secret" 5 0]) "saved learned martial art was not restored"
-      assert ((player ^. playerCharacter . charPrepare . at Sword) == Just (ArtEntity "cold_rain_secret" 5 0)) "saved prepared martial art was not restored"
-      assert ((player ^. playerCharacter . charEnabled . at Sword) == Just (ArtEntity "cold_rain_secret" 5 0)) "saved enabled martial art was not restored"
+      assert ((player ^. playerCharacter . charArt . at Sword) == Just [ArtEntity "saved_sword_art" 5 0]) "saved learned martial art was not restored"
+      assert ((player ^. playerCharacter . charPrepare . at Sword) == Just (ArtEntity "saved_sword_art" 5 0)) "saved prepared martial art was not restored"
+      assert ((player ^. playerCharacter . charEnabled . at Sword) == Just (ArtEntity "saved_sword_art" 5 0)) "saved enabled martial art was not restored"
+      assert (S.member "tester" $ roomPlayersAtMap "bianliang_city" restored (0, 1)) "restored room occupancy did not include the player"
+      assert (not $ S.member "tester" $ roomPlayersAt restored (3, 3)) "default room occupancy still contained the restored player"

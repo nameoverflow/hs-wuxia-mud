@@ -6,6 +6,7 @@ module Game.CharacterCreation
   ( CharacterCreationChoice (..),
     CharacterCreationConfig (..),
     CreationBonus (..),
+    CreationGenderOption (..),
     CreationOption (..),
     applyCharacterCreationChoice,
     characterCreationConfigPath,
@@ -21,7 +22,8 @@ import Game.Entity
 import Utils
 
 data CharacterCreationChoice = CharacterCreationChoice
-  { creationOrigin :: Text,
+  { creationGender :: Gender,
+    creationOrigin :: Text,
     creationChildhoodOne :: Text,
     creationChildhoodTwo :: Text
   }
@@ -30,14 +32,16 @@ data CharacterCreationChoice = CharacterCreationChoice
 instance FromJSON CharacterCreationChoice where
   parseJSON = withObject "CharacterCreationChoice" $ \o ->
     CharacterCreationChoice
-      <$> o .: "origin"
+      <$> o .:? "gender" .!= UnknownGender
+      <*> o .: "origin"
       <*> o .: "childhood1"
       <*> o .: "childhood2"
 
 instance ToJSON CharacterCreationChoice where
   toJSON CharacterCreationChoice {..} =
     object
-      [ "origin" .= creationOrigin,
+      [ "gender" .= creationGender,
+        "origin" .= creationOrigin,
         "childhood1" .= creationChildhoodOne,
         "childhood2" .= creationChildhoodTwo
       ]
@@ -95,8 +99,28 @@ instance ToJSON CreationOption where
         "bonus" .= creationOptionBonus option
       ]
 
+data CreationGenderOption = CreationGenderOption
+  { creationGenderOptionId :: Text,
+    creationGenderOptionLabel :: Text
+  }
+  deriving (Show, Eq)
+
+instance FromJSON CreationGenderOption where
+  parseJSON = withObject "CreationGenderOption" $ \o ->
+    CreationGenderOption
+      <$> o .: "id"
+      <*> o .: "label"
+
+instance ToJSON CreationGenderOption where
+  toJSON option =
+    object
+      [ "id" .= creationGenderOptionId option,
+        "label" .= creationGenderOptionLabel option
+      ]
+
 data CharacterCreationConfig = CharacterCreationConfig
   { creationBaseStats :: CreationBonus,
+    creationGenderOptions :: [CreationGenderOption],
     creationOrigins :: [CreationOption],
     creationChildhoodOneOptions :: [CreationOption],
     creationChildhoodTwoOptions :: [CreationOption]
@@ -107,6 +131,7 @@ instance FromJSON CharacterCreationConfig where
   parseJSON = withObject "CharacterCreationConfig" $ \o ->
     CharacterCreationConfig
       <$> o .: "baseStats"
+      <*> o .: "genders"
       <*> o .: "origins"
       <*> o .: "childhood1"
       <*> o .: "childhood2"
@@ -115,6 +140,7 @@ instance ToJSON CharacterCreationConfig where
   toJSON config =
     object
       [ "baseStats" .= creationBaseStats config,
+        "genders" .= creationGenderOptions config,
         "origins" .= creationOrigins config,
         "childhood1" .= creationChildhoodOneOptions config,
         "childhood2" .= creationChildhoodTwoOptions config
@@ -150,6 +176,7 @@ applyCharacterCreationChoice config choice player =
       & playerCharacter . charInnate . innateVitality %~ addClamped (bonusVitality totalBonus)
       & playerCharacter . charMaxQi %~ max 0 . (+ bonusMaxQi totalBonus)
       & playerCharacter . charAppearance %~ clampAppearanceScore . (+ bonusAppearance totalBonus)
+      & playerCharacter . charGender .~ creationGender choice
       & playerCharacter . charDesc .~ characterCreationSummary config choice
   where
     totalBonus =
@@ -176,9 +203,21 @@ optionName :: [CreationOption] -> Text -> Text
 optionName options optionId =
   maybe optionId creationOptionLabel $ findOption options optionId
 
+genderName :: [CreationGenderOption] -> Gender -> Text
+genderName options selectedGender =
+  maybe genderId creationGenderOptionLabel $ findGenderOption options genderId
+  where
+    genderId = genderToText selectedGender
+
 findOption :: [CreationOption] -> Text -> Maybe CreationOption
 findOption options optionId =
   case filter ((== optionId) . creationOptionId) options of
+    option : _ -> Just option
+    [] -> Nothing
+
+findGenderOption :: [CreationGenderOption] -> Text -> Maybe CreationGenderOption
+findGenderOption options optionId =
+  case filter ((== optionId) . creationGenderOptionId) options of
     option : _ -> Just option
     [] -> Nothing
 
@@ -186,7 +225,8 @@ characterCreationSummary :: CharacterCreationConfig -> CharacterCreationChoice -
 characterCreationSummary config CharacterCreationChoice {..} =
   T.intercalate
     "\n"
-    [ "我出身于" <> optionName (creationOrigins config) creationOrigin <> "。",
-      "幼年时，" <> optionName (creationChildhoodOneOptions config) creationChildhoodOne <> "。",
-      "后来，" <> optionName (creationChildhoodTwoOptions config) creationChildhoodTwo <> "。"
+    [ "性别：" <> genderName (creationGenderOptions config) creationGender <> "。",
+      "出身：" <> optionName (creationOrigins config) creationOrigin <> "。",
+      "幼年：" <> optionName (creationChildhoodOneOptions config) creationChildhoodOne <> "。",
+      "后来：" <> optionName (creationChildhoodTwoOptions config) creationChildhoodTwo <> "。"
     ]

@@ -1,0 +1,10 @@
+id: weiyuan_sword_manual
+name: "威远剑谱"
+desc: "老镖师临终托出的威远镖局入门剑谱，记着押镖护身常用的基础步法和几式剑招。"
+use:
+  type: learn_art
+  art: weiyuan_sword
+  level: 1
+  consume: false
+  message: "你读完《威远剑谱》的入门篇，学会了几式押镖护身剑招。"
+  repeat_message: "你又温习了一遍《威远剑谱》，对起手和步法更熟悉了。"

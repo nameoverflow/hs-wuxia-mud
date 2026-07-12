@@ -44,14 +44,21 @@ export interface CharacterCreationOption {
   bonus: CharacterCreationBonus;
 }
 
+export interface CharacterCreationGenderOption {
+  id: string;
+  label: string;
+}
+
 export interface CharacterCreationConfig {
   baseStats: CharacterCreationBonus;
+  genders: CharacterCreationGenderOption[];
   origins: CharacterCreationOption[];
   childhood1: CharacterCreationOption[];
   childhood2: CharacterCreationOption[];
 }
 
 export interface CharacterCreationChoice {
+  gender: string;
   origin: string;
   childhood1: string;
   childhood2: string;
@@ -262,6 +269,8 @@ export type ServerMessage =
   | { tag: "ActiveSkillFailureMsg"; contents: ActiveSkillFailureReason }
   | { tag: "BattleStateMsg"; contents: BattleSnapshot }
   | { tag: "StoryMsg"; contents: [string, string] }
+  | { tag: "StoryDelayMsg"; contents: number }
+  | { tag: "StoryTransitionMsg"; contents: [string, number] }
   | { tag: "QuestLogMsg"; contents: QuestLogEntry[] }
   | { tag: "InventoryMsg"; contents: [number, InventoryItemSummary[]] }
   | { tag: "ArtsMsg"; contents: ArtSummary[] }

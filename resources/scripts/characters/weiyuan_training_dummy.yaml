@@ -1,6 +1,6 @@
-id: char_in_test
-name: "沉默木人"
-desc: "一具给客人试招的旧木人，刀痕纵横。"
+id: weiyuan_training_dummy
+name: "威远木桩"
+desc: "一具旧练功木桩，原是威远镖师押镖前活动手脚用的。"
 actions: [dialogue, attacking, sparring]
 martial_arts:
   sword:
@@ -11,11 +11,11 @@ prepared:
     id: nameless_trial_sword
     level: 1
 teaches:
-  cold_rain_secret: 5
+  weiyuan_sword: 5
   nameless_trial_sword: 5
   nameless_trial_fist: 5
 dialogue:
-  - "木人沉默不语，雨水沿着刀痕往下流。"
+  - "木桩立在墙边，身上满是镖师练招留下的刀痕。"
 respawn: 5
 attr:
   hp: 114
