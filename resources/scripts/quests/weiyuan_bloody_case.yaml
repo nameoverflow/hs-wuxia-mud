@@ -145,7 +145,7 @@ events:
       - type: give_money
         amount: 30
       - type: delay
-        ms: 800
+        ms: 1800
       - type: message
         speaker: "受伤老镖师"
         text: "若镖局也出了事，不要逞强。人活着，才有资格管别人的旧账。"
@@ -156,12 +156,10 @@ events:
         npc: wounded_escort
       - type: transition
         text: "你与少年冒雨离开破庙，踏上汴水官道。"
-        ms: 1100
+        ms: 1800
       - type: move_player
         map: bianshui_road
         position: [0, 0]
-      - type: delay
-        ms: 500
       - type: message
         speaker: "灰衣少年"
         text: "沿汴水往北就是城门。追兵未必只有一个，我们别在路上停。"
@@ -226,12 +224,12 @@ events:
         speaker: "旁白"
         text: "前厅门扇半开。镖旗被砍断，账册散在血水里，廊柱后倒着几名镖师，已经没了声息。"
       - type: delay
-        ms: 700
+        ms: 1600
       - type: message
         speaker: "灰衣少年"
         text: "早上离开时，他们还在点账……我爹娘住在内院。"
       - type: delay
-        ms: 700
+        ms: 1600
       - type: message
         speaker: "旁白"
         text: "少年从被撬开的账柜下抽出半张水浸路单，又从包袱里取出一本薄薄的剑谱。"
@@ -245,7 +243,7 @@ events:
         speaker: "灰衣少年"
         text: "路单和剑谱都不能留在这里。你衣上有血，若被捕快堵住，反而说不清。拿着它们，从前门走，去南门附近找地方落脚。"
       - type: delay
-        ms: 700
+        ms: 1600
       - type: message
         speaker: "灰衣少年"
         text: "我从后院走。往后是藏起来、查下去，还是投奔谁，我自己决定。你已经救过我一次，不必再替威远还债，也不要来找我。"

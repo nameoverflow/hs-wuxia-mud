@@ -280,16 +280,18 @@ playerAttack pid target = do
     charAttackable :: Character -> Bool
     charAttackable char = isJust (char ^. charActions . at Attacking) && char ^. charStatus == CharAlive
 
-startStoryBattle :: PlayerId -> CharId -> GameStateT ()
-startStoryBattle pid target = do
+startStoryBattle :: PlayerId -> CharId -> Int -> GameStateT ()
+startStoryBattle pid target initialDelayMs = do
   player <- getsPlayer pid
   npc <- getsRoomCharacter pid target Dialogue
-  let battle = newBattle player npc
+  let initialLockSeconds = fromIntegral (max 0 initialDelayMs) / 1000
+      battle = newBattle player npc & battleActionLockRemaining .~ initialLockSeconds
+      visibleBattle = battle & battleActionLockRemaining .~ 0
   isolatedBattles %= S.insert pid
   battles . at pid .= Just battle
   players . ix pid . playerStatus .= PlayerInBattle
   tell [(pid, AttackMsg (player ^. playerCharacter . charName) (npc ^. charName))]
-  sendBattleSnapshot pid battle
+  sendBattleSnapshot pid visibleBattle
 
 runStoryTrigger :: PlayerId -> StoryTrigger -> GameStateT Bool
 runStoryTrigger pid trigger = do
@@ -338,49 +340,113 @@ storyConditionMet pid condition = do
 
 executeStoryActions :: PlayerId -> [StoryAction] -> GameStateT ()
 executeStoryActions pid actions = do
-  mapM_ execute actions
-  when (any actionChangesRoomView actions) $
-    playerView pid
+  tell [(pid, StorySequenceMsg True)]
+  rewards <- executeAll 0 actions
+  unless (null rewards) $
+    tell [(pid, RewardMsg rewards)]
   sendPlayerInventory pid
   playerQuestLog pid
+  tell [(pid, StorySequenceMsg False)]
   where
-    actionChangesRoomView = \case
-      HideNpc _ -> True
-      ShowNpc _ -> True
-      _ -> False
+    executeAll _ [] = return []
+    executeAll elapsedMs (StoryTransition text ms : MovePlayer mapId position : rest) = do
+      let duration = normalizeStoryDuration ms
+          enterDuration = max 180 $ min 400 $ duration `div` 4
+      tell [(pid, StoryTransitionMsg text duration)]
+      tell [(pid, StoryDelayMsg enterDuration)]
+      _ <- executeOne elapsedMs $ MovePlayer mapId position
+      tell [(pid, StoryDelayMsg $ duration - enterDuration)]
+      executeAll (elapsedMs + duration) rest
+    executeAll elapsedMs (action : rest) = do
+      rewards <- executeOne elapsedMs action
+      let readingPause =
+            case action of
+              StoryMessage _ text | needsReadingPause action rest -> storyReadingDuration text
+              _ -> 0
+          actionDelay = queuedDelayFor action
+      when (readingPause > 0) $
+        tell [(pid, StoryDelayMsg readingPause)]
+      remainingRewards <- executeAll (elapsedMs + actionDelay + readingPause) rest
+      return $ rewards <> remainingRewards
 
-    execute = \case
+    executeOne elapsedMs = \case
       StoryMessage speaker text ->
-        tell [(pid, StoryMsg speaker text)]
+        tell [(pid, StoryMsg speaker text)] >> return []
       StoryDelay ms ->
-        tell [(pid, StoryDelayMsg ms)]
-      StoryTransition text ms ->
-        tell [(pid, StoryTransitionMsg text ms)]
+        tell [(pid, StoryDelayMsg $ normalizeStoryDuration ms)] >> return []
+      StoryTransition text ms -> do
+        let duration = normalizeStoryDuration ms
+        tell [(pid, StoryTransitionMsg text duration)]
+        tell [(pid, StoryDelayMsg duration)]
+        return []
       SetQuestStage quest stage ->
-        stories . ix pid . storyQuestStages . at quest .= Just stage
+        stories . ix pid . storyQuestStages . at quest .= Just stage >> return []
       CompleteQuest quest -> do
         stories . ix pid . storyQuestStages . at quest .= Just "completed"
-        grantQuestReward pid quest
+        grantQuestRewardSummaries pid quest
       SetFlag flag ->
-        stories . ix pid . storyFlags %= S.insert flag
+        stories . ix pid . storyFlags %= S.insert flag >> return []
       ClearFlag flag ->
-        stories . ix pid . storyFlags %= S.delete flag
-      HideNpc npc ->
+        stories . ix pid . storyFlags %= S.delete flag >> return []
+      HideNpc npc -> do
         stories . ix pid . storyHiddenNpcs %= S.insert npc
-      ShowNpc npc ->
+        playerView pid
+        return []
+      ShowNpc npc -> do
         stories . ix pid . storyHiddenNpcs %= S.delete npc
-      GiveItem itemId amount ->
-        grantItem pid itemId amount
-      GiveMoney amount ->
-        grantMoney pid amount
+        playerView pid
+        return []
+      GiveItem itemId amount -> do
+        if amount <= 0
+          then return []
+          else do
+            addInventoryItem pid itemId amount
+            summary <- itemRewardSummary itemId amount
+            return [summary]
+      GiveMoney amount -> do
+        if amount <= 0
+          then return []
+          else do
+            players . ix pid . playerMoney += amount
+            return [moneyRewardSummary amount]
       LearnArt artId level ->
-        grantArt pid artId level
+        grantArtRewards pid artId level
       StartBattle target ->
-        startStoryBattle pid target
+        startStoryBattle pid target elapsedMs >> return []
       MovePlayer mapId position -> do
         newRoom <- movePlayerToRoom pid mapId position
         tell [(pid, MoveMsg $ newRoom ^. roomName)]
         playerView pid
+        return []
+
+    needsReadingPause (StoryMessage _ _) rest = not $ hasExplicitPauseBeforeNextBeat rest
+    needsReadingPause _ _ = False
+
+    hasExplicitPauseBeforeNextBeat [] = False
+    hasExplicitPauseBeforeNextBeat (StoryDelay _ : _) = True
+    hasExplicitPauseBeforeNextBeat (action : rest)
+      | actionIsSilent action = hasExplicitPauseBeforeNextBeat rest
+      | otherwise = False
+
+    actionIsSilent = \case
+      SetQuestStage _ _ -> True
+      CompleteQuest _ -> True
+      SetFlag _ -> True
+      ClearFlag _ -> True
+      GiveItem _ _ -> True
+      GiveMoney _ -> True
+      LearnArt _ _ -> True
+      _ -> False
+
+    storyReadingDuration text =
+      max 1000 $ min 3200 $ 500 + T.length text * 45
+
+    queuedDelayFor = \case
+      StoryDelay ms -> normalizeStoryDuration ms
+      StoryTransition _ ms -> normalizeStoryDuration ms
+      _ -> 0
+
+    normalizeStoryDuration = max 0 . min 8000
 
 playerQuestLog :: PlayerId -> GameStateT ()
 playerQuestLog pid = do
@@ -439,6 +505,12 @@ applyItemUse pid player item itemUse' =
 
 grantQuestReward :: PlayerId -> QuestId -> GameStateT ()
 grantQuestReward pid qid = do
+  summaries <- grantQuestRewardSummaries pid qid
+  unless (null summaries) $
+    tell [(pid, RewardMsg summaries)]
+
+grantQuestRewardSummaries :: PlayerId -> QuestId -> GameStateT [RewardSummary]
+grantQuestRewardSummaries pid qid = do
   questMap <- use $ world . quests
   case M.lookup qid questMap of
     Nothing -> throwStructured "quest_reward_not_found" [("questId", qid)]
@@ -448,9 +520,7 @@ grantQuestReward pid qid = do
         players . ix pid . playerMoney += reward ^. questRewardMoney
       forM_ (reward ^. questRewardItems) $ \rewardItem ->
         addInventoryItem pid (rewardItem ^. questRewardItemId) (rewardItem ^. questRewardItemAmount)
-      summaries <- questRewardSummaries reward
-      unless (null summaries) $
-        tell [(pid, RewardMsg summaries)]
+      questRewardSummaries reward
 
 grantItem :: PlayerId -> ItemId -> Int -> GameStateT ()
 grantItem pid itemId amount =
@@ -466,31 +536,39 @@ grantMoney pid amount =
     tell [(pid, RewardMsg [moneyRewardSummary amount])]
 
 grantArt :: PlayerId -> ArtId -> Int -> GameStateT ()
-grantArt pid artId level =
-  when (level > 0) $ do
-    martialArtMap <- use $ world . martialArts
-    case M.lookup artId martialArtMap of
-      Nothing -> throwStructured "martial_art_not_found_learning" [("artId", artId)]
-      Just martialArt -> do
-        when (level > martialArt ^. artMaxLevel) $
-          throwStructured
-            "learning_level_exceeds_max"
-            [ ("art", martialArt ^. artName),
-              ("max", showText $ martialArt ^. artMaxLevel)
-            ]
-        ensureArtRequirements pid martialArtMap martialArt
-        player <- getsPlayer pid
-        let currentLevel = fromMaybe 0 $ playerKnownArtLevel player artId
-            learnedLevel = max level currentLevel
-            artType' = martialArt ^. artType
-            learnedArt = ArtEntity artId learnedLevel 0
-        upsertKnownArtEntity pid artType' learnedArt
-        when (artType' /= Foundation) $
-          players . ix pid . playerCharacter . charPrepare . at artType' .= Just learnedArt
-        when (artType' /= Foundation) $
-          players . ix pid . playerCharacter . charEnabled . at artType' .= Just learnedArt
-        foundationRewards <- syncFoundationArt pid martialArtMap martialArt learnedLevel
-        tell [(pid, RewardMsg (martialArtRewardSummary martialArt learnedLevel : foundationRewards))]
+grantArt pid artId level = do
+  rewards <- grantArtRewards pid artId level
+  unless (null rewards) $
+    tell [(pid, RewardMsg rewards)]
+
+grantArtRewards :: PlayerId -> ArtId -> Int -> GameStateT [RewardSummary]
+grantArtRewards pid artId level =
+  if level <= 0
+    then return []
+    else do
+      martialArtMap <- use $ world . martialArts
+      case M.lookup artId martialArtMap of
+        Nothing -> throwStructured "martial_art_not_found_learning" [("artId", artId)]
+        Just martialArt -> do
+          when (level > martialArt ^. artMaxLevel) $
+            throwStructured
+              "learning_level_exceeds_max"
+              [ ("art", martialArt ^. artName),
+                ("max", showText $ martialArt ^. artMaxLevel)
+              ]
+          ensureArtRequirements pid martialArtMap martialArt
+          player <- getsPlayer pid
+          let currentLevel = fromMaybe 0 $ playerKnownArtLevel player artId
+              learnedLevel = max level currentLevel
+              artType' = martialArt ^. artType
+              learnedArt = ArtEntity artId learnedLevel 0
+          upsertKnownArtEntity pid artType' learnedArt
+          when (artType' /= Foundation) $
+            players . ix pid . playerCharacter . charPrepare . at artType' .= Just learnedArt
+          when (artType' /= Foundation) $
+            players . ix pid . playerCharacter . charEnabled . at artType' .= Just learnedArt
+          foundationRewards <- syncFoundationArt pid martialArtMap martialArt learnedLevel
+          return $ martialArtRewardSummary martialArt learnedLevel : foundationRewards
 
 playerTrainArt :: PlayerId -> ArtId -> GameStateT ()
 playerTrainArt = playerPracticeArt
@@ -1312,9 +1390,10 @@ battleSettlement won battle = do
 
   -- send message
   tell [(player, CombatSettlementMsg player (eChar ^. charName) won)]
+  tell [(player, StoryDelayMsg 1800)]
   when won $ do
-    grantBattleGrowthReward player eChar
     _ <- runStoryTrigger player (TriggerKill (eChar ^. charId))
+    grantBattleGrowthReward player eChar
     return ()
   sendPlayerStats player
   markPlayerDirty player

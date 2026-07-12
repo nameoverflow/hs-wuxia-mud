@@ -6,7 +6,8 @@
 module Server (serverApplication, gameTickLoop, battleTickLoop) where
 
 import Control.Concurrent
-import Control.Exception (finally)
+import Control.Concurrent.STM
+import Control.Exception (AsyncException, SomeException, catch, finally, fromException, throwIO)
 import Control.Lens
 import Control.Monad
 import Data.Aeson (decode)
@@ -29,7 +30,14 @@ import Database
 import Game.CharacterCreation
 import System.Environment (lookupEnv)
 
-type ServerMap = M.Map PlayerId Connection
+data ClientSession = ClientSession
+  { clientConnection :: Connection,
+    clientOutbox :: TChan ActionResp,
+    clientPendingResponses :: TVar Int,
+    clientWriterThread :: ThreadId
+  }
+
+type ServerMap = M.Map PlayerId ClientSession
 
 data PersistencePolicy
   = SaveOnAnyResponse
@@ -93,6 +101,41 @@ sendResp conn resp = do
   msg <- formatResp resp
   sendTextData conn msg
 
+newClientSession :: PlayerId -> Connection -> IO ClientSession
+newClientSession uid conn = do
+  outbox <- newTChanIO
+  pending <- newTVarIO 0
+  writer <- forkIO $ clientWriterLoop uid conn outbox pending
+  return $ ClientSession conn outbox pending writer
+
+enqueueResp :: ClientSession -> ActionResp -> IO ()
+enqueueResp session resp =
+  atomically $ do
+    modifyTVar' (clientPendingResponses session) (+ 1)
+    writeTChan (clientOutbox session) resp
+
+waitForClientIdle :: ClientSession -> IO ()
+waitForClientIdle session =
+  atomically $ do
+    pending <- readTVar $ clientPendingResponses session
+    check $ pending == 0
+
+clientWriterLoop :: PlayerId -> Connection -> TChan ActionResp -> TVar Int -> IO ()
+clientWriterLoop uid conn outbox pending = forever $ do
+  resp <- atomically $ readTChan outbox
+  deliver resp `catch` logDeliveryFailure
+  atomically $ modifyTVar' pending $ max 0 . subtract 1
+  where
+    deliver (StoryDelayMsg ms) =
+      threadDelay $ max 0 (min 8000 ms) * 1000
+    deliver resp = sendResp conn resp
+
+    logDeliveryFailure :: SomeException -> IO ()
+    logDeliveryFailure err =
+      case fromException err :: Maybe AsyncException of
+        Just asyncError -> throwIO asyncError
+        Nothing -> logError $ "clientWriterLoop: failed to send to " <> uid <> ": " <> toText (show err)
+
 sendCharacterCreationConfig :: Connection -> IO ()
 sendCharacterCreationConfig conn = do
   loadCharacterCreationConfig characterCreationConfigPath >>= \case
@@ -103,28 +146,28 @@ sendCharacterCreationConfig conn = do
 
 broadcastResp :: ActionResp -> ServerMap -> IO ()
 broadcastResp resp clients = do
-  message <- formatResp resp
-  logDebug $ "broadcastResp: " <> message
-  forM_ clients $ \conn -> do
-    sendTextData conn message
+  logDebug $ "broadcastResp: " <> toText (show resp)
+  forM_ clients $ \session ->
+    enqueueResp session resp
 
 userLogin :: PlayerId -> Bool -> Maybe CharacterCreationChoice -> Connection -> MVar ServerMap -> MVar GameState -> IO ()
 userLogin user resetPlayer creationChoice conn cm s = do
+  session <- newClientSession user conn
   modifyMVar_ cm $ \c -> do
     broadcastResp (SystemMsg $ SystemMessage "user_joined" $ M.singleton "user" user) c
-    sendResp conn $
+    enqueueResp session $
       SystemMsg $
         SystemMessage
           "welcome"
           (M.singleton "users" $ T.intercalate ", " (keys c))
-    return $ M.insert user conn c
+    return $ M.insert user session c
   modifyMVar_ s $ \ss -> do
     s' <- loadOrCreatePlayer resetPlayer creationChoice user ss
     logInfo $ "User logged in: " <> user <> if resetPlayer then " (dev reset)" else ""
     logDebug $ "players: " <> toText (show (keys . view players $ s'))
     return s'
   runAndResponse s cm (playerView user) $ \err -> do
-    sendResp conn $ ErrorMsg $ gameExceptionToSummary err
+    enqueueResp session $ ErrorMsg $ gameExceptionToSummary err
 
 
 serverApplication :: MVar ServerMap -> MVar GameState -> ServerApp
@@ -160,9 +203,10 @@ serverApplication conns state pending = do
 disconnectClient :: Text -> MVar ServerMap -> MVar GameState -> IO ()
 disconnectClient user conns state = do
   -- Remove client and return new state
-  s <- modifyMVar conns $ \s -> do
+  (session, s) <- modifyMVar conns $ \s -> do
     let s' = M.delete user s
-    return (s', s')
+    return (s', (s !? user, s'))
+  forM_ session $ killThread . clientWriterThread
   modifyMVar_ state $ \gs ->
     do
       let gs' =
@@ -210,18 +254,17 @@ dispatchResp rsp conns = do
     logDebug $ "dispatchResp: sending to " <> uid <> ": " <> toText (show resp)
     case conns !? uid of
       Nothing -> logError $ "dispatchResp: player " <> uid <> " not found in connections"
-      Just conn -> do
-        msg <- formatResp resp
-        logDebug $ "dispatchResp: formatted message: " <> msg
-        sendTextData conn msg
+      Just session ->
+        enqueueResp session resp
 
 runGameLoop :: Text -> MVar ServerMap -> MVar GameState -> IO ()
 runGameLoop user conns state = do
   c_ <- readMVar conns
   forM_ (c_ !? user) receiveMsg
   where
-    receiveMsg :: Connection -> IO ()
-    receiveMsg conn = do
+    receiveMsg :: ClientSession -> IO ()
+    receiveMsg session = do
+      let conn = clientConnection session
       logDebug $ user <> " waiting for message..."
       msg <- receiveData conn
       logDebug $ user <> " received: " <> toText (show msg)
@@ -231,19 +274,20 @@ runGameLoop user conns state = do
           return ()
         Just (NetPlayerAction action) -> do
           logDebug $ user <> " action: " <> toText (show action)
-          processAction conn action
+          waitForClientIdle session
+          processAction session action
           runGameLoop user conns state
         _ -> do
           logError $ user <> " invalid message, continuing..."
           runGameLoop user conns state
 
-    processAction :: Connection -> PlayerAction -> IO ()
-    processAction conn action = do
+    processAction :: ClientSession -> PlayerAction -> IO ()
+    processAction session action = do
       logDebug $ user <> " processing action..."
       let gameM = processPlayerAction user action
       runAndResponse state conns gameM $ \err -> do
         logError $ user <> " action failed: " <> toText (show err)
-        sendResp conn $ ErrorMsg $ gameExceptionToSummary err
+        enqueueResp session $ ErrorMsg $ gameExceptionToSummary err
 
 gameTickLoop :: MVar ServerMap -> MVar GameState -> IO ()
 gameTickLoop = runTickLoop "Game tick failed" 1000000 onGameTick

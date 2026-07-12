@@ -159,7 +159,7 @@
                 <span>x{item.inventoryItemSummaryAmount}</span>
               </div>
               {#if item.inventoryItemSummaryUsable}
-                <button type="button" disabled={!state.connected || state.battle.active} on:click={() => sendAction({ use: item.inventoryItemSummaryId })}>
+                <button type="button" disabled={!state.connected || state.battle.active || state.storyActive} on:click={() => sendAction({ use: item.inventoryItemSummaryId })}>
                   {translate(state.locale, "action.use")}
                 </button>
               {/if}

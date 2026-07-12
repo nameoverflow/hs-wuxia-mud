@@ -273,6 +273,7 @@ export type ServerMessage =
   | { tag: "ActiveSkillFailureMsg"; contents: ActiveSkillFailureReason }
   | { tag: "BattleStateMsg"; contents: BattleSnapshot }
   | { tag: "StoryMsg"; contents: [string, string] }
+  | { tag: "StorySequenceMsg"; contents: boolean }
   | { tag: "StoryDelayMsg"; contents: number }
   | { tag: "StoryTransitionMsg"; contents: [string, number] }
   | { tag: "QuestLogMsg"; contents: QuestLogEntry[] }

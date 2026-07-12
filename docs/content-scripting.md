@@ -112,8 +112,8 @@ events:
 
 当前支持：
 
-- `message`: 发送剧情文本。
-- `delay`: 暂停后续剧情消息，字段 `ms`。
+- `message`: 发送剧情文本；若后面没有显式 `delay`，server 会按正文长度补阅读停顿。
+- `delay`: 由 server 输出队列暂停该玩家的后续消息，字段 `ms`。
 - `transition`: 地图区域转场，字段 `text` / `ms`。
 - `set_stage`
 - `complete_quest`
@@ -148,8 +148,8 @@ actions:
     npc: temple_black_clad
 ```
 
-server 会按 action 顺序执行。client 只把 `StoryMsg` 正文追加到消息历史；玩家再通过移动、交谈或攻击继续推进。
-`delay` 会让 client 暂停后续剧情消息，`transition` 会在地图区域播放短暂淡入淡出遮罩，适合接 `move_player` 做场景切换。
+server 会按 action 顺序生成并调度玩家的剧情输出。`message`、NPC 显隐、场景刷新和奖励都保持脚本顺序；场景内获得的多项奖励会合并到该段剧情结束后发送。
+`delay` 在 server 端真正延后后续消息，文本客户端与图形客户端会得到相同节奏。`transition` 会先发送转场提示；紧接 `move_player` 时，server 会在遮罩进入后发送新房间，再等转场完整结束才发送下一句剧情。剧情输出未完成前，同一连接收到的后续指令会按 MUD 命令队列顺序等待。
 
 ## 物品使用脚本
 

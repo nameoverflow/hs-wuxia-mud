@@ -1,3 +1,5 @@
+import { allFrameTextureUrls } from "./frameCatalog";
+
 let runtimePromise: Promise<PixiBattleRuntime> | null = null;
 
 export type PixiBattleRuntime = {
@@ -18,11 +20,14 @@ export async function loadPixiBattleRuntime(): Promise<PixiBattleRuntime> {
       import("pixi.js"),
       import("gsap"),
       import("./pixiFrameActor")
-    ]).then(([pixi, gsapModule, frameModule]) => ({
-      pixi,
-      gsap: gsapModule.gsap,
-      PixiFrameActor: frameModule.PixiFrameActor,
-      frameActorSize: frameModule.frameActorSize
-    }));
+    ]).then(async ([pixi, gsapModule, frameModule]) => {
+      await pixi.Assets.load(allFrameTextureUrls());
+      return {
+        pixi,
+        gsap: gsapModule.gsap,
+        PixiFrameActor: frameModule.PixiFrameActor,
+        frameActorSize: frameModule.frameActorSize
+      };
+    });
   return runtimePromise;
 }

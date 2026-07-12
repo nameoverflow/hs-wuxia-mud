@@ -99,6 +99,7 @@ export interface GameState {
   quests: QuestLogEntry[];
   arts: ArtSummary[];
   battle: BattleState;
+  storyActive: boolean;
   storyTransition: StoryTransitionState;
   messages: MessageEntry[];
   lastError: string | null;
@@ -143,6 +144,7 @@ const initialState: GameState = {
     apSyncedAt: 0,
     actionLockUntil: 0
   },
+  storyActive: false,
   storyTransition: { active: false, text: "", durationMs: 1000 },
   messages: [{ id: 1, time: now(), type: "system", text: translate("zh", "message.initial") }],
   lastError: null
@@ -175,12 +177,6 @@ let storyTransitionTimer: number | null = null;
 
 function now() {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-}
-
-function wait(ms: number) {
-  return new Promise<void>((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
 }
 
 function withLocale(fn: (locale: Locale) => string) {
@@ -224,6 +220,7 @@ function clearStoryMessageQueue() {
   }
   game.update((state) => ({
     ...state,
+    storyActive: false,
     storyTransition: { active: false, text: "", durationMs: 1000 }
   }));
 }
@@ -268,7 +265,6 @@ async function playStoryTransition(contents: unknown) {
       storyTransition: { active: false, text: "", durationMs: 1000 }
     }));
   }, durationMs);
-  await wait(Math.min(280, Math.max(120, Math.floor(durationMs * 0.25))));
 }
 
 function enqueueServerMessage(message: ServerMessage | { tag: string; contents?: unknown }) {
@@ -285,7 +281,6 @@ async function processStoryMessageQueue() {
       const message = storyMessageQueue.shift();
       if (!message) continue;
       if (message.tag === "StoryDelayMsg") {
-        await wait(normalizeStoryDuration(message.contents, 600));
         continue;
       }
       if (message.tag === "StoryTransitionMsg") {
@@ -448,6 +443,7 @@ export function disconnect() {
 
 export function sendAction(action: PlayerAction) {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  if (latestState.storyActive && !("other" in action)) return;
   const event: NetPlayerAction = { tag: "NetPlayerAction", contents: action };
   ws.send(JSON.stringify(event));
 }
@@ -518,6 +514,9 @@ export function processServerMessage(message: ServerMessage | { tag: string; con
         const [speaker, text] = (message.contents as [string, string]) || ["", ""];
         addMessage("story", formatStoryMessage(speaker, text));
       }
+      break;
+    case "StorySequenceMsg":
+      game.update((state) => ({ ...state, storyActive: Boolean(message.contents) }));
       break;
     case "SayMsg":
       {

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { afterUpdate } from "svelte";
+  import { afterUpdate, beforeUpdate } from "svelte";
   import { clearMessages, sendAction, type GameState } from "../game";
   import { translate } from "../i18n";
 
@@ -7,9 +7,20 @@
 
   let command = "";
   let log: HTMLDivElement;
+  let keepAtBottom = true;
+  let renderedLastMessageId = 0;
+
+  beforeUpdate(() => {
+    if (!log) return;
+    keepAtBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 48;
+  });
 
   afterUpdate(() => {
-    if (log) log.scrollTop = log.scrollHeight;
+    const lastMessageId = state.messages[state.messages.length - 1]?.id ?? 0;
+    if (log && keepAtBottom && lastMessageId !== renderedLastMessageId) {
+      log.scrollTop = log.scrollHeight;
+    }
+    renderedLastMessageId = lastMessageId;
   });
 
   function submit() {
@@ -36,7 +47,7 @@
   </div>
 
   <form class="command-row" on:submit|preventDefault={submit}>
-    <input bind:value={command} disabled={!state.connected} placeholder={translate(state.locale, "ui.command_placeholder")} />
-    <button type="submit" disabled={!state.connected}>{translate(state.locale, "action.send")}</button>
+    <input bind:value={command} disabled={!state.connected || state.storyActive} placeholder={translate(state.locale, "ui.command_placeholder")} />
+    <button type="submit" disabled={!state.connected || state.storyActive}>{translate(state.locale, "action.send")}</button>
   </form>
 </section>

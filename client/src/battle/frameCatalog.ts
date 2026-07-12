@@ -27,6 +27,10 @@ export function validateFrameAssets(style: CombatStyle, frameId: string) {
   frameTextureUrl(style, "hair", frameId);
 }
 
+export function allFrameTextureUrls() {
+  return [...new Set(frameUrls.values())];
+}
+
 function frameKey(style: CombatStyle, layer: FrameLayer, frameId: string) {
   return `${style}:${layer}:${frameId}`;
 }

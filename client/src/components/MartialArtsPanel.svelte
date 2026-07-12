@@ -26,7 +26,7 @@
             <small>{[...art.artSummaryUnlockedAttackMoves, ...art.artSummaryUnlockedActiveSkills].join(" / ")}</small>
           {/if}
           {#if !art.artSummaryIsFoundation && art.artSummaryLevel < art.artSummaryMaxLevel}
-            <button type="button" disabled={!state.connected || state.battle.active} on:click={() => sendAction({ train: art.artSummaryId })}>
+            <button type="button" disabled={!state.connected || state.battle.active || state.storyActive} on:click={() => sendAction({ train: art.artSummaryId })}>
               {translate(state.locale, "action.train")}
             </button>
           {/if}

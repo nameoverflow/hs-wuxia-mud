@@ -472,6 +472,7 @@ data ActionResp
   | ActiveSkillFailureMsg ActiveSkillFailureReason
   | BattleStateMsg BattleSnapshot
   | StoryMsg T.Text T.Text
+  | StorySequenceMsg Bool
   | StoryDelayMsg Int
   | StoryTransitionMsg T.Text Int
   | QuestLogMsg [QuestLogEntry]

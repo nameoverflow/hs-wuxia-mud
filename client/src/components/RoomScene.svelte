@@ -115,13 +115,13 @@
   });
 
   function move(exit: RoomExitSummary) {
-    if (!state.connected) return;
+    if (!state.connected || state.storyActive) return;
     markMapMove(exit);
     sendAction({ go: exit.direction });
   }
 
   function act(character: RoomCharacterSummary, action: "talk" | "attack") {
-    if (!character.id) return;
+    if (!character.id || state.storyActive) return;
     sendAction(action === "talk" ? { talk: character.id } : { attack: character.id });
     selectedCharacter = null;
   }
@@ -609,7 +609,7 @@
               data-direction={point.direction}
               data-room-key={point.key}
               style={pointStyle(point)}
-              disabled={!state.connected}
+              disabled={!state.connected || state.storyActive}
               on:click={() => move(state.room.exits.find((exit) => exit.direction === point.direction) || state.room.exits[0])}
             >
               {point.label}
@@ -643,7 +643,7 @@
               class:active={selectedCharacter?.id === character.id}
               aria-haspopup="dialog"
               aria-expanded={selectedCharacter?.id === character.id}
-              disabled={!character.id}
+              disabled={!character.id || state.storyActive}
               on:click={() => openNpcModal(character)}
             >
               <strong>{character.name}</strong>
@@ -666,10 +666,10 @@
       {/if}
       <div class="npc-modal-actions">
         {#if hasAction(selectedCharacter, "talk")}
-          <button class="npc-action" type="button" on:click={() => act(selectedCharacter!, "talk")}>{translate(state.locale, "action.talk")}</button>
+          <button class="npc-action" type="button" disabled={state.storyActive} on:click={() => act(selectedCharacter!, "talk")}>{translate(state.locale, "action.talk")}</button>
         {/if}
         {#if hasAction(selectedCharacter, "attack")}
-          <button class="npc-action npc-action-attack" type="button" on:click={() => act(selectedCharacter!, "attack")}>{translate(state.locale, "action.attack")}</button>
+          <button class="npc-action npc-action-attack" type="button" disabled={state.storyActive} on:click={() => act(selectedCharacter!, "attack")}>{translate(state.locale, "action.attack")}</button>
         {/if}
         {#if !hasAction(selectedCharacter, "talk") && !hasAction(selectedCharacter, "attack")}
           <span class="npc-no-actions">{translate(state.locale, "ui.none")}</span>

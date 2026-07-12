@@ -110,7 +110,7 @@
           text: "周引路的人情只够一晚。往后房钱照算，若愿意替店里跑腿，也能抵账。"
         - type: transition
           text: "伙计领你穿过灶房，在后院推开一扇窄门。"
-          ms: 800
+          ms: 1800
         - type: give_item
           item: kaifeng_room_tag
           amount: 1
@@ -226,7 +226,7 @@
           speaker: "沈抄书"
           text: "这笔画不像临时学的。替我誊完这页失物榜，字要清楚，人名尤其不能错。"
         - type: delay
-          ms: 700
+          ms: 1400
         - type: give_money
           amount: 10
         - type: give_item
@@ -252,7 +252,7 @@
           speaker: "沈抄书"
           text: "你拿公牒的手势像见过衙门文书。替我把这页告示誊清，别把官样文章写进百姓名字里。"
         - type: delay
-          ms: 700
+          ms: 1400
         - type: give_money
           amount: 10
         - type: give_item
@@ -280,7 +280,7 @@
           speaker: "沈抄书"
           text: "照着这一页慢慢誊，认不准的字便问。名字写错一笔，寻人的路就会多绕十里。"
         - type: delay
-          ms: 700
+          ms: 1400
         - type: give_money
           amount: 10
         - type: give_item
@@ -304,7 +304,7 @@
           speaker: "赵铁匠"
           text: "替我踩住风箱。火色发白便慢，发暗便加力，别光顾着看热闹。"
         - type: delay
-          ms: 700
+          ms: 1400
         - type: message
           speaker: "旁白"
           text: "一炉铁烧透时，你的衣背也被汗浸透。赵铁匠把十文钱和一枚工筹拍在砧边。"
@@ -333,7 +333,7 @@
           speaker: "柳药师"
           text: "你闻药时先辨根叶，家里应当开过药柜。替我分这几包止血散，分量照旧，不必卖弄方子。"
         - type: delay
-          ms: 700
+          ms: 1400
         - type: give_money
           amount: 10
         - type: give_item
@@ -359,7 +359,7 @@
           speaker: "柳药师"
           text: "把写着止血二字的药包分到左边，认不准便闻一闻。错一包，伤者就要多流一碗血。"
         - type: delay
-          ms: 700
+          ms: 1400
         - type: give_money
           amount: 10
         - type: give_item
@@ -532,7 +532,7 @@
           quest: three_city_leads
         - type: transition
           text: "车轮沿官道向西，开封城声渐渐落在身后。"
-          ms: 1000
+          ms: 2400
         - type: move_player
           map: luoyang_city
           position: [0, 0]
@@ -558,7 +558,7 @@
           quest: three_city_leads
         - type: transition
           text: "商队沿茶马道南下，城郭、平原与山路依次退向身后。"
-          ms: 1000
+          ms: 2400
         - type: move_player
           map: dali_city
           position: [0, 0]
@@ -584,7 +584,7 @@
           quest: three_city_leads
         - type: transition
           text: "药铃一路向东，空气里的水气渐渐重了。"
-          ms: 1000
+          ms: 2400
         - type: move_player
           map: taihu_water_pavilion
           position: [0, 0]
@@ -602,7 +602,7 @@
           text: "西行车马正要出发。路引带好，途中少管驿卒不肯说的事。"
         - type: transition
           text: "车轮沿官道向西，开封城声渐渐落在身后。"
-          ms: 900
+          ms: 1500
         - type: move_player
           map: luoyang_city
           position: [0, 0]
@@ -620,7 +620,7 @@
           text: "后车还缺一个照看货绳的人。想南下便跟紧，掉队没人回头找。"
         - type: transition
           text: "商队沿茶马道南下，城郭、平原与山路依次退向身后。"
-          ms: 900
+          ms: 1500
         - type: move_player
           map: dali_city
           position: [0, 0]
@@ -638,7 +638,7 @@
           text: "药箱已经点齐。若去太湖，帮我听着车铃，少一声便要停车。"
         - type: transition
           text: "药铃一路向东，空气里的水气渐渐重了。"
-          ms: 900
+          ms: 1500
         - type: move_player
           map: taihu_water_pavilion
           position: [0, 0]

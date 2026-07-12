@@ -1,9 +1,11 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 import Control.Lens
 import Control.Monad (replicateM_, unless)
 import Control.Monad.Random (mkStdGen, runRand)
 import Data.Aeson (eitherDecode)
+import Data.List (findIndex)
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import qualified Data.Text as T
@@ -73,6 +75,12 @@ runOk label gs action = do
   case result of
     Left err -> fail $ label <> " failed: " <> show err
     Right ok -> pure ok
+
+requireResponseIndex :: String -> (ActionResp -> Bool) -> [PlayerResp] -> IO Int
+requireResponseIndex label predicate responses =
+  case findIndex (predicate . snd) responses of
+    Nothing -> fail $ "missing response: " <> label
+    Just index -> pure index
 
 newTestPlayerState :: IO GameState
 newTestPlayerState = do
@@ -749,8 +757,14 @@ testArtsQuery = do
 testWeiyuanChapterFlow :: IO ()
 testWeiyuanChapterFlow = do
   gs <- newTestPlayerState
-  (_, warned) <- runOk "hear old escort warning" gs (playerTalk "tester" "wounded_escort")
+  (warningResponses, warned) <- runOk "hear old escort warning" gs (playerTalk "tester" "wounded_escort")
   assert (questStageOf "weiyuan_bloody_case" warned == Just "intruder") "weiyuan quest did not enter intruder stage"
+  assert (snd (head warningResponses) == StorySequenceMsg True) "story sequence did not lock output before the opening dialogue"
+  assert (snd (last warningResponses) == StorySequenceMsg False) "story sequence did not unlock output after the opening dialogue"
+  kickIndex <- requireResponseIndex "temple door narration" (== StoryMsg "旁白" "话音未落，庙门外响起急促脚步。半扇破门被人一脚踹开，雨水和冷风一起灌进殿里。") warningResponses
+  revealIndex <- requireResponseIndex "black-clad room refresh" (\case ViewMsg _ _ characters _ -> any ((== "temple_black_clad") . roomCharacterSummaryId) characters; _ -> False) warningResponses
+  threatIndex <- requireResponseIndex "black-clad threat" (== StoryMsg "黑衣人" "威远的人果然在这里。今夜这座庙里，不该再有活口。") warningResponses
+  assert (kickIndex < revealIndex && revealIndex < threatIndex) "black-clad NPC was not revealed between the door narration and threat"
 
   directAttack <- runGameState warned (playerAttack "tester" "temple_black_clad")
   case directAttack of
@@ -758,29 +772,44 @@ testWeiyuanChapterFlow = do
     Left err -> fail $ "expected direct story NPC attack to be blocked, got: " <> show err
     Right _ -> fail "story NPC exposed a direct attack path"
 
-  (_, inBattle) <- runOk "confront temple attacker" warned (playerTalk "tester" "temple_black_clad")
+  (battleStartResponses, inBattle) <- runOk "confront temple attacker" warned (playerTalk "tester" "temple_black_clad")
   assert (questStageOf "weiyuan_bloody_case" inBattle == Just "duel") "weiyuan quest did not enter duel stage"
   assert (S.member "tester" $ inBattle ^. isolatedBattles) "story battle was not marked isolated"
   assert (maybe False ((== CharAlive) . view charStatus) $ M.lookup "temple_black_clad" (inBattle ^. world . chars)) "story battle locked the global NPC"
+  startedBattle <- getBattle inBattle
+  assert (startedBattle ^. battleActionLockRemaining > 0) "story battle advanced while its opening dialogue was still queued"
+  battleSnapshotIndex <- requireResponseIndex "visible story battle snapshot" (\case BattleStateMsg snapshot -> battleSnapshotActionLockRemaining snapshot == 0; _ -> False) battleStartResponses
+  attackIndex <- requireResponseIndex "story battle attack message" (\case AttackMsg _ _ -> True; _ -> False) battleStartResponses
+  assert (attackIndex < battleSnapshotIndex) "story battle snapshot arrived before its attack message"
 
   let defeated = inBattle & battles . ix "tester" . battleEnemyState . battleChar . charHP .~ 0
-  (_, afterFight) <- runOk "settle temple fight" defeated (updateBattle 0 "tester")
+  (settlementResponses, afterFight) <- runOk "settle temple fight" defeated (updateBattle 0 "tester")
   assert (questStageOf "weiyuan_bloody_case" afterFight == Just "escort_dying") "weiyuan quest did not advance after the fight"
   assert (not $ S.member "tester" $ afterFight ^. isolatedBattles) "isolated battle marker was not cleared"
   assert (maybe False ((== CharAlive) . view charStatus) $ M.lookup "temple_black_clad" (afterFight ^. world . chars)) "isolated story fight changed the global NPC"
+  settlementIndex <- requireResponseIndex "combat settlement" (\case CombatSettlementMsg _ _ _ -> True; _ -> False) settlementResponses
+  aftermathDelayIndex <- requireResponseIndex "post-combat pause" (== StoryDelayMsg 1800) settlementResponses
+  collapseIndex <- requireResponseIndex "post-combat collapse" (== StoryMsg "旁白" "黑衣人倒在门边。老镖师扶着断柱站起，才迈出半步，便又重重坐了下去。") settlementResponses
+  growthRewardIndex <- requireResponseIndex "battle growth reward" (\case RewardMsg rewards -> any ((== "combat_exp") . rewardSummaryKind) rewards; _ -> False) settlementResponses
+  assert (settlementIndex < aftermathDelayIndex && aftermathDelayIndex < collapseIndex && collapseIndex < growthRewardIndex) "battle aftermath was not paced after settlement or reward was shown too early"
 
-  (_, onRoad) <- runOk "hear old escort last request" afterFight (playerTalk "tester" "wounded_escort")
+  (roadResponses, onRoad) <- runOk "hear old escort last request" afterFight (playerTalk "tester" "wounded_escort")
   assert (questStageOf "weiyuan_bloody_case" onRoad == Just "escort_road") "weiyuan quest did not enter escort road stage"
   case M.lookup "tester" (onRoad ^. players) of
     Nothing -> fail "tester missing on escort road"
     Just player -> do
       assert ((player ^. playerPosition) == ("bianshui_road", (0, 0))) "old escort did not send the player to the escort road"
       assert ((player ^. playerMoney) >= 30) "sourced travel money was not granted"
+  transitionIndex <- requireResponseIndex "temple exit transition" (== StoryTransitionMsg "你与少年冒雨离开破庙，踏上汴水官道。" 1800) roadResponses
+  moveIndex <- requireResponseIndex "escort road move" (== MoveMsg "官道口") roadResponses
+  roadDialogueIndex <- requireResponseIndex "escort road follow-up" (== StoryMsg "灰衣少年" "沿汴水往北就是城门。追兵未必只有一个，我们别在路上停。") roadResponses
+  travelMoneyIndex <- requireResponseIndex "deferred travel money" (\case RewardMsg rewards -> any ((== "money") . rewardSummaryKind) rewards; _ -> False) roadResponses
+  assert (transitionIndex < moveIndex && moveIndex < roadDialogueIndex && roadDialogueIndex < travelMoneyIndex) "transition, move, follow-up dialogue, and reward were not emitted in narrative order"
 
   (_, atFerry) <- runOk "escort young survivor into Kaifeng" onRoad (playerMove "tester" North)
   assert (questStageOf "weiyuan_bloody_case" atFerry == Just "branch_gate") "entering Kaifeng did not advance the escort"
   (_, atGate) <- runOk "approach Weiyuan branch" atFerry (playerMove "tester" East)
-  (_, inHall) <- runOk "enter Weiyuan branch hall" atGate (playerMove "tester" East)
+  (hallResponses, inHall) <- runOk "enter Weiyuan branch hall" atGate (playerMove "tester" East)
   assert (questStageOf "weiyuan_bloody_case" inHall == Just "completed") "weiyuan quest did not complete in the branch hall"
   assert (questStageOf "first_steps_kaifeng" inHall == Just "guide") "Kaifeng settling quest did not start"
   case M.lookup "tester" (inHall ^. stories) of
@@ -793,6 +822,10 @@ testWeiyuanChapterFlow = do
     Just player -> do
       assert ((player ^. playerInventory . at "soaked_route_note") == Just 1) "route note was not retained"
       assert ((player ^. playerInventory . at "weiyuan_sword_manual") == Just 1) "Weiyuan manual was not retained"
+  farewellIndex <- requireResponseIndex "young escort farewell" (\case StoryMsg "灰衣少年" text -> "我从后院走" `T.isPrefixOf` text; _ -> False) hallResponses
+  hideIndex <- requireResponseIndex "young escort hide refresh" (\case ViewMsg _ _ characters _ -> all ((/= "grey_young_escort") . roomCharacterSummaryId) characters; _ -> False) hallResponses
+  itemRewardIndex <- requireResponseIndex "deferred clue rewards" (\case RewardMsg rewards -> any ((== Just "soaked_route_note") . rewardSummaryId) rewards; _ -> False) hallResponses
+  assert (farewellIndex < hideIndex && hideIndex < itemRewardIndex) "young escort disappeared or clue rewards appeared before the farewell completed"
 
 testStoryBattlesArePlayerIsolated :: IO ()
 testStoryBattlesArePlayerIsolated = do
