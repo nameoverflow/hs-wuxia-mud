@@ -1,11 +1,12 @@
 id: luoyang_city
 name: "洛阳"
-desc: "旧都洛阳，牡丹、白马寺、天津桥和江湖豪客都在这里留下过名声。"
+desc: "旧都洛阳以西驿、天津桥和牡丹街为骨架。剑市临桥，牡丹会场居北，白马寺须沿寺前官道出城方可到达。"
 rooms:
   - position: [0, 0]
     id: luoyang_carriage_inn
-    name: "洛阳车马店"
-    desc: "店中挂着一柄无锋木剑和一张牡丹会旧帖。来客若不说话，掌柜便先看他的路引。"
+    name: "洛阳西驿"
+    kind: transit
+    desc: "西行车马在驿院落脚。北门通向洛阳城，南边是返回开封的官道。"
     exits:
       south:
         map: kaifeng_city
@@ -13,19 +14,19 @@ rooms:
       north: [0, 1]
 
   - position: [0, 1]
-    id: luoyang_wet_steps
-    name: "洛水石阶"
-    desc: "石阶上常年有水，脚步稍急便会滑出去半寸。"
+    id: luoyang_west_gate
+    name: "洛阳西门"
+    kind: landmark
+    desc: "西门夹在两段旧城墙之间。入城是西市口，出城便到车马驿院。"
     exits:
       south: [0, 0]
       north: [0, 2]
 
   - position: [0, 2]
-    id: luoyang_outer_gate
-    name: "天津桥头"
-    desc: "桥头酒旗和剑穗一起摇。旧都的人最会看名声，也最会听谣言。"
-    char:
-      - luoyang_bridge_swordsman
+    id: luoyang_market_cross
+    name: "西市口"
+    kind: street
+    desc: "西市口把剑市、天津桥和牡丹街分开。卖剑的在西，过洛水向东，赴牡丹会则向北。"
     exits:
       south: [0, 1]
       north: [0, 3]
@@ -34,54 +35,54 @@ rooms:
 
   - position: [-1, 2]
     id: luoyang_sword_rack
-    name: "旧剑摊"
-    desc: "木剑和旧剑排列得极齐，每柄剑柄上都有淡淡雨痕。"
+    name: "旧剑市"
+    kind: street
+    desc: "木剑、旧剑和剑匣沿街排开，每柄剑柄上都有淡淡雨痕。街尽头不通别处，只能折回西市口。"
     exits:
       east: [0, 2]
-      north: [-1, 3]
 
   - position: [1, 2]
-    id: luoyang_step_gallery
-    name: "步法廊"
-    desc: "廊下铺着青砖，洛阳剑客常在这里练步法和换位。"
+    id: luoyang_outer_gate
+    name: "天津桥头"
+    kind: landmark
+    desc: "天津桥横跨洛水。桥西接西市，桥东沿水铺着步法廊，湿滑石阶落到南岸水边。"
+    char:
+      - luoyang_bridge_swordsman
     exits:
       west: [0, 2]
-      north: [1, 3]
+      east: [2, 2]
+      south: [1, 1]
+
+  - position: [1, 1]
+    id: luoyang_wet_steps
+    name: "洛水石阶"
+    kind: landmark
+    desc: "石阶从天津桥头落到水边，常年湿滑。这里是临水死角，不再通向车马驿。"
+    exits:
+      north: [1, 2]
+
+  - position: [2, 2]
+    id: luoyang_step_gallery
+    name: "洛水步法廊"
+    kind: street
+    desc: "廊道沿洛水东岸铺开，洛阳剑客常在这里练换位。廊尽头临水，只能折返天津桥。"
+    exits:
+      west: [1, 2]
 
   - position: [0, 3]
-    id: luoyang_practice_court
-    name: "牡丹会场"
-    desc: "会场上没有花，只有空桌、酒坛和等人落座的名帖。"
+    id: luoyang_peony_street
+    name: "牡丹街"
+    kind: street
+    desc: "长街从西市口直通牡丹会场。酒楼和花棚列在两旁，路中央留给赴会车马。"
     exits:
       south: [0, 2]
       north: [0, 4]
-      west: [-1, 3]
-      east: [1, 3]
-
-  - position: [-1, 3]
-    id: luoyang_quiet_room
-    name: "静修房"
-    desc: "房中收着木剑和旧谱，供初学者练基本剑势。"
-    exits:
-      east: [0, 3]
-      south: [-1, 2]
-      north: [-1, 4]
-
-  - position: [1, 3]
-    id: luoyang_guest_room
-    name: "豪客客舍"
-    desc: "客舍里备着竹榻、油灯和茶水，供参加牡丹会的外地豪客暂住。"
-    exits:
-      west: [0, 3]
-      south: [1, 2]
-      north: [1, 4]
 
   - position: [0, 4]
-    id: luoyang_inner_hall
-    name: "聚义旧堂"
-    desc: "堂中挂着历年聚义名帖，墙边还留着几份未查清的旧契。"
-    char:
-      - luoyang_swordswoman
+    id: luoyang_practice_court
+    name: "牡丹会场"
+    kind: landmark
+    desc: "会场是独立院落。西厢供静修，东厢供豪客住宿，正北才是聚义旧堂。"
     exits:
       south: [0, 3]
       north: [0, 5]
@@ -89,26 +90,65 @@ rooms:
       east: [1, 4]
 
   - position: [-1, 4]
+    id: luoyang_quiet_room
+    name: "会场静修房"
+    kind: building
+    desc: "房中收着木剑和旧谱。房门只开向牡丹会场，不再充作去残谱室的走廊。"
+    exits:
+      east: [0, 4]
+
+  - position: [1, 4]
+    id: luoyang_guest_room
+    name: "豪客客舍"
+    kind: building
+    desc: "客舍备着竹榻、油灯和茶水。院门只朝牡丹会场。"
+    exits:
+      west: [0, 4]
+
+  - position: [0, 5]
+    id: luoyang_inner_hall
+    name: "聚义旧堂"
+    kind: landmark
+    desc: "旧堂位于会场北院。西侧残谱室、东侧冷泉各有院门，北门通往白马寺官道。"
+    char:
+      - luoyang_swordswoman
+    exits:
+      south: [0, 4]
+      north: [0, 6]
+      west: [-1, 5]
+      east: [1, 5]
+
+  - position: [-1, 5]
     id: luoyang_script_room
     name: "残谱室"
+    kind: building
     desc: "架上多是残谱，完整的反而少见。守室人说，完整之物多半是假的。"
     char:
       - luoyang_teacher
     exits:
-      east: [0, 4]
-      south: [-1, 3]
+      east: [0, 5]
 
-  - position: [1, 4]
+  - position: [1, 5]
     id: luoyang_cold_pool
     name: "洛水冷泉"
-    desc: "泉水从石缝里流出，剑客常在这里洗剑、醒酒和整理伤口。"
+    kind: landmark
+    desc: "泉眼在旧堂东院，剑客常来洗剑醒酒。这里不再借客舍作通道。"
     exits:
-      west: [0, 4]
-      south: [1, 3]
+      west: [0, 5]
 
-  - position: [0, 5]
+  - position: [0, 6]
+    id: luoyang_temple_road
+    name: "白马寺官道"
+    kind: road
+    desc: "官道离开牡丹会北院，沿旧城北郊通向白马寺。城声在身后逐渐淡去。"
+    exits:
+      south: [0, 5]
+      north: [0, 7]
+
+  - position: [0, 7]
     id: luoyang_sealed_terrace
     name: "白马寺外山门"
-    desc: "山门外有一道极深的旧剑痕。知客僧闭门不见外客，只让香客把名帖压在石灯下。"
+    kind: landmark
+    desc: "山门与洛阳城隔着一段北郊官道。知客僧闭门不见外客，只让香客把名帖压在石灯下。"
     exits:
-      south: [0, 4]
+      south: [0, 6]

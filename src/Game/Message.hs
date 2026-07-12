@@ -220,6 +220,7 @@ instance ToJSON RoomExitSummary where
 data MapRoomSummary = MapRoomSummary
   { mapRoomSummaryRoomId :: RoomId,
     mapRoomSummaryRoomName :: T.Text,
+    mapRoomSummaryRoomKind :: T.Text,
     mapRoomSummaryPosition :: (Int, Int)
   }
   deriving (Show, Eq, Generic)
@@ -229,6 +230,7 @@ instance ToJSON MapRoomSummary where
     object
       [ "roomId" .= mapRoomSummaryRoomId,
         "roomName" .= mapRoomSummaryRoomName,
+        "roomKind" .= mapRoomSummaryRoomKind,
         "position" .= mapRoomSummaryPosition
       ]
 
@@ -236,7 +238,10 @@ data MapEdgeSummary = MapEdgeSummary
   { mapEdgeSummaryDirection :: Direction,
     mapEdgeSummaryFromPosition :: (Int, Int),
     mapEdgeSummaryToPosition :: (Int, Int),
-    mapEdgeSummaryToRoomId :: RoomId
+    mapEdgeSummaryToRoomId :: RoomId,
+    mapEdgeSummaryToRoomName :: T.Text,
+    mapEdgeSummaryToMapId :: MapId,
+    mapEdgeSummaryToMapName :: T.Text
   }
   deriving (Show, Eq, Generic)
 
@@ -246,7 +251,10 @@ instance ToJSON MapEdgeSummary where
       [ "direction" .= mapEdgeSummaryDirection,
         "from" .= mapEdgeSummaryFromPosition,
         "to" .= mapEdgeSummaryToPosition,
-        "toRoomId" .= mapEdgeSummaryToRoomId
+        "toRoomId" .= mapEdgeSummaryToRoomId,
+        "toRoomName" .= mapEdgeSummaryToRoomName,
+        "toMapId" .= mapEdgeSummaryToMapId,
+        "toMapName" .= mapEdgeSummaryToMapName
       ]
 
 data MapOverviewSummary = MapOverviewSummary

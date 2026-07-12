@@ -205,11 +205,13 @@ playerMapOverview :: PlayerId -> GameStateT ()
 playerMapOverview pid = do
   (curMapId, curPos) <- (^. playerPosition) <$> getsPlayer pid
   currentMap <- liftWorld $ getsMap curMapId
+  worldMaps <- use $ world . maps
   let roomsByPos = currentMap ^. mapRooms
   let roomSummaries =
         [ MapRoomSummary
             { mapRoomSummaryRoomId = room ^. roomId,
               mapRoomSummaryRoomName = room ^. roomName,
+              mapRoomSummaryRoomKind = room ^. roomKind,
               mapRoomSummaryPosition = pos
             }
           | (pos, room) <- M.toList roomsByPos
@@ -219,13 +221,17 @@ playerMapOverview pid = do
             { mapEdgeSummaryDirection = direction,
               mapEdgeSummaryFromPosition = pos,
               mapEdgeSummaryToPosition = dstPos,
-              mapEdgeSummaryToRoomId = dstRoom ^. roomId
+              mapEdgeSummaryToRoomId = dstRoom ^. roomId,
+              mapEdgeSummaryToRoomName = dstRoom ^. roomName,
+              mapEdgeSummaryToMapId = dstMapId,
+              mapEdgeSummaryToMapName = dstMap ^. mapName
             }
           | (pos, room) <- M.toList roomsByPos,
             (direction, dst) <- M.toList $ room ^. roomExits,
-            dst ^. roomRefMapId == curMapId,
+            let dstMapId = dst ^. roomRefMapId,
             let dstPos = dst ^. roomRefPos,
-            Just dstRoom <- [M.lookup dstPos roomsByPos]
+            Just dstMap <- [M.lookup dstMapId worldMaps],
+            Just dstRoom <- [M.lookup dstPos $ dstMap ^. mapRooms]
         ]
   tell
     [ ( pid,

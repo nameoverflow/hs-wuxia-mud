@@ -23,6 +23,7 @@
     key: string;
     roomId: string | null;
     name: string;
+    kind: string;
     position: PositionPoint;
     x: number;
     y: number;
@@ -33,6 +34,14 @@
     from: FullMapRoomPoint;
     to: FullMapRoomPoint;
     current: boolean;
+    path: string;
+  };
+
+  type FullMapPortalPoint = {
+    key: string;
+    label: string;
+    x: number;
+    y: number;
     path: string;
   };
 
@@ -83,6 +92,7 @@
   $: mapLayerStyle = mapTravelOffset ? `--map-slide-x: ${mapTravelOffset.x}%; --map-slide-y: ${mapTravelOffset.y}%` : "";
   $: fullMapRooms = buildFullMapRooms(state.mapOverview);
   $: fullMapEdges = buildFullMapEdges(state.mapOverview, fullMapRooms);
+  $: fullMapPortals = buildFullMapPortals(state.mapOverview, fullMapRooms);
   $: fullMapCurrentKey = currentFullMapRoomKey(state.mapOverview);
 
   beforeUpdate(() => {
@@ -334,6 +344,7 @@
           key: positionKey(position),
           roomId: room.roomId,
           name: room.roomName || room.roomId || translate(state.locale, "panel.world"),
+          kind: normalizeRoomKind(room.roomKind),
           position,
           x: 50,
           y: 50
@@ -351,12 +362,12 @@
     const maxY = Math.max(...ys);
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
-    const scale = 82 / Math.max(maxX - minX, maxY - minY, 1);
+    const scale = 76 / Math.max(maxX - minX, maxY - minY, 1);
 
     return rooms.map((room) => ({
       ...room,
-      x: clamp(50 + (room.position.x - centerX) * scale, 9, 91),
-      y: clamp(50 - (room.position.y - centerY) * scale, 9, 91)
+      x: clamp(50 + (room.position.x - centerX) * scale, 12, 88),
+      y: clamp(50 - (room.position.y - centerY) * scale, 12, 88)
     }));
   }
 
@@ -367,6 +378,7 @@
     const edges: FullMapEdgePoint[] = [];
 
     for (const [index, edge] of (mapOverview?.edges || []).entries()) {
+      if (edge.toMapId && edge.toMapId !== mapOverview?.mapId) continue;
       const fromPosition = positionPoint(edge.from);
       const toPosition = positionPoint(edge.to);
       if (!fromPosition || !toPosition) continue;
@@ -391,6 +403,35 @@
     return edges;
   }
 
+  function buildFullMapPortals(mapOverview: GameState["mapOverview"], rooms: FullMapRoomPoint[]): FullMapPortalPoint[] {
+    if (!mapOverview) return [];
+    const roomsByPosition = new Map(rooms.map((room) => [positionKey(room.position), room]));
+    const portals: FullMapPortalPoint[] = [];
+
+    for (const [index, edge] of mapOverview.edges.entries()) {
+      if (!edge.toMapId || edge.toMapId === mapOverview.mapId) continue;
+      const fromPosition = positionPoint(edge.from);
+      if (!fromPosition) continue;
+      const from = roomsByPosition.get(positionKey(fromPosition));
+      if (!from) continue;
+
+      const vector = worldDirectionVector(edge.direction);
+      const target = {
+        x: clamp(from.x + vector.x * 9, 4, 96),
+        y: clamp(from.y - vector.y * 9, 4, 96)
+      };
+      portals.push({
+        key: `${from.key}:${edge.toMapId}:${index}`,
+        label: edge.toMapName || edge.toRoomName || edge.toMapId,
+        x: target.x,
+        y: target.y,
+        path: fullMapPortalPath(from, target)
+      });
+    }
+
+    return portals;
+  }
+
   function fullMapEdgePath(from: FullMapRoomPoint, to: FullMapRoomPoint) {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
@@ -413,6 +454,13 @@
     return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
   }
 
+  function fullMapPortalPath(from: FullMapRoomPoint, to: PositionPoint) {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const startCut = edgeCutRatio(dx, dy, 4.2, 3.4);
+    return `M ${from.x + dx * startCut} ${from.y + dy * startCut} L ${to.x} ${to.y}`;
+  }
+
   function edgeCutRatio(dx: number, dy: number, halfWidth: number, halfHeight: number) {
     const ratios = [];
     if (dx !== 0) ratios.push(halfWidth / Math.abs(dx));
@@ -427,6 +475,14 @@
 
   function positionKey(position: PositionPoint) {
     return `${position.x},${position.y}`;
+  }
+
+  function normalizeRoomKind(kind: string) {
+    return ["road", "street", "building", "landmark", "transit"].includes(kind) ? kind : "building";
+  }
+
+  function roomKindLabel(kind: string) {
+    return translate(state.locale, `map.kind.${normalizeRoomKind(kind)}`);
   }
 
   function worldDirectionVector(direction: Direction) {
@@ -631,6 +687,11 @@
         <h2 id="full-map-title">{state.mapOverview?.mapName || translate(state.locale, "panel.full_map")}</h2>
         <span>{fullMapRooms.length}</span>
       </div>
+      <div class="full-map-legend" aria-label={translate(state.locale, "map.legend")}>
+        {#each ["road", "street", "building", "landmark", "transit"] as kind}
+          <span class={`full-map-legend-${kind}`}>{roomKindLabel(kind)}</span>
+        {/each}
+      </div>
       <div class="full-map-canvas" aria-label={translate(state.locale, "panel.full_map")}>
         {#if fullMapRooms.length > 0}
           <svg class="full-map-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -646,17 +707,33 @@
                 d={edge.path}
               ></path>
             {/each}
+            {#each fullMapPortals as portal (portal.key)}
+              <path class="full-map-portal-halo" d={portal.path}></path>
+              <path class="full-map-portal-link" d={portal.path}></path>
+            {/each}
           </svg>
 
           {#each fullMapRooms as room (room.key)}
             <div
               class="full-map-room"
+              class:full-map-room-road={room.kind === "road"}
+              class:full-map-room-street={room.kind === "street"}
+              class:full-map-room-building={room.kind === "building"}
+              class:full-map-room-landmark={room.kind === "landmark"}
+              class:full-map-room-transit={room.kind === "transit"}
               class:full-map-room-current={room.key === fullMapCurrentKey}
               aria-current={room.key === fullMapCurrentKey ? "location" : undefined}
+              aria-label={`${room.name}，${roomKindLabel(room.kind)}`}
               style={pointStyle(room)}
             >
               <strong>{room.name}</strong>
-              <small>{room.position.x},{room.position.y}</small>
+            </div>
+          {/each}
+
+          {#each fullMapPortals as portal (portal.key)}
+            <div class="full-map-portal" style={pointStyle(portal)}>
+              <small>{translate(state.locale, "map.to")}</small>
+              <strong>{portal.label}</strong>
             </div>
           {/each}
         {:else}

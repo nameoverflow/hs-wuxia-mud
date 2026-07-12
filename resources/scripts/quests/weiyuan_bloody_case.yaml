@@ -194,7 +194,7 @@ events:
         stage: branch_gate
       - type: message
         speaker: "旁白"
-        text: "城门后的灯火映在汴水上。少年抹去脸上的雨，指向渡口东边一块黑漆门匾。"
+        text: "城里的灯火越过州桥映在汴水上。少年抹去脸上的雨，指向渡口东边一块黑漆门匾。"
       - type: message
         speaker: "灰衣少年"
         text: "那里就是威远分局。送到这里已经够了，但我想进去看一眼。"

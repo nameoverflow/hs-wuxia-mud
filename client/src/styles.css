@@ -1026,11 +1026,55 @@ h3 {
   padding-right: 34px;
 }
 
+.full-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 8px;
+  color: var(--faint);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
+.full-map-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.full-map-legend span::before {
+  width: 9px;
+  height: 9px;
+  border: 1px solid rgba(111, 136, 130, 0.7);
+  background: rgba(14, 18, 17, 0.94);
+  content: "";
+}
+
+.full-map-legend .full-map-legend-road::before {
+  border-style: dashed;
+}
+
+.full-map-legend .full-map-legend-street::before {
+  border-color: rgba(84, 198, 177, 0.86);
+  background: rgba(8, 20, 18, 0.92);
+}
+
+.full-map-legend .full-map-legend-landmark::before {
+  border-color: rgba(232, 196, 87, 0.82);
+  background: rgba(27, 22, 10, 0.94);
+}
+
+.full-map-legend .full-map-legend-transit::before {
+  border-color: rgba(168, 91, 69, 0.86);
+  background: rgba(29, 15, 12, 0.94);
+}
+
 .full-map-canvas {
   position: relative;
   height: min(66vh, 620px);
   min-height: 390px;
-  margin-top: 12px;
+  margin-top: 8px;
   border: 1px solid var(--line);
   background:
     linear-gradient(rgba(84, 198, 177, 0.035) 1px, transparent 1px),
@@ -1079,6 +1123,19 @@ h3 {
   filter: drop-shadow(0 0 4px rgba(232, 196, 87, 0.52));
 }
 
+.full-map-portal-halo {
+  stroke: rgba(0, 0, 0, 0.88);
+  stroke-width: 5.2;
+  stroke-dasharray: 5 4;
+}
+
+.full-map-portal-link {
+  stroke: rgba(168, 91, 69, 0.96);
+  stroke-width: 2.2;
+  stroke-dasharray: 5 4;
+  filter: drop-shadow(0 0 3px rgba(168, 91, 69, 0.4));
+}
+
 .full-map-room {
   position: absolute;
   z-index: 3;
@@ -1109,6 +1166,47 @@ h3 {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.68rem;
   line-height: 1;
+  letter-spacing: 0.08em;
+}
+
+.full-map-room-road {
+  min-height: 30px;
+  border-style: dashed;
+  border-color: rgba(111, 136, 130, 0.72);
+  background: rgba(8, 12, 11, 0.9);
+}
+
+.full-map-room-street {
+  min-height: 30px;
+  border-color: rgba(84, 198, 177, 0.74);
+  background: rgba(8, 20, 18, 0.92);
+}
+
+.full-map-room-building {
+  border-color: rgba(111, 136, 130, 0.58);
+  background: rgba(14, 18, 17, 0.94);
+}
+
+.full-map-room-landmark {
+  min-height: 44px;
+  border-color: rgba(232, 196, 87, 0.74);
+  background: rgba(27, 22, 10, 0.94);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.62),
+    0 0 14px rgba(232, 196, 87, 0.08);
+}
+
+.full-map-room-landmark small {
+  color: rgba(232, 196, 87, 0.66);
+}
+
+.full-map-room-transit {
+  border-color: rgba(168, 91, 69, 0.78);
+  background: rgba(29, 15, 12, 0.94);
+}
+
+.full-map-room-transit small {
+  color: rgba(201, 128, 105, 0.82);
 }
 
 .full-map-room-current {
@@ -1120,6 +1218,35 @@ h3 {
 
 .full-map-room-current small {
   color: rgba(200, 167, 90, 0.76);
+}
+
+.full-map-portal {
+  position: absolute;
+  z-index: 6;
+  max-width: 150px;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 4px 6px;
+  border: 1px solid rgba(168, 91, 69, 0.82);
+  background: rgba(27, 12, 10, 0.96);
+  color: #d79a87;
+  text-align: center;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.62);
+  white-space: nowrap;
+}
+
+.full-map-portal small {
+  color: rgba(215, 154, 135, 0.7);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+}
+
+.full-map-portal strong {
+  font-size: 0.74rem;
+  line-height: 1.1;
 }
 
 .full-map-empty {

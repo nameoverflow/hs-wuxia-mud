@@ -1068,6 +1068,7 @@ data Room = Room
     _roomPos :: (Int, Int),
     _roomName :: Text,
     _roomDesc :: Text,
+    _roomKind :: Text,
     _roomScript :: Maybe Text, -- Change this to store the Lua script content
     _roomExits :: M.Map Direction RoomRef,
     _roomChar :: [CharId],
@@ -1083,6 +1084,7 @@ instance FromJSON Room where
     _roomPos <- o .: "position"
     _roomName <- o .: "name"
     _roomDesc <- o .: "desc"
+    _roomKind <- o .:? "kind" .!= "building"
     _roomScript <- o .:? "script"
     exitConfigs <- o .: "exits"
     let _roomExits = M.map (roomExitConfigToRef "") exitConfigs
@@ -1096,6 +1098,7 @@ instance ToJSON Room where
       [ "id" .= _roomId,
         "name" .= _roomName,
         "desc" .= _roomDesc,
+        "kind" .= _roomKind,
         "script" .= _roomScript,
         "exits" .= _roomExits,
         "char" .= _roomChar

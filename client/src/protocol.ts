@@ -89,6 +89,7 @@ export interface RoomExitSummary {
 export interface MapRoomSummary {
   roomId: string | null;
   roomName: string;
+  roomKind: string;
   position: RoomPosition | null;
 }
 
@@ -97,6 +98,9 @@ export interface MapEdgeSummary {
   from: RoomPosition | null;
   to: RoomPosition | null;
   toRoomId: string | null;
+  toRoomName: string | null;
+  toMapId: string | null;
+  toMapName: string | null;
 }
 
 export interface MapOverviewSummary {

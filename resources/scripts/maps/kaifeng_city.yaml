@@ -1,21 +1,32 @@
 id: kaifeng_city
 name: "开封府"
-desc: "开封古称汴梁，是中原商路汇聚的府城。府前大街、府衙、府学、驿馆和南北行旅在汴水两岸挤作一城。"
+desc: "开封古称汴梁。御街贯通南北城门，东西两市分列街旁，府衙、驿院和行旅据各自街巷落脚。"
 rooms:
   - position: [0, -3]
     id: kaifeng_south_ferry
     name: "汴水南渡"
-    desc: "渡口木桩被水泡得发黑。往北便是开封南桥，往东能看见威远镖局的门匾。"
+    kind: road
+    desc: "渡口木桩被水泡得发黑。往北过州桥才到开封南门，东边临水立着威远镖局的门匾。"
     exits:
       north: [0, -2]
       east: [1, -3]
+      west: [-1, -3]
       south:
         map: bianshui_road
         position: [0, 0]
 
+  - position: [-1, -3]
+    id: kaifeng_willow_bank
+    name: "柳岸码头"
+    kind: road
+    desc: "几株老柳伏在水边，脚夫在树下等船，也等一份能换饭钱的差事。"
+    exits:
+      east: [0, -3]
+
   - position: [1, -3]
     id: weiyuan_branch_gate
     name: "威远镖局门口"
+    kind: building
     desc: "黑漆门匾上写着威远镖局，门前车辙被雨水泡得发亮，门内却静得不正常。"
     char:
       - grey_young_escort
@@ -26,6 +37,7 @@ rooms:
   - position: [2, -3]
     id: weiyuan_branch_hall
     name: "威远镖局前厅"
+    kind: building
     desc: "前厅门扇半开，镖旗斜倒在地，空气里混着雨水、血腥和翻乱账册的纸墨味。"
     char:
       - grey_young_escort
@@ -35,100 +47,68 @@ rooms:
   - position: [0, -2]
     id: kaifeng_stone_bridge
     name: "州桥"
-    desc: "桥下汴水急急流过，桥栏上挤满车辙、马蹄和江湖人留下的刀痕。"
+    kind: landmark
+    desc: "桥下汴水急急流过。桥北正对南门，桥栏上挤满车辙、马蹄和江湖人留下的刀痕。"
     exits:
       north: [0, -1]
       south: [0, -3]
-      west: [-1, -2]
       east: [1, -2]
-
-  - position: [-1, -2]
-    id: kaifeng_willow_bank
-    name: "柳岸码头"
-    desc: "几株老柳伏在水边，脚夫在树下等船，也等一份能换饭钱的差事。"
-    exits:
-      east: [0, -2]
-      north: [-1, -1]
 
   - position: [1, -2]
     id: kaifeng_boat_shed
     name: "船棚"
-    desc: "棚下堆着缆绳、破桨和几盏备用风灯。雨水从棚角滴下来，正落在一串新车辙旁。"
+    kind: building
+    desc: "棚下堆着缆绳、破桨和几盏备用风灯。这里是州桥东侧的水运杂役棚，不通城内。"
     exits:
       west: [0, -2]
-      north: [1, -1]
 
   - position: [0, -1]
     id: kaifeng_south_gate
     name: "开封南门"
-    desc: "南门不高，门洞里避雨的人却不少。周引路靠墙等候，常给外地江湖客指路。"
+    kind: landmark
+    desc: "门洞里行旅排队验看路引。进门便是御街南段，西侧校场里常有人练武。"
     char:
       - kaifeng_guide
     exits:
       north: [0, 0]
       south: [0, -2]
       west: [-1, -1]
-      east: [1, -1]
 
   - position: [-1, -1]
     id: kaifeng_training_yard
-    name: "府前演武场"
-    desc: "地面铺着粗砂，雨水一落就被踩碎。墙边立着木桩、竹刀和几面开封府借来的旧盾。"
+    name: "南门演武场"
+    kind: building
+    desc: "校场紧贴南门内墙，地面铺着粗砂。西侧武馆的弟子常在这里练站桩和拆招。"
     char:
       - kaifeng_martial_instructor
       - kaifeng_training_dummy
     exits:
       east: [0, -1]
-      west: [-2, -1]
       south: [-1, -2]
 
-  - position: [-2, -1]
+  - position: [-1, -2]
     id: kaifeng_martial_hall
-    name: "府前街武馆"
-    desc: "武馆里灯火明亮，墙上写着四个字：先站得住。"
+    name: "南门武馆"
+    kind: building
+    desc: "武馆正门开向演武场，墙上写着四个字：先站得住。"
     exits:
-      east: [-1, -1]
-      west: [-3, -1]
-
-  - position: [-3, -1]
-    id: kaifeng_money_house
-    name: "开封钱庄"
-    desc: "柜台后的铁算盘不停作响，掌柜正核对外地客人的路费和押金。"
-    exits:
-      east: [-2, -1]
-      north: [-3, 0]
+      north: [-1, -1]
 
   - position: [1, -1]
     id: kaifeng_academy
     name: "开封府学外舍"
-    desc: "檐下挂着半卷竹帘，案上堆着告示、旧牒和府学抄本。"
+    kind: building
+    desc: "外舍临御街东侧，案上堆着告示、旧牒和府学抄本。出门向北就是东市。"
     char:
       - old_scribe
     exits:
-      west: [0, -1]
-      east: [2, -1]
-      south: [1, -2]
-
-  - position: [2, -1]
-    id: kaifeng_yamen
-    name: "开封府外堂"
-    desc: "门口有两面褪色鼓，衙役在檐下维持队伍，告状的人一直排到街边。"
-    exits:
-      west: [1, -1]
-      east: [3, -1]
-      north: [2, 0]
-
-  - position: [3, -1]
-    id: kaifeng_warehouse
-    name: "官仓"
-    desc: "仓门紧闭，门缝里透出谷米、潮木头和封泥文书的气味。"
-    exits:
-      west: [2, -1]
+      north: [1, 0]
 
   - position: [0, 0]
-    id: kaifeng_market_cross
-    name: "府前十字"
-    desc: "四条街在此交汇。摊贩的叫卖声、驿马的鼻息和茶客的低语混在一起。"
+    id: kaifeng_south_street
+    name: "御街南段"
+    kind: street
+    desc: "御街从南门笔直伸向府前十字。西边旧货铺多，东边新货铺多，车马到这里便开始放慢。"
     exits:
       north: [0, 1]
       south: [0, -1]
@@ -137,8 +117,9 @@ rooms:
 
   - position: [-1, 0]
     id: kaifeng_west_market
-    name: "西市"
-    desc: "西市多卖旧物，刀鞘、药瓶、破书和无主的鞋都在雨棚下排着。"
+    name: "西市街口"
+    kind: street
+    desc: "西市多卖旧物，刀鞘、药瓶和破书都在雨棚下排着。客舍的灯笼挂在北面。"
     exits:
       east: [0, 0]
       west: [-2, 0]
@@ -147,236 +128,280 @@ rooms:
   - position: [-2, 0]
     id: kaifeng_west_lane
     name: "甜水巷"
-    desc: "巷子窄得两个人错身也要侧肩。墙根有新旧不一的脚印，夜里常有信使从这里穿过。"
+    kind: street
+    desc: "巷子窄得两个人错身也要侧肩。茶楼、钱庄和西市公告墙各自开门，不必穿堂而过。"
     exits:
       east: [-1, 0]
       west: [-3, 0]
+      north: [-2, 1]
+      south: [-2, -1]
 
   - position: [-3, 0]
-    id: kaifeng_pawnshop
-    name: "当铺"
-    desc: "当铺门匾写着一个很大的当字。掌柜看人的眼神比秤砣还沉。"
+    id: kaifeng_notice_wall
+    name: "西市公告墙"
+    kind: street
+    desc: "巷口墙上贴着寻人、悬赏、失物和外地路引。墙北是居民取水的老井，南面开着一家当铺。"
     exits:
       east: [-2, 0]
-      south: [-3, -1]
       north: [-3, 1]
+      south: [-3, -1]
+
+  - position: [-3, 1]
+    id: kaifeng_old_well
+    name: "老井"
+    kind: landmark
+    desc: "井台石沿被磨得发亮，附近居民常在这里打水。再往北就是闭门人家的后巷。"
+    exits:
+      south: [-3, 0]
+
+  - position: [-3, -1]
+    id: kaifeng_pawnshop
+    name: "西市当铺"
+    kind: building
+    desc: "门匾上写着一个很大的当字。掌柜看人的眼神比秤砣还沉。"
+    exits:
+      north: [-3, 0]
+
+  - position: [-2, 1]
+    id: kaifeng_tea_house
+    name: "瓦子茶楼"
+    kind: building
+    desc: "茶楼只有竹帘和说书人的醒木。闲话从这里出去，第二天就能传遍半个西市。"
+    char:
+      - tea_storyteller
+    exits:
+      south: [-2, 0]
+
+  - position: [-2, -1]
+    id: kaifeng_money_house
+    name: "开封钱庄"
+    kind: building
+    desc: "钱庄独门朝向甜水巷，柜台后的铁算盘不停作响。"
+    exits:
+      north: [-2, 0]
+
+  - position: [-1, 1]
+    id: kaifeng_inn
+    name: "樊楼客舍"
+    kind: building
+    desc: "客舍正门朝向西市街口。火盆烧得正旺，住客围桌谈着路引、房钱和外地消息。"
+    char:
+      - fanlou_innkeeper
+    exits:
+      south: [-1, 0]
 
   - position: [1, 0]
     id: kaifeng_east_market
-    name: "东市"
-    desc: "东市卖的多是新货。铁器、药材、伞布和灯油挤满了摊子。"
+    name: "东市街口"
+    kind: street
+    desc: "东市卖的多是新货。向东是府后东巷，向北进官署区，府学外舍在南面。"
     exits:
       west: [0, 0]
       east: [2, 0]
-      north: [1, 1]
+      south: [1, -1]
 
   - position: [2, 0]
     id: kaifeng_east_lane
     name: "府后东巷"
-    desc: "东巷通向开封府后墙，来往的多是脚步很急的人。"
+    kind: street
+    desc: "东巷沿开封府后墙铺开。南边药铺临街，东边药材摊后能听见铁铺的锤声。"
     exits:
       west: [1, 0]
       east: [3, 0]
       south: [2, -1]
 
   - position: [3, 0]
-    id: kaifeng_apothecary
-    name: "仁和药铺"
-    desc: "柜上放着药碾，墙上挂满抽屉。药师正在按方分药。"
-    char:
-      - kaifeng_physician
+    id: kaifeng_herb_stall
+    name: "药材街口"
+    kind: street
+    desc: "几张药材摊沿街排开，北面铁铺的炉火把雨雾照得发红。"
     exits:
       west: [2, 0]
       north: [3, 1]
 
-  - position: [0, 1]
-    id: kaifeng_drum_tower
-    name: "鼓楼"
-    desc: "鼓楼高过两边屋脊。雨天看不远，却能听见四面来的脚步声。"
-    exits:
-      north: [0, 2]
-      south: [0, 0]
-      west: [-1, 1]
-      east: [1, 1]
-
-  - position: [-1, 1]
-    id: kaifeng_inn
-    name: "樊楼客舍"
-    desc: "掌柜借前朝樊楼的旧号招徕客人。客舍里火盆烧得正旺，住客围着桌子谈路引、房钱和外地消息。"
-    char:
-      - fanlou_innkeeper
-    exits:
-      east: [0, 1]
-      west: [-2, 1]
-      south: [-1, 0]
-
-  - position: [-2, 1]
-    id: kaifeng_tea_house
-    name: "瓦子茶楼"
-    desc: "茶楼沿用旧城瓦子的名号，没有几面正经墙，只有竹帘和说书人的醒木。这里的闲话，第二天就能传到半个开封。"
-    char:
-      - tea_storyteller
-    exits:
-      east: [-1, 1]
-      west: [-3, 1]
-      north: [-2, 2]
-
-  - position: [-3, 1]
-    id: kaifeng_notice_wall
-    name: "公告墙"
-    desc: "墙上贴着寻人、悬赏、失物和外地路引。新雨把墨迹洇成一片。"
-    exits:
-      east: [-2, 1]
-      south: [-3, 0]
-      north: [-3, 2]
-
-  - position: [1, 1]
+  - position: [3, 1]
     id: kaifeng_smithy
     name: "府前铁铺"
+    kind: building
     desc: "炉火照亮半条街。铁匠把一截红铁放进雨水里，白气轰然升起。"
     char:
       - kaifeng_blacksmith
     exits:
-      west: [0, 1]
-      east: [2, 1]
-      south: [1, 0]
-
-  - position: [2, 1]
-    id: kaifeng_stable
-    name: "驿马院"
-    desc: "几匹驿马在棚下甩着鬃毛。驿卒说雁门旧道近来不太平。"
-    char:
-      - post_runner
-    exits:
-      west: [1, 1]
-      east: [3, 1]
-      north: [2, 2]
-
-  - position: [3, 1]
-    id: kaifeng_herb_stall
-    name: "药材摊"
-    desc: "摊上晒着半干的草药。摊主逐一报出药名、产地和用法。"
-    exits:
-      west: [2, 1]
       south: [3, 0]
-      north: [3, 2]
 
-  - position: [0, 2]
-    id: kaifeng_north_street
-    name: "北街"
-    desc: "北街比南街冷清，行人多带兵器，话也少。"
-    exits:
-      north: [0, 3]
-      south: [0, 1]
-      west: [-1, 2]
-      east: [1, 2]
-
-  - position: [-1, 2]
-    id: kaifeng_shrine
-    name: "小武庙"
-    desc: "庙小，香火却不冷。墙角放着几只给新手避祸用的旧灯笼。"
-    exits:
-      east: [0, 2]
-      west: [-2, 2]
-
-  - position: [-2, 2]
-    id: kaifeng_luoyang_carriage_office
-    name: "洛阳车马行"
-    desc: "行栈里挂着一柄无锋木剑。门柱上贴着洛阳牡丹会的旧帖，候车人把姓名写在帖后。"
+  - position: [2, -1]
+    id: kaifeng_apothecary
+    name: "仁和药铺"
+    kind: building
+    desc: "药铺正门开向府后东巷。柜上放着药碾，墙上挂满抽屉。"
     char:
-      - luoyang_runner
+      - kaifeng_physician
     exits:
-      east: [-1, 2]
-      west: [-3, 2]
-      south: [-2, 1]
+      north: [2, 0]
 
-  - position: [-3, 2]
-    id: kaifeng_old_well
-    name: "老井"
-    desc: "井水很深，井台石沿被磨得发亮，附近居民常在这里打水。"
+  - position: [1, 1]
+    id: kaifeng_yamen
+    name: "开封府外堂"
+    kind: landmark
+    desc: "外堂正门朝府前十字。捕房在北侧院门内，官仓另有东门，不与东市混作通路。"
     exits:
-      east: [-2, 2]
-      south: [-3, 1]
+      west: [0, 1]
+      north: [1, 2]
+      east: [2, 1]
 
   - position: [1, 2]
     id: kaifeng_constable_office
     name: "开封府捕房"
-    desc: "墙上挂着几张新悬赏，捕快正在登记近来的失踪和盗信案。"
+    kind: building
+    desc: "捕房与府衙同院，墙上挂着新悬赏，捕快正在登记失踪和盗信案。"
     char:
       - kaifeng_constable
     exits:
-      west: [0, 2]
-      east: [2, 2]
-      north: [1, 3]
+      south: [1, 1]
 
-  - position: [2, 2]
-    id: kaifeng_dali_post
-    name: "大理商队驻院"
-    desc: "门前堆着茶包、马鞍和短棍。一个商队护卫坐在雨棚下补护腕。"
-    char:
-      - dali_runner
+  - position: [2, 1]
+    id: kaifeng_warehouse
+    name: "官仓"
+    kind: building
+    desc: "官仓由府衙东门进入，仓门紧闭，门缝里透出谷米、潮木和封泥文书的气味。"
     exits:
-      west: [1, 2]
-      east: [3, 2]
-      south: [2, 1]
+      west: [1, 1]
 
-  - position: [3, 2]
-    id: kaifeng_taihu_cart
-    name: "太湖药车棚"
-    desc: "车棚下停着一辆太湖药车，药童正在清点药箱。"
-    char:
-      - taihu_runner
+  - position: [0, 1]
+    id: kaifeng_market_cross
+    name: "府前十字"
+    kind: landmark
+    desc: "御街在此穿过东西两市。南望城门，北望鼓楼，车马和行人都在这里重新分流。"
     exits:
-      west: [2, 2]
-      south: [3, 1]
+      north: [0, 2]
+      south: [0, 0]
+      east: [1, 1]
+
+  - position: [0, 2]
+    id: kaifeng_drum_tower
+    name: "鼓楼"
+    kind: landmark
+    desc: "鼓楼高过两边屋脊。西面是武庙前街，东面是开封府捕房，北街从楼下继续向北。"
+    exits:
+      north: [0, 3]
+      south: [0, 1]
+      west: [-1, 2]
+
+  - position: [-1, 2]
+    id: kaifeng_shrine
+    name: "武庙前街"
+    kind: street
+    desc: "小武庙临街而立。向西是洛阳车马行，向北的小巷通往北街，不必穿过庙堂。"
+    exits:
+      east: [0, 2]
+      west: [-2, 2]
+      north: [-1, 3]
+
+  - position: [-2, 2]
+    id: kaifeng_luoyang_carriage_office
+    name: "洛阳车马行"
+    kind: transit
+    desc: "行栈门朝武庙前街，候车人把姓名写在牡丹会旧帖后，等西行车马点名。"
+    char:
+      - luoyang_runner
+    exits:
+      east: [-1, 2]
+
+  - position: [-1, 3]
+    id: kaifeng_back_alley
+    name: "北街后巷"
+    kind: street
+    desc: "后巷夹在武庙与北街之间，门口留着衙役查访记号。它通往街市，不通城墙望台。"
+    exits:
+      east: [0, 3]
+      south: [-1, 2]
 
   - position: [0, 3]
-    id: kaifeng_north_gate
-    name: "开封北门"
-    desc: "北门外接着通往边关的雁门递道南线。风从门外吹来，带着树脂、马汗和刀油的味道。"
+    id: kaifeng_north_street
+    name: "北街"
+    kind: street
+    desc: "北街比御街南段冷清，行人多带兵器。东边是脚夫与驿马聚集的转运场。"
     exits:
       north: [0, 4]
       south: [0, 2]
       west: [-1, 3]
       east: [1, 3]
 
-  - position: [-1, 3]
-    id: kaifeng_west_watch
-    name: "西望台"
-    desc: "望台能看见通往洛阳的驿路，驿卒在这里记录过往车马。"
-    exits:
-      east: [0, 3]
-      west: [-2, 3]
-
-  - position: [-2, 3]
-    id: kaifeng_back_alley
-    name: "后巷"
-    desc: "后巷通向几户闭门人家，门口有衙役留下的查访记号。"
-    exits:
-      east: [-1, 3]
-
   - position: [1, 3]
-    id: kaifeng_east_watch
-    name: "东望台"
-    desc: "望台下能看见大理商队和太湖药车两条路线，守门人按时核验路引。"
+    id: kaifeng_pack_yard
+    name: "脚夫转运场"
+    kind: transit
+    desc: "脚夫们在这里重新分担货担。向东进驿马院，各地商队驻院都从院内分开。"
     exits:
       west: [0, 3]
       east: [2, 3]
-      south: [1, 2]
 
   - position: [2, 3]
-    id: kaifeng_pack_yard
-    name: "脚夫场"
-    desc: "脚夫们把货担搁在棚下，等雨小，也等雇主心软。"
+    id: kaifeng_stable
+    name: "驿马院"
+    kind: transit
+    desc: "驿马院与北街脚夫场相连。南侧驻着大理商队，车棚之间留有明确院门。"
+    char:
+      - post_runner
     exits:
       west: [1, 3]
+      south: [2, 2]
+
+  - position: [2, 2]
+    id: kaifeng_dali_post
+    name: "大理商队驻院"
+    kind: transit
+    desc: "驻院属于驿马院南区。东侧另隔一道棚门，停着往太湖去的药车。"
+    char:
+      - dali_runner
+    exits:
+      north: [2, 3]
+      east: [3, 2]
+
+  - position: [3, 2]
+    id: kaifeng_taihu_cart
+    name: "太湖药车棚"
+    kind: transit
+    desc: "药车棚与大理驻院共用转运场，但各有棚门。药童正在清点药箱。"
+    char:
+      - taihu_runner
+    exits:
+      west: [2, 2]
 
   - position: [0, 4]
+    id: kaifeng_north_gate
+    name: "开封北门"
+    kind: landmark
+    desc: "北门外接雁门递道南线。东西望台只通城门马道，不再兼作城内街巷。"
+    exits:
+      north: [0, 5]
+      south: [0, 3]
+      west: [-1, 4]
+      east: [1, 4]
+
+  - position: [-1, 4]
+    id: kaifeng_west_watch
+    name: "西望台"
+    kind: landmark
+    desc: "望台属于北门城防，只能沿城门马道返回。远处能看见通往洛阳的驿路。"
+    exits:
+      east: [0, 4]
+
+  - position: [1, 4]
+    id: kaifeng_east_watch
+    name: "东望台"
+    kind: landmark
+    desc: "望台属于北门城防，只能沿城门马道返回。守门人从这里核验东来车队。"
+    exits:
+      west: [0, 4]
+
+  - position: [0, 5]
     id: kaifeng_north_outskirts
     name: "北郊驿路"
+    kind: road
     desc: "城声在身后渐远，雁门旧道的南线在前方铺开。路边石碑写着：夜行自负。"
     exits:
-      south: [0, 3]
+      south: [0, 4]
       north:
         map: yanmen_old_road
         position: [0, 0]

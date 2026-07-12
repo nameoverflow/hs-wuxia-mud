@@ -871,6 +871,7 @@ function normalizeMapOverview(raw: unknown): MapOverviewSummary | null {
     rooms.push({
       roomId: typeof roomObj.roomId === "string" ? roomObj.roomId : typeof roomObj.mapRoomSummaryRoomId === "string" ? roomObj.mapRoomSummaryRoomId : null,
       roomName: String(roomObj.roomName || roomObj.mapRoomSummaryRoomName || ""),
+      roomKind: String(roomObj.roomKind || roomObj.mapRoomSummaryRoomKind || "building"),
       position
     });
   }
@@ -885,7 +886,10 @@ function normalizeMapOverview(raw: unknown): MapOverviewSummary | null {
       direction: normalizeDirection(String(edgeObj.direction || edgeObj.mapEdgeSummaryDirection || "")),
       from,
       to,
-      toRoomId: typeof edgeObj.toRoomId === "string" ? edgeObj.toRoomId : typeof edgeObj.mapEdgeSummaryToRoomId === "string" ? edgeObj.mapEdgeSummaryToRoomId : null
+      toRoomId: typeof edgeObj.toRoomId === "string" ? edgeObj.toRoomId : typeof edgeObj.mapEdgeSummaryToRoomId === "string" ? edgeObj.mapEdgeSummaryToRoomId : null,
+      toRoomName: typeof edgeObj.toRoomName === "string" ? edgeObj.toRoomName : typeof edgeObj.mapEdgeSummaryToRoomName === "string" ? edgeObj.mapEdgeSummaryToRoomName : null,
+      toMapId: typeof edgeObj.toMapId === "string" ? edgeObj.toMapId : typeof edgeObj.mapEdgeSummaryToMapId === "string" ? edgeObj.mapEdgeSummaryToMapId : null,
+      toMapName: typeof edgeObj.toMapName === "string" ? edgeObj.toMapName : typeof edgeObj.mapEdgeSummaryToMapName === "string" ? edgeObj.mapEdgeSummaryToMapName : null
     });
   }
 

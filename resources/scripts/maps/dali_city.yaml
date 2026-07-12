@@ -1,11 +1,12 @@
 id: dali_city
 name: "大理府城"
-desc: "西南府城，苍山在西，洱海在东，段氏旧府、寺门和茶马商队在城中交错。段氏虽是前朝王族后裔，如今只以武林旧族身份立足地方。"
+desc: "大理府城以茶马市为门户，苍山道向西、洱海巷向东。段氏旧府居城北，崇圣寺还要再沿北郊山道上行。"
 rooms:
   - position: [0, 0]
     id: dali_teahorse_lodge
     name: "茶马行栈"
-    desc: "门房里堆着押运文书、茶包和几根油亮短棍。"
+    kind: transit
+    desc: "远道商队先在行栈验契落脚。北面是茶马车场，南边是返回开封的长途商路。"
     exits:
       south:
         map: kaifeng_city
@@ -15,7 +16,8 @@ rooms:
   - position: [0, 1]
     id: dali_cart_yard
     name: "茶马车场"
-    desc: "车辙在泥里交错，护卫正在清点南下商队的货箱。"
+    kind: transit
+    desc: "车场位于行栈和茶马市之间。车辙在泥里交错，护卫正在清点南下货箱。"
     char:
       - dali_caravan_guard
     exits:
@@ -23,9 +25,10 @@ rooms:
       north: [0, 2]
 
   - position: [0, 2]
-    id: dali_duan_outer_yard
-    name: "段氏旧府外院"
-    desc: "院里没有花树，只有石锁、沙袋和成排的短棍。"
+    id: dali_teahorse_market
+    name: "茶马市"
+    kind: landmark
+    desc: "茶、盐、马具和山货在城门市集交汇。西去苍山道，东到洱海巷，北面才是段氏旧府。"
     exits:
       south: [0, 1]
       north: [0, 3]
@@ -33,25 +36,26 @@ rooms:
       east: [1, 2]
 
   - position: [-1, 2]
-    id: dali_stone_lock
-    name: "石锁棚"
-    desc: "石锁大大小小排成一列，旁边写着：先搬得动自己。"
+    id: dali_cangshan_road
+    name: "苍山道口"
+    kind: road
+    desc: "石路向苍山脚下抬升，药农和樵夫在道口换肩歇脚。更深山路尚未开放。"
     exits:
       east: [0, 2]
-      north: [-1, 3]
 
   - position: [1, 2]
-    id: dali_gear_room
-    name: "护具房"
-    desc: "护腕、短甲和旧靴挂满一墙，补丁比皮面还多。"
+    id: dali_erhai_lane
+    name: "洱海巷口"
+    kind: street
+    desc: "湿润湖风从巷中吹来，渔网和小舟桨靠墙晾着。巷深处尚未开放。"
     exits:
       west: [0, 2]
-      north: [1, 3]
 
   - position: [0, 3]
-    id: dali_duan_drill_ground
-    name: "段氏操练场"
-    desc: "地上画着十几道白线，护卫沿线练习进退和护送阵形。"
+    id: dali_duan_outer_yard
+    name: "段氏旧府外院"
+    kind: landmark
+    desc: "旧府正门朝向茶马市。西棚放石锁，东房收护具，正北是护卫操练场。"
     exits:
       south: [0, 2]
       north: [0, 4]
@@ -59,29 +63,26 @@ rooms:
       east: [1, 3]
 
   - position: [-1, 3]
-    id: dali_oath_wall
-    name: "誓墙"
-    desc: "墙上刻着商队规矩。字不多，最深的一句是：受托护人，失人偿命。"
+    id: dali_stone_lock
+    name: "石锁棚"
+    kind: building
+    desc: "石锁大大小小排成一列。棚门只朝旧府外院，不再充作通往誓墙的道路。"
     exits:
       east: [0, 3]
-      south: [-1, 2]
-      north: [-1, 4]
 
   - position: [1, 3]
-    id: dali_kitchen
-    name: "大灶房"
-    desc: "灶上常年有粥，远行归来的人先喝一碗，再说话。"
+    id: dali_gear_room
+    name: "护具房"
+    kind: building
+    desc: "护腕、短甲和旧靴挂满一墙。房门只开向旧府外院。"
     exits:
       west: [0, 3]
-      south: [1, 2]
-      north: [1, 4]
 
   - position: [0, 4]
-    id: dali_duan_hall
-    name: "段氏外堂"
-    desc: "堂中挂着一件破护甲，旁边记录着几次茶马道护送的伤亡。"
-    char:
-      - dali_duan_guard_captain
+    id: dali_duan_drill_ground
+    name: "段氏操练场"
+    kind: landmark
+    desc: "操练场是旧府中院。西墙刻着护送誓词，东侧灶房供应远行归来的护卫。"
     exits:
       south: [0, 3]
       north: [0, 5]
@@ -89,26 +90,65 @@ rooms:
       east: [1, 4]
 
   - position: [-1, 4]
+    id: dali_oath_wall
+    name: "护送誓墙"
+    kind: landmark
+    desc: "墙上刻着商队规矩。它是操练场西侧的纪事墙，不是穿行旧府的廊道。"
+    exits:
+      east: [0, 4]
+
+  - position: [1, 4]
+    id: dali_kitchen
+    name: "大灶房"
+    kind: building
+    desc: "灶上常年有粥，远行归来的人先喝一碗再说话。灶房只通操练场。"
+    exits:
+      west: [0, 4]
+
+  - position: [0, 5]
+    id: dali_duan_hall
+    name: "段氏外堂"
+    kind: landmark
+    desc: "外堂位于旧府北院。西侧传功，东侧管路契，后门通往崇圣寺山道。"
+    char:
+      - dali_duan_guard_captain
+    exits:
+      south: [0, 4]
+      north: [0, 6]
+      west: [-1, 5]
+      east: [1, 5]
+
+  - position: [-1, 5]
     id: dali_duan_training_room
     name: "传功屋"
-    desc: "屋中没有蒲团，只有一张厚木桌。桌角被拳头砸得发黑。"
+    kind: building
+    desc: "屋中没有蒲团，只有一张厚木桌。屋门只朝段氏外堂。"
     char:
       - dali_teacher
     exits:
-      east: [0, 4]
-      south: [-1, 3]
+      east: [0, 5]
 
-  - position: [1, 4]
+  - position: [1, 5]
     id: dali_contract_room
     name: "路契房"
-    desc: "桌上压着许多茶马路契。纸薄，责任却很重。"
+    kind: building
+    desc: "桌上压着许多茶马路契。路契房与外堂相连，不再借灶房作通道。"
     exits:
-      west: [0, 4]
-      south: [1, 3]
+      west: [0, 5]
 
-  - position: [0, 5]
+  - position: [0, 6]
+    id: dali_temple_road
+    name: "崇圣寺山道"
+    kind: road
+    desc: "山道从旧府后门离城向北，地势逐级抬高。钟声从苍山方向传来。"
+    exits:
+      south: [0, 5]
+      north: [0, 7]
+
+  - position: [0, 7]
     id: dali_chongsheng_gate
     name: "崇圣寺山门"
-    desc: "山门前有段氏护院与寺中执事共同守着。没有手书的人，只能在阶下听见晚钟。"
+    kind: landmark
+    desc: "山门与府城隔着一段山道。没有手书的人，只能在阶下听见晚钟。"
     exits:
-      south: [0, 4]
+      south: [0, 6]

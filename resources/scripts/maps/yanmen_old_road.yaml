@@ -9,7 +9,7 @@ rooms:
     exits:
       south:
         map: kaifeng_city
-        position: [0, 4]
+        position: [0, 5]
       north: [0, 1]
 
   - position: [0, 1]
