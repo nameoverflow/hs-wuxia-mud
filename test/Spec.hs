@@ -51,7 +51,7 @@ main = do
   testLearningRequirementFailure
   testArtsQuery
   testWeiyuanChapterFlow
-  testBianliangSettlingAndTravelFlow
+  testKaifengSettlingAndTravelFlow
   testStoryBattlesArePlayerIsolated
   testPlayerSaveRoundTrip
   putStrLn "All tests passed"
@@ -299,11 +299,11 @@ testDerivedStats = do
 
 testMoveUpdatesRoomOccupancy :: IO ()
 testMoveUpdatesRoomOccupancy = do
-  gs <- withStarterExit North (RoomRef "bianliang_city" (0, -3)) <$> newTestPlayerState
-  (_, atBianliangEntry) <- runOk "move north to Bianliang entry" gs (playerMove "tester" North)
-  (_, moved) <- runOk "move north inside Bianliang" atBianliangEntry (playerMove "tester" North)
-  assert (not $ S.member "tester" (roomPlayersAtMap "bianliang_city" moved (0, -3))) "player remained in the old room after moving"
-  assert (S.member "tester" (roomPlayersAtMap "bianliang_city" moved (0, -2))) "player was not added to the new room after moving"
+  gs <- withStarterExit North (RoomRef "kaifeng_city" (0, -3)) <$> newTestPlayerState
+  (_, atKaifengEntry) <- runOk "move north to Kaifeng entry" gs (playerMove "tester" North)
+  (_, moved) <- runOk "move north inside Kaifeng" atKaifengEntry (playerMove "tester" North)
+  assert (not $ S.member "tester" (roomPlayersAtMap "kaifeng_city" moved (0, -3))) "player remained in the old room after moving"
+  assert (S.member "tester" (roomPlayersAtMap "kaifeng_city" moved (0, -2))) "player was not added to the new room after moving"
 
 testCrossMapExitMovesPlayerBetweenMaps :: IO ()
 testCrossMapExitMovesPlayerBetweenMaps = do
@@ -777,12 +777,12 @@ testWeiyuanChapterFlow = do
       assert ((player ^. playerPosition) == ("bianshui_road", (0, 0))) "old escort did not send the player to the escort road"
       assert ((player ^. playerMoney) >= 30) "sourced travel money was not granted"
 
-  (_, atFerry) <- runOk "escort young survivor into Bianliang" onRoad (playerMove "tester" North)
-  assert (questStageOf "weiyuan_bloody_case" atFerry == Just "branch_gate") "entering Bianliang did not advance the escort"
+  (_, atFerry) <- runOk "escort young survivor into Kaifeng" onRoad (playerMove "tester" North)
+  assert (questStageOf "weiyuan_bloody_case" atFerry == Just "branch_gate") "entering Kaifeng did not advance the escort"
   (_, atGate) <- runOk "approach Weiyuan branch" atFerry (playerMove "tester" East)
   (_, inHall) <- runOk "enter Weiyuan branch hall" atGate (playerMove "tester" East)
   assert (questStageOf "weiyuan_bloody_case" inHall == Just "completed") "weiyuan quest did not complete in the branch hall"
-  assert (questStageOf "first_steps_bianliang" inHall == Just "guide") "Bianliang settling quest did not start"
+  assert (questStageOf "first_steps_kaifeng" inHall == Just "guide") "Kaifeng settling quest did not start"
   case M.lookup "tester" (inHall ^. stories) of
     Nothing -> fail "tester story state missing after Weiyuan separation"
     Just storyState -> do
@@ -806,43 +806,43 @@ testStoryBattlesArePlayerIsolated = do
   assert (M.member "tester2" $ bothBattles ^. battles) "second isolated story battle did not start"
   assert (maybe False ((== CharAlive) . view charStatus) $ M.lookup "temple_black_clad" (bothBattles ^. world . chars)) "concurrent story battles locked the shared NPC"
 
-testBianliangSettlingAndTravelFlow :: IO ()
-testBianliangSettlingAndTravelFlow = do
+testKaifengSettlingAndTravelFlow :: IO ()
+testKaifengSettlingAndTravelFlow = do
   gs <- newTestPlayerState
   let ready =
         gs
           & stories . ix "tester" . storyQuestStages . at "weiyuan_bloody_case" ?~ "completed"
-          & stories . ix "tester" . storyQuestStages . at "first_steps_bianliang" ?~ "guide"
-  (_, atSouthGate) <- runOk "move to Bianliang south gate" ready (movePlayerToRoom "tester" "bianliang_city" (0, -1))
-  (_, seekingInn) <- runOk "ask guide for lodging" atSouthGate (playerTalk "tester" "bianliang_guide")
-  assert (questStageOf "first_steps_bianliang" seekingInn == Just "inn") "guide did not send the player to the inn"
+          & stories . ix "tester" . storyQuestStages . at "first_steps_kaifeng" ?~ "guide"
+  (_, atSouthGate) <- runOk "move to Kaifeng south gate" ready (movePlayerToRoom "tester" "kaifeng_city" (0, -1))
+  (_, seekingInn) <- runOk "ask guide for lodging" atSouthGate (playerTalk "tester" "kaifeng_guide")
+  assert (questStageOf "first_steps_kaifeng" seekingInn == Just "inn") "guide did not send the player to the inn"
 
-  (_, atInn) <- runOk "move to Fanlou inn" seekingInn (movePlayerToRoom "tester" "bianliang_city" (-1, 1))
+  (_, atInn) <- runOk "move to Fanlou inn" seekingInn (movePlayerToRoom "tester" "kaifeng_city" (-1, 1))
   (_, lodged) <- runOk "lodge at Fanlou" atInn (playerTalk "tester" "fanlou_innkeeper")
-  assert (questStageOf "first_steps_bianliang" lodged == Just "training") "lodging did not advance to training"
+  assert (questStageOf "first_steps_kaifeng" lodged == Just "training") "lodging did not advance to training"
   case M.lookup "tester" (lodged ^. players) of
     Nothing -> fail "tester missing after lodging"
-    Just player -> assert ((player ^. playerInventory . at "bianliang_room_tag") == Just 1) "inn did not hand over the room tag"
+    Just player -> assert ((player ^. playerInventory . at "kaifeng_room_tag") == Just 1) "inn did not hand over the room tag"
 
-  (_, atTraining) <- runOk "move to training yard" lodged (movePlayerToRoom "tester" "bianliang_city" (-1, -1))
-  (_, readyToPractice) <- runOk "speak with Liang instructor" atTraining (playerTalk "tester" "bianliang_martial_instructor")
-  assert (questStageOf "first_steps_bianliang" readyToPractice == Just "practice") "instructor did not open the practice fight"
-  (_, practiceBattle) <- runOk "start practice fight" readyToPractice (playerTalk "tester" "bianliang_training_dummy")
+  (_, atTraining) <- runOk "move to training yard" lodged (movePlayerToRoom "tester" "kaifeng_city" (-1, -1))
+  (_, readyToPractice) <- runOk "speak with Liang instructor" atTraining (playerTalk "tester" "kaifeng_martial_instructor")
+  assert (questStageOf "first_steps_kaifeng" readyToPractice == Just "practice") "instructor did not open the practice fight"
+  (_, practiceBattle) <- runOk "start practice fight" readyToPractice (playerTalk "tester" "kaifeng_training_dummy")
   let defeatedDummy = practiceBattle & battles . ix "tester" . battleEnemyState . battleChar . charHP .~ 0
   (_, afterPractice) <- runOk "settle practice fight" defeatedDummy (updateBattle 0 "tester")
-  assert (questStageOf "first_steps_bianliang" afterPractice == Just "first_job") "practice fight did not unlock the first job"
+  assert (questStageOf "first_steps_kaifeng" afterPractice == Just "first_job") "practice fight did not unlock the first job"
 
-  (_, atScribe) <- runOk "move to scribe" afterPractice (movePlayerToRoom "tester" "bianliang_city" (1, -1))
+  (_, atScribe) <- runOk "move to scribe" afterPractice (movePlayerToRoom "tester" "kaifeng_city" (1, -1))
   (_, settled) <- runOk "complete first city job" atScribe (playerTalk "tester" "old_scribe")
-  assert (questStageOf "first_steps_bianliang" settled == Just "completed") "first city job did not complete Bianliang settling"
+  assert (questStageOf "first_steps_kaifeng" settled == Just "completed") "first city job did not complete Kaifeng settling"
   case M.lookup "tester" (settled ^. players) of
     Nothing -> fail "tester missing after first city job"
-    Just player -> assert ((player ^. playerInventory . at "bianliang_work_token") == Just 1) "employer did not hand over the work token"
+    Just player -> assert ((player ^. playerInventory . at "kaifeng_work_token") == Just 1) "employer did not hand over the work token"
 
-  (_, backAtGuide) <- runOk "return to guide" settled (movePlayerToRoom "tester" "bianliang_city" (0, -1))
-  (_, choosingRoute) <- runOk "ask guide about travel" backAtGuide (playerTalk "tester" "bianliang_guide")
+  (_, backAtGuide) <- runOk "return to guide" settled (movePlayerToRoom "tester" "kaifeng_city" (0, -1))
+  (_, choosingRoute) <- runOk "ask guide about travel" backAtGuide (playerTalk "tester" "kaifeng_guide")
   assert (questStageOf "three_city_leads" choosingRoute == Just "choose_route") "guide did not open the travel choice"
-  (_, atLuoyangRunner) <- runOk "move to Luoyang runner" choosingRoute (movePlayerToRoom "tester" "bianliang_city" (-2, 2))
+  (_, atLuoyangRunner) <- runOk "move to Luoyang runner" choosingRoute (movePlayerToRoom "tester" "kaifeng_city" (-2, 2))
   (_, inLuoyang) <- runOk "choose Luoyang as first journey" atLuoyangRunner (playerTalk "tester" "luoyang_runner")
   assert (questStageOf "three_city_leads" inLuoyang == Just "completed") "choosing one route did not complete the travel introduction"
   case M.lookup "tester" (inLuoyang ^. players) of
@@ -860,7 +860,7 @@ testPlayerSaveRoundTrip = do
           & stories . ix "tester" . storyQuestStages . at fixtureQuestId ?~ "accepted"
   let rewarded =
         accepted
-          & players . ix "tester" . playerPosition .~ ("bianliang_city", (0, 1))
+          & players . ix "tester" . playerPosition .~ ("kaifeng_city", (0, 1))
           & players . ix "tester" . playerMoney .~ 80
           & players . ix "tester" . playerPotential .~ 12
           & players . ix "tester" . playerCombatExp .~ 345
@@ -883,7 +883,7 @@ testPlayerSaveRoundTrip = do
     Left err -> fail $ "failed to load player save: " <> T.unpack err
     Right Nothing -> fail "player save was not written"
     Right (Just loaded) -> pure loaded
-  assert (saveVersion save == 5) "player save version was not bumped"
+  assert (saveVersion save == 6) "player save version was not bumped"
   fresh <- newTestPlayerState
   let restored = applyPlayerSaveToGameState save fresh
   assert (questStageOf fixtureQuestId restored == Just "accepted") "saved quest stage was not restored"
@@ -891,7 +891,7 @@ testPlayerSaveRoundTrip = do
     Nothing -> fail "tester missing after save restore"
     Just player -> do
       assert ((player ^. playerMoney) == 80) "saved money was not restored"
-      assert ((player ^. playerPosition) == ("bianliang_city", (0, 1))) "saved player position was not restored"
+      assert ((player ^. playerPosition) == ("kaifeng_city", (0, 1))) "saved player position was not restored"
       assert ((player ^. playerPotential) == 12) "saved potential was not restored"
       assert ((player ^. playerCombatExp) == 345) "saved combat exp was not restored"
       assert ((player ^. playerInventory . at "saved_token") == Just 1) "saved inventory was not restored"
@@ -907,5 +907,11 @@ testPlayerSaveRoundTrip = do
       assert ((player ^. playerCharacter . charArt . at Sword) == Just [ArtEntity "saved_sword_art" 5 0]) "saved learned martial art was not restored"
       assert ((player ^. playerCharacter . charPrepare . at Sword) == Just (ArtEntity "saved_sword_art" 5 0)) "saved prepared martial art was not restored"
       assert ((player ^. playerCharacter . charEnabled . at Sword) == Just (ArtEntity "saved_sword_art" 5 0)) "saved enabled martial art was not restored"
-      assert (S.member "tester" $ roomPlayersAtMap "bianliang_city" restored (0, 1)) "restored room occupancy did not include the player"
+      assert (S.member "tester" $ roomPlayersAtMap "kaifeng_city" restored (0, 1)) "restored room occupancy did not include the player"
       assert (not $ S.member "tester" $ roomPlayersAt restored (3, 3)) "default room occupancy still contained the restored player"
+  let legacyRestored = applyPlayerSaveToGameState (save {saveVersion = 5}) fresh
+  assert (questStageOf fixtureQuestId legacyRestored == Nothing) "pre-migration story ids were restored"
+  case M.lookup "tester" (legacyRestored ^. players) of
+    Nothing -> fail "tester missing after legacy save restore"
+    Just player ->
+      assert ((player ^. playerPosition) == ("weiyuan_road", (3, 3))) "pre-migration position was restored"

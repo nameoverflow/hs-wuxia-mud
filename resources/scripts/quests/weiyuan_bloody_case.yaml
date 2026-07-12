@@ -8,11 +8,11 @@ objectives:
   - stage: escort_dying
     text: "回头查看老镖师的伤势。"
   - stage: escort_road
-    text: "沿汴水官道护送灰衣少年进汴梁。"
+    text: "沿汴水官道护送灰衣少年进开封。"
   - stage: branch_gate
     text: "陪灰衣少年进威远镖局，看看里面是否还有活口。"
   - stage: completed
-    text: "灰衣少年已从后院独自离开。你收好路单，在汴梁另寻自己的去处。"
+    text: "灰衣少年已从后院独自离开。你收好路单，在开封另寻自己的去处。"
 reward:
   money: 0
   items: []
@@ -53,7 +53,7 @@ events:
         text: "威远的人果然在这里。今夜这座庙里，不该再有活口。"
       - type: message
         speaker: "受伤老镖师"
-        text: "少侠，若我倒下，替我把这孩子带进汴梁。"
+        text: "少侠，若我倒下，替我把这孩子带进开封。"
 
   - id: old_escort_urges_fight
     trigger:
@@ -179,10 +179,10 @@ events:
         speaker: "灰衣少年"
         text: "北面已经能看见城灯了。进城以后，威远分局在渡口东边。"
 
-  - id: reach_bianliang_with_young_escort
+  - id: reach_kaifeng_with_young_escort
     trigger:
       type: enter_room
-      map: bianliang_city
+      map: kaifeng_city
       position: [0, -3]
     conditions:
       - type: quest_stage
@@ -215,7 +215,7 @@ events:
   - id: enter_weiyuan_branch_hall
     trigger:
       type: enter_room
-      map: bianliang_city
+      map: kaifeng_city
       position: [2, -3]
     conditions:
       - type: quest_stage
@@ -243,7 +243,7 @@ events:
         amount: 1
       - type: message
         speaker: "灰衣少年"
-        text: "路单和剑谱都不能留在这里。你衣上有血，若被巡铺堵住，反而说不清。拿着它们，从前门走，去南门附近找地方落脚。"
+        text: "路单和剑谱都不能留在这里。你衣上有血，若被捕快堵住，反而说不清。拿着它们，从前门走，去南门附近找地方落脚。"
       - type: delay
         ms: 700
       - type: message
@@ -256,7 +256,7 @@ events:
       - type: hide_npc
         npc: grey_young_escort
       - type: set_stage
-        quest: first_steps_bianliang
+        quest: first_steps_kaifeng
         stage: guide
       - type: complete_quest
         quest: weiyuan_bloody_case

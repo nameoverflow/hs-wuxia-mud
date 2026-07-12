@@ -1,14 +1,14 @@
 id: bianshui_road
 name: "汴水官道"
-desc: "汴梁南面的官道，沿汴水北上便到汴梁，南边通向镖局旧路。"
+desc: "开封南面的官道，沿汴水北上便到开封，南边通向镖局旧路。"
 rooms:
   - position: [0, 0]
     id: bianshui_road_gate
     name: "官道口"
-    desc: "石板路沿汴水铺开，雨水顺着车辙流下。往北是汴梁，南面是被雨水冲乱的镖局旧路。"
+    desc: "石板路沿汴水铺开，雨水顺着车辙流下。往北是开封，南面是被雨水冲乱的镖局旧路。"
     char:
       - grey_young_escort
     exits:
       north:
-        map: bianliang_city
+        map: kaifeng_city
         position: [0, -3]

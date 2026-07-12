@@ -5,10 +5,10 @@ rooms:
   - position: [0, 0]
     id: taihu_cart_stop
     name: "药车停处"
-    desc: "药车停在湖岸，车铃轻轻晃着。回头就是汴梁来路。"
+    desc: "药车停在湖岸，车铃轻轻晃着。回头就是开封来路。"
     exits:
       south:
-        map: bianliang_city
+        map: kaifeng_city
         position: [3, 2]
       north: [0, 1]
 

@@ -103,7 +103,7 @@ server 不直接返回英文 UI 句子。固定系统文案使用结构化消息
 
 ```json
 {"tag":"SystemMsg","contents":{"systemMessageKey":"welcome","systemMessageParams":{"users":"tester"}}}
-{"tag":"ErrorMsg","contents":{"errorSummaryCode":"unable_to_move","errorSummaryParams":{"direction":"North","room":"汴梁外破庙口"}}}
+{"tag":"ErrorMsg","contents":{"errorSummaryCode":"unable_to_move","errorSummaryParams":{"direction":"North","room":"开封城外破庙口"}}}
 ```
 
 client 根据 `systemMessageKey` / `errorSummaryCode` 和参数做本地化。剧情文本、NPC 名字、房间描述、武功招式文案仍由脚本内容决定，不放进 UI i18n 表。
@@ -175,7 +175,7 @@ client 根据 `systemMessageKey` / `errorSummaryCode` 和参数做本地化。�
   "version": 5,
   "player_id": "tester",
   "story": {},
-  "position": ["bianliang_city", [0, 1]],
+  "position": ["kaifeng_city", [0, 1]],
   "inventory": {},
   "money": 0,
   "potential": 20,
@@ -213,6 +213,8 @@ client 根据 `systemMessageKey` / `errorSummaryCode` 和参数做本地化。�
   "enabled": {}
 }
 ```
+
+当前存档版本为 `6`。开封内容完成了一次性资源 ID 迁移，不保留旧城市 ID 的兼容映射；载入更早版本时保留角色数值和仍存在的物品，但重置剧情状态与位置，避免旧任务、flag 和地图 ID 重新进入运行时。
 
 保存内容：
 

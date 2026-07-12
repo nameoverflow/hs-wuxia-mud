@@ -3,12 +3,12 @@ name: "洛阳"
 desc: "旧都洛阳，牡丹、白马寺、天津桥和江湖豪客都在这里留下过名声。"
 rooms:
   - position: [0, 0]
-    id: luoyang_receiving_pavilion
-    name: "洛阳驿亭"
-    desc: "亭中挂着一柄无锋木剑和一张牡丹会旧帖。来客若不说话，驿卒便先看他的路引。"
+    id: luoyang_carriage_inn
+    name: "洛阳车马店"
+    desc: "店中挂着一柄无锋木剑和一张牡丹会旧帖。来客若不说话，掌柜便先看他的路引。"
     exits:
       south:
-        map: bianliang_city
+        map: kaifeng_city
         position: [-2, 2]
       north: [0, 1]
 

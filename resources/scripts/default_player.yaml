@@ -7,7 +7,7 @@ combat_exp: 1000
 char:
   id: player$default
   name: "无名客"
-  desc: "在汴梁外破庙避雨的江湖新人，意外卷入威远镖局旧案。"
+  desc: "在开封城外破庙避雨的江湖新人，意外卷入威远镖局旧案。"
   profile:
     gender: unknown
     appearance: 5

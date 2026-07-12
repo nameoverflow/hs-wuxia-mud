@@ -1,6 +1,6 @@
 id: weiyuan_road
-name: "汴梁外破庙"
-desc: "汴梁南面官道旁的旧庙，门缝漏风，雨水顺着车辙流到阶前。"
+name: "开封城外破庙"
+desc: "开封南面官道旁的旧庙，门缝漏风，雨水顺着车辙流到阶前。"
 rooms:
   - position: [3, 3]
     id: ruined_temple

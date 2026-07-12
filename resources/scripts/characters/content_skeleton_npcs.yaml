@@ -1,5 +1,5 @@
-- id: bianliang_guide
-  name: "京城引路人"
+- id: kaifeng_guide
+  name: "周引路"
   desc: "他靠在南门门洞里，腰间挂着几块不同客舍的旧木牌，见人先看鞋上的泥。"
   actions: [dialogue]
   martial_arts:
@@ -11,7 +11,7 @@
   prepared: {}
   teaches: {}
   dialogue:
-    - "南门只管问路，不管断案。想在汴梁久留，先有住处，再谈别的。"
+    - "南门只管问路，不管断案。想在开封久留，先有住处，再谈别的。"
   respawn: 0
   attr:
     hp: 100
@@ -24,9 +24,9 @@
       agility: 16
       vitality: 14
 
-- id: bianliang_martial_instructor
+- id: kaifeng_martial_instructor
   name: "梁教头"
-  desc: "御街武馆的教头，袖口卷得很高，手背上全是旧伤。"
+  desc: "府前街武馆的教头，袖口卷得很高，手背上全是旧伤。"
   actions: [dialogue]
   martial_arts:
     foundation:
@@ -57,7 +57,7 @@
     nameless_trial_sword: 5
     escort_short_fist: 5
   dialogue:
-    - "京城武馆先教基础。拳脚护身，轻功跑路，内功续命，兵器拉开距离，少一样都不算入门。"
+    - "府城武馆先教基础。拳脚护身，轻功跑路，内功续命，兵器拉开距离，少一样都不算入门。"
   respawn: 0
   attr:
     hp: 180
@@ -72,7 +72,7 @@
 
 - id: old_scribe
   name: "沈抄书"
-  desc: "太学外舍的抄书先生，正在誊抄告示和案卷。"
+  desc: "开封府学外舍的抄书先生，正在誊抄告示和案卷。"
   actions: [dialogue]
   martial_arts:
     foundation:
@@ -95,7 +95,7 @@
       agility: 12
       vitality: 13
 
-- id: bianliang_blacksmith
+- id: kaifeng_blacksmith
   name: "赵铁匠"
   desc: "赵铁匠守着炉火，手臂粗壮，说话直接。"
   actions: [dialogue]
@@ -108,7 +108,7 @@
       id: nameless_trial_fist
       level: 3
   dialogue:
-    - "没钱就帮我看炉、鼓风、淬火。京城不少江湖人的第一口饭，都是从铁铺挣的。"
+    - "没钱就帮我看炉、鼓风、淬火。开封不少江湖人的第一口饭，都是从铁铺挣的。"
   respawn: 0
   attr:
     hp: 130
@@ -121,7 +121,7 @@
       agility: 10
       vitality: 18
 
-- id: bianliang_physician
+- id: kaifeng_physician
   name: "柳药师"
   desc: "柳药师眉眼温和，拿药刀的手却稳得吓人。"
   actions: [dialogue]
@@ -186,7 +186,7 @@
         level: 4
   prepared: {}
   dialogue:
-    - "住店先洗手，问事后开口。汴梁客多，少说一句能少惹一件事。"
+    - "住店先洗手，问事后开口。开封客多，少说一句能少惹一件事。"
   respawn: 0
   attr:
     hp: 90
@@ -231,9 +231,9 @@
       agility: 24
       vitality: 14
 
-- id: bianliang_constable
-  name: "顾巡捕"
-  desc: "顾巡捕腰间的刀不新，刀鞘却擦得很亮。"
+- id: kaifeng_constable
+  name: "顾捕头"
+  desc: "顾捕头腰间的刀不新，刀鞘却擦得很亮。"
   actions: [dialogue]
   martial_arts:
     foundation:
@@ -548,8 +548,8 @@
       agility: 13
       vitality: 21
 
-- id: dali_guard_captain
-  name: "大理王府护卫长"
+- id: dali_duan_guard_captain
+  name: "段氏护院总管"
   desc: "他坐在堂中，身形高大，正在查看商队护送名单。"
   actions: [dialogue]
   martial_arts:
@@ -571,7 +571,7 @@
     dali_guard_fist: 12
     escort_short_fist: 8
   dialogue:
-    - "王府不怕你拳慢，怕你接了事又退。拳可以练，肩膀也可以练。"
+    - "段家不怕你拳慢，怕你接了事又退。拳可以练，肩膀也可以练。"
   respawn: 0
   attr:
     hp: 260

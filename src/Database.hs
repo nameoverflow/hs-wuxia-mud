@@ -28,7 +28,7 @@ import qualified Data.Text as T
 import GHC.Generics (Generic)
 import Game.Entity
 import Game.Quest
-import Game.World (maps)
+import Game.World (items, maps)
 import GameState
 import System.Directory (createDirectoryIfMissing, doesFileExist, removeFile)
 import System.FilePath ((</>))
@@ -203,8 +203,8 @@ deletePlayerSave saveDir pid = do
 
 applyPlayerSaveToGameState :: PlayerSave -> GameState -> GameState
 applyPlayerSaveToGameState PlayerSave {..} gs =
-  restoreSavedPosition savePlayerId savePosition $
-    (players . ix savePlayerId . playerInventory .~ saveInventory)
+  restoreSavedPosition savePlayerId restoredPosition $
+    (players . ix savePlayerId . playerInventory .~ restoredInventory)
     . (players . ix savePlayerId . playerMoney .~ saveMoney)
     . (players . ix savePlayerId . playerPotential .~ savePotential)
     . (players . ix savePlayerId . playerCombatExp .~ saveCombatExp)
@@ -220,8 +220,16 @@ applyPlayerSaveToGameState PlayerSave {..} gs =
     . maybe id (\gender -> players . ix savePlayerId . playerCharacter . charGender .~ gender) saveGender
     . maybe id (\appearance -> players . ix savePlayerId . playerCharacter . charAppearance .~ clampAppearanceScore appearance) saveAppearance
     . maybe id (\innate -> players . ix savePlayerId . playerCharacter . charInnate .~ innate) saveInnate
-    . (stories . at savePlayerId ?~ saveStory)
+    . (stories . at savePlayerId ?~ restoredStory)
     $ gs
+  where
+    isCurrentContentSave = saveVersion >= currentPlayerSaveVersion
+    restoredStory = if isCurrentContentSave then saveStory else newPlayerStoryState
+    restoredPosition = if isCurrentContentSave then savePosition else Nothing
+    restoredInventory =
+      if isCurrentContentSave
+        then saveInventory
+        else M.filterWithKey (\savedItemId _ -> M.member savedItemId $ gs ^. world . items) saveInventory
 
 restoreSavedPosition :: PlayerId -> Maybe (MapId, (Int, Int)) -> GameState -> GameState
 restoreSavedPosition _ Nothing gs = gs
@@ -238,7 +246,7 @@ playerSaveFromGameState :: PlayerId -> GameState -> Maybe PlayerSave
 playerSaveFromGameState pid gs = do
   player <- M.lookup pid (gs ^. players)
   let savePlayerId = pid
-      saveVersion = 5
+      saveVersion = currentPlayerSaveVersion
       saveStory = fromMaybe newPlayerStoryState $ M.lookup pid (gs ^. stories)
       savePosition = Just $ player ^. playerPosition
       saveInventory = player ^. playerInventory
@@ -258,6 +266,9 @@ playerSaveFromGameState pid gs = do
       savePrepared = player ^. playerCharacter . charPrepare
       saveEnabled = player ^. playerCharacter . charEnabled
   pure PlayerSave {..}
+
+currentPlayerSaveVersion :: Int
+currentPlayerSaveVersion = 6
 
 playerSavePath :: FilePath -> PlayerId -> FilePath
 playerSavePath saveDir pid = saveDir </> T.unpack (sanitizePlayerId pid) <> ".json"

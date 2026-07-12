@@ -1,6 +1,6 @@
 id: yanmen_old_road
 name: "雁门递道南线"
-desc: "汴梁北去边关的旧驿路南段，专递雁门边报，江湖人便把这一线都叫作雁门旧道。松林很密，近来常有边报在这里失踪。"
+desc: "开封北去边关的旧驿路南段，专递雁门边报，江湖人便把这一线都叫作雁门旧道。松林很密，近来常有边报在这里失踪。"
 rooms:
   - position: [0, 0]
     id: yanmen_south_marker
@@ -8,7 +8,7 @@ rooms:
     desc: "石碑上刻着雁门旧道四个字，旁边另有驿卒补刻的小字：此为南线，天黑莫行。"
     exits:
       south:
-        map: bianliang_city
+        map: kaifeng_city
         position: [0, 4]
       north: [0, 1]
 

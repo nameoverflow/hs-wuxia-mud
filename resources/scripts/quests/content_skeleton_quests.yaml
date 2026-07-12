@@ -1,16 +1,16 @@
-- id: first_steps_bianliang
-  name: "汴梁落脚"
+- id: first_steps_kaifeng
+  name: "开封落脚"
   objectives:
     - stage: guide
-      text: "离开威远镖局，到汴梁南门找人问路。"
+      text: "离开威远镖局，到开封南门找人问路。"
     - stage: inn
       text: "去鼓楼西边的樊楼客舍，先找个能过夜的地方。"
     - stage: training
-      text: "去御街武馆见梁教头，为自己选一条安身练功的路。"
+      text: "去府前街武馆见梁教头，为自己选一条安身练功的路。"
     - stage: practice
-      text: "与武馆练招木人试几招，熟悉汴梁武馆的规矩。"
+      text: "与武馆练招木人试几招，熟悉开封武馆的规矩。"
     - stage: first_job
-      text: "在太学、铁铺或药铺做一份活，挣到第一笔工钱。"
+      text: "在府学、铁铺或药铺做一份活，挣到第一笔工钱。"
     - stage: completed
       text: "你有了住处、练功门路和一枚工筹，可以自行安排往后的江湖生活。"
   reward:
@@ -20,68 +20,68 @@
     - id: guide_after_weiyuan_orphan
       trigger:
         type: talk
-        npc: bianliang_guide
+        npc: kaifeng_guide
       conditions:
         - type: quest_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: guide
         - type: flag
           flag: creation.origin.orphan
       actions:
         - type: message
-          speaker: "京城引路人"
-          text: "看你站门洞、避巡铺的样子，像是从小自己讨生活。汴梁不比小地方，先找张能闩门的床。鼓楼西边有樊楼客舍，报我姓周，伙计会给你留间后房。"
+          speaker: "周引路"
+          text: "看你站门洞、避差役的样子，像是从小自己讨生活。开封不比小地方，先找张能闩门的床。鼓楼西边有樊楼客舍，报我姓周，伙计会给你留间后房。"
         - type: set_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: inn
 
     - id: guide_after_weiyuan
       trigger:
         type: talk
-        npc: bianliang_guide
+        npc: kaifeng_guide
       conditions:
         - type: quest_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: guide
         - type: not_flag
           flag: creation.origin.orphan
       actions:
         - type: message
-          speaker: "京城引路人"
-          text: "第一次进汴梁，别急着问事。鼓楼西边有樊楼客舍，报我姓周，伙计会给你留间后房。先把湿衣换了，再想明日往哪里走。"
+          speaker: "周引路"
+          text: "第一次进开封，别急着问事。鼓楼西边有樊楼客舍，报我姓周，伙计会给你留间后房。先把湿衣换了，再想明日往哪里走。"
         - type: set_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: inn
 
     - id: guide_after_weiyuan_unstarted
       trigger:
         type: talk
-        npc: bianliang_guide
+        npc: kaifeng_guide
       conditions:
         - type: quest_completed
           quest: weiyuan_bloody_case
         - type: quest_not_started
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
       actions:
         - type: message
-          speaker: "京城引路人"
-          text: "第一次进汴梁，先找住处。鼓楼西边有樊楼客舍，报我姓周，伙计会给你留间后房。"
+          speaker: "周引路"
+          text: "第一次进开封，先找住处。鼓楼西边有樊楼客舍，报我姓周，伙计会给你留间后房。"
         - type: set_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: inn
 
     - id: guide_reminds_fanlou
       trigger:
         type: talk
-        npc: bianliang_guide
+        npc: kaifeng_guide
       conditions:
         - type: quest_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: inn
       actions:
         - type: message
-          speaker: "京城引路人"
-          text: "沿御街往北到鼓楼，再往西一拐就是樊楼客舍。先住下，别在门洞里过夜。"
+          speaker: "周引路"
+          text: "沿府前大街往北到鼓楼，再往西一拐就是樊楼客舍。先住下，别在门洞里过夜。"
 
     - id: fanlou_refuses_before_guide
       trigger:
@@ -89,7 +89,7 @@
         npc: fanlou_innkeeper
       conditions:
         - type: quest_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: guide
       actions:
         - type: message
@@ -102,7 +102,7 @@
         npc: fanlou_innkeeper
       conditions:
         - type: quest_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: inn
       actions:
         - type: message
@@ -112,19 +112,19 @@
           text: "伙计领你穿过灶房，在后院推开一扇窄门。"
           ms: 800
         - type: give_item
-          item: bianliang_room_tag
+          item: kaifeng_room_tag
           amount: 1
         - type: message
           speaker: "旁白"
           text: "房里只有竹榻、油灯和一只旧木箱。地方虽小，门闩尚算结实。你把水浸路单压进箱底，没有再看。"
         - type: set_flag
-          flag: bianliang.has_room
+          flag: kaifeng.has_room
         - type: set_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: training
         - type: message
           speaker: "樊楼伙计"
-          text: "明早若想找练功门路，去御街武馆见梁教头。若只想挣钱，城里也有的是活。"
+          text: "明早若想找练功门路，去府前街武馆见梁教头。若只想挣钱，城里也有的是活。"
 
     - id: fanlou_after_lodging
       trigger:
@@ -132,7 +132,7 @@
         npc: fanlou_innkeeper
       conditions:
         - type: quest_completed
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
       actions:
         - type: message
           speaker: "樊楼伙计"
@@ -141,10 +141,10 @@
     - id: confirm_basics_martial_family
       trigger:
         type: talk
-        npc: bianliang_martial_instructor
+        npc: kaifeng_martial_instructor
       conditions:
         - type: quest_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: training
         - type: flag
           flag: creation.origin.martial_family
@@ -153,18 +153,18 @@
           speaker: "梁教头"
           text: "你这站架有人教过，只是一路赶得心浮。家传的规矩我不问，到了我的场子，先对木人把呼吸和脚步找回来。"
         - type: show_npc
-          npc: bianliang_training_dummy
+          npc: kaifeng_training_dummy
         - type: set_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: practice
 
     - id: confirm_basics_at_martial_hall
       trigger:
         type: talk
-        npc: bianliang_martial_instructor
+        npc: kaifeng_martial_instructor
       conditions:
         - type: quest_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: training
         - type: not_flag
           flag: creation.origin.martial_family
@@ -173,39 +173,39 @@
           speaker: "梁教头"
           text: "你脚步虚，心却急。先别忙着拜师，对场边木人试几招。我只看你会不会护住自己。"
         - type: show_npc
-          npc: bianliang_training_dummy
+          npc: kaifeng_training_dummy
         - type: set_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: practice
 
     - id: start_martial_hall_practice
       trigger:
         type: talk
-        npc: bianliang_training_dummy
+        npc: kaifeng_training_dummy
       conditions:
         - type: quest_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: practice
       actions:
         - type: message
           speaker: "梁教头"
           text: "木人不会留手，你也不必留力。站稳了再出招。"
         - type: start_battle
-          target: bianliang_training_dummy
+          target: kaifeng_training_dummy
 
     - id: finish_martial_hall_practice
       trigger:
         type: kill
-        npc: bianliang_training_dummy
+        npc: kaifeng_training_dummy
       conditions:
         - type: quest_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: practice
       actions:
         - type: hide_npc
-          npc: bianliang_training_dummy
+          npc: kaifeng_training_dummy
         - type: set_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: first_job
         - type: message
           speaker: "梁教头"
@@ -217,7 +217,7 @@
         npc: old_scribe
       conditions:
         - type: quest_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: first_job
         - type: flag
           flag: creation.origin.scholar_house
@@ -230,12 +230,12 @@
         - type: give_money
           amount: 10
         - type: give_item
-          item: bianliang_work_token
+          item: kaifeng_work_token
           amount: 1
         - type: set_flag
-          flag: bianliang.first_job.scribe
+          flag: kaifeng.first_job.scribe
         - type: complete_quest
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
 
     - id: first_job_scribe_official
       trigger:
@@ -243,7 +243,7 @@
         npc: old_scribe
       conditions:
         - type: quest_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: first_job
         - type: flag
           flag: creation.origin.official_house
@@ -256,12 +256,12 @@
         - type: give_money
           amount: 10
         - type: give_item
-          item: bianliang_work_token
+          item: kaifeng_work_token
           amount: 1
         - type: set_flag
-          flag: bianliang.first_job.scribe
+          flag: kaifeng.first_job.scribe
         - type: complete_quest
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
 
     - id: first_job_scribe
       trigger:
@@ -269,7 +269,7 @@
         npc: old_scribe
       conditions:
         - type: quest_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: first_job
         - type: not_flag
           flag: creation.origin.scholar_house
@@ -284,20 +284,20 @@
         - type: give_money
           amount: 10
         - type: give_item
-          item: bianliang_work_token
+          item: kaifeng_work_token
           amount: 1
         - type: set_flag
-          flag: bianliang.first_job.scribe
+          flag: kaifeng.first_job.scribe
         - type: complete_quest
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
 
     - id: first_job_blacksmith
       trigger:
         type: talk
-        npc: bianliang_blacksmith
+        npc: kaifeng_blacksmith
       conditions:
         - type: quest_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: first_job
       actions:
         - type: message
@@ -311,20 +311,20 @@
         - type: give_money
           amount: 10
         - type: give_item
-          item: bianliang_work_token
+          item: kaifeng_work_token
           amount: 1
         - type: set_flag
-          flag: bianliang.first_job.blacksmith
+          flag: kaifeng.first_job.blacksmith
         - type: complete_quest
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
 
     - id: first_job_physician_family
       trigger:
         type: talk
-        npc: bianliang_physician
+        npc: kaifeng_physician
       conditions:
         - type: quest_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: first_job
         - type: flag
           flag: creation.origin.medicine_house
@@ -337,20 +337,20 @@
         - type: give_money
           amount: 10
         - type: give_item
-          item: bianliang_work_token
+          item: kaifeng_work_token
           amount: 1
         - type: set_flag
-          flag: bianliang.first_job.physician
+          flag: kaifeng.first_job.physician
         - type: complete_quest
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
 
     - id: first_job_physician
       trigger:
         type: talk
-        npc: bianliang_physician
+        npc: kaifeng_physician
       conditions:
         - type: quest_stage
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
           stage: first_job
         - type: not_flag
           flag: creation.origin.medicine_house
@@ -363,12 +363,12 @@
         - type: give_money
           amount: 10
         - type: give_item
-          item: bianliang_work_token
+          item: kaifeng_work_token
           amount: 1
         - type: set_flag
-          flag: bianliang.first_job.physician
+          flag: kaifeng.first_job.physician
         - type: complete_quest
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
 
 - id: yanmen_patrol
   name: "雁门旧道巡查"
@@ -380,7 +380,7 @@
     - stage: confronting
       text: "制住拦路探子，找回递铺失去的信物。"
     - stage: report
-      text: "回汴梁巡铺向顾巡捕复命。"
+      text: "回开封府捕房向顾捕头复命。"
     - stage: completed
       text: "失信案已经报回开封府，雁门旧道暂时恢复通行。"
   reward:
@@ -390,15 +390,15 @@
     - id: constable_starts_patrol
       trigger:
         type: talk
-        npc: bianliang_constable
+        npc: kaifeng_constable
       conditions:
         - type: quest_completed
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
         - type: quest_not_started
           quest: yanmen_patrol
       actions:
         - type: message
-          speaker: "顾巡捕"
+          speaker: "顾捕头"
           text: "北门递铺少了两封边报。你若想接一件正经差事，就去亭里看一眼；见到人先问话，别追过旧道岔口。"
         - type: set_stage
           quest: yanmen_patrol
@@ -469,15 +469,15 @@
     - id: constable_completes_patrol
       trigger:
         type: talk
-        npc: bianliang_constable
+        npc: kaifeng_constable
       conditions:
         - type: quest_stage
           quest: yanmen_patrol
           stage: report
       actions:
         - type: message
-          speaker: "顾巡捕"
-          text: "木牌留下，后面的路由官差去追。你守住了我说的分寸，这五十文是巡铺出的脚钱。"
+          speaker: "顾捕头"
+          text: "木牌留下，后面的路由官差去追。你守住了我说的分寸，这五十文是捕房出的脚钱。"
         - type: give_money
           amount: 50
         - type: complete_quest
@@ -487,7 +487,7 @@
   name: "远行门路"
   objectives:
     - stage: choose_route
-      text: "到北街问洛阳驿亭、大理商队或太湖药车，选定第一次远行的方向。"
+      text: "到北街问洛阳车马行、大理商队或太湖药车，选定第一次远行的方向。"
     - stage: completed
       text: "三处接引点已经认得你。往后想远行时，找对应接引人即可。"
   reward:
@@ -497,16 +497,16 @@
     - id: guide_opens_travel_routes
       trigger:
         type: talk
-        npc: bianliang_guide
+        npc: kaifeng_guide
       conditions:
         - type: quest_completed
-          quest: first_steps_bianliang
+          quest: first_steps_kaifeng
         - type: quest_not_started
           quest: three_city_leads
       actions:
         - type: message
-          speaker: "京城引路人"
-          text: "住处和工筹都有了，便不必总守着南门。北街有三拨远行人：洛阳驿亭、大理商队、太湖药车。先选一处走走，余下的路以后再认。"
+          speaker: "周引路"
+          text: "住处和工筹都有了，便不必总守着南门。北街有三拨远行人：洛阳车马行、大理商队、太湖药车。先选一处走走，余下的路以后再认。"
         - type: set_stage
           quest: three_city_leads
           stage: choose_route
@@ -531,7 +531,7 @@
         - type: complete_quest
           quest: three_city_leads
         - type: transition
-          text: "车轮沿驿道向西，汴梁城声渐渐落在身后。"
+          text: "车轮沿官道向西，开封城声渐渐落在身后。"
           ms: 1000
         - type: move_player
           map: luoyang_city
@@ -601,7 +601,7 @@
           speaker: "洛阳接引人"
           text: "西行车马正要出发。路引带好，途中少管驿卒不肯说的事。"
         - type: transition
-          text: "车轮沿驿道向西，汴梁城声渐渐落在身后。"
+          text: "车轮沿官道向西，开封城声渐渐落在身后。"
           ms: 900
         - type: move_player
           map: luoyang_city
