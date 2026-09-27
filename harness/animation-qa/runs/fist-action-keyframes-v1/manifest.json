@@ -1,0 +1,38 @@
+{
+  "name": "fist-action-keyframes-v1",
+  "action": "three distinct empty-hand actions: straight punch, heavy shoulder-driven strike, and stepping kick; each with windup and maximum-action pose",
+  "actor": "project baseline male fist actor; same body reused by female with optional ponytail attachment",
+  "identity_profile": "male",
+  "resolved_actor_card": "project baseline male fist actor; same body reused by female with optional ponytail attachment. Male baseline actor; plain softened rounded head, simple torso, balanced compact front/rear guard arms, simple legs, no hair, no clothing; slightly squarer stance is acceptable; add a slim straight sword only when the action requires a sword",
+  "style": "simplified compact abstract wuxia little-person silhouette sprite for a dark text-MUD battle UI; match docs/assets/battle-animation/actor-style-reference-male.png or actor-style-reference-female.png proportions; squat compact 2.5-3 head-tall body, low center of gravity, broad readable action shapes; male and female share the same total height, modest softened head size, torso scale, limb thickness, and foot baseline; front and rear arms have balanced thickness and visual weight, with the rear waist-side arm reading as a compact bent arm; must still read as a small person with head above torso, readable arms and legs, and planted feet; flat small-game actor, 1-2 colors, no facial features, no clothing, no hair strands, no gradients",
+  "direction": "right",
+  "background": "#00ff00",
+  "target_size": "256x192",
+  "frames": [
+    {
+      "slot": "punch_windup",
+      "filename": "punch_windup.png"
+    },
+    {
+      "slot": "punch_strike",
+      "filename": "punch_strike.png"
+    },
+    {
+      "slot": "heavy_windup",
+      "filename": "heavy_windup.png"
+    },
+    {
+      "slot": "heavy_strike",
+      "filename": "heavy_strike.png"
+    },
+    {
+      "slot": "kick_windup",
+      "filename": "kick_windup.png"
+    },
+    {
+      "slot": "kick_strike",
+      "filename": "kick_strike.png"
+    }
+  ],
+  "final_asset_root": "client/src/assets/battle/actors/"
+}
