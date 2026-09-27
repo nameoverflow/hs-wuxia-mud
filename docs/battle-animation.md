@@ -1,154 +1,151 @@
-# 半回合制战斗动画系统
+# 剪影交锋小舞台
 
-当前战斗角色使用 AI 生成、机械规范化的离散 PNG 关键帧，不再使用分件骨骼、mesh deformation 或运行时 Canvas 重绘。
+当前战斗表现采用 SVG 人物剪影、连续姿态插值、短促交锋和克制的镜头反馈。人物采用大圆头、无五官、圆润躯干与四肢的矢量轮廓，贴近原始小人素材；人物与招式特效不再使用 PNG 图集。背景仍沿用已生成的山水 WebP。此次 SVG 美术是用户明确要求的代码原生矢量方案。
 
-设计目标：
-
-- 每个 `attack_move` 和 `active_skill` 固定绑定一个 action。
-- action 由少量 `{ frameId, holdMs }` 构成，并用 `impactFrame` 标记命中帧。
-- 男版和女版共用完全相同的 body PNG；女版只在 body 后方增加逐帧 ponytail overlay。
-- 人物帧只表达姿态。接近、突进、后退、命中特效、飘字和目标反馈继续由 Pixi/GSAP 驱动。
-- server 决定战斗事实，client 只播放最终 `actionId`。
-
-## 源码入口
-
-- 动作 manifest：[resources/scripts/combat_actions/battle-actions.json](../resources/scripts/combat_actions/battle-actions.json)
-- action catalog：[client/src/battle/battleActionCatalog.ts](../client/src/battle/battleActionCatalog.ts)
-- PNG frame catalog：[client/src/battle/frameCatalog.ts](../client/src/battle/frameCatalog.ts)
-- 离散采样器：[client/src/battle/animationClip.ts](../client/src/battle/animationClip.ts)
-- timeline resolver：[client/src/battle/animationResolver.ts](../client/src/battle/animationResolver.ts)
-- Pixi actor：[client/src/battle/pixiFrameActor.ts](../client/src/battle/pixiFrameActor.ts)
-- Pixi battle stage：[client/src/components/PixiBattleStage.svelte](../client/src/components/PixiBattleStage.svelte)
-- 资源校验：[client/scripts/validate-animation-data.mjs](../client/scripts/validate-animation-data.mjs)
-- storyboard 直出：[client/scripts/render-frame-preview.mjs](../client/scripts/render-frame-preview.mjs)
-
-## 数据流
+## 运行时
 
 ```text
 martial-art YAML animation.action
-  -> CombatEventMsg.visual.actionId
-  -> battleActionCatalog
-  -> animationResolver
-  -> ResolvedBattleTimeline
-  -> PixiBattleStage
-  -> PixiFrameActor swaps body/hair textures only when frameId changes
+  → CombatEventMsg.visual.actionId + durationMs
+  → battleActionCatalog / animationResolver
+  → game.ts 战斗事件队列
+  → BattleClock（唯一播放时钟）
+      ├─ battleDirector：纯函数采样姿势、位移、命中、镜头、特效
+      ├─ impact callback：显示气血更新与声音
+      └─ complete callback：下一次交锋 / 结算
+  → SilhouetteBattleStage.svelte：SVG 人物与特效 + transform/opacity
 ```
 
-## 武学绑定
+旧 PixiBattleStage、PixiFrameActor、Pixi runtime 和 pixi.js 依赖已删除。GSAP 仍用于其他 UI 的资源条。当前舞台只有两个角色和少量纹理层，SVG 姿态可以直接采样、定位和检查，无需维护另一套动画时钟。
 
-普通招式和主动技能都必须写固定 action：
+核心文件：
 
-```yaml
-attack_moves:
-  - id: trial_jian_thrust
-    name: "试剑一刺"
-    damage: 11
-    animation:
-      action: rig.sword.thrust_a
-      tags: ["sword", "stab"]
-```
+- `client/src/battle/battleClock.ts`：播放、暂停、倍速、定位、取消；每次 play 都重置游标。
+- `client/src/battle/battleDirector.ts`：完全确定性的画面采样，不读取当前时间、不生成随机画面。
+- `client/src/battle/animationResolver.ts`：解析服务器动作与时长；给攻击添加专属接近段，并同步顺延命中及所有演出标记。
+- `client/src/components/SilhouetteBattleStage.svelte`：实际游戏和回放页共用的 SVG 舞台。
+- `client/src/battle/battleApproach.ts`：按 action ID 定义前倾冲刺姿态、时长和起伏。
+- `client/src/battle/svgBattlePose.ts`：矢量姿态、连续插值、招式 reach 接触点匹配；复用同一时间线和 hit stop。
+- `client/src/components/SvgBattleActor.svelte`：圆头、躯干、四肢、马尾和兵器的矢量轮廓。
+- `client/src/game.ts`：权威状态、显示气血、队列和结算。
+- `client/src/battle/battleAudio.ts`：可选的轻量 Web Audio 打击/招架/调息反馈，默认关闭，用户点击后启用。
 
-`action` 缺失、为空或不存在时，内容校验直接失败。系统没有 animation pool，也不随机挑动作。
+## Action manifest v4
 
-## Action manifest
+`resources/scripts/combat_actions/battle-actions.json` 仍与 Haskell 服务端共享 action ID 和 durationMs。历史 `rig.*` 前缀继续兼容武学 YAML，不代表运行时还有骨骼系统。
 
-manifest schema 当前为 v3：
+普通攻击包含：站定 → 蓄势 → 最大动作 → 收势 → 站定。每帧的 holdMs 与总 durationMs 一致；impactFrame 标记最大动作开始。例：
 
 ```json
 {
   "id": "rig.fist.punch_a",
-  "frameset": "raster-v1",
-  "style": "fist",
+  "label": "直拳",
+  "durationMs": 620,
+  "impactFrame": 2,
   "frames": [
-    { "frameId": "punch_windup", "holdMs": 280 },
-    { "frameId": "punch_strike", "holdMs": 440 }
+    { "frameId": "idle", "holdMs": 60 },
+    { "frameId": "punch_windup", "holdMs": 140 },
+    { "frameId": "punch_strike", "holdMs": 100 },
+    { "frameId": "punch_windup", "holdMs": 160 },
+    { "frameId": "idle", "holdMs": 160 }
   ],
-  "impactFrame": 1,
-  "durationMs": 720,
-  "actorMotion": "approach"
+  "choreography": {
+    "launchAtMs": 120,
+    "hitStopMs": 35,
+    "recoverAtMs": 300,
+    "restAtMs": 460,
+    "reach": 72,
+    "contactY": 110,
+    "weight": "light"
+  }
 }
 ```
 
-`rig.*` 是为兼容现有武学 YAML 和服务端事件保留的历史 action ID 前缀；运行时已经没有 rig、骨骼或 pose 数据。
+其余已有的 style、frameset、actorMotion、tags、targetReaction、vfx 字段仍须保留。`choreography` 的定义：
 
-约束：
+- launchAtMs：从反向蓄势进入快速发力。
+- hitStopMs：命中之后同时保持人物、镜头、轨迹与飘字位移的时长。
+- recoverAtMs：开始平滑收回位移。
+- restAtMs：回到对峙站位，剩余时间用于读结果。
+- reach：动作的接触距离，以原始 256×192 素材坐标为单位。
+- contactY：接触点相对原始素材顶端的高度；统一脚底基线是 176。
+- weight：light、heavy、quiet，控制克制的镜头反馈和后坐力度。
 
-- `frameset` 必须是 `raster-v1`。
-- `frames` 至少一帧，每帧 `holdMs > 0`。
-- `durationMs` 必须等于所有 `holdMs` 之和。
-- `impactFrame` 必须落在 `frames` 范围内。
-- 每个 `frameId` 必须同时存在 body 和 hair PNG。
+标记满足 `0 ≤ launch ≤ impact ≤ impact + hitStop ≤ recover ≤ rest ≤ duration`。当前恢复“大开大合”版的原始攻击时长和时间标记，同时保留独立的远距离前倾冲刺。总时长为冲刺时长 + 服务端动作时长；launch、impact、recover、rest 整体顺延，hitStop 只随服务端时长缩放。没有额外的攻击分段加速。
 
-## 素材结构
+## 交锋规则
 
-```text
-client/src/assets/battle/actors/raster-v1/
-  fist/
-    body/<frameId>.png
-    hair/<frameId>.png
-  sword/
-    body/<frameId>.png
-    hair/<frameId>.png
-```
+- 双方在中心附近对峙，根位置相距 280 个素材像素。先原地前倾压缩，再单步加速冲到距目标 reach 的位置；到位承接蓄势姿态，再按原版节奏出招；攻击期间根位置保持不动，收势时配退步回到原位。
+- 接近、起手、接触和收势共用一条时间线。恢复位移采用平滑曲线，不 set 回原点。
+- hit 在接触时进入受击姿态；dodge 提前侧闪并留下短暂残影；parry 提前架势，接触时出现防守笔触，后退幅度很小。
+- `svgAttackTrail.ts` 回采实际剑尖/拳脚轨迹，以细剑光和淡残影表现发力。火花和防守反馈仍围绕接触点组织。普通招式镜头缩放约 1.5%，重招约 3.5%。
+- 相同 action 连续出现时依然是不同播放实例，不使用资源缓存键来决定是否重新开始。
+- 后续队列达到三条时，只压缩站定读字尾段，保留蓄势、发力、命中和收势标记。
+- 气血快照保留为权威状态；BattlePanel 的显示气血在 impact callback 时推进，队列清空后对齐快照。
+- 结算排在最终命中之后；胜负演出完成后才退出战斗面板。
+- 主游戏切到后台时清掉陈旧演出，保留战斗事实与日志并处理结算。后台新事件不再排成长时间回放，返回后展示最新状态。
+- 减弱动态模式保留姿势、数字和轻量色彩反馈，关闭突进、震动、缩放、轨迹、残影和文字位移。
 
-每张文件都是 `256x192 RGBA PNG`，人物使用统一比例与脚底基线。
+## 专属接近步法
 
-渲染顺序：
+每次攻击以一次前倾冲刺完成接近，然后承接“大开大合”版攻击。前 50% 时间在原地压身，后 50% 用加速曲线覆盖距离并急停。`actor.actionDelayMs` 标记到位时间；接近期间 phase 为 approach，人物帧标记为 approach-步法名。攻击帧读取扣除接近段后的局部时间。积压队列仍仅压缩末尾静止读字时间，保留接近与攻击标记。
 
-1. female profile 显示 hair frame；male profile不显示。
-2. body frame 画在 hair 上方。
-3. 敌方在容器层整体水平镜像。
+| 招式 | 位移动作 | 基准接近时长 |
+| --- | --- | --- |
+| 直拳 | 收拳前倾冲刺 | 150ms |
+| 沉劲掌 | 深压身蹬地爆冲 | 165ms |
+| 横踢 | 低掠提膝冲刺 | 165ms |
+| 一线穿云 | 收剑前倾直冲 | 140ms |
+| 横江一扫 | 拖剑前倾冲刺 | 155ms |
+| 迎风劈剑 | 负剑前倾冲刺 | 160ms |
+| 挑灯式 | 低身拖剑爆冲 | 155ms |
 
-因此男女身体像素完全相同，性别差异只有马尾层。
+各招有独立的前倾躯干、持械和蹬腿姿态，不使用交替迈步循环。冲刺末段衔接蓄力姿态，攻击恢复连续的大幅挥斩和独立随势动作；回位也采用单次撤身。调息、持续效果和结算不接近。减弱动态模式隐藏位移与连续步法，保留相同伤害时机。
 
-## 关键帧生成与处理
+攻击段恢复 manifest 的 600–820ms，冲刺段保持 140–165ms。保留宽站位、弓步与反向展臂、72px 剑身、实际剑尖轨迹和淡残影。撤回后续的攻击加速、关键姿态跳切和延长尾停；积压队列保留 45ms 尾段。
 
-源生成记录保存在：
+## SVG 姿态与素材
 
-```text
-harness/animation-qa/runs/raster-keyframes-v1/
-```
+`svgBattlePose.ts` 覆盖 manifest 中全部 26 个姿态 ID。攻击从蓄势加速插值到最大动作，命中时保持，随后走完独立随势动作，再平滑收回。拳头、脚尖或剑尖由 manifest 的 reach/contactY 对齐接触位置。双方朝向仍由舞台镜像处理。弓步、反向展臂、举剑下劈、低起上挑与提膝侧踢形成不同的大开合轮廓；剑长为 72 个素材像素。
 
-制作流程：
+`sampleSvgPose` 使用 BattleClock 的 elapsed 与 choreography 标记，不启动 CSS/SMIL 独立动画，因此暂停、慢放、定位和 hit stop 同步。减弱动态模式使用离散姿态并关闭原有位移/震动。male/female profile 共用圆头身体，female 增加简洁的波浪马尾。
 
-1. 使用项目 v13 actor anchor 和内置 `image_gen` 生成 fist/sword source sheet。
-2. 使用纯 `#00ff00` chroma 背景，不生成服装、脸、阴影、轨迹或 VFX。
-3. 使用 `normalize_keyframes.py` 做机械去背、共享缩放、脚底对齐和 `256x192` 导出。
-4. 在编辑后的 sheet 中让模型只添加 cyan ponytail，再由 `extract_hair_overlays.py` 机械提取、着色和对齐。
-5. 最终 body/hair 镜像到 runtime asset 目录。
+历史 action manifest 的 `frameset: raster-v1` 字段、帧 ID 和 PNG 原始资源暂时保留用于兼容与旧资源校验；运行时 ActorVisual.kind 为 svg，catalog 校验 SVG 姿态覆盖。旧图集不再由舞台引用或预加载，生产 bundle 不包含人物和特效图集。`pack:battle` 仅用于维护旧图集，修改 SVG 不需要重打包。
 
-旧的 segmented-v12 分件、pose JSON、骨骼编辑器和 renderer 已删除。旧服装版 fist/sword sprites 也不再保留。
+背景保留 `client/src/assets/battle/ink-stage-v1/backdrop.webp`。SVG 替换的设计与 QA 记录位于 `harness/animation-qa/runs/svg-silhouette-v1/`。
 
-## 命中同步
-
-`animationResolver` 根据 action 的 `impactFrame` 算出 `impactAtMs`。以下反馈使用同一个时间点：
-
-- 目标 hit/dodge/parry 姿态开始播放。
-- 目标容器反应。
-- impact/parry VFX。
-- 伤害、治疗、闪避和格挡飘字。
-
-人物关键帧本身不插值。Pixi actor 只有在 `frameId` 改变时才切换纹理。
-
-## 本地校验与预览
+## Agent 制作和验收
 
 ```bash
 cd client
-npm run validate:animations
 npm run check
+npm run test:battle
+npm run test:battle:browser
 npm run build
 ```
 
-校验覆盖 action、frame 时长、impactFrame、martial-art 固定绑定以及 body/hair 文件存在性。
+浏览器测试使用 Playwright。首次可运行 `npx playwright install chromium`；使用已安装 Chrome 时设置 `PLAYWRIGHT_CHANNEL=chrome`。
 
-输出高频 storyboard：
+`npm run dev` 后打开 `/battle-lab.html`：
+
+- 完整交锋经过真实游戏事件入口和队列，包含同招连击、招架、闪避、受伤、调息和结算。
+- 可以单独选择动作、结果、出招方与剪影 profile。
+- 暂停、倍速和拖动时间轴调用同一 BattleClock。拖动只定位画面，不重复提交伤害；继续播放才提交尚未经过的命中回调。
+- `window.__battleLab` 仅在独立回放页存在，供自动录制和语义检查使用。主游戏没有这个测试接口。
+
+录制和密集 storyboard：
 
 ```bash
-npm run render:frames -- \
-  --action rig.fist.heavy_a \
-  --profile female \
-  --fps 16 \
-  --out harness/tmp/raster-v1/heavy-female.png
+cd client
+PLAYWRIGHT_CHANNEL=chrome npm run record:battle
+cd ..
+bash .codex/skills/animation-visual-qa/scripts/storyboard-from-video.sh \
+  harness/tmp/silhouette-stage-v2/recording/recording.webm \
+  harness/tmp/silhouette-stage-v2/storyboards 3 16 8 320
 ```
 
-多条 `render:frames` 命令建议分别执行，再逐张检查 action semantics、起手/最大姿态、性别层、裁切和命中节奏。
+`render:frames` 仍可用于单独查看角色帧顺序；它不能替代完整舞台回放。最终验收同时检查全速节奏、慢放与密集 storyboard，不以字段校验通过代替观感判断。
+
+## 已知表达边界
+
+当前为可运行的 SVG 风格试作，覆盖拳脚、剑术与无发饰/马尾两种轮廓；其他武器需要新增姿态和矢量形状。攻击采用设计好的关节点插值，肢体允许适度伸缩，并非严格保持骨长的骨骼/IK 系统。舞台背景仍为位图。声音为轻量合成反馈；视觉 QA 不等同于全设备帧率或音质测量。

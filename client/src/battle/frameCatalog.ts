@@ -1,36 +1,20 @@
 import type { CombatStyle } from "./animationTypes";
+import atlasData from "./frameAtlas.json";
+import fistBody from "../assets/battle/ink-stage-v1/fist-body-atlas.png";
+import fistHair from "../assets/battle/ink-stage-v1/fist-hair-atlas.png";
+import swordBody from "../assets/battle/ink-stage-v1/sword-body-atlas.png";
+import swordHair from "../assets/battle/ink-stage-v1/sword-hair-atlas.png";
 
 type FrameLayer = "body" | "hair";
+const urls = { fist: { body: fistBody, hair: fistHair }, sword: { body: swordBody, hair: swordHair } };
+const atlases = atlasData as Record<CombatStyle, { width: number; height: number; frames: Record<string, { x: number; y: number }> }>;
 
-const frameModules = import.meta.glob("../assets/battle/actors/raster-v1/*/*/*.png", {
-  eager: true,
-  query: "?url",
-  import: "default"
-}) as Record<string, string>;
-
-const frameUrls = new Map<string, string>();
-
-for (const [path, url] of Object.entries(frameModules)) {
-  const match = path.match(/raster-v1\/(fist|sword)\/(body|hair)\/([^/]+)\.png$/);
-  if (!match) continue;
-  frameUrls.set(frameKey(match[1] as CombatStyle, match[2] as FrameLayer, match[3]), url);
+export function frameAtlas(style: CombatStyle, layer: FrameLayer, frameId: string) {
+  const atlas = atlases[style];
+  const frame = atlas.frames[frameId];
+  if (!frame) throw new Error(`Missing silhouette frame ${style}/${frameId}`);
+  return { url: urls[style][layer], width: atlas.width, height: atlas.height, ...frame };
 }
 
-export function frameTextureUrl(style: CombatStyle, layer: FrameLayer, frameId: string) {
-  const url = frameUrls.get(frameKey(style, layer, frameId));
-  if (!url) throw new Error(`Missing raster ${layer} frame ${style}/${frameId}`);
-  return url;
-}
-
-export function validateFrameAssets(style: CombatStyle, frameId: string) {
-  frameTextureUrl(style, "body", frameId);
-  frameTextureUrl(style, "hair", frameId);
-}
-
-export function allFrameTextureUrls() {
-  return [...new Set(frameUrls.values())];
-}
-
-function frameKey(style: CombatStyle, layer: FrameLayer, frameId: string) {
-  return `${style}:${layer}:${frameId}`;
-}
+export function validateFrameAssets(style: CombatStyle, frameId: string) { frameAtlas(style, "body", frameId); }
+export function allFrameTextureUrls() { return Object.values(urls).flatMap(layers => Object.values(layers)); }

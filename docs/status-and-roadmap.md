@@ -69,7 +69,7 @@
 - 没有真正数据库，只有 JSON 玩家存档。
 - 角色位置已进入 `PlayerSave`；旧存档没有位置时仍使用默认出生点。
 - NPC 战斗锁、死亡状态和复活倒计时仍只在内存中维护，server 重启后回到 YAML 初始状态。
-- dev 测试入口只能重置到默认初始状态，还没有一键跳转到指定剧情阶段或战斗场景的 seed 机制。
+- 完整游戏的 dev 测试入口仍只能重置到默认初始状态，没有指定剧情阶段的 seed 机制；客户端 battle lab 已有战斗 fixtures，但不等同于服务端剧情或存档 seed。
 - 物品系统只有背包数量和 `learn_art` 使用效果，没有装备、消耗品、交易、掉落表。
 - prepared/enabled 已有服务端命令，但还没有玩家主动切换 UI。
 - 没有全局角色等级；基础属性成长尚未实现。
@@ -78,7 +78,7 @@
 - 多人同房间广播、聊天可见范围、PVP 规则尚未完善；多人围攻同一个 NPC 尚未实现。
 - NPC AI 仍很简单：普通攻击来自准备武功 attack_moves，主动招式 AI 尚未成体系。
 - 普通攻击已有命中、闪避、招架和属性缩放；装备、防具、暴击和技能 hook 尚未接入。
-- 战斗剪影动画已有可运行的数据驱动骨架，但还缺素材 manifest、catalog validator、动画预览页和更多武功/技能专属素材。
+- 战斗剪影动画已有 catalog validator（`client/scripts/validate-animation-data.mjs`）、帧目录与图集数据（`frameCatalog.ts` / `frameAtlas.json`）、预览页（`client/battle-lab.html`）、逻辑/浏览器测试和录屏入口。武功/技能专属素材与视觉质量仍需按动作逐项验收；功能与视觉验收以相应测试和 QA 记录为准。
 - 剧情事件是线性匹配第一个可用事件，没有优先级、冷却、复杂变量或表达式系统。
 - Lua 依赖在 package 中存在，但当前主线剧情没有使用 Lua。
 - 测试是自定义 `Spec.hs` 主程序，没有 Hspec/Tasty 结构。

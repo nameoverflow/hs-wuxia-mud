@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { preloadPixiBattleRuntime } from "./battle/pixiBattleRuntime";
+  import { preloadBattleAssets } from "./battle/stageAssets";
+  import { battleClock } from "./battle/battleClock";
   import CharacterPanel from "./components/CharacterPanel.svelte";
   import CombatScene from "./components/CombatScene.svelte";
   import LoginPanel from "./components/LoginPanel.svelte";
@@ -8,14 +9,21 @@
   import MessageLog from "./components/MessageLog.svelte";
   import RightRail from "./components/RightRail.svelte";
   import RoomScene from "./components/RoomScene.svelte";
-  import { game, setLocale } from "./game";
+  import { game, setLocale, finishHiddenBattlePresentation } from "./game";
   import { translate } from "./i18n";
 
   onMount(() => {
-    const load = () => preloadPixiBattleRuntime();
+    const load = () => { void preloadBattleAssets().catch(() => {}); };
     const idle = window as Window & { requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number };
     if (idle.requestIdleCallback) idle.requestIdleCallback(load, { timeout: 1500 });
     else window.setTimeout(load, 300);
+    const visibility = () => {
+      if (document.hidden) finishHiddenBattlePresentation();
+      battleClock.suspend(document.hidden);
+    };
+    document.addEventListener("visibilitychange", visibility);
+    visibility();
+    return () => document.removeEventListener("visibilitychange", visibility);
   });
 </script>
 

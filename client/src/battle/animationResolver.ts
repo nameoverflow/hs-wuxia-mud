@@ -1,9 +1,9 @@
 import type { CombatEvent, CombatResult } from "../protocol";
+import { approachForAction } from "./battleApproach";
 import { clipImpactOffsetMs } from "./animationClip";
 import { battleActionFor, idleVisualForStyle, reactionVisualFor, visualForBattleAction } from "./battleActionCatalog";
 import type {
   ActionVfxDefinition,
-  ActorMotion,
   BattleActionDefinition,
   BattleSide,
   CombatStyle,
@@ -29,8 +29,9 @@ export function resolveCombatTimeline(
   const reaction = action.targetReaction[result] || resultReaction(result);
   const actorVisual = visualForBattleAction(action.id, actorProfile, actorStyle);
   const actionDurationMs = visualDurationMs(event.visual?.durationMs, action.durationMs);
-  const impactAtMs = clipImpactOffsetMs(action.frames, action.impactFrame, actionDurationMs);
-  const actionDelayMs = preActionDelayMs(action.actorMotion);
+  const approach = event.kind === 'effect_tick' ? undefined : approachForAction(action.id);
+  const actionDelayMs = (approach?.durationMs ?? 0) * actionDurationMs / action.durationMs;
+  const impactAtMs = actionDelayMs + clipImpactOffsetMs(action.frames, action.impactFrame, actionDurationMs);
   const targetVisual =
     reaction === "effect" || reaction === "none" ? idleVisualForStyle(targetStyle, targetProfile) : reactionVisualFor(reaction, targetProfile, targetStyle);
 
@@ -40,7 +41,15 @@ export function resolveCombatTimeline(
     actorSide,
     targetSide,
     durationMs: actionDurationMs + actionDelayMs,
-    impactAtMs: actionDelayMs + impactAtMs,
+    impactAtMs,
+    label: event.message?.kind === "script" && event.message.text.trim().length <= 12 ? event.message.text.trim() : action.label,
+    choreography: {
+      ...action.choreography,
+      launchAtMs: actionDelayMs + action.choreography.launchAtMs * actionDurationMs / action.durationMs,
+      hitStopMs: action.choreography.hitStopMs * actionDurationMs / action.durationMs,
+      recoverAtMs: actionDelayMs + action.choreography.recoverAtMs * actionDurationMs / action.durationMs,
+      restAtMs: actionDelayMs + action.choreography.restAtMs * actionDurationMs / action.durationMs
+    },
     actor: {
       side: actorSide,
       visual: actorVisual,
@@ -81,6 +90,8 @@ export function resolveSettlementTimeline(
     targetSide,
     durationMs: 900,
     impactAtMs: 0,
+    label: actorSide === "player" ? "胜" : "败",
+    choreography: { launchAtMs: 0, hitStopMs: 0, recoverAtMs: 0, restAtMs: 900, reach: 0, contactY: 100, weight: "quiet" },
     actor: {
       side: actorSide,
       visual: actorVisual,
@@ -103,13 +114,6 @@ export function resolveSettlementTimeline(
 
 function visualDurationMs(serverDurationMs: number | null | undefined, fallbackDurationMs: number) {
   return typeof serverDurationMs === "number" && Number.isFinite(serverDurationMs) && serverDurationMs > 0 ? Math.round(serverDurationMs) : fallbackDurationMs;
-}
-
-function preActionDelayMs(motion: ActorMotion) {
-  if (motion === "approach") return 380;
-  if (motion === "lunge") return 400;
-  if (motion === "drive") return 420;
-  return 0;
 }
 
 function resolveVfx(action: BattleActionDefinition, actorSide: BattleSide, targetSide: BattleSide, result: CombatResult): TimelineVfx[] {

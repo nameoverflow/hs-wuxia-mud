@@ -2,7 +2,7 @@
 
 客户端位于 [client/](../client)，是 Svelte + TypeScript + Vite WebSocket 客户端。
 
-界面风格是简洁框线式 MUD 控制台：暗色底、直线分区、状态色资源条。战斗面板使用少关键帧剪影 PNG、通用 motion/reaction/VFX primitive 和数据驱动 timeline。
+界面风格是简洁框线式 MUD 控制台：暗色底、直线分区、状态色资源条。战斗面板使用SVG 人物剪影、连续姿态插值和数据驱动 timeline。
 
 ## 当前职责
 

@@ -6,6 +6,10 @@
 
 相关系统架构、协议和 catalog 实现见 [半回合制战斗动画系统](./battle-animation.md)。本文只讨论动画表现原则。
 
+## 当前实现约定（2026-09）
+
+当前采用简化剪影交锋小舞台。完整的实现和命令见 [战斗动画系统](./battle-animation.md)。角色采用 SVG 圆头小人与圆润肢体轮廓并连续插值；镜头克制，围绕近距离交手组织姿势、接触、收势。runtime 使用 BattleClock 与纯函数 battleDirector；命中、显示气血和声音共享时刻。下文时长区间属于设计参考，以 action manifest v4 的实际时间标记为准。
+
 ## 核心判断
 
 一段好的轻量战斗动画不是“每一帧都有新角色画”。它通常由下面几件事共同成立：
@@ -333,7 +337,7 @@ MUD 战斗不是纯动画，它同时是文字叙事。动画必须服务文字�
 
 server 提供战斗事实和 animation hint。client 根据 catalog 选择表现，战斗结果以 server 事件为准。
 
-当前 `PixiBattleStage.svelte` 只消费 `ResolvedBattleTimeline`。新增动作时优先改武学 YAML 的固定 `animation.action`、action manifest 和 raster frame；只有新增通用渲染 primitive 时才改舞台组件。
+当前 `SilhouetteBattleStage.svelte` 只消费 `ResolvedBattleTimeline`。新增动作时优先改武学 YAML 的固定 `animation.action`、action manifest 和 SVG pose；只有新增通用渲染 primitive 时才改舞台组件。
 
 ## 设计检查表
 

@@ -12,6 +12,7 @@
   export let state: GameState;
 
   let activeTab: "status" | "inventory" = "status";
+  $: presentedHp = state.battle.active ? state.battle.presentation?.playerHp ?? state.stats.hp : state.stats.hp;
 
   const requestRefresh = () => {
     sendAction({ other: "view" });
@@ -104,7 +105,7 @@
     </dl>
 
     <div class="meter-stack">
-      <ResourceMeter label={translate(state.locale, "resource.hp")} value={state.stats.hp} max={state.stats.maxHp} tone="hp" />
+      <ResourceMeter label={translate(state.locale, "resource.hp")} value={presentedHp} max={state.stats.maxHp} tone="hp" snapDecrease={state.battle.active} />
       <ResourceMeter label={translate(state.locale, "resource.qi")} value={state.stats.qi} max={state.stats.maxQi} tone="qi" />
       <ResourceMeter label={translate(state.locale, "resource.jing")} value={state.stats.jing} max={state.stats.maxJing} tone="ap" />
     </div>

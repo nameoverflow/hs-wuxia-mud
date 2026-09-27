@@ -1,5 +1,8 @@
 import { writable } from "svelte/store";
 import { resolveCombatTimeline, resolveSettlementTimeline } from "./battle/animationResolver";
+import { battleClock } from "./battle/battleClock";
+import { preloadBattleAssets } from "./battle/stageAssets";
+import { playBattleImpact } from "./battle/battleAudio";
 import { combatStyleFromSnapshot, visualProfileFromGender } from "./battle/battleActionCatalog";
 import type { BattleSide, ResolvedBattleTimeline } from "./battle/animationTypes";
 export type { BattleSide } from "./battle/animationTypes";
@@ -71,6 +74,7 @@ export interface BattleState {
   animation: BattleAnimationState;
   apSyncedAt: number;
   actionLockUntil: number;
+  presentation?: { playerHp: number; enemyHp: number };
 }
 
 export interface BattleAnimationState {
@@ -169,7 +173,9 @@ interface QueuedBattleTimeline {
 
 const battleTimelineQueue: QueuedBattleTimeline[] = [];
 let battleAnimationId = 0;
-let battleAnimationTimer: number | null = null;
+let preparingBattle = false;
+let activeBattleEntry: QueuedBattleTimeline | null = null;
+let battleQueueEpoch = 0;
 const storyMessageQueue: (ServerMessage | { tag: string; contents?: unknown })[] = [];
 let storyQueueProcessing = false;
 let storyQueueToken = 0;
@@ -195,19 +201,28 @@ function addMessage(type: MessageEntry["type"], text: string) {
   }));
 }
 
-function clearBattleAnimationQueue() {
+export function clearBattleAnimationQueue() {
   battleTimelineQueue.length = 0;
-  if (battleAnimationTimer !== null) {
-    window.clearTimeout(battleAnimationTimer);
-    battleAnimationTimer = null;
-  }
+  battleQueueEpoch += 1;
+  preparingBattle = false;
+  activeBattleEntry = null;
+  battleClock.cancel();
   game.update((state) => ({
     ...state,
     battle: {
       ...state.battle,
-      animation: { activeTimeline: null, queueDepth: 0 }
+      animation: { activeTimeline: null, queueDepth: 0 },
+      presentation: undefined
     }
   }));
+}
+
+/** Hidden tabs keep receiving battle facts/logs, without accumulating stale movies. */
+export function finishHiddenBattlePresentation() {
+  const completions = [activeBattleEntry, ...battleTimelineQueue].flatMap(entry => entry?.after ? [entry.after] : []);
+  battleTimelineQueue.forEach(entry => addMessage(entry.messageType, entry.messageText));
+  clearBattleAnimationQueue();
+  completions.forEach(complete => complete());
 }
 
 function clearStoryMessageQueue() {
@@ -665,6 +680,9 @@ function handleBattleState(snapshot: BattleSnapshot) {
         active: true,
         player: snapshot.battleSnapshotPlayer,
         enemy: snapshot.battleSnapshotEnemy,
+        presentation: state.battle.presentation && (activeBattleEntry || preparingBattle || battleTimelineQueue.length)
+          ? state.battle.presentation
+          : { playerHp: snapshot.battleSnapshotPlayer.combatantSnapshotHp, enemyHp: snapshot.battleSnapshotEnemy.combatantSnapshotHp },
         cooldowns,
         activeSkills: snapshot.battleSnapshotActiveSkills || [],
         animation: state.battle.animation,
@@ -719,27 +737,50 @@ function normalizePlayerStats(payload: PlayerStatsPayload, current: PlayerStats,
 }
 
 function queueBattleAnimation(timeline: ResolvedBattleTimeline, messageType: MessageEntry["type"], messageText: string, after?: () => void) {
+  if (typeof document !== "undefined" && document.hidden) {
+    addMessage(messageType, messageText);
+    after?.();
+    return;
+  }
   battleTimelineQueue.push({ timeline, messageType, messageText, after });
-  if (!latestState.battle.animation.activeTimeline && battleAnimationTimer === null) {
-    playNextBattleTimeline();
+  if (!activeBattleEntry && !preparingBattle) {
+    void playNextBattleTimeline();
   } else {
     refreshBattleQueueDepth();
   }
 }
 
-function playNextBattleTimeline() {
+async function playNextBattleTimeline() {
+  if (preparingBattle || activeBattleEntry) return;
+  const epoch = battleQueueEpoch;
+  if (battleTimelineQueue.length) {
+    preparingBattle = true;
+    refreshBattleQueueDepth();
+    try { await preloadBattleAssets(); }
+    catch { if (epoch === battleQueueEpoch) addMessage("error", latestState.locale === "zh" ? "战斗画面载入失败，请刷新重试。" : "Battle artwork could not load. Please refresh."); }
+    if (epoch !== battleQueueEpoch) return;
+    preparingBattle = false;
+  }
   const next = battleTimelineQueue.shift();
   if (!next) {
     game.update((state) => ({
       ...state,
       battle: {
         ...state.battle,
-        animation: { activeTimeline: null, queueDepth: 0 }
+        animation: { activeTimeline: null, queueDepth: 0 },
+        presentation: state.battle.player && state.battle.enemy
+          ? { playerHp: state.battle.player.combatantSnapshotHp, enemyHp: state.battle.enemy.combatantSnapshotHp }
+          : state.battle.presentation
       }
     }));
     return;
   }
 
+  activeBattleEntry = next;
+  // During a burst, shorten the reading/rest tail, preserving preparation and impact.
+  if (battleTimelineQueue.length >= 3 && next.timeline.kind !== "settlement") {
+    next.timeline = compressBattleRest(next.timeline);
+  }
   addMessage(next.messageType, next.messageText);
   game.update((state) => ({
     ...state,
@@ -754,8 +795,11 @@ function playNextBattleTimeline() {
     }
   }));
 
-  battleAnimationTimer = window.setTimeout(() => {
-    battleAnimationTimer = null;
+  battleClock.play(next.timeline, () => {
+    applyPresentedImpact(next.timeline);
+    playBattleImpact(next.timeline);
+  }, () => {
+    activeBattleEntry = null;
     next.after?.();
     if (next.after) {
       battleTimelineQueue.length = 0;
@@ -771,8 +815,32 @@ function playNextBattleTimeline() {
         }
       }
     }));
-    playNextBattleTimeline();
-  }, next.timeline.durationMs);
+    void playNextBattleTimeline();
+  });
+}
+
+function compressBattleRest(timeline: ResolvedBattleTimeline): ResolvedBattleTimeline {
+  const cut = Math.max(0, timeline.durationMs - timeline.choreography.restAtMs - 45);
+  if (cut <= 0) return timeline;
+  const sourceDuration = timeline.actor.visual.frames.reduce((sum, frame) => sum + frame.holdMs, 0);
+  const frames = timeline.actor.visual.frames.map((frame) => ({ ...frame, holdMs: frame.holdMs * (timeline.durationMs - timeline.actor.actionDelayMs) / sourceDuration }));
+  frames[frames.length - 1].holdMs -= cut;
+  return { ...timeline, durationMs: timeline.durationMs - cut, actor: { ...timeline.actor, visual: { ...timeline.actor.visual, frames } } };
+}
+
+function applyPresentedImpact(timeline: ResolvedBattleTimeline) {
+  if (timeline.kind === "settlement") return;
+  game.update((state) => {
+    const current = state.battle.presentation ?? {
+      playerHp: state.battle.player?.combatantSnapshotHp ?? state.stats.hp,
+      enemyHp: state.battle.enemy?.combatantSnapshotHp ?? 0
+    };
+    const key = timeline.target.side === "player" ? "playerHp" : "enemyHp";
+    const target = timeline.target.side === "player" ? state.battle.player : state.battle.enemy;
+    const change = (timeline.heal || 0) - (timeline.damage || 0);
+    const hp = Math.max(0, Math.min(target?.combatantSnapshotMaxHp ?? state.stats.maxHp, current[key] + change));
+    return { ...state, battle: { ...state.battle, presentation: { ...current, [key]: hp } } };
+  });
 }
 
 function refreshBattleQueueDepth() {
@@ -1042,6 +1110,9 @@ function formatCombatMessage(locale: Locale, combatMessage: CombatMessage) {
 function formatCombatEvent(locale: Locale, event: CombatEvent) {
   const action = formatCombatMessage(locale, event.message);
   if (event.kind === "effect_tick") return action;
+  if (event.result === "dodge" || event.result === "parry") {
+    return t(locale, `message.combat.${event.result}`, { attacker: event.actorName, defender: event.targetName, action });
+  }
   if (event.kind === "active_skill") {
     if ((event.damage || 0) > 0) {
       return t(locale, "message.active_skill_damage", {

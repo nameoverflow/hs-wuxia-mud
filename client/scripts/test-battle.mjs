@@ -1,0 +1,149 @@
+import assert from 'node:assert/strict';
+import { createServer } from 'vite';
+
+const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' });
+let passed = 0;
+const check = (name, test) => { test(); passed++; console.log(`✓ ${name}`); };
+try {
+  const { resolveCombatTimeline } = await server.ssrLoadModule('/src/battle/animationResolver.ts');
+  const { battleActions, idleVisualForStyle } = await server.ssrLoadModule('/src/battle/battleActionCatalog.ts');
+  const { sampleBattleScene, sideHome } = await server.ssrLoadModule('/src/battle/battleDirector.ts');
+  const { BattleClock } = await server.ssrLoadModule('/src/battle/battleClock.ts');
+  const make = (action, result = 'hit', durationMs = action.durationMs) => resolveCombatTimeline({
+    kind: 'normal', message: { kind: 'script', text: action.label }, result, damage: result === 'hit' ? 18 : null, heal: null,
+    visual: { actionId: action.id, durationMs }
+  }, 1, 'player', 'enemy', action.label, 'female', 'male', action.style, 'sword');
+  const sample = (timeline, t, reduced = false) => sampleBattleScene(timeline, t, idleVisualForStyle(timeline.actor.visual.style, 'female'), idleVisualForStyle('sword', 'male'), reduced);
+  const attacks = Object.values(battleActions).filter(a => ['approach', 'lunge', 'drive'].includes(a.actorMotion));
+
+  const { sampleSvgPose, SVG_SWORD_LENGTH } = await server.ssrLoadModule('/src/battle/svgBattlePose.ts');
+  check('SVG contacts match manifest reach and hit stop freezes articulated poses', () => {
+    for (const action of attacks) {
+      const timeline = make(action);
+      const pose = t => sampleSvgPose(timeline, 'player', t, action.style, action.frames[action.impactFrame].frameId);
+      const contact = pose(timeline.impactAtMs);
+      const limb = action.frames[action.impactFrame].frameId.includes('kick') ? contact.foot : contact.hand;
+      const blade = action.style === 'sword' ? SVG_SWORD_LENGTH : 0;
+      assert.ok(Math.abs(limb[0] + blade * Math.cos(contact.blade * Math.PI / 180) - timeline.choreography.reach) < 0.001, action.id);
+      assert.ok(Math.abs(limb[1] + blade * Math.sin(contact.blade * Math.PI / 180) - (timeline.choreography.contactY - 176)) < 0.001, action.id);
+      assert.deepEqual(pose(timeline.impactAtMs + timeline.choreography.hitStopMs - 1), contact);
+      const before = pose(timeline.impactAtMs - 0.001);
+      assert.ok(Math.abs(before.hand[0] - contact.hand[0]) < 0.1, 'contact must be continuous');
+      assert.deepEqual(pose(timeline.durationMs), pose(0));
+    }
+  });
+
+  const { sampleAttackTrail } = await server.ssrLoadModule('/src/battle/svgAttackTrail.ts');
+  check('weapon trails end at contact, freeze with hit stop and respect reduced motion', () => {
+    for (const action of attacks) {
+      const timeline = make(action);
+      const player = idleVisualForStyle(action.style, 'female');
+      const enemy = idleVisualForStyle('sword', 'male');
+      const trace = sampleAttackTrail(timeline, timeline.impactAtMs, player, enemy);
+      const last = trace.points.split(' ').at(-1).split(',').map(Number);
+      assert.ok(Math.abs(last[0] - sideHome('enemy')) < 0.001, action.id);
+      assert.ok(Math.abs(last[1] - (timeline.choreography.contactY - 176)) < 0.001, action.id);
+      assert.deepEqual(sampleAttackTrail(timeline, timeline.impactAtMs + timeline.choreography.hitStopMs - 1, player, enemy), trace);
+      assert.deepEqual(sampleAttackTrail(timeline, timeline.impactAtMs, player, enemy, true), { points: '', echoes: [] });
+      const release = timeline.choreography.launchAtMs;
+      assert.ok(Math.abs(sample(timeline, release - 0.001).player.y - sample(timeline, release).player.y) < 0.01);
+    }
+  });
+
+  check('every attack preserves ready → preparation → contact → ready', () => {
+    for (const action of attacks) {
+      const timeline = make(action);
+      const before = sample(timeline, timeline.impactAtMs - 1);
+      assert.equal(before.enemy.frameId, 'sword_ready', `${action.id}: early hurt`);
+      assert.equal(before.burst, 0);
+      const contact = sample(timeline, timeline.impactAtMs);
+      assert.equal(contact.enemy.frameId, 'sword_hurt');
+      assert.equal(contact.player.frameId, action.frames[action.impactFrame].frameId);
+      assert.ok(Math.abs(sideHome('player') + contact.player.x + action.choreography.reach - sideHome('enemy')) < 0.001, `${action.id}: contact reach`);
+      const end = sample(timeline, timeline.durationMs);
+      assert.equal(end.player.x, 0);
+      assert.equal(end.enemy.x, 0);
+      assert.equal(end.player.frameId, action.style === 'sword' ? 'sword_ready' : 'idle');
+      assert.equal(end.enemy.frameId, 'sword_ready');
+      assert.equal(end.trail + end.burst + end.guard + end.textAlpha, 0);
+    }
+  });
+
+  check('server duration changes scale dash and broad attack together', () => {
+    for (const action of attacks) for (const factor of [0.6, 1.8]) {
+      const timeline = make(action, 'hit', Math.round(action.durationMs * factor));
+      assert.equal(timeline.durationMs - timeline.actor.actionDelayMs, Math.round(action.durationMs * factor));
+      assert.ok(timeline.actor.actionDelayMs > 0);
+      assert.equal(sample(timeline, timeline.impactAtMs + 1).player.frameId, action.frames[action.impactFrame].frameId);
+    }
+  });
+
+  check('dodge moves before contact and parry stays planted', () => {
+    const dodge = make(attacks[0], 'dodge');
+    const parry = make(attacks[0], 'parry');
+    assert.ok(sample(dodge, dodge.impactAtMs - 30).enemy.x > 10);
+    assert.equal(sample(dodge, dodge.impactAtMs).burst, 0);
+    assert.ok(sample(parry, parry.impactAtMs + 80).enemy.x <= 4);
+    assert.equal(sample(parry, parry.impactAtMs).guard, 1);
+  });
+
+  check('hit stop freezes the entire moving composition', () => {
+    const timeline = make(battleActions['rig.fist.heavy_a']);
+    const first = sample(timeline, timeline.impactAtMs);
+    const held = sample(timeline, timeline.impactAtMs + timeline.choreography.hitStopMs - 1);
+    for (const field of ['player', 'enemy', 'cameraX', 'cameraScale', 'burst', 'trail', 'textLift']) assert.deepEqual(held[field], first[field]);
+    const resumed = sample(timeline, timeline.impactAtMs + timeline.choreography.hitStopMs + 1);
+    assert.ok(resumed.enemy.x < 1, 'reaction must accelerate after the hold rather than jump to its end');
+  });
+
+  check('reduced motion retains hit facts while removing movement and trails', () => {
+    const timeline = make(battleActions['rig.fist.heavy_a']);
+    const frame = sample(timeline, timeline.impactAtMs + 60, true);
+    assert.equal(frame.player.x + frame.enemy.x + frame.cameraX + frame.trail + frame.ghost + frame.textLift, 0);
+    assert.equal(frame.cameraScale, 1);
+    assert.equal(frame.enemy.frameId, 'sword_hurt');
+    assert.ok(frame.textAlpha > 0);
+  });
+
+  function driver() {
+    let now = 0, serial = 0;
+    const callbacks = new Map();
+    return {
+      api: { now: () => now, request: cb => { callbacks.set(++serial, cb); return serial; }, cancel: id => callbacks.delete(id) },
+      step: ms => { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); pending.forEach(cb => cb(now)); }
+    };
+  }
+
+  check('consecutive identical actions receive independent play cursors and one impact each', () => {
+    const d = driver(), clock = new BattleClock(d.api), timeline = make(attacks[0]);
+    let impacts = 0, completions = 0, current;
+    clock.state.subscribe(value => current = value);
+    const play = id => clock.play({ ...timeline, id }, () => impacts++, () => completions++);
+    play(1); d.step(timeline.durationMs);
+    play(2); assert.equal(current.elapsedMs, 0); assert.equal(current.id, 2);
+    d.step(timeline.impactAtMs - 1); assert.equal(impacts, 1);
+    d.step(1); assert.equal(impacts, 2);
+    d.step(timeline.durationMs); assert.equal(completions, 2);
+  });
+
+  check('pause, hidden-tab suspension and cancellation preserve event ordering', () => {
+    const d = driver(), clock = new BattleClock(d.api), timeline = make(attacks[0]);
+    let impacts = 0, completed = false, current;
+    clock.state.subscribe(v => current = v);
+    clock.play(timeline, () => impacts++, () => completed = true);
+    d.step(50); clock.pause(); d.step(1000); assert.equal(current.elapsedMs, 50);
+    clock.suspend(true); clock.pause(false); d.step(1000); assert.equal(current.elapsedMs, 50);
+    clock.suspend(false); d.step(timeline.impactAtMs - 50); assert.equal(impacts, 1);
+    clock.cancel(); d.step(10000); assert.equal(completed, false); assert.equal(current.id, null);
+  });
+
+  check('scrubbing never repeats an applied impact', () => {
+    const d = driver(), clock = new BattleClock(d.api), timeline = make(attacks[0]);
+    let impacts = 0;
+    clock.play(timeline, () => impacts++, () => {});
+    clock.pause(); clock.seek(timeline.impactAtMs + 1); d.step(1000); assert.equal(impacts, 0);
+    clock.pause(false); d.step(1); assert.equal(impacts, 1);
+    clock.seek(0); d.step(timeline.durationMs); assert.equal(impacts, 1);
+  });
+  console.log(`${passed} battle behavior checks passed.`);
+} finally { await server.close(); }

@@ -1,0 +1,45 @@
+{
+  "tool": "built-in image_gen",
+  "sources": {
+    "background": "harness/animation-qa/runs/silhouette-stage-v2/generated/backdrop-source.png",
+    "vfx": "harness/animation-qa/runs/silhouette-stage-v2/generated/vfx-source.png"
+  },
+  "processing": "resize, 3x2 atlas slicing, 12px transparent padding, WebP encoding; no artwork redrawn",
+  "assets": [
+    {
+      "path": "client/src/assets/battle/ink-stage-v1/aura.webp",
+      "bytes": 41972,
+      "sha256": "1bc376b3c724af09608768c121cd4c9a6de9916eca3837635c539e4d55bc3eb1"
+    },
+    {
+      "path": "client/src/assets/battle/ink-stage-v1/backdrop.webp",
+      "bytes": 82180,
+      "sha256": "120d975bd54b07e9d07bb5443b96aa9b3cd71fdb1b5d8977b830ef295c5f40a1"
+    },
+    {
+      "path": "client/src/assets/battle/ink-stage-v1/impact.webp",
+      "bytes": 21636,
+      "sha256": "ad766b3c0d98477737cce7346d2b09d63ad5f1bf4527c5d74d0f3553c6f48169"
+    },
+    {
+      "path": "client/src/assets/battle/ink-stage-v1/parry.webp",
+      "bytes": 31728,
+      "sha256": "817367ea2ce9cb64c941c6b9e385755d696bc2751e89e5af923582ee2019e18e"
+    },
+    {
+      "path": "client/src/assets/battle/ink-stage-v1/rising.webp",
+      "bytes": 18050,
+      "sha256": "532b2231da7797e1f98f58b01889797ca27cab078ea3169f308e285715cfe732"
+    },
+    {
+      "path": "client/src/assets/battle/ink-stage-v1/slash.webp",
+      "bytes": 24700,
+      "sha256": "3b6b74ddf05103e6f54f7129144c400a5085fd003e6ffe7db3cc1f6d34afba07"
+    },
+    {
+      "path": "client/src/assets/battle/ink-stage-v1/thrust.webp",
+      "bytes": 15158,
+      "sha256": "364b08b998318c08b3036505a691b6e6c480a4c1bcfcec3a855f325df030b627"
+    }
+  ]
+}

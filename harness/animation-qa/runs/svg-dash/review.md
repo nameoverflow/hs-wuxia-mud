@@ -1,0 +1,9 @@
+# Single-burst dash correction — 2026-09-26
+
+The user rejected the gradual stepping approach. Keep the distant idle positions and distinct move-specific carrying poses, but replace alternating legs with one strongly inclined silhouette and one accelerating launch.
+
+Entry now lasts 150–190ms: the first 30% compresses in place, then the remaining 105–133ms accelerates quadratically to full travel and stops. Head/shoulders lead the hips by about 60 source pixels; the trailing leg remains extended. Each action varies fist/sword/knee carriage. The final 14% blends directly into the attack preparation pose. Runtime launch is now arrival, eliminating the extra windup pause and idle reset after reaching the target. Attack extension uses a 1.6 power curve; impact/health/audio remain synchronized. Return is one withdrawal silhouette, without a walking cycle.
+
+Visual verdict: Pass for single-burst movement. Inspected all four 16fps sheets of the 9.240s full-speed demo and all four sheets of the 10.600s focused 0.65x recording, under harness/tmp/animation-qa/svg-dash/. Full segment 0–3s shows the strongly leaning punch and mirrored sword dash with rapid arrival; 3–6s shows the lowered palm and sword variants; 6–9.24s shows final contact and settlement. Focused clips cover all seven attack entries and recoveries plus mobile frozen sword poses. Motion no longer alternates feet or rises to idle before attacking. Round-head shape and large attack silhouettes remain. Exact frame pacing and physical foot locking are not claimed.
+
+Validation: Svelte check zero errors/warnings, production build, 11 logic checks and all 10 browser scenarios passed. Assertions cover planted compression, late accelerating travel, continuous arrival, attack beginning immediately on arrival, no premature HP changes, held contact and queue completion. This supersedes the earlier stepping approach's positive style verdict.

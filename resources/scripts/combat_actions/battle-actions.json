@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "actions": [
     {
       "id": "rig.sword.idle",
@@ -25,28 +25,45 @@
         "effect": "none"
       },
       "vfx": [],
-      "frameset": "raster-v1"
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 0,
+        "hitStopMs": 0,
+        "recoverAtMs": 358,
+        "restAtMs": 640,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "quiet"
+      }
     },
     {
       "id": "rig.sword.thrust_a",
-      "label": "Jian thrust",
+      "label": "一线穿云",
       "style": "sword",
       "frames": [
         {
-          "frameId": "thrust_close",
-          "holdMs": 160
+          "frameId": "sword_ready",
+          "holdMs": 50
         },
         {
           "frameId": "thrust_prep",
-          "holdMs": 160
+          "holdMs": 120
         },
         {
           "frameId": "thrust_strike",
-          "holdMs": 200
+          "holdMs": 110
+        },
+        {
+          "frameId": "thrust_close",
+          "holdMs": 130
+        },
+        {
+          "frameId": "sword_ready",
+          "holdMs": 190
         }
       ],
       "impactFrame": 2,
-      "durationMs": 520,
+      "durationMs": 600,
       "tags": [
         "sword",
         "jian",
@@ -79,16 +96,25 @@
           "anchor": "target"
         }
       ],
-      "frameset": "raster-v1"
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 90,
+        "hitStopMs": 35,
+        "recoverAtMs": 280,
+        "restAtMs": 410,
+        "reach": 108,
+        "contactY": 111,
+        "weight": "light"
+      }
     },
     {
       "id": "rig.sword.chop_a",
-      "label": "Jian downward chop",
+      "label": "迎风劈剑",
       "style": "sword",
       "frames": [
         {
-          "frameId": "chop_close",
-          "holdMs": 170
+          "frameId": "sword_ready",
+          "holdMs": 60
         },
         {
           "frameId": "chop_prep",
@@ -96,11 +122,19 @@
         },
         {
           "frameId": "chop_strike",
-          "holdMs": 220
+          "holdMs": 120
+        },
+        {
+          "frameId": "chop_close",
+          "holdMs": 160
+        },
+        {
+          "frameId": "sword_ready",
+          "holdMs": 190
         }
       ],
       "impactFrame": 2,
-      "durationMs": 560,
+      "durationMs": 700,
       "tags": [
         "sword",
         "jian",
@@ -133,28 +167,45 @@
           "anchor": "target"
         }
       ],
-      "frameset": "raster-v1"
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 150,
+        "hitStopMs": 55,
+        "recoverAtMs": 350,
+        "restAtMs": 510,
+        "reach": 98,
+        "contactY": 116,
+        "weight": "heavy"
+      }
     },
     {
       "id": "rig.sword.cut_a",
-      "label": "Jian horizontal cut",
+      "label": "横江一剑",
       "style": "sword",
       "frames": [
         {
-          "frameId": "cut_close",
-          "holdMs": 160
+          "frameId": "sword_ready",
+          "holdMs": 50
         },
         {
           "frameId": "cut_prep",
-          "holdMs": 160
+          "holdMs": 140
         },
         {
           "frameId": "cut_strike",
-          "holdMs": 220
+          "holdMs": 100
+        },
+        {
+          "frameId": "cut_close",
+          "holdMs": 150
+        },
+        {
+          "frameId": "sword_ready",
+          "holdMs": 180
         }
       ],
       "impactFrame": 2,
-      "durationMs": 540,
+      "durationMs": 620,
       "tags": [
         "sword",
         "jian",
@@ -187,16 +238,25 @@
           "anchor": "target"
         }
       ],
-      "frameset": "raster-v1"
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 110,
+        "hitStopMs": 35,
+        "recoverAtMs": 290,
+        "restAtMs": 440,
+        "reach": 108,
+        "contactY": 108,
+        "weight": "light"
+      }
     },
     {
       "id": "rig.sword.rising_cut_a",
-      "label": "Jian rising cut",
+      "label": "挑灯式",
       "style": "sword",
       "frames": [
         {
-          "frameId": "rising_close",
-          "holdMs": 170
+          "frameId": "sword_ready",
+          "holdMs": 60
         },
         {
           "frameId": "rising_prep",
@@ -204,11 +264,19 @@
         },
         {
           "frameId": "rising_strike",
-          "holdMs": 220
+          "holdMs": 120
+        },
+        {
+          "frameId": "rising_close",
+          "holdMs": 170
+        },
+        {
+          "frameId": "sword_ready",
+          "holdMs": 200
         }
       ],
       "impactFrame": 2,
-      "durationMs": 560,
+      "durationMs": 720,
       "tags": [
         "sword",
         "jian",
@@ -241,11 +309,20 @@
           "anchor": "target"
         }
       ],
-      "frameset": "raster-v1"
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 150,
+        "hitStopMs": 55,
+        "recoverAtMs": 350,
+        "restAtMs": 520,
+        "reach": 96,
+        "contactY": 104,
+        "weight": "heavy"
+      }
     },
     {
       "id": "rig.sword.guard",
-      "label": "Sword guard",
+      "label": "横剑守势",
       "style": "sword",
       "frames": [
         {
@@ -284,7 +361,16 @@
           "anchor": "actor"
         }
       ],
-      "frameset": "raster-v1"
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 160,
+        "hitStopMs": 0,
+        "recoverAtMs": 403,
+        "restAtMs": 720,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "quiet"
+      }
     },
     {
       "id": "rig.sword.hurt",
@@ -311,7 +397,16 @@
         "effect": "none"
       },
       "vfx": [],
-      "frameset": "raster-v1"
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 0,
+        "hitStopMs": 0,
+        "recoverAtMs": 291,
+        "restAtMs": 520,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "quiet"
+      }
     },
     {
       "id": "rig.sword.dodge",
@@ -338,7 +433,16 @@
         "effect": "none"
       },
       "vfx": [],
-      "frameset": "raster-v1"
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 0,
+        "hitStopMs": 0,
+        "recoverAtMs": 314,
+        "restAtMs": 560,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "quiet"
+      }
     },
     {
       "id": "rig.sword.parry",
@@ -366,7 +470,16 @@
         "effect": "none"
       },
       "vfx": [],
-      "frameset": "raster-v1"
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 0,
+        "hitStopMs": 0,
+        "recoverAtMs": 314,
+        "restAtMs": 560,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "quiet"
+      }
     },
     {
       "id": "rig.fist.idle",
@@ -392,24 +505,45 @@
         "effect": "none"
       },
       "vfx": [],
-      "frameset": "raster-v1"
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 0,
+        "hitStopMs": 0,
+        "recoverAtMs": 358,
+        "restAtMs": 640,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "quiet"
+      }
     },
     {
       "id": "rig.fist.punch_a",
-      "label": "Fist punch",
+      "label": "直拳",
       "style": "fist",
       "frames": [
         {
+          "frameId": "idle",
+          "holdMs": 60
+        },
+        {
           "frameId": "punch_windup",
-          "holdMs": 280
+          "holdMs": 140
         },
         {
           "frameId": "punch_strike",
-          "holdMs": 440
+          "holdMs": 100
+        },
+        {
+          "frameId": "punch_windup",
+          "holdMs": 160
+        },
+        {
+          "frameId": "idle",
+          "holdMs": 160
         }
       ],
-      "impactFrame": 1,
-      "durationMs": 720,
+      "impactFrame": 2,
+      "durationMs": 620,
       "tags": [
         "fist",
         "attack",
@@ -440,23 +574,44 @@
           "anchor": "target"
         }
       ],
-      "frameset": "raster-v1"
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 120,
+        "hitStopMs": 35,
+        "recoverAtMs": 300,
+        "restAtMs": 460,
+        "reach": 72,
+        "contactY": 110,
+        "weight": "light"
+      }
     },
     {
       "id": "rig.fist.heavy_a",
-      "label": "Fist heavy strike",
+      "label": "沉劲掌",
       "style": "fist",
       "frames": [
         {
+          "frameId": "idle",
+          "holdMs": 60
+        },
+        {
           "frameId": "heavy_windup",
-          "holdMs": 400
+          "holdMs": 220
         },
         {
           "frameId": "heavy_strike",
-          "holdMs": 420
+          "holdMs": 140
+        },
+        {
+          "frameId": "heavy_windup",
+          "holdMs": 190
+        },
+        {
+          "frameId": "idle",
+          "holdMs": 210
         }
       ],
-      "impactFrame": 1,
+      "impactFrame": 2,
       "durationMs": 820,
       "tags": [
         "fist",
@@ -488,24 +643,45 @@
           "anchor": "target"
         }
       ],
-      "frameset": "raster-v1"
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 200,
+        "hitStopMs": 55,
+        "recoverAtMs": 420,
+        "restAtMs": 610,
+        "reach": 78,
+        "contactY": 118,
+        "weight": "heavy"
+      }
     },
     {
       "id": "rig.fist.kick_a",
-      "label": "Fist kick",
+      "label": "横踢",
       "style": "fist",
       "frames": [
         {
+          "frameId": "idle",
+          "holdMs": 60
+        },
+        {
           "frameId": "kick_windup",
-          "holdMs": 360
+          "holdMs": 170
         },
         {
           "frameId": "kick_strike",
-          "holdMs": 500
+          "holdMs": 120
+        },
+        {
+          "frameId": "kick_windup",
+          "holdMs": 170
+        },
+        {
+          "frameId": "idle",
+          "holdMs": 190
         }
       ],
-      "impactFrame": 1,
-      "durationMs": 860,
+      "impactFrame": 2,
+      "durationMs": 710,
       "tags": [
         "fist",
         "attack",
@@ -537,11 +713,20 @@
           "anchor": "target"
         }
       ],
-      "frameset": "raster-v1"
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 150,
+        "hitStopMs": 55,
+        "recoverAtMs": 350,
+        "restAtMs": 520,
+        "reach": 90,
+        "contactY": 116,
+        "weight": "heavy"
+      }
     },
     {
       "id": "rig.fist.guard",
-      "label": "Fist guard",
+      "label": "抱元守一",
       "style": "fist",
       "frames": [
         {
@@ -580,11 +765,20 @@
           "anchor": "actor"
         }
       ],
-      "frameset": "raster-v1"
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 160,
+        "hitStopMs": 0,
+        "recoverAtMs": 403,
+        "restAtMs": 720,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "quiet"
+      }
     },
     {
       "id": "rig.fist.healing_palm",
-      "label": "Healing palm",
+      "label": "调息",
       "style": "fist",
       "frames": [
         {
@@ -622,7 +816,16 @@
           "anchor": "actor"
         }
       ],
-      "frameset": "raster-v1"
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 190,
+        "hitStopMs": 0,
+        "recoverAtMs": 437,
+        "restAtMs": 780,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "quiet"
+      }
     },
     {
       "id": "rig.fist.hurt",
@@ -649,7 +852,16 @@
         "effect": "none"
       },
       "vfx": [],
-      "frameset": "raster-v1"
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 0,
+        "hitStopMs": 0,
+        "recoverAtMs": 291,
+        "restAtMs": 520,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "quiet"
+      }
     },
     {
       "id": "rig.fist.dodge",
@@ -676,7 +888,16 @@
         "effect": "none"
       },
       "vfx": [],
-      "frameset": "raster-v1"
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 0,
+        "hitStopMs": 0,
+        "recoverAtMs": 314,
+        "restAtMs": 560,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "quiet"
+      }
     },
     {
       "id": "rig.fist.parry",
@@ -704,20 +925,29 @@
         "effect": "none"
       },
       "vfx": [],
-      "frameset": "raster-v1"
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 0,
+        "hitStopMs": 0,
+        "recoverAtMs": 314,
+        "restAtMs": 560,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "quiet"
+      }
     },
     {
       "id": "rig.effect.dot",
-      "label": "Damage over time",
+      "label": "余伤",
       "style": "fist",
       "frames": [
         {
           "frameId": "idle",
-          "holdMs": 560
+          "holdMs": 360
         }
       ],
       "impactFrame": 0,
-      "durationMs": 560,
+      "durationMs": 360,
       "tags": [
         "effect",
         "dot"
@@ -736,20 +966,29 @@
           "anchor": "target"
         }
       ],
-      "frameset": "raster-v1"
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 0,
+        "hitStopMs": 0,
+        "recoverAtMs": 202,
+        "restAtMs": 360,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "quiet"
+      }
     },
     {
       "id": "rig.effect.hot",
-      "label": "Heal over time",
+      "label": "回气",
       "style": "fist",
       "frames": [
         {
           "frameId": "idle",
-          "holdMs": 560
+          "holdMs": 360
         }
       ],
       "impactFrame": 0,
-      "durationMs": 560,
+      "durationMs": 360,
       "tags": [
         "effect",
         "hot"
@@ -768,7 +1007,16 @@
           "anchor": "target"
         }
       ],
-      "frameset": "raster-v1"
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 0,
+        "hitStopMs": 0,
+        "recoverAtMs": 202,
+        "restAtMs": 360,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "quiet"
+      }
     }
   ]
 }

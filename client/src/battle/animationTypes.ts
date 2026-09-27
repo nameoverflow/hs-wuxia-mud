@@ -16,7 +16,7 @@ export interface BattleAnimationFrame {
 }
 
 export interface ActorVisual {
-  kind: "raster";
+  kind: "svg";
   actionId: string;
   profile: VisualProfile;
   style: CombatStyle;
@@ -48,6 +48,18 @@ export interface BattleActionDefinition {
   actorMotion: ActorMotion;
   targetReaction: Partial<Record<CombatResult, TargetReaction>>;
   vfx: ActionVfxDefinition[];
+  choreography: BattleChoreography;
+}
+
+/** All markers use the same source clip clock, including the held impact. */
+export interface BattleChoreography {
+  launchAtMs: number;
+  hitStopMs: number;
+  recoverAtMs: number;
+  restAtMs: number;
+  reach: number;
+  contactY: number;
+  weight: "light" | "heavy" | "quiet";
 }
 
 export interface ResolvedBattleTimeline {
@@ -57,6 +69,8 @@ export interface ResolvedBattleTimeline {
   targetSide: BattleSide;
   durationMs: number;
   impactAtMs: number;
+  choreography: BattleChoreography;
+  label: string;
   actor: {
     side: BattleSide;
     visual: ActorVisual;

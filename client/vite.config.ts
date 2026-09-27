@@ -7,7 +7,8 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        main: fileURLToPath(new URL("./index.html", import.meta.url))
+        main: fileURLToPath(new URL("./index.html", import.meta.url)),
+        battleLab: fileURLToPath(new URL("./battle-lab.html", import.meta.url))
       }
     }
   },

@@ -1,6 +1,6 @@
 import actionData from "../../../resources/scripts/combat_actions/battle-actions.json";
 import { validateClipFrames } from "./animationClip";
-import { validateFrameAssets } from "./frameCatalog";
+import { svgFrameIds } from "./svgBattlePose";
 import type {
   ActorVisual,
   ActionVfxDefinition,
@@ -17,10 +17,12 @@ interface BattleActionManifest {
 
 const manifest = actionData as BattleActionManifest;
 
-if (manifest.schemaVersion !== 3) throw new Error(`Unsupported battle action schema ${manifest.schemaVersion}`);
+if (manifest.schemaVersion !== 4) throw new Error(`Unsupported battle action schema ${manifest.schemaVersion}`);
 manifest.actions.forEach((action) => {
   validateClipFrames(action.id, action.frames, action.durationMs, action.impactFrame);
-  for (const frame of action.frames) validateFrameAssets(action.style, frame.frameId);
+  for (const frame of action.frames) {
+    if (!svgFrameIds.has(frame.frameId)) throw new Error(`Missing SVG pose: ${frame.frameId}`);
+  }
 });
 
 export const battleActions: Record<string, BattleActionDefinition> = Object.fromEntries(
@@ -39,7 +41,7 @@ export function battleActionFor(actionId: string | null | undefined, fallbackSty
 export function visualForBattleAction(actionId: string, profile: VisualProfile, fallbackStyle: CombatStyle): ActorVisual {
   const action = battleActionFor(actionId, fallbackStyle);
   return {
-    kind: "raster",
+    kind: "svg",
     actionId: action.id,
     profile,
     style: action.style,
