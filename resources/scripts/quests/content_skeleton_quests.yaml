@@ -4,11 +4,11 @@
     - stage: guide
       text: "离开威远镖局，到开封南门找人问路。"
     - stage: inn
-      text: "去鼓楼西边的樊楼客舍，先找个能过夜的地方。"
+      text: "去西市街口北边的樊楼客舍，先找个能过夜的地方。"
     - stage: training
-      text: "去府前街武馆见梁教头，为自己选一条安身练功的路。"
+      text: "回南门演武场见梁教头，为自己选一条安身练功的路。"
     - stage: practice
-      text: "与武馆练招木人试几招，熟悉开封武馆的规矩。"
+      text: "与南门演武场的练招木人试几招，熟悉开封武馆的规矩。"
     - stage: first_job
       text: "在府学、铁铺或药铺做一份活，挣到第一笔工钱。"
     - stage: completed
@@ -30,7 +30,7 @@
       actions:
         - type: message
           speaker: "周引路"
-          text: "看你站门洞、避差役的样子，像是从小自己讨生活。开封不比小地方，先找张能闩门的床。鼓楼西边有樊楼客舍，报我姓周，伙计会给你留间后房。"
+          text: "看你站门洞、避差役的样子，像是从小自己讨生活。开封不比小地方，先找张能闩门的床。御街南段西侧是西市街口，往北就是樊楼客舍。报我姓周，伙计会给你留间后房。"
         - type: set_stage
           quest: first_steps_kaifeng
           stage: inn
@@ -48,7 +48,7 @@
       actions:
         - type: message
           speaker: "周引路"
-          text: "第一次进开封，别急着问事。鼓楼西边有樊楼客舍，报我姓周，伙计会给你留间后房。先把湿衣换了，再想明日往哪里走。"
+          text: "第一次进开封，别急着问事。御街南段西侧是西市街口，往北就是樊楼客舍。报我姓周，伙计会给你留间后房。先把湿衣换了，再想明日往哪里走。"
         - type: set_stage
           quest: first_steps_kaifeng
           stage: inn
@@ -65,7 +65,7 @@
       actions:
         - type: message
           speaker: "周引路"
-          text: "第一次进开封，先找住处。鼓楼西边有樊楼客舍，报我姓周，伙计会给你留间后房。"
+          text: "第一次进开封，先找住处。御街南段西侧是西市街口，往北就是樊楼客舍。报我姓周，伙计会给你留间后房。"
         - type: set_stage
           quest: first_steps_kaifeng
           stage: inn
@@ -81,7 +81,7 @@
       actions:
         - type: message
           speaker: "周引路"
-          text: "沿府前大街往北到鼓楼，再往西一拐就是樊楼客舍。先住下，别在门洞里过夜。"
+          text: "从南门沿御街北行，到御街南段向西进西市街口，再往北就是樊楼客舍。先住下，别在门洞里过夜。"
 
     - id: fanlou_refuses_before_guide
       trigger:
@@ -124,7 +124,7 @@
           stage: training
         - type: message
           speaker: "樊楼伙计"
-          text: "明早若想找练功门路，去府前街武馆见梁教头。若只想挣钱，城里也有的是活。"
+          text: "明早若想找练功门路，回南门演武场见梁教头。若只想挣钱，城里也有的是活。"
 
     - id: fanlou_after_lodging
       trigger:
@@ -487,7 +487,7 @@
   name: "远行门路"
   objectives:
     - stage: choose_route
-      text: "到北街问洛阳车马行、大理商队或太湖药车，选定第一次远行的方向。"
+      text: "到鼓楼西侧的洛阳车马行，或北街东侧转运区的大理商队、太湖药车，选定第一次远行的方向。"
     - stage: completed
       text: "三处接引点已经认得你。往后想远行时，找对应接引人即可。"
   reward:
@@ -506,7 +506,7 @@
       actions:
         - type: message
           speaker: "周引路"
-          text: "住处和工筹都有了，便不必总守着南门。北街有三拨远行人：洛阳车马行、大理商队、太湖药车。先选一处走走，余下的路以后再认。"
+          text: "住处和工筹都有了，便不必总守着南门。鼓楼西侧有洛阳车马行，北街东侧转运区驻着大理商队和太湖药车。先选一处走走，余下的路以后再认。"
         - type: set_stage
           quest: three_city_leads
           stage: choose_route

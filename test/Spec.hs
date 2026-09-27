@@ -820,7 +820,7 @@ testWeiyuanChapterFlow = do
       assert ((player ^. playerMoney) >= 30) "sourced travel money was not granted"
   transitionIndex <- requireResponseIndex "temple exit transition" (== StoryTransitionMsg "你与少年冒雨离开破庙，踏上汴水官道。" 1800) roadResponses
   moveIndex <- requireResponseIndex "escort road move" (== MoveMsg "官道口") roadResponses
-  roadDialogueIndex <- requireResponseIndex "escort road follow-up" (== StoryMsg "灰衣少年" "沿汴水往北就是城门。追兵未必只有一个，我们别在路上停。") roadResponses
+  roadDialogueIndex <- requireResponseIndex "escort road follow-up" (== StoryMsg "灰衣少年" "沿汴水往北先到南渡，过州桥才是城门。追兵未必只有一个，我们别在路上停。") roadResponses
   travelMoneyIndex <- requireResponseIndex "deferred travel money" (\case RewardMsg rewards -> any ((== "money") . rewardSummaryKind) rewards; _ -> False) roadResponses
   assert (transitionIndex < moveIndex && moveIndex < roadDialogueIndex && roadDialogueIndex < travelMoneyIndex) "transition, move, follow-up dialogue, and reward were not emitted in narrative order"
 

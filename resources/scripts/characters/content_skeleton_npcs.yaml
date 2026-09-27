@@ -26,7 +26,7 @@
 
 - id: kaifeng_martial_instructor
   name: "梁教头"
-  desc: "府前街武馆的教头，袖口卷得很高，手背上全是旧伤。"
+  desc: "南门武馆的教头，正在演武场边看弟子练招，袖口卷得很高，手背上全是旧伤。"
   actions: [dialogue]
   martial_arts:
     foundation:
