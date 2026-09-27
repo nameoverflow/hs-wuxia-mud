@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-out_dir="reports/portrait-qa/$(date +%Y%m%d-%H%M%S)"
+out_dir="harness/tmp/portrait-qa/$(date +%Y%m%d-%H%M%S)"
 expected_size="1254x1254"
 cols=3
 tile=220

@@ -61,9 +61,9 @@ Instructions for Codex:
 4. Focus on action semantics, rhythm, impact, continuity, composition, and wuxia silhouette style.
 5. Return:
    - Verdict: Fail, Borderline, or Pass
-   - Score: 0-100
-   - Findings with segment/frame-region evidence
+   - Actual findings with segment/frame-region evidence; do not pad the list
    - Recommended animation changes
+6. Use a numeric score only when the comparison needs it, with an explicit rubric.
 `;
 
 await fs.mkdir(path.dirname(path.resolve(out)), { recursive: true });
