@@ -227,7 +227,7 @@ registerCustomVfx("blade_fan", ({ vfx, progress, direction, anchor, reduced }) =
 
 女性造型开关在 `figureStyle.ts`（battle-lab 与 `/pose-sheet.html` 都有，姿势总览可并排对比）。全身一个颜色，四肢从胸腔、骨盆两个体块里长出来。人物按由远到近拆成部件（头发、后腿、后臂、躯干与头、前腿、前臂与剑），每个部件先整体描一圈深色边再填色，所以部件内部没有接缝，前面的部件压到后面时留下一道遮挡线。肩、髋、发根这些自然连接处画完后会"缝合"：在连接点附近把相连几块的填色重铺一遍，盖掉那里的描边，只留外轮廓；真正的遮挡（前臂横过胸口、提膝挡住身体）不受影响。
 
-历史 action manifest 的 `frameset: raster-v1` 字段、帧 ID 和 PNG 原始资源暂时保留用于兼容与旧资源校验；运行时 ActorVisual.kind 为 svg，catalog 校验 SVG 姿态覆盖。旧图集不再由舞台引用或预加载，生产 bundle 不包含人物和特效图集。`pack:battle` 仅用于维护旧图集，修改 SVG 不需要重打包。
+动作里的帧 ID 就是 SVG 姿势 ID。持剑与空手共用同一套站姿与反应姿势（idle、hurt、dodge、guard），不按伤害来源区分；持剑时剑由骨架差异（rigs.sword）画在手里。历史的 `frameset: raster-v1` 字段和 raster-v1 PNG、旧图集（`frameAtlas.json`、`frameCatalog.ts`、`pack:battle`）已与运行时和校验脱钩，只是遗留文件。
 
 背景保留 `client/src/assets/battle/ink-stage-v1/backdrop.webp`。SVG 替换的设计与 QA 记录位于 `harness/animation-qa/runs/svg-silhouette-v1/`。
 
@@ -240,6 +240,8 @@ npm run test:battle
 npm run test:battle:browser
 npm run build
 ```
+
+测试只覆盖"画面和战斗结算对得上"的机制：接触点落在对手身上、服务端时长缩放、多段伤害拆分与逐段结果、时钟回调（每段一次、拖动不重复扣血）、减弱动态，以及浏览器里的扣血时机、队列、结算与后台标签页。姿势长什么样、位移多少、帧叫什么属于手感，不写进测试，靠 `/pose-sheet.html` 和 battle-lab 目测；结构性错误由加载时自检兜住（例如手臂反折、引用了不存在的姿势）。
 
 浏览器测试使用 Playwright。首次可运行 `npx playwright install chromium`；使用已安装 Chrome 时设置 `PLAYWRIGHT_CHANNEL=chrome`。
 

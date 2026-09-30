@@ -7,7 +7,7 @@ const check = (name, test) => { test(); passed++; console.log(`✓ ${name}`); };
 try {
   const { resolveCombatTimeline } = await server.ssrLoadModule('/src/battle/animationResolver.ts');
   const { battleActions, idleVisualForStyle } = await server.ssrLoadModule('/src/battle/battleActionCatalog.ts');
-  const { sampleBattleScene, sideHome } = await server.ssrLoadModule('/src/battle/battleDirector.ts');
+  const { sampleBattleScene } = await server.ssrLoadModule('/src/battle/battleDirector.ts');
   const { BattleClock } = await server.ssrLoadModule('/src/battle/battleClock.ts');
   const make = (action, result = 'hit', durationMs = action.durationMs) => resolveCombatTimeline({
     kind: 'normal', message: { kind: 'script', text: action.label }, result, damage: result === 'hit' ? 18 : null, heal: null,
@@ -16,229 +16,47 @@ try {
   const sample = (timeline, t, reduced = false) => sampleBattleScene(timeline, t, idleVisualForStyle(timeline.actor.visual.style, 'female'), idleVisualForStyle('sword', 'male'), reduced);
   const attacks = Object.values(battleActions).filter(a => ['approach', 'lunge', 'drive'].includes(a.actorMotion));
 
-  const svgPoseModule = await server.ssrLoadModule('/src/battle/svgBattlePose.ts');
-  const { sampleSvgPose, SVG_SWORD_LENGTH } = svgPoseModule;
+  const { sampleSvgPose, SVG_SWORD_LENGTH } = await server.ssrLoadModule('/src/battle/svgBattlePose.ts');
   const { reachPointAt, actorOffsetAt } = await server.ssrLoadModule('/src/battle/battleTiming.ts');
-  check('SVG contacts match manifest reach and hit stop freezes articulated poses', () => {
+  // 这里只测"画面和战斗结算对得上"的机制：接触点、时长、分段伤害、时钟回调、减弱动态。
+  // 姿势长什么样、位移多少、帧名叫什么属于手感，靠姿势总览和 battle-lab 目测，不写死在测试里。
+
+  check('every contact lands the fist, foot or blade tip on the target', () => {
     for (const action of attacks) {
       const timeline = make(action);
-      const pose = t => sampleSvgPose(timeline, 'player', t, action.style, action.frames[action.impactFrame].frameId);
-      const contact = pose(timeline.impactAtMs);
-      const pin = reachPointAt(timeline, timeline.impactAtMs);
-      const limb = pin === 'foot' ? contact.foot : contact.hand;
-      const blade = pin === 'blade' ? SVG_SWORD_LENGTH : 0;
-      // 身法轨道挪动根节点时，姿势里的接触点会反向补偿；这里按世界坐标核对。
-      const offset = actorOffsetAt(timeline, timeline.impactAtMs);
-      assert.ok(Math.abs(offset.x + limb[0] + blade * Math.cos(contact.blade * Math.PI / 180) - timeline.choreography.reach) < 0.001, action.id);
-      assert.ok(Math.abs(offset.y + limb[1] + blade * Math.sin(contact.blade * Math.PI / 180) - (timeline.choreography.contactY - 176)) < 0.001, action.id);
-      assert.deepEqual(pose(timeline.impactAtMs + timeline.choreography.hitStopMs - 1), contact);
-      const before = pose(timeline.impactAtMs - 0.001);
-      assert.ok(Math.abs(before.hand[0] - contact.hand[0]) < 0.1, 'contact must be continuous');
-      assert.deepEqual(pose(timeline.durationMs), svgPoseModule.svgPose('idle', action.style), 'ends in the ready stance');
+      const pinned = timeline.actor.poseKeys.filter(k => k.pin);
+      timeline.hits.forEach((hit, i) => {
+        const key = pinned[i];
+        const pose = sampleSvgPose(timeline, 'player', hit.atMs, action.style, 'idle');
+        const pin = reachPointAt(timeline, hit.atMs);
+        const limb = pin === 'foot' ? pose.foot : pose.hand;
+        const blade = pin === 'blade' ? SVG_SWORD_LENGTH : 0;
+        // 身法轨道挪动根节点时，姿势里的接触点会反向补偿；这里按世界坐标核对。
+        const offset = actorOffsetAt(timeline, hit.atMs);
+        const x = offset.x + limb[0] + blade * Math.cos(pose.blade * Math.PI / 180);
+        const y = offset.y + limb[1] + blade * Math.sin(pose.blade * Math.PI / 180);
+        assert.ok(Math.abs(x - (key.reach ?? timeline.choreography.reach)) < 1e-6, `${action.id} hit ${i} reach`);
+        assert.ok(Math.abs(y - ((key.contactY ?? timeline.choreography.contactY) - 176)) < 1e-6, `${action.id} hit ${i} height`);
+      });
     }
   });
 
-  const { sampleAttackTrail } = await server.ssrLoadModule('/src/battle/svgAttackTrail.ts');
-  check('weapon trails end at contact, freeze with hit stop and respect reduced motion', () => {
-    for (const action of attacks) {
-      const timeline = make(action);
-      const player = idleVisualForStyle(action.style, 'female');
-      const enemy = idleVisualForStyle('sword', 'male');
-      const trace = sampleAttackTrail(timeline, timeline.impactAtMs, player, enemy);
-      const last = trace.points.split(' ').at(-1).split(',').map(Number);
-      assert.ok(Math.abs(last[0] - sideHome('enemy')) < 0.001, action.id);
-      assert.ok(Math.abs(last[1] - (timeline.choreography.contactY - 176)) < 0.001, action.id);
-      assert.deepEqual(sampleAttackTrail(timeline, timeline.impactAtMs + timeline.choreography.hitStopMs - 1, player, enemy), trace);
-      assert.deepEqual(sampleAttackTrail(timeline, timeline.impactAtMs, player, enemy, true), { points: '', echoes: [] });
-      const release = timeline.choreography.launchAtMs;
-      assert.ok(Math.abs(sample(timeline, release - 0.001).player.y - sample(timeline, release).player.y) < 0.01);
-    }
-  });
-
-  check('every attack preserves ready → preparation → contact → ready', () => {
-    for (const action of attacks) {
-      const timeline = make(action);
-      const before = sample(timeline, timeline.impactAtMs - 1);
-      assert.equal(before.enemy.frameId, 'sword_ready', `${action.id}: early hurt`);
-      assert.equal(before.burst, 0);
-      const contact = sample(timeline, timeline.impactAtMs);
-      assert.equal(contact.enemy.frameId, 'sword_hurt');
-      assert.equal(contact.player.frameId, action.frames[action.impactFrame].frameId);
-      assert.ok(Math.abs(sideHome('player') + contact.player.x + action.choreography.reach - sideHome('enemy')) < 0.001, `${action.id}: contact reach`);
-      const end = sample(timeline, timeline.durationMs);
-      assert.equal(end.player.x, 0);
-      assert.equal(end.enemy.x, 0);
-      assert.equal(end.player.frameId, action.style === 'sword' ? 'sword_ready' : 'idle');
-      assert.equal(end.enemy.frameId, 'sword_ready');
-      assert.equal(end.trail + end.burst + end.guard + end.textAlpha, 0);
-    }
-  });
-
-  check('server duration changes scale dash and broad attack together', () => {
+  check('server durations scale the whole presentation and the dash', () => {
     for (const action of attacks) for (const factor of [0.6, 1.8]) {
       const timeline = make(action, 'hit', Math.round(action.durationMs * factor));
       assert.equal(timeline.durationMs - timeline.actor.actionDelayMs, Math.round(action.durationMs * factor));
       assert.ok(timeline.actor.actionDelayMs > 0);
-      assert.equal(sample(timeline, timeline.impactAtMs + 1).player.frameId, action.frames[action.impactFrame].frameId);
+      assert.ok(timeline.hits.every((hit) => hit.atMs > timeline.actor.actionDelayMs && hit.atMs < timeline.durationMs));
     }
   });
 
-  check('dodge moves before contact and parry stays planted', () => {
-    const dodge = make(attacks[0], 'dodge');
-    const parry = make(attacks[0], 'parry');
-    assert.ok(sample(dodge, dodge.impactAtMs - 30).enemy.x > 10);
-    assert.equal(sample(dodge, dodge.impactAtMs).burst, 0);
-    assert.ok(sample(parry, parry.impactAtMs + 80).enemy.x <= 4);
-    assert.equal(sample(parry, parry.impactAtMs).guard, 1);
-  });
-
-  check('hit stop freezes the entire moving composition', () => {
-    const timeline = make(battleActions['rig.fist.heavy_a']);
-    const first = sample(timeline, timeline.impactAtMs);
-    const held = sample(timeline, timeline.impactAtMs + timeline.choreography.hitStopMs - 1);
-    for (const field of ['player', 'enemy', 'cameraX', 'cameraScale', 'burst', 'trail', 'textLift']) assert.deepEqual(held[field], first[field]);
-    // 写意硬切：受击在接触帧直接到位，定格期间保持，而不是渐进加速。
-    assert.ok(Math.abs(first.enemy.x) > 30, 'heavy hit must snap the defender back at contact');
-    assert.equal(first.invert, 1, 'hit stop flashes the stage');
-    assert.equal(sample(timeline, timeline.impactAtMs - 1).invert, 0, 'no flash before contact');
-    assert.equal(sample(timeline, timeline.impactAtMs + timeline.choreography.hitStopMs + 1).invert, 0, 'flash ends with the hold');
-  });
-
-  check('poses cut and hold while the whole figure travels continuously', () => {
-    for (const action of attacks) {
-      const timeline = make(action);
-      const pose = t => sampleSvgPose(timeline, 'player', t, action.style, action.frames[action.impactFrame].frameId);
-      const c = timeline.choreography;
-      const arrival = timeline.actor.actionDelayMs;
-      // 出招一帧到位：刚过起手标记就已是接触姿势。
-      assert.deepEqual(pose(c.launchAtMs + 1), pose(timeline.impactAtMs), `${action.id}: strike must cut in`);
-      // 冲刺全程是同一张冲刺姿势。
-      assert.deepEqual(pose(arrival * 0.2), pose(arrival * 0.8), `${action.id}: one held dash drawing`);
-      // 位移连续：冲刺逐帧前进、后撤逐帧退回，每帧（33ms）步幅有上限，不会瞬移。
-      const frames = t0 => t1 => Array.from({ length: Math.ceil((t1 - t0) / 33) + 1 }, (_, i) => sample(timeline, Math.min(t1, t0 + i * 33)).player.x);
-      const dash = frames(0)(arrival), back = frames(c.recoverAtMs)(c.restAtMs);
-      for (let i = 1; i < dash.length; i++) assert.ok(dash[i] >= dash[i - 1] && dash[i] - dash[i - 1] < 90, `${action.id}: dash is a slide, not a teleport`);
-      for (let i = 1; i < back.length; i++) assert.ok(back[i] <= back[i - 1] + 1e-9 && back[i - 1] - back[i] < 90, `${action.id}: retreat slides home`);
-      assert.ok(dash[1] > 0, `${action.id}: dash starts moving at once`);
-      // 出手姿势一直保持到收招，收招时换成后撤姿势。
-      if (!action.poseTrack) assert.deepEqual(pose(c.recoverAtMs - 1), pose(timeline.hits.at(-1).atMs + timeline.hits.at(-1).hitStopMs + 1), `${action.id}: strike holds until the retreat`);
-    }
-  });
-
-  check('parry stops the weapon short of the defender', () => {
-    for (const action of attacks) {
-      const hit = make(action, 'hit');
-      const parry = make(action, 'parry');
-      const frameId = action.frames[action.impactFrame].frameId;
-      const reachOf = timeline => {
-        const pose = sampleSvgPose(timeline, 'player', timeline.impactAtMs, action.style, frameId);
-        const pin = reachPointAt(timeline, timeline.impactAtMs);
-        const limb = pin === 'foot' ? pose.foot : pose.hand;
-        const blade = pin === 'blade' ? SVG_SWORD_LENGTH * Math.cos(pose.blade * Math.PI / 180) : 0;
-        return limb[0] + blade;
-      };
-      assert.ok(reachOf(parry) < reachOf(hit) - 15, `${action.id}: parried weapon must not pierce the body`);
-    }
-  });
-
-  check('reduced motion retains hit facts while removing movement and trails', () => {
-    const timeline = make(battleActions['rig.fist.heavy_a']);
-    const frame = sample(timeline, timeline.impactAtMs + 60, true);
-    assert.equal(frame.player.x + frame.enemy.x + frame.cameraX + frame.trail + frame.ghost + frame.textLift, 0);
-    assert.equal(frame.cameraScale, 1);
-    assert.equal(frame.enemy.frameId, 'sword_hurt');
-    assert.ok(frame.textAlpha > 0);
-  });
-
-  check('multi-hit actions split damage, pin every contact and freeze each hold', () => {
-    const combo = battleActions['rig.fist.combo_a'];
-    const timeline = make(combo);
-    assert.equal(timeline.hits.length, 3);
+  check('multi-hit damage splits by share and sums to the server total', () => {
+    const timeline = make(battleActions['rig.fist.combo_a']);
     assert.deepEqual(timeline.hits.map(h => h.damage), [5, 4, 9]);
-    assert.equal(timeline.hits.reduce((sum, h) => sum + h.damage, 0), 18);
     assert.deepEqual(timeline.hits.map(h => h.floatText), ['-5', '-4', '-9']);
-    const pinned = timeline.actor.poseKeys.filter(k => k.pin);
-    timeline.hits.forEach((hit, i) => {
-      const pose = t => sampleSvgPose(timeline, 'player', t, combo.style, 'idle');
-      const key = pinned[i];
-      const limb = key.pin === 'foot' ? pose(hit.atMs).foot : pose(hit.atMs).hand;
-      const expected = [timeline.choreography.reach, (key.contactY ?? timeline.choreography.contactY) - 176];
-      assert.ok(Math.hypot(limb[0] - expected[0], limb[1] - expected[1]) < 1e-6, `hit ${i} contact`);
-      const first = sample(timeline, hit.atMs);
-      const held = sample(timeline, hit.atMs + hit.hitStopMs - 1);
-      for (const field of ['player', 'enemy', 'cameraX', 'burst', 'trail']) assert.deepEqual(held[field], first[field], `hit ${i} ${field}`);
-      assert.deepEqual(pose(hit.atMs + hit.hitStopMs - 1), pose(hit.atMs));
-      assert.equal(first.hitIndex, i);
-      assert.equal(first.burst, 1, `hit ${i} re-bursts`);
-      assert.equal(first.invert, 1, `hit ${i} flashes`);
-      assert.equal(sample(timeline, hit.atMs + hit.hitStopMs + 1).invert, 0);
-    });
-    assert.equal(sample(timeline, timeline.hits[1].atMs - 1).hitIndex, 0);
   });
 
-  // 收招阶段位移按平滑曲线退回；接触后不久还没进入收招，这里算出收招进度供断言使用。
-  const smoothRecovery = (tl, t) => { const c = tl.choreography; const p = Math.max(0, Math.min(1, (t - c.recoverAtMs) / Math.max(1, c.restAtMs - c.recoverAtMs))); return p * p * (3 - 2 * p); };
-  check('staging overrides drive reaction, camera and pose per action and per hit', () => {
-    const palm = make(battleActions['rig.fist.palm_knockback_a']);
-    const at = sample(palm, palm.impactAtMs);
-    const snap = palm.hits[0].staging.reactions.hit.snap;
-    // 接触瞬间先打退一部分，定格结束后 200ms 内踉跄滑完剩下的。
-    assert.ok(Math.abs(at.enemy.x - 120 * snap) < 1e-9, 'knockback snaps part of the push at contact');
-    const settled = palm.hits[0].atMs + palm.hits[0].hitStopMs + 220;
-    assert.ok(Math.abs(sample(palm, settled).enemy.x - 120 * (1 - smoothRecovery(palm, settled))) < 1e-9, 'then staggers the rest');
-    assert.equal(at.enemy.y, -14, 'knockback lift');
-    assert.equal(at.enemy.angle, 26, 'knockback tilt');
-    const knocked = sampleSvgPose(palm, 'enemy', palm.impactAtMs, 'sword', at.enemy.frameId);
-    const { svgPose } = svgPoseModule;
-    assert.deepEqual(knocked, svgPose('knocked_back', 'sword'), 'reaction pose override');
-    // 同一招里最后一段更重：镜头砸得更狠，受击退得更远。
-    const combo = make(battleActions['rig.fist.combo_a']);
-    const first = sample(combo, combo.hits[0].atMs), last = sample(combo, combo.hits[2].atMs);
-    assert.ok(last.cameraX > first.cameraX, 'heavier final hit kicks harder');
-    const lastHit = combo.hits[2];
-    const lastSettled = lastHit.atMs + lastHit.hitStopMs + 220;
-    assert.ok(Math.abs(sample(combo, lastSettled).enemy.x - 70 * (1 - smoothRecovery(combo, lastSettled))) < 1e-9, 'final hit pushes further');
-  });
-
-  check('offset tracks lift the actor while the pinned limb still lands on the target', () => {
-    const leap = make(battleActions['rig.fist.leap_kick_a']);
-    const hit = sample(leap, leap.impactAtMs);
-    assert.equal(hit.player.y, -44);
-    assert.ok(hit.player.angle < 0);
-    assert.equal(sample(leap, leap.durationMs).player.y, 0, 'lands again');
-  });
-
-  check('ranged actions strike from home and keep a continuous dodge across hits', () => {
-    const qi = make(battleActions['rig.sword.qi_wave_a']);
-    for (let t = 0; t <= qi.durationMs; t += 20) assert.equal(sample(qi, t).player.x, 0, 'no travel');
-    assert.equal(qi.actor.actionDelayMs, 0);
-    const at = sample(qi, qi.impactAtMs);
-    assert.equal(at.force, 1);
-    assert.equal(at.contact.y, qi.choreography.contactY - 176);
-    assert.equal(at.burst, 1);
-    const combo = make(battleActions['rig.fist.combo_a'], 'dodge');
-    for (const hit of combo.hits.slice(1)) assert.equal(sample(combo, hit.atMs - 20).enemy.x, hit.staging.reactions.dodge.push, 'dodge must not reset between hits');
-  });
-
-  const vfxModule = await server.ssrLoadModule('/src/battle/battleVfx.ts');
-  const { sampleVfx } = vfxModule;
-  check('sprites travel between anchors, freeze with hit stop and respect result filters', () => {
-    const qi = make(battleActions['rig.sword.qi_wave_a']);
-    const crescent = qi.vfx.find(v => v.kind === 'sprite');
-    const at = t => sampleVfx(qi, sample(qi, t), t).find(s => s.key === crescent.id);
-    assert.equal(at(crescent.startMs - 1), undefined, 'not before its start');
-    const early = at(crescent.startMs + 1), contact = sample(qi, qi.impactAtMs).contact;
-    assert.ok(early.x < contact.x - 100, 'starts at the blade, far from the target');
-    const onHit = at(qi.impactAtMs);
-    assert.ok(Math.abs(onHit.x - contact.x) < 40, 'arrives at the contact on the hit');
-    assert.deepEqual(at(qi.impactAtMs + qi.hits[0].hitStopMs - 1), onHit, 'held by hit stop');
-    assert.equal(at(qi.hits[0].atMs + qi.hits[0].hitStopMs + 60), undefined, 'gone after its life');
-    const dodged = make(battleActions['rig.sword.qi_wave_a'], 'dodge');
-    dodged.vfx = dodged.vfx.map(v => v.kind === 'sprite' ? { ...v, results: ['hit'] } : v);
-    assert.equal(sampleVfx(dodged, sample(dodged, dodged.impactAtMs), dodged.impactAtMs).find(s => s.key === crescent.id), undefined, 'results filter');
-  });
-
-  check('server per-hit outcomes drive each hit, and animation params restyle a shared clip', () => {
+  check('server per-hit outcomes and animation params reach the timeline', () => {
     const combo = battleActions['rig.fist.combo_a'];
     const timeline = resolveCombatTimeline({
       kind: 'normal', message: { kind: 'script', text: combo.label }, result: 'hit', damage: 14, heal: null,
@@ -247,12 +65,7 @@ try {
     }, 1, 'player', 'enemy', combo.label, 'female', 'male', 'fist', 'sword');
     assert.deepEqual(timeline.hits.map(h => h.result), ['hit', 'dodge', 'hit']);
     assert.deepEqual(timeline.hits.map(h => h.damage), [5, 0, 9]);
-    assert.equal(timeline.hits[1].floatText, '闪');
-    assert.equal(sample(timeline, timeline.hits[0].atMs).burst, 1);
-    const dodged = sample(timeline, timeline.hits[1].atMs);
-    assert.equal(dodged.burst, 0, 'no ink burst on a dodged hit');
-    assert.equal(dodged.enemy.frameId, 'sword_dodge', 'defender dodges the middle hit');
-    assert.equal(sample(timeline, timeline.hits[2].atMs).enemy.frameId, 'sword_hurt', 'and is hit by the last one');
+    assert.equal(sample(timeline, timeline.hits[1].atMs).burst, 0, 'no damage spark on a dodged hit');
 
     const punch = battleActions['rig.fist.punch_a'];
     const restyled = resolveCombatTimeline({
@@ -263,20 +76,14 @@ try {
     assert.equal(restyled.vfx.find(v => v.kind === 'trail').art, 'rising');
     assert.equal(restyled.vfx.find(v => v.kind === 'impact').art, 'impact', 'unknown art names are ignored');
     assert.equal(restyled.hits[0].staging.camera.kick, 20);
-    assert.equal(restyled.staging.camera.kick, 20);
   });
 
-  check('custom VFX samplers expand one manifest entry into procedural sprites', () => {
-    const net = make(battleActions['rig.sword.sword_net_a']);
-    const fan = net.vfx.find(v => v.kind === 'custom');
-    const mid = (fan.startMs + fan.endMs) / 2;
-    const midSprites = sampleVfx(net, sample(net, mid), mid).filter(s => s.key.startsWith(fan.id));
-    assert.ok(midSprites.length >= 3, 'several blades are live mid-fan');
-    assert.ok(new Set(midSprites.map(s => s.rotate)).size === midSprites.length, 'blades fan out at different angles');
-    const dodged = make(battleActions['rig.sword.sword_net_a'], 'dodge');
-    assert.equal(sampleVfx(dodged, sample(dodged, mid), mid).filter(s => s.key.startsWith(fan.id)).length, 0, 'results filter applies to custom VFX');
-    const { registerCustomVfx } = vfxModule;
-    assert.throws(() => registerCustomVfx('blade_fan', () => []), /already registered/);
+  check('reduced motion keeps the hit but removes movement', () => {
+    const timeline = make(battleActions['rig.fist.heavy_a']);
+    const frame = sample(timeline, timeline.impactAtMs + 60, true);
+    assert.equal(frame.player.x + frame.enemy.x + frame.cameraX + frame.trail + frame.ghost + frame.textLift, 0);
+    assert.equal(frame.cameraScale, 1);
+    assert.ok(frame.textAlpha > 0);
   });
 
   function driver() {
