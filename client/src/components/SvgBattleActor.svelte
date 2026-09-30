@@ -14,6 +14,10 @@
   export let hairFlow: number[] = [0, 0];
   /** 站着时的轻微摆动相位，取舞台时间，暂停和拖动时间轴都确定。 */
   export let hairPhase = 0;
+  /**
+   * 女性造型：maiden 为发髻 + 发簪 + 披发 + 鬓发、身形更纤细的少女女侠；ponytail 为此前的高马尾（对照用）。
+   */
+  export let look: 'maiden' | 'ponytail' = 'maiden';
   $: p = pose;
 
   type Pt = number[];
@@ -69,7 +73,13 @@
   }
 
   // 粗细（半径）：四肢从胸腔、骨盆两个体块里长出来——肩（三角肌）和大腿根做粗，与体块衔接成一整块；往末端收细。
-  const R = { thigh: 10.5, knee: 7.2, ankle: 4.6, shoulder: 8.4, elbow: 5.8, wrist: 4.4, fist: 5.8, chest: 13.5, pelvis: 11.5, neck: 9 };
+  const BODY = { thigh: 10.5, knee: 7.2, ankle: 4.6, shoulder: 8.4, elbow: 5.8, wrist: 4.4, fist: 5.8, chest: 13.5, pelvis: 11.5, neck: 9 };
+  /** 少女体态：肩臂更细、胸腔更窄、腰更收、手更小，骨盆基本不变。 */
+  const MAIDEN_BODY = { thigh: 9.6, knee: 6.5, ankle: 4.1, shoulder: 7, elbow: 4.9, wrist: 3.7, fist: 4.7, chest: 11.4, pelvis: 11, neck: 7.2 };
+  $: maiden = profile === 'female' && look === 'maiden';
+  $: R = maiden ? MAIDEN_BODY : BODY;
+  /** 少女的头小一号，往颈根收一点，免得露出脖子。 */
+  $: headR = maiden ? bones.headRadius - 1.2 : bones.headRadius;
   const BLADE = '#f2ead2';
 
   /**
@@ -109,6 +119,7 @@
   })();
   $: headUp = unit(sub(p.head, p.neck));
   $: headBackDir = [headUp[1], -headUp[0]];
+  $: headC = maiden ? along(p.head, headUp, -1.2) : p.head;
   /** 马尾：在后脑偏上束起，发根向后微微翘起一小截，再垂到腰。 */
   $: root = along(along(p.head, headUp, bones.headRadius * 0.5), headBackDir, bones.headRadius * 0.62);
   $: flow = hairFlow;
@@ -126,7 +137,30 @@
       const part = list.find((candidate) => candidate.key === key);
       if (part) part.joins.push({ at, r, shapes: [...others.flatMap(shapesOf), ...part.shapes] });
     };
-    if (profile === 'female') {
+    // 少女女侠：后脑挽发髻、斜插发簪，发髻下披散几缕长短不一的长发，脸侧一缕鬓发。
+    const up = headUp, back = headBackDir, fwd = [-back[0], -back[1]];
+    const onFace = (u: number, b: number): Pt => [headC[0] + up[0] * headR * u + back[0] * headR * b, headC[1] + up[1] * headR * u + back[1] * headR * b];
+    // 发髻从后脑上方鼓出来；发簪几乎平着向后穿过发髻，只微微上翘。
+    const bun = onFace(0.5, 0.98), bunTop = onFace(0.82, 0.72);
+    const pinDir = unit([up[0] * 0.3 + back[0] * 0.95, up[1] * 0.3 + back[1] * 0.95]);
+    const looseRoot = onFace(0.05, 0.86);
+    // 鬓发从额角发际线沿着脸的前缘垂下，大半露在轮廓外侧。
+    const lockRoot = onFace(0.62, -0.62);
+    if (maiden) {
+      /** 垂下的发丝：以后脑为根，b 向后、down 向下；外力和摆动越往下越大。 */
+      const h = (b: number, down: number, f: number, sw: number): Pt =>
+        [looseRoot[0] + back[0] * (b + sw) + flow[0] * f, looseRoot[1] + back[1] * (b + sw) + down + flow[1] * f];
+      list.push({ key: 'hair', joins: [], shapes: [
+        { d: ribbon([h(8, 8, 0.2, 0), h(14, 18, 0.9, sway1), h(19, 28, 1.5, sway1 * 1.5)], [1.6, 1.2, 0.3]) },
+        { d: ribbon([along(looseRoot, back, 2), h(10, 14, 0.3, sway1 * 0.5), h(15, 38, 1.1, sway1 * 1.2), h(13, 55, 1.8, sway2 * 1.3)], [2.8, 2.8, 2, 0.3]) },
+        { d: ribbon([h(1, 4, 0, 0), h(3, 26, 0.5, sway1 * 0.8), h(1, 50, 1.2, sway2 * 0.9), h(-2, 68, 1.7, sway2 * 1.1)], [2.2, 2, 1.4, 0.3]) },
+        { d: ribbon([looseRoot, h(6, 10, 0.2, 0), h(9, 32, 0.8, sway1), h(5, 61, 1.5, sway2)], [4.2, 4.6, 3.4, 0.4]) },
+        // 发簪：平穿发髻，簪头从前面露一点，簪尾向后伸出、收尖。
+        { d: taper(along(bun, pinDir, -9), along(bun, pinDir, 15), 1.5, 0.6) },
+        circle(bun, 6.8),
+        circle(bunTop, 4.6)
+      ] });
+    } else if (profile === 'female') {
       // 发根和翘起的那一截跟着头走；垂下的部分受重力，外力（冲刺、急停、受击）和摆动越往下越大。
       const up = headUp, back = headBackDir;
       const onHead = (u: number, b: number) => [root[0] + up[0] * u + back[0] * b, root[1] + up[1] * u + back[1] * b];
@@ -142,11 +176,19 @@
     }
     list.push({ key: 'back-leg', joins: [], shapes: [...limb(p.hip, p.backKnee, R.thigh, R.knee), ...limb(p.backKnee, p.backFoot, R.knee, R.ankle), ...foot(p.backKnee, p.backFoot, p.backFootPlanted)] });
     list.push({ key: 'back-arm', joins: [], shapes: [...limb(p.shoulder, p.backElbow, R.shoulder, R.elbow), ...limb(p.backElbow, p.backHand, R.elbow, R.wrist), circle(p.backHand, R.fist)] });
-    const body: Shape[] = [...limb(chest, p.hip, R.chest, R.pelvis), ...limb(p.neck, p.head, R.neck, R.neck), circle(p.head, bones.headRadius)];
+    const body: Shape[] = [...limb(chest, p.hip, R.chest, R.pelvis), ...limb(p.neck, headC, R.neck, R.neck), circle(headC, headR)];
     list.push({ key: 'body', joins: [], shapes: body });
     join('body', ['back-leg'], p.hip, R.thigh + 10);
     join('body', ['back-arm'], p.shoulder, R.shoulder + 8);
-    if (profile === 'female') join('body', ['hair'], root, 8);
+    if (maiden) {
+      join('body', ['hair'], looseRoot, 7);
+      join('body', ['hair'], bun, 7);
+      // 鬓发：从发际线垂到下颌以下，叠在脸前，靠描边读出一缕发丝；发根处缝合进头里。
+      const lockMid: Pt = [headC[0] + fwd[0] * headR * 1.02 + flow[0] * 0.2, headC[1] + fwd[1] * headR * 1.02 + headR * 0.25 + flow[1] * 0.2];
+      const lockEnd: Pt = [headC[0] + fwd[0] * headR * 0.86 + back[0] * sway1 * 0.4 + flow[0] * 0.55, headC[1] + fwd[1] * headR * 0.86 + headR + 9 + flow[1] * 0.55];
+      list.push({ key: 'side-lock', joins: [], shapes: [{ d: ribbon([lockRoot, lockMid, lockEnd], [1.6, 1.5, 0.35]) }] });
+      join('side-lock', ['body'], lockRoot, 2.6);
+    } else if (profile === 'female') join('body', ['hair'], root, 8);
     list.push({ key: 'front-leg', joins: [], shapes: [...limb(p.hip, p.knee, R.thigh, R.knee), ...limb(p.knee, p.foot, R.knee, R.ankle), ...foot(p.knee, p.foot, p.footPlanted)] });
     const arm: Shape[] = [...limb(p.shoulder, p.elbow, R.shoulder, R.elbow), ...limb(p.elbow, p.hand, R.elbow, R.wrist)];
     if (style === 'sword') {
