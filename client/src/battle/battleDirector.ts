@@ -1,7 +1,7 @@
 import { entryAt } from "./battleApproach";
 import { clipFrameAt } from "./animationClip";
-import { hitIndexAt, lastHit, visualTimeAt } from "./battleTiming";
-import type { ActorVisual, BattleSide, ResolvedBattleTimeline } from "./animationTypes";
+import { activeReactionAt, actorOffsetAt, hitIndexAt, lastHit, visualTimeAt } from "./battleTiming";
+import { TRAVEL_MOTIONS, type ActorVisual, type BattleSide, type ResolvedBattleTimeline, type StagingProfile } from "./animationTypes";
 
 export interface FigureSample {
   visual: ActorVisual;
@@ -82,6 +82,7 @@ export function sampleBattleScene(
   }
 
   const c = timeline.choreography;
+  const staging = timeline.staging;
   const arrival = timeline.actor.actionDelayMs;
   const impact = timeline.impactAtMs;
   const holdEnd = impact + c.hitStopMs;
@@ -96,12 +97,12 @@ export function sampleBattleScene(
   const target = timeline.target.side === "player" ? result.player : result.enemy;
   const direction = timeline.actor.side === "player" ? 1 : -1;
   const targetDirection = timeline.target.side === "player" ? -1 : 1;
-  const attack = ["approach", "lunge", "drive"].includes(timeline.actor.motion);
+  const attack = TRAVEL_MOTIONS.includes(timeline.actor.motion);
+  const strikes = attack || timeline.actor.motion === "ranged";
   const quiet = timeline.kind === "effect_tick";
-  const heavy = c.weight === "heavy";
   const recovery = smooth(progress(visualTime, c.recoverAtMs, c.restAtMs));
   const envelope = quiet ? 0 : out(progress(visualTime, 0, Math.max(1, c.launchAtMs))) * (1 - recovery);
-  result.force = quiet || !attack ? 0 : heavy ? 1 : 0.6;
+  result.force = quiet || !strikes ? 0 : staging.force;
   result.phase = t < arrival ? "approach" : t < c.launchAtMs ? "prepare" : t < impact ? "strike" : t < c.recoverAtMs ? "impact" : t < c.restAtMs ? "recover" : "idle";
 
   if (!quiet) {
@@ -110,71 +111,78 @@ export function sampleBattleScene(
       : clipFrameAt(actor.visual.frames, Math.max(0, visualTime - arrival), timeline.durationMs - arrival).frame.frameId;
   }
 
+  result.contact.x = sideHome(timeline.target.side);
+  result.contact.y = strikes ? c.contactY - 176 : -70;
   if (attack) {
     const travel = Math.max(8, sideHome("enemy") - sideHome("player") - c.reach);
     // 一帧换位，不是滑行；回位用一次硬切的撤步，收在两拍内。
     actor.x = direction * travel * entryAt(progress(visualTime, 0, arrival)) * (1 - hardStep(recovery));
     actor.y = visualTime < arrival ? -(timeline.actor.approach?.lift ?? 0) * Math.sin(Math.PI * progress(visualTime, 0, arrival)) : 0;
-    result.contact.x = sideHome(timeline.target.side);
-    result.contact.y = c.contactY - 176;
-  } else {
-    result.contact.x = sideHome(timeline.target.side);
-    result.contact.y = -70;
+  }
+  if (!quiet && timeline.actor.offsetKeys.length) {
+    // 身法轨道：跃起、后翻、滑步等附加位移，叠加在站位之上。
+    const offset = actorOffsetAt(timeline, visualTime);
+    actor.x += direction * offset.x;
+    actor.y += offset.y;
+    actor.angle += direction * offset.angle;
   }
 
-  const reaction = timeline.target.reaction;
-  // Dodge anticipates the contact; parry prepares shortly before it; hurt never does.
-  const reactionAt = reaction === "dodge" ? Math.max(c.launchAtMs, impact - 95) : reaction === "parry" ? Math.max(c.launchAtMs, impact - 50) : impact;
-  if (!quiet && actor !== target && t >= reactionAt && t < c.restAtMs && reaction !== "none" && reaction !== "effect") {
-    target.visual = timeline.target.visual;
+  const active = quiet || actor === target ? undefined : activeReactionAt(timeline, t);
+  if (active && t < c.restAtMs && active.hit.reaction !== "none" && active.hit.reaction !== "effect") {
+    const { hit: reactionHit, startAt } = active;
+    const reaction = reactionHit.reaction as keyof StagingProfile["reactions"];
+    const look = reactionHit.staging.reactions[reaction];
+    target.visual = reactionHit.targetVisual;
     target.frameId = target.visual.frames[0].frameId;
-    const reactionTime = reaction === "hit" ? impact + Math.max(0, t - holdEnd) : visualTime;
+    const reactionTime = reaction === "hit" ? reactionHit.atMs + Math.max(0, t - reactionHit.atMs - reactionHit.hitStopMs) : visualTime;
     // 受击是硬切：到点直接到位，不做渐进。
-    const onset = reaction === "hit" ? 1 : out(progress(reactionTime, reactionAt, reactionAt + (reaction === "dodge" ? 85 : 65)));
+    const onset = reaction === "hit" ? 1 : out(progress(reactionTime, startAt, startAt + (look.onsetMs ?? 0)));
     const amount = onset * (1 - hardStep(recovery));
-    target.x = targetDirection * (reaction === "dodge" ? 52 : reaction === "parry" ? 4 : heavy ? 48 : 26) * amount;
-    target.angle = targetDirection * (reaction === "hit" ? (heavy ? 14 : 9) : 0) * amount;
-    result.ghost = reaction === "dodge" ? 0.32 * amount : 0;
+    target.x = targetDirection * look.push * amount;
+    if (reaction === "hit" && look.lift) target.y = -look.lift * amount;
+    target.angle = targetDirection * (reaction === "hit" ? look.tilt ?? 0 : 0) * amount;
+    result.ghost = reaction === "dodge" ? (look.ghost ?? 0) * amount : 0;
   }
 
   if (t >= impact) {
     const feedbackTime = visualTime === hit.atMs ? 0 : visualTime - hitHoldEnd;
     // 衰减必须在时间线结束前走完，否则尾部会残留火星和招架环。
-    const fall = Math.min(heavy ? 260 : 180, Math.max(1, timeline.durationMs - hitHoldEnd));
+    const fall = Math.min(hit.staging.fallMs, Math.max(1, timeline.durationMs - hitHoldEnd));
     const feedback = 1 - decayAfterHold(visualTime, hitHoldEnd, fall);
     const textEnd = Math.min(timeline.durationMs, Math.max(final.atMs + 340, c.restAtMs));
     result.textAlpha = 1 - smooth(progress(t, Math.max(final.atMs + 190, textEnd - 190), textEnd));
     result.textLift = 26 * out(progress(visualTime, holdEnd, textEnd));
     result.textScale = 0.84 + 0.16 * out(progress(visualTime, hit.atMs, hit.atMs + 120));
-    if (timeline.result === "hit") {
+    if (hit.result === "hit") {
       result.burst = feedback;
-      target.flash = feedback * (heavy ? 1 : 0.75);
+      target.flash = feedback * hit.staging.flash;
     }
-    if (timeline.result === "parry") result.guard = feedback;
+    if (hit.result === "parry") result.guard = feedback;
     if (timeline.heal || timeline.actor.motion === "focus") result.aura = (1 - recovery) * 0.65;
     if (!quiet && !reducedMotion) {
       // 沿攻击方向砸一下，回弹两次收敛，而不是原地的余弦晃动。
-      const kick = heavy ? 11 : 5.5;
+      const { kick, rebound, lift } = hit.staging.camera;
       const decay = feedback ** 2;
       result.cameraX = direction * kick * decay * Math.cos(Math.max(0, feedbackTime) * 0.045);
-      result.cameraX += direction * kick * decay * Math.cos(Math.max(0, feedbackTime) * 0.11) * 0.35;
-      result.shakeY = -kick * 0.35 * decay * Math.cos(Math.max(0, feedbackTime) * 0.05);
+      result.cameraX += direction * kick * decay * Math.cos(Math.max(0, feedbackTime) * 0.11) * rebound;
+      result.shakeY = -kick * lift * decay * Math.cos(Math.max(0, feedbackTime) * 0.05);
     }
   }
 
   // 每一段各有一次起笔和收笔；取最晚进入窗口的那一段。
-  const trailHit = attack ? [...timeline.hits].reverse().find((h) => t >= h.atMs - 85 && t < h.atMs + h.hitStopMs + 170) : undefined;
+  const { leadMs, fadeMs } = staging.trail;
+  const trailHit = attack ? [...timeline.hits].reverse().find((h) => t >= h.atMs - leadMs && t < h.atMs + h.hitStopMs + fadeMs) : undefined;
   if (trailHit) {
     const end = trailHit.atMs + trailHit.hitStopMs;
-    result.trail = t < trailHit.atMs ? progress(t, trailHit.atMs - 85, trailHit.atMs) : 1 - out(progress(visualTime, end, end + 170));
+    result.trail = t < trailHit.atMs ? progress(t, trailHit.atMs - leadMs, trailHit.atMs) : 1 - out(progress(visualTime, end, end + fadeMs));
   }
   // 定格期间压暗并反白，只持续一两帧，是这套写意风格里最直接的打击反馈。
   if (!quiet && !reducedMotion && timeline.hits.some((h) => h.hitStopMs > 0 && t >= h.atMs && t < h.atMs + h.hitStopMs)) result.invert = 1;
-  result.angle = quiet ? 0 : (heavy ? 2.4 : 1) * Math.sin(Math.PI * progress(t, 0, Math.max(1, c.restAtMs))) * (t < c.restAtMs ? 1 : 0);
+  result.angle = quiet ? 0 : staging.tilt * Math.sin(Math.PI * progress(t, 0, Math.max(1, c.restAtMs))) * (t < c.restAtMs ? 1 : 0);
   // 镜头硬切：蓄势时不动，命中瞬间直接推近，随后保持，不做缓动。
   const cutIn = quiet ? 0 : progress(visualTime, c.launchAtMs, impact);
-  result.cameraScale = 1 + (cutIn >= 1 ? 1 : envelope * 0.35) * (heavy ? 0.1 : 0.045);
-  result.shade = envelope * (heavy ? 0.22 : 0.09) + result.invert * 0.25;
+  result.cameraScale = 1 + (cutIn >= 1 ? 1 : envelope * 0.35) * staging.camera.zoom;
+  result.shade = envelope * staging.shade + result.invert * 0.25;
   if (reducedMotion) {
     for (const figure of [result.player, result.enemy]) { figure.x = 0; figure.y = 0; figure.angle = 0; }
     result.cameraScale = 1;

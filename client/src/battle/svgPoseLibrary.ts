@@ -1,4 +1,4 @@
-import poseData from "../../../resources/scripts/combat_poses/svg-poses.json";
+import poseData from "../../../resources/scripts/combat_presentation/svg-poses.json";
 import type { CombatStyle } from "./animationTypes";
 
 type Point = [number, number];

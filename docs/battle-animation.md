@@ -102,7 +102,32 @@ martial-art YAML animation.action
 - 省略 poseTrack 时由 keyPoses 展开成四个键：到位 prepare → launchAtMs contact（pin reachWith）→ 最后一段定格结束 finish → restAtMs idle。
 - 所有采样器通过 `battleTiming.ts` 的 visualTimeAt 读取定格后的时间；BattleClock 每段触发一次回调（参数为段序号），拖动时间轴不会重复触发已提交的段。
 
-`rig.fist.combo_a`（连环三捶）是多段示例，暂未绑定到任何武学招式，可在 battle-lab 单招回放里查看。`choreography` 的定义：
+`rig.fist.combo_a`（连环三捶）是多段示例，暂未绑定到任何武学招式，可在 battle-lab 单招回放里查看。
+
+### 舞台参数、身法轨道与远程招式
+
+导演层不再写死数值。`resources/scripts/combat_presentation/staging.json` 按 choreography.weight 提供 light/heavy/quiet 预设（可 `extends`），字段包括：
+
+- force：出手分量（印章、墨爆大小、斩痕倾角）。
+- camera：kick（沿攻击方向的冲击）、rebound（二次回弹比例）、lift（竖向震动比例）、zoom（接触推近）。
+- shade / tilt / flash / fallMs：压暗、舞台倾角、受击闪白、余劲衰减时长。
+- trail：leadMs / fadeMs，剑光起笔与收笔窗口。
+- reactions.hit / dodge / parry：push（位移）、tilt、lift、leadMs（提前量）、onsetMs（闪/架的起势时长）、ghost（残影）、standoff（招架时兵刃停在多远）、pose（覆盖受击方姿势）。
+
+动作可写 `staging` 覆盖任意子集，单段命中还可在 `hits[i].staging` 上再覆盖；合并顺序为 预设 → 动作 → 该段。例：排山掌把受击改为击飞：
+
+```json
+"hits": [{ "atMs": 230, "hitStopMs": 110, "staging": {
+  "camera": { "kick": 16 }, "fallMs": 320,
+  "reactions": { "hit": { "push": 120, "tilt": 26, "lift": 14, "pose": "knocked_back" } }
+} }]
+```
+
+多段命中里每段各自有结果和反应；连续同类反应视为一整段（闪避不会每段退回原位重来）。
+
+`offsetTrack` 给出招者叠加根节点位移（x 朝向对手为正，y 向下为正，angle 为倾角），ease 取 cut（保持后跳变）、linear、out。接触键会反向补偿这段位移，所以跃起踢击的脚仍落在对手身上（见 `rig.fist.leap_kick_a` 飞燕踢）。
+
+`actorMotion: "ranged"` 为远程招式：不接近、不位移，接触点仍按 contactY 计算，poseTrack 不需要 pin（见 `rig.sword.qi_wave_a` 剑气纵横）。`choreography` 的定义：
 
 - launchAtMs：从反向蓄势进入快速发力。
 - hitStopMs：命中之后同时保持人物、镜头、轨迹与飘字位移的时长。
@@ -147,7 +172,7 @@ martial-art YAML animation.action
 
 ## SVG 姿态与素材
 
-关键姿势表是数据：`resources/scripts/combat_poses/svg-poses.json`（不放进 combat_actions，那个目录会被服务端逐个解析）。每个姿势从 base 加骨架差异（rigs.fist/sword）出发，或 `extends` 另一个姿势，或 `blend` 两个姿势（from/to/amount），最后用 `set` 覆盖个别关节。`svgPoseLibrary.ts` 在加载时解析全部姿势、检查未知关节与循环引用；catalog 与 `validate:animations` 校验 manifest 引用的姿势和素材都存在。新增招式时，先在 svg-poses.json 加姿势，再在 manifest 引用，不需要改 TS。
+关键姿势表是数据：`resources/scripts/combat_presentation/svg-poses.json`（不放进 combat_actions，那个目录会被服务端逐个解析）。每个姿势从 base 加骨架差异（rigs.fist/sword）出发，或 `extends` 另一个姿势，或 `blend` 两个姿势（from/to/amount），最后用 `set` 覆盖个别关节。`svgPoseLibrary.ts` 在加载时解析全部姿势、检查未知关节与循环引用；catalog 与 `validate:animations` 校验 manifest 引用的姿势和素材都存在。新增招式时，先在 svg-poses.json 加姿势，再在 manifest 引用，不需要改 TS。
 
 `svgBattlePose.ts` 只负责按时间线在关键姿势之间切换。攻击从蓄势加速插值到最大动作，命中时保持，随后走完独立随势动作，再平滑收回。拳头、脚尖或剑尖由 manifest 的 reach/contactY 对齐接触位置。双方朝向仍由舞台镜像处理。弓步、反向展臂、举剑下劈、低起上挑与提膝侧踢形成不同的大开合轮廓；剑长为 72 个素材像素。
 

@@ -25,7 +25,10 @@ manifest.actions.forEach((action) => {
     ...action.frames.map((frame) => frame.frameId),
     ...Object.entries(action.keyPoses || {}).filter(([key]) => key !== "reachWith").map(([, id]) => id as string),
     ...(action.approach ? [action.approach.pose] : []),
-    ...(action.poseTrack || []).map((key) => key.pose)
+    ...(action.poseTrack || []).map((key) => key.pose),
+    ...[action.staging, ...(action.hits || []).map((hit) => hit.staging)]
+      .flatMap((staging) => Object.values(staging?.reactions || {}).map((reaction) => reaction?.pose))
+      .filter((pose): pose is string => !!pose)
   ];
   for (const pose of poses) if (!hasSvgPose(pose)) throw new Error(`${action.id}: missing SVG pose ${pose}`);
   for (const vfx of action.vfx || []) if (!(vfx.art in stageArt)) throw new Error(`${action.id}: unknown vfx art ${vfx.art}`);

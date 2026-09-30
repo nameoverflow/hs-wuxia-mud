@@ -19,7 +19,7 @@
   let profile: VisualProfile = "female";
   let speed = 1;
   let ready = false;
-  const actions = Object.values(battleActions).filter((action) => ["approach", "lunge", "drive", "focus"].includes(action.actorMotion) || action.id.startsWith("rig.effect."));
+  const actions = Object.values(battleActions).filter((action) => ["approach", "lunge", "drive", "focus", "ranged"].includes(action.actorMotion) || action.id.startsWith("rig.effect."));
 
   function playOne() { seedBattle(profile); battleClock.setSpeed(speed); submitBattleAction(actionId, outcome, side); }
   function changeSpeed() { battleClock.setSpeed(speed); }

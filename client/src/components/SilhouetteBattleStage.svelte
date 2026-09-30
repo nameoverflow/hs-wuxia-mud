@@ -33,7 +33,7 @@
   $: stampLabel = scene.force >= 1 && timeline && scene.phase !== "idle" ? timeline.label : "";
   $: ink = timeline && scene.burst > 0 ? stageArt[timeline.vfx.find(v => v.kind === "impact")?.art ?? "impact"] : null;
   $: arc = timeline && scene.trail > 0
-    ? (timeline.result === "parry" ? stageArt.parry : stageArt[timeline.vfx.find(v => v.kind === "trail")?.art ?? "slash"])
+    ? (timeline.hits[Math.max(0, scene.hitIndex)].result === "parry" ? stageArt.parry : stageArt[timeline.vfx.find(v => v.kind === "trail")?.art ?? "slash"])
     : null;
   $: auraArt = scene.aura > 0 ? stageArt.aura : null;
 

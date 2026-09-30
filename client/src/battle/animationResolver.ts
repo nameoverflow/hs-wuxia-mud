@@ -1,8 +1,10 @@
 import type { CombatEvent, CombatResult } from "../protocol";
 import { clipImpactOffsetMs } from "./animationClip";
+import { stagingFor } from "./stagingProfile";
 import { battleActionFor, idleVisualForStyle, reactionVisualFor, visualForBattleAction } from "./battleActionCatalog";
 import type {
   ActionVfxDefinition,
+  ActorVisual,
   BattleActionDefinition,
   BattleSide,
   CombatStyle,
@@ -26,14 +28,15 @@ export function resolveCombatTimeline(
   targetStyle: CombatStyle = "fist"
 ): ResolvedBattleTimeline {
   const action = battleActionFor(event.visual?.actionId, actorStyle);
-  const result = event.result || "hit";
-  const reaction = action.targetReaction[result] || resultReaction(result);
   const actorVisual = visualForBattleAction(action.id, actorProfile, actorStyle);
   const actionDurationMs = visualDurationMs(event.visual?.durationMs, action.durationMs);
   const approach = event.kind === 'effect_tick' ? undefined : action.approach;
   const actionDelayMs = (approach?.durationMs ?? 0) * actionDurationMs / action.durationMs;
   const scale = actionDurationMs / action.durationMs;
-  const hits = resolveHits(action, event, actionDelayMs, actionDurationMs);
+  const reactionVisual = (reaction: TargetReaction) =>
+    reaction === "effect" || reaction === "none" ? idleVisualForStyle(targetStyle, targetProfile) : reactionVisualFor(reaction, targetProfile, targetStyle);
+  const hits = resolveHits(action, event, actionDelayMs, actionDurationMs, reactionVisual);
+  const { result, reaction } = hits[0];
   const choreography = {
     ...action.choreography,
     launchAtMs: actionDelayMs + action.choreography.launchAtMs * scale,
@@ -41,8 +44,7 @@ export function resolveCombatTimeline(
     recoverAtMs: actionDelayMs + action.choreography.recoverAtMs * scale,
     restAtMs: actionDelayMs + action.choreography.restAtMs * scale
   };
-  const targetVisual =
-    reaction === "effect" || reaction === "none" ? idleVisualForStyle(targetStyle, targetProfile) : reactionVisualFor(reaction, targetProfile, targetStyle);
+  const targetVisual = hits[0].targetVisual;
 
   return {
     id,
@@ -52,6 +54,7 @@ export function resolveCombatTimeline(
     durationMs: actionDurationMs + actionDelayMs,
     impactAtMs: hits[0].atMs,
     hits,
+    staging: stagingFor(action.choreography.weight, action.staging),
     label: event.message?.kind === "script" && event.message.text.trim().length <= 12 ? event.message.text.trim() : action.label,
     choreography,
     actor: {
@@ -60,6 +63,7 @@ export function resolveCombatTimeline(
       motion: action.actorMotion,
       approach,
       poseKeys: resolvePoseKeys(action, choreography, hits, actionDelayMs, scale),
+      offsetKeys: (action.offsetTrack || []).map((key) => ({ ...key, atMs: actionDelayMs + key.atMs * scale })),
       actionDelayMs
     },
     target: {
@@ -96,7 +100,8 @@ export function resolveSettlementTimeline(
     targetSide,
     durationMs: 900,
     impactAtMs: 0,
-    hits: [{ atMs: 0, hitStopMs: 0, damage: null, heal: null, floatText: "" }],
+    hits: [{ atMs: 0, hitStopMs: 0, damage: null, heal: null, floatText: "", result: "effect", reaction: "none", targetVisual, staging: stagingFor("quiet") }],
+    staging: stagingFor("quiet"),
     label: actorSide === "player" ? "胜" : "败",
     choreography: { launchAtMs: 0, hitStopMs: 0, recoverAtMs: 0, restAtMs: 900, reach: 0, contactY: 100, weight: "quiet" },
     actor: {
@@ -104,6 +109,7 @@ export function resolveSettlementTimeline(
       visual: actorVisual,
       motion: "none",
       poseKeys: [],
+      offsetKeys: [],
       actionDelayMs: 0
     },
     target: {
@@ -120,20 +126,34 @@ export function resolveSettlementTimeline(
   };
 }
 
-function resolveHits(action: BattleActionDefinition, event: CombatEvent, delayMs: number, playbackMs: number): ResolvedHit[] {
+function resolveHits(
+  action: BattleActionDefinition,
+  event: CombatEvent,
+  delayMs: number,
+  playbackMs: number,
+  reactionVisual: (reaction: TargetReaction) => ActorVisual
+): ResolvedHit[] {
   const scale = playbackMs / action.durationMs;
   const source = action.hits?.length
-    ? action.hits.map((hit) => ({ atMs: delayMs + Math.round(hit.atMs * scale), hitStopMs: hit.hitStopMs * scale, share: hit.share ?? 1 }))
-    : [{ atMs: delayMs + clipImpactOffsetMs(action.frames, action.impactFrame, playbackMs), hitStopMs: action.choreography.hitStopMs * scale, share: 1 }];
+    ? action.hits.map((hit) => ({ atMs: delayMs + Math.round(hit.atMs * scale), hitStopMs: hit.hitStopMs * scale, share: hit.share ?? 1, staging: hit.staging }))
+    : [{ atMs: delayMs + clipImpactOffsetMs(action.frames, action.impactFrame, playbackMs), hitStopMs: action.choreography.hitStopMs * scale, share: 1, staging: undefined }];
   const damage = splitByShare(event.damage, source.map((hit) => hit.share));
   const heal = splitByShare(event.heal, source.map((hit) => hit.share));
-  return source.map((hit, index) => ({
-    atMs: hit.atMs,
-    hitStopMs: hit.hitStopMs,
-    damage: damage[index],
-    heal: heal[index],
-    floatText: floatText({ ...event, damage: damage[index], heal: heal[index] })
-  }));
+  return source.map((hit, index) => {
+    const result = event.result || "hit";
+    const reaction = action.targetReaction[result] || resultReaction(result);
+    return {
+      atMs: hit.atMs,
+      hitStopMs: hit.hitStopMs,
+      damage: damage[index],
+      heal: heal[index],
+      floatText: floatText({ result, damage: damage[index], heal: heal[index] }),
+      result,
+      reaction,
+      targetVisual: reactionVisual(reaction),
+      staging: stagingFor(action.choreography.weight, action.staging, hit.staging)
+    };
+  });
 }
 
 /** 按份额拆分总量，累计取整，保证各段之和等于服务端给的总数。 */

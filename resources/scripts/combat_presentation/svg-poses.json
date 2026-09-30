@@ -80,6 +80,12 @@
       "elbow": [-15, -96], "hand": [9, -118], "knee": [26, -23], "backHand": [-70, -50], "blade": -42, "robe": [52, -28]
     } },
     "guard": { "set": { "elbow": [21, -85], "hand": [25, -119], "backHand": [10, -114], "blade": -79, "robe": [26, -10] } },
+    "knocked_back": { "extends": "hurt", "set": {
+      "head": [-46, -104], "shoulder": [-36, -84], "hip": [-18, -48],
+      "elbow": [-8, -112], "hand": [10, -132], "backElbow": [-60, -104], "backHand": [-78, -122],
+      "knee": [24, -40], "foot": [44, -8], "backKnee": [-34, -24], "backFoot": [-40, -2],
+      "robe": [56, -30], "tassel": [40, -44], "blade": 60
+    } },
     "sword_hurt": { "extends": "hurt" },
     "sword_dodge": { "extends": "dodge" },
     "sword_parry": { "extends": "guard" },

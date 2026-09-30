@@ -377,6 +377,100 @@
       }
     },
     {
+      "id": "rig.sword.qi_wave_a",
+      "label": "剑气纵横",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "sword_ready",
+          "holdMs": 60
+        },
+        {
+          "frameId": "chop_prep",
+          "holdMs": 200
+        },
+        {
+          "frameId": "chop_strike",
+          "holdMs": 120
+        },
+        {
+          "frameId": "chop_close",
+          "holdMs": 160
+        },
+        {
+          "frameId": "sword_ready",
+          "holdMs": 160
+        }
+      ],
+      "impactFrame": 3,
+      "durationMs": 700,
+      "tags": [
+        "sword",
+        "attack",
+        "ranged",
+        "qi"
+      ],
+      "actorMotion": "ranged",
+      "hits": [
+        {
+          "atMs": 380,
+          "hitStopMs": 70
+        }
+      ],
+      "poseTrack": [
+        {
+          "atMs": 0,
+          "pose": "sword_ready"
+        },
+        {
+          "atMs": 60,
+          "pose": "chop_prep"
+        },
+        {
+          "atMs": 250,
+          "pose": "chop_strike"
+        },
+        {
+          "atMs": 450,
+          "pose": "chop_finish"
+        },
+        {
+          "atMs": 560,
+          "pose": "idle"
+        }
+      ],
+      "targetReaction": {
+        "hit": "hit",
+        "dodge": "dodge",
+        "parry": "parry",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "impact",
+          "variant": "hit-spark",
+          "anchor": "target",
+          "art": "impact"
+        },
+        {
+          "kind": "parry",
+          "variant": "parry-arc",
+          "anchor": "target",
+          "art": "parry"
+        }
+      ],
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 250,
+        "hitStopMs": 70,
+        "recoverAtMs": 470,
+        "restAtMs": 560,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "heavy"
+      }
+    },
+    {
       "id": "rig.sword.guard",
       "label": "横剑守势",
       "style": "sword",
@@ -889,7 +983,18 @@
         {
           "atMs": 560,
           "hitStopMs": 80,
-          "share": 2
+          "share": 2,
+          "staging": {
+            "camera": {
+              "kick": 14
+            },
+            "reactions": {
+              "hit": {
+                "push": 70,
+                "tilt": 18
+              }
+            }
+          }
         }
       ],
       "poseTrack": [
@@ -965,6 +1070,231 @@
         "restAtMs": 760,
         "reach": 72,
         "contactY": 110,
+        "weight": "heavy"
+      }
+    },
+    {
+      "id": "rig.fist.palm_knockback_a",
+      "label": "排山掌",
+      "style": "fist",
+      "frames": [
+        {
+          "frameId": "idle",
+          "holdMs": 50
+        },
+        {
+          "frameId": "heavy_windup",
+          "holdMs": 180
+        },
+        {
+          "frameId": "heavy_strike",
+          "holdMs": 160
+        },
+        {
+          "frameId": "heavy_windup",
+          "holdMs": 90
+        },
+        {
+          "frameId": "idle",
+          "holdMs": 170
+        }
+      ],
+      "impactFrame": 2,
+      "durationMs": 650,
+      "tags": [
+        "fist",
+        "attack",
+        "palm",
+        "heavy",
+        "knockback"
+      ],
+      "actorMotion": "drive",
+      "keyPoses": {
+        "prepare": "heavy_windup",
+        "contact": "heavy_strike",
+        "finish": "heavy_finish",
+        "reachWith": "hand"
+      },
+      "approach": {
+        "pose": "approach_palm_drive",
+        "durationMs": 165,
+        "lift": 1
+      },
+      "hits": [
+        {
+          "atMs": 230,
+          "hitStopMs": 110,
+          "staging": {
+            "camera": {
+              "kick": 16
+            },
+            "fallMs": 320,
+            "reactions": {
+              "hit": {
+                "push": 120,
+                "tilt": 26,
+                "lift": 14,
+                "pose": "knocked_back"
+              }
+            }
+          }
+        }
+      ],
+      "targetReaction": {
+        "hit": "hit",
+        "dodge": "dodge",
+        "parry": "parry",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "trail",
+          "variant": "slash-arc",
+          "anchor": "actor",
+          "art": "slash"
+        },
+        {
+          "kind": "impact",
+          "variant": "hit-spark",
+          "anchor": "target",
+          "art": "impact"
+        },
+        {
+          "kind": "parry",
+          "variant": "parry-arc",
+          "anchor": "target",
+          "art": "parry"
+        }
+      ],
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 185,
+        "hitStopMs": 110,
+        "recoverAtMs": 400,
+        "restAtMs": 520,
+        "reach": 72,
+        "contactY": 104,
+        "weight": "heavy"
+      }
+    },
+    {
+      "id": "rig.fist.leap_kick_a",
+      "label": "飞燕踢",
+      "style": "fist",
+      "frames": [
+        {
+          "frameId": "idle",
+          "holdMs": 40
+        },
+        {
+          "frameId": "kick_windup",
+          "holdMs": 160
+        },
+        {
+          "frameId": "kick_strike",
+          "holdMs": 180
+        },
+        {
+          "frameId": "idle",
+          "holdMs": 170
+        }
+      ],
+      "impactFrame": 2,
+      "durationMs": 550,
+      "tags": [
+        "fist",
+        "attack",
+        "kick",
+        "aerial"
+      ],
+      "actorMotion": "lunge",
+      "approach": {
+        "pose": "approach_knee_hop",
+        "durationMs": 165,
+        "lift": 5
+      },
+      "hits": [
+        {
+          "atMs": 200,
+          "hitStopMs": 80
+        }
+      ],
+      "poseTrack": [
+        {
+          "atMs": 0,
+          "pose": "kick_windup"
+        },
+        {
+          "atMs": 140,
+          "pose": "kick_strike",
+          "pin": "foot"
+        },
+        {
+          "atMs": 300,
+          "pose": "kick_finish"
+        },
+        {
+          "atMs": 430,
+          "pose": "idle"
+        }
+      ],
+      "offsetTrack": [
+        {
+          "atMs": 0,
+          "y": 0
+        },
+        {
+          "atMs": 120,
+          "y": -44,
+          "angle": -6,
+          "ease": "out"
+        },
+        {
+          "atMs": 300,
+          "y": -44,
+          "angle": -6
+        },
+        {
+          "atMs": 380,
+          "y": 0,
+          "angle": 0,
+          "ease": "linear"
+        }
+      ],
+      "targetReaction": {
+        "hit": "hit",
+        "dodge": "dodge",
+        "parry": "parry",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "trail",
+          "variant": "uppercut-arc",
+          "anchor": "actor",
+          "art": "slash"
+        },
+        {
+          "kind": "impact",
+          "variant": "hit-spark",
+          "anchor": "target",
+          "art": "impact"
+        },
+        {
+          "kind": "parry",
+          "variant": "parry-arc",
+          "anchor": "target",
+          "art": "parry"
+        }
+      ],
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 140,
+        "hitStopMs": 80,
+        "recoverAtMs": 330,
+        "restAtMs": 430,
+        "reach": 90,
+        "contactY": 96,
         "weight": "heavy"
       }
     },

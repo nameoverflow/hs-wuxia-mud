@@ -16,8 +16,9 @@ try {
   const sample = (timeline, t, reduced = false) => sampleBattleScene(timeline, t, idleVisualForStyle(timeline.actor.visual.style, 'female'), idleVisualForStyle('sword', 'male'), reduced);
   const attacks = Object.values(battleActions).filter(a => ['approach', 'lunge', 'drive'].includes(a.actorMotion));
 
-  const { sampleSvgPose, SVG_SWORD_LENGTH } = await server.ssrLoadModule('/src/battle/svgBattlePose.ts');
-  const { reachPointAt } = await server.ssrLoadModule('/src/battle/battleTiming.ts');
+  const svgPoseModule = await server.ssrLoadModule('/src/battle/svgBattlePose.ts');
+  const { sampleSvgPose, SVG_SWORD_LENGTH } = svgPoseModule;
+  const { reachPointAt, actorOffsetAt } = await server.ssrLoadModule('/src/battle/battleTiming.ts');
   check('SVG contacts match manifest reach and hit stop freezes articulated poses', () => {
     for (const action of attacks) {
       const timeline = make(action);
@@ -26,8 +27,10 @@ try {
       const pin = reachPointAt(timeline, timeline.impactAtMs);
       const limb = pin === 'foot' ? contact.foot : contact.hand;
       const blade = pin === 'blade' ? SVG_SWORD_LENGTH : 0;
-      assert.ok(Math.abs(limb[0] + blade * Math.cos(contact.blade * Math.PI / 180) - timeline.choreography.reach) < 0.001, action.id);
-      assert.ok(Math.abs(limb[1] + blade * Math.sin(contact.blade * Math.PI / 180) - (timeline.choreography.contactY - 176)) < 0.001, action.id);
+      // 身法轨道挪动根节点时，姿势里的接触点会反向补偿；这里按世界坐标核对。
+      const offset = actorOffsetAt(timeline, timeline.impactAtMs);
+      assert.ok(Math.abs(offset.x + limb[0] + blade * Math.cos(contact.blade * Math.PI / 180) - timeline.choreography.reach) < 0.001, action.id);
+      assert.ok(Math.abs(offset.y + limb[1] + blade * Math.sin(contact.blade * Math.PI / 180) - (timeline.choreography.contactY - 176)) < 0.001, action.id);
       assert.deepEqual(pose(timeline.impactAtMs + timeline.choreography.hitStopMs - 1), contact);
       const before = pose(timeline.impactAtMs - 0.001);
       assert.ok(Math.abs(before.hand[0] - contact.hand[0]) < 0.1, 'contact must be continuous');
@@ -163,6 +166,42 @@ try {
       assert.equal(sample(timeline, hit.atMs + hit.hitStopMs + 1).invert, 0);
     });
     assert.equal(sample(timeline, timeline.hits[1].atMs - 1).hitIndex, 0);
+  });
+
+  check('staging overrides drive reaction, camera and pose per action and per hit', () => {
+    const palm = make(battleActions['rig.fist.palm_knockback_a']);
+    const at = sample(palm, palm.impactAtMs);
+    assert.equal(at.enemy.x, 120, 'knockback push');
+    assert.equal(at.enemy.y, -14, 'knockback lift');
+    assert.equal(at.enemy.angle, 26, 'knockback tilt');
+    const knocked = sampleSvgPose(palm, 'enemy', palm.impactAtMs, 'sword', at.enemy.frameId);
+    const { svgPose } = svgPoseModule;
+    assert.deepEqual(knocked, svgPose('knocked_back', 'sword'), 'reaction pose override');
+    // 同一招里最后一段更重：镜头砸得更狠，受击退得更远。
+    const combo = make(battleActions['rig.fist.combo_a']);
+    const first = sample(combo, combo.hits[0].atMs), last = sample(combo, combo.hits[2].atMs);
+    assert.ok(last.cameraX > first.cameraX, 'heavier final hit kicks harder');
+    assert.equal(last.enemy.x, 70);
+  });
+
+  check('offset tracks lift the actor while the pinned limb still lands on the target', () => {
+    const leap = make(battleActions['rig.fist.leap_kick_a']);
+    const hit = sample(leap, leap.impactAtMs);
+    assert.equal(hit.player.y, -44);
+    assert.ok(hit.player.angle < 0);
+    assert.equal(sample(leap, leap.durationMs).player.y, 0, 'lands again');
+  });
+
+  check('ranged actions strike from home and keep a continuous dodge across hits', () => {
+    const qi = make(battleActions['rig.sword.qi_wave_a']);
+    for (let t = 0; t <= qi.durationMs; t += 20) assert.equal(sample(qi, t).player.x, 0, 'no travel');
+    assert.equal(qi.actor.actionDelayMs, 0);
+    const at = sample(qi, qi.impactAtMs);
+    assert.equal(at.force, 1);
+    assert.equal(at.contact.y, qi.choreography.contactY - 176);
+    assert.equal(at.burst, 1);
+    const combo = make(battleActions['rig.fist.combo_a'], 'dodge');
+    for (const hit of combo.hits.slice(1)) assert.equal(sample(combo, hit.atMs - 20).enemy.x, 52, 'dodge must not reset between hits');
   });
 
   function driver() {
