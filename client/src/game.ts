@@ -2,7 +2,7 @@ import { writable } from "svelte/store";
 import { resolveCombatTimeline, resolveSettlementTimeline } from "./battle/animationResolver";
 import { battleClock } from "./battle/battleClock";
 import { preloadBattleAssets } from "./battle/stageAssets";
-import { playBattleImpact } from "./battle/battleAudio";
+import { playBattleImpact, playBattleWhoosh } from "./battle/battleAudio";
 import { combatStyleFromSnapshot, visualProfileFromGender } from "./battle/battleActionCatalog";
 import type { BattleSide, ResolvedBattleTimeline } from "./battle/animationTypes";
 export type { BattleSide } from "./battle/animationTypes";
@@ -176,6 +176,7 @@ let battleAnimationId = 0;
 let preparingBattle = false;
 let activeBattleEntry: QueuedBattleTimeline | null = null;
 let battleQueueEpoch = 0;
+let whooshTimer: number | null = null;
 const storyMessageQueue: (ServerMessage | { tag: string; contents?: unknown })[] = [];
 let storyQueueProcessing = false;
 let storyQueueToken = 0;
@@ -795,10 +796,17 @@ async function playNextBattleTimeline() {
     }
   }));
 
+  // 起手破风落在蓄势转出招的那一刻，比命中早一点。
+  if (whooshTimer !== null) window.clearTimeout(whooshTimer);
+  whooshTimer = next.timeline.choreography.launchAtMs > 0
+    ? window.setTimeout(() => playBattleWhoosh(next.timeline), next.timeline.choreography.launchAtMs * 0.85)
+    : null;
+
   battleClock.play(next.timeline, () => {
     applyPresentedImpact(next.timeline);
     playBattleImpact(next.timeline);
   }, () => {
+    if (whooshTimer !== null) { window.clearTimeout(whooshTimer); whooshTimer = null; }
     activeBattleEntry = null;
     next.after?.();
     if (next.after) {

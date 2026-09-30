@@ -92,8 +92,40 @@ try {
     const first = sample(timeline, timeline.impactAtMs);
     const held = sample(timeline, timeline.impactAtMs + timeline.choreography.hitStopMs - 1);
     for (const field of ['player', 'enemy', 'cameraX', 'cameraScale', 'burst', 'trail', 'textLift']) assert.deepEqual(held[field], first[field]);
-    const resumed = sample(timeline, timeline.impactAtMs + timeline.choreography.hitStopMs + 1);
-    assert.ok(resumed.enemy.x < 1, 'reaction must accelerate after the hold rather than jump to its end');
+    // 写意硬切：受击在接触帧直接到位，定格期间保持，而不是渐进加速。
+    assert.ok(Math.abs(first.enemy.x) > 30, 'heavy hit must snap the defender back at contact');
+    assert.equal(first.invert, 1, 'hit stop flashes the stage');
+    assert.equal(sample(timeline, timeline.impactAtMs - 1).invert, 0, 'no flash before contact');
+    assert.equal(sample(timeline, timeline.impactAtMs + timeline.choreography.hitStopMs + 1).invert, 0, 'flash ends with the hold');
+  });
+
+  check('attacks cut between key poses instead of blending', () => {
+    for (const action of attacks) {
+      const timeline = make(action);
+      const pose = t => sampleSvgPose(timeline, 'player', t, action.style, action.frames[action.impactFrame].frameId);
+      const c = timeline.choreography;
+      // 出招一帧到位：刚过起手标记就已是接触姿势。
+      assert.deepEqual(pose(c.launchAtMs + 1), pose(timeline.impactAtMs), `${action.id}: strike must cut in`);
+      // 位移是换位不是滑行：入场前半段原地，过中点直接落位。
+      const arrival = timeline.actor.actionDelayMs;
+      assert.equal(sample(timeline, arrival * 0.4).player.x, 0, `${action.id}: plant before the cut`);
+      assert.equal(sample(timeline, arrival * 0.6).player.x, sample(timeline, arrival).player.x, `${action.id}: land in one cut`);
+    }
+  });
+
+  check('parry stops the weapon short of the defender', () => {
+    for (const action of attacks) {
+      const hit = make(action, 'hit');
+      const parry = make(action, 'parry');
+      const frameId = action.frames[action.impactFrame].frameId;
+      const reachOf = timeline => {
+        const pose = sampleSvgPose(timeline, 'player', timeline.impactAtMs, action.style, frameId);
+        const limb = frameId.includes('kick') ? pose.foot : pose.hand;
+        const blade = action.style === 'sword' ? SVG_SWORD_LENGTH * Math.cos(pose.blade * Math.PI / 180) : 0;
+        return limb[0] + blade;
+      };
+      assert.ok(reachOf(parry) < reachOf(hit) - 15, `${action.id}: parried weapon must not pierce the body`);
+    }
   });
 
   check('reduced motion retains hit facts while removing movement and trails', () => {

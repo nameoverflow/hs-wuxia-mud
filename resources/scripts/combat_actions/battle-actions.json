@@ -43,11 +43,11 @@
       "frames": [
         {
           "frameId": "sword_ready",
-          "holdMs": 50
+          "holdMs": 40
         },
         {
           "frameId": "thrust_prep",
-          "holdMs": 120
+          "holdMs": 130
         },
         {
           "frameId": "thrust_strike",
@@ -55,15 +55,15 @@
         },
         {
           "frameId": "thrust_close",
-          "holdMs": 130
+          "holdMs": 70
         },
         {
           "frameId": "sword_ready",
-          "holdMs": 190
+          "holdMs": 100
         }
       ],
       "impactFrame": 2,
-      "durationMs": 600,
+      "durationMs": 450,
       "tags": [
         "sword",
         "jian",
@@ -98,10 +98,10 @@
       ],
       "frameset": "raster-v1",
       "choreography": {
-        "launchAtMs": 90,
-        "hitStopMs": 35,
-        "recoverAtMs": 280,
-        "restAtMs": 410,
+        "launchAtMs": 125,
+        "hitStopMs": 60,
+        "recoverAtMs": 270,
+        "restAtMs": 360,
         "reach": 108,
         "contactY": 111,
         "weight": "light"
@@ -114,27 +114,27 @@
       "frames": [
         {
           "frameId": "sword_ready",
-          "holdMs": 60
+          "holdMs": 50
         },
         {
           "frameId": "chop_prep",
-          "holdMs": 170
+          "holdMs": 175
         },
         {
           "frameId": "chop_strike",
-          "holdMs": 120
+          "holdMs": 145
         },
         {
           "frameId": "chop_close",
-          "holdMs": 160
+          "holdMs": 95
         },
         {
           "frameId": "sword_ready",
-          "holdMs": 190
+          "holdMs": 130
         }
       ],
       "impactFrame": 2,
-      "durationMs": 700,
+      "durationMs": 595,
       "tags": [
         "sword",
         "jian",
@@ -169,10 +169,10 @@
       ],
       "frameset": "raster-v1",
       "choreography": {
-        "launchAtMs": 150,
-        "hitStopMs": 55,
-        "recoverAtMs": 350,
-        "restAtMs": 510,
+        "launchAtMs": 170,
+        "hitStopMs": 95,
+        "recoverAtMs": 365,
+        "restAtMs": 470,
         "reach": 98,
         "contactY": 116,
         "weight": "heavy"
@@ -185,27 +185,27 @@
       "frames": [
         {
           "frameId": "sword_ready",
-          "holdMs": 50
+          "holdMs": 40
         },
         {
           "frameId": "cut_prep",
-          "holdMs": 140
+          "holdMs": 135
         },
         {
           "frameId": "cut_strike",
-          "holdMs": 100
+          "holdMs": 115
         },
         {
           "frameId": "cut_close",
-          "holdMs": 150
+          "holdMs": 70
         },
         {
           "frameId": "sword_ready",
-          "holdMs": 180
+          "holdMs": 100
         }
       ],
       "impactFrame": 2,
-      "durationMs": 620,
+      "durationMs": 460,
       "tags": [
         "sword",
         "jian",
@@ -240,10 +240,10 @@
       ],
       "frameset": "raster-v1",
       "choreography": {
-        "launchAtMs": 110,
-        "hitStopMs": 35,
-        "recoverAtMs": 290,
-        "restAtMs": 440,
+        "launchAtMs": 130,
+        "hitStopMs": 65,
+        "recoverAtMs": 280,
+        "restAtMs": 370,
         "reach": 108,
         "contactY": 108,
         "weight": "light"
@@ -256,27 +256,27 @@
       "frames": [
         {
           "frameId": "sword_ready",
-          "holdMs": 60
+          "holdMs": 50
         },
         {
           "frameId": "rising_prep",
-          "holdMs": 170
+          "holdMs": 175
         },
         {
           "frameId": "rising_strike",
-          "holdMs": 120
+          "holdMs": 145
         },
         {
           "frameId": "rising_close",
-          "holdMs": 170
+          "holdMs": 100
         },
         {
           "frameId": "sword_ready",
-          "holdMs": 200
+          "holdMs": 135
         }
       ],
       "impactFrame": 2,
-      "durationMs": 720,
+      "durationMs": 605,
       "tags": [
         "sword",
         "jian",
@@ -311,10 +311,10 @@
       ],
       "frameset": "raster-v1",
       "choreography": {
-        "launchAtMs": 150,
-        "hitStopMs": 55,
-        "recoverAtMs": 350,
-        "restAtMs": 520,
+        "launchAtMs": 170,
+        "hitStopMs": 95,
+        "recoverAtMs": 370,
+        "restAtMs": 475,
         "reach": 96,
         "contactY": 104,
         "weight": "heavy"
@@ -523,27 +523,27 @@
       "frames": [
         {
           "frameId": "idle",
-          "holdMs": 60
+          "holdMs": 40
         },
         {
           "frameId": "punch_windup",
-          "holdMs": 140
+          "holdMs": 120
         },
         {
           "frameId": "punch_strike",
-          "holdMs": 100
+          "holdMs": 130
         },
         {
-          "frameId": "punch_windup",
-          "holdMs": 160
+          "frameId": "punch_strike",
+          "holdMs": 70
         },
         {
           "frameId": "idle",
-          "holdMs": 160
+          "holdMs": 90
         }
       ],
       "impactFrame": 2,
-      "durationMs": 620,
+      "durationMs": 450,
       "tags": [
         "fist",
         "attack",
@@ -576,10 +576,10 @@
       ],
       "frameset": "raster-v1",
       "choreography": {
-        "launchAtMs": 120,
-        "hitStopMs": 35,
-        "recoverAtMs": 300,
-        "restAtMs": 460,
+        "launchAtMs": 115,
+        "hitStopMs": 60,
+        "recoverAtMs": 250,
+        "restAtMs": 360,
         "reach": 72,
         "contactY": 110,
         "weight": "light"
@@ -592,27 +592,27 @@
       "frames": [
         {
           "frameId": "idle",
-          "holdMs": 60
+          "holdMs": 40
         },
         {
           "frameId": "heavy_windup",
-          "holdMs": 220
+          "holdMs": 180
         },
         {
           "frameId": "heavy_strike",
-          "holdMs": 140
+          "holdMs": 150
         },
         {
           "frameId": "heavy_windup",
-          "holdMs": 190
+          "holdMs": 90
         },
         {
           "frameId": "idle",
-          "holdMs": 210
+          "holdMs": 130
         }
       ],
       "impactFrame": 2,
-      "durationMs": 820,
+      "durationMs": 590,
       "tags": [
         "fist",
         "attack",
@@ -645,10 +645,10 @@
       ],
       "frameset": "raster-v1",
       "choreography": {
-        "launchAtMs": 200,
-        "hitStopMs": 55,
-        "recoverAtMs": 420,
-        "restAtMs": 610,
+        "launchAtMs": 165,
+        "hitStopMs": 95,
+        "recoverAtMs": 360,
+        "restAtMs": 470,
         "reach": 78,
         "contactY": 118,
         "weight": "heavy"
@@ -661,27 +661,27 @@
       "frames": [
         {
           "frameId": "idle",
-          "holdMs": 60
+          "holdMs": 40
         },
         {
           "frameId": "kick_windup",
-          "holdMs": 170
+          "holdMs": 160
         },
         {
           "frameId": "kick_strike",
-          "holdMs": 120
+          "holdMs": 140
         },
         {
-          "frameId": "kick_windup",
-          "holdMs": 170
+          "frameId": "kick_strike",
+          "holdMs": 80
         },
         {
           "frameId": "idle",
-          "holdMs": 190
+          "holdMs": 110
         }
       ],
       "impactFrame": 2,
-      "durationMs": 710,
+      "durationMs": 530,
       "tags": [
         "fist",
         "attack",
@@ -716,9 +716,9 @@
       "frameset": "raster-v1",
       "choreography": {
         "launchAtMs": 150,
-        "hitStopMs": 55,
-        "recoverAtMs": 350,
-        "restAtMs": 520,
+        "hitStopMs": 90,
+        "recoverAtMs": 330,
+        "restAtMs": 430,
         "reach": 90,
         "contactY": 116,
         "weight": "heavy"

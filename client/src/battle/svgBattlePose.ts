@@ -8,6 +8,10 @@ export interface SvgPose {
   head: Point; shoulder: Point; hip: Point;
   backElbow: Point; backHand: Point; elbow: Point; hand: Point;
   backKnee: Point; backFoot: Point; knee: Point; foot: Point;
+  /** 衣袂末梢。纯装饰的一笔墨线，不参与物理，只随关键姿势定住。 */
+  robe: Point;
+  /** 剑穗末梢。拳招不使用。 */
+  tassel: Point;
   blade: number;
 }
 export const svgFrameIds = new Set([
@@ -25,57 +29,68 @@ export function blendPose(a: SvgPose, b: SvgPose, amount: number): SvgPose {
   return Object.fromEntries(Object.entries(a).map(([key, value]) => [key, typeof value === 'number'
     ? mix(value, b.blade) : (value as Point).map((v, i) => mix(v, (b[key as keyof SvgPose] as Point)[i]))])) as unknown as SvgPose;
 }
+
+/**
+ * 关键姿势表。刻意夸张：弓步压得更低，出招时躯干前探、后手反向甩开，
+ * 接触帧的肢体比写实比例更长。写意风格不守解剖，只求剪影一眼读得懂。
+ */
 export function svgPose(frame: string, style: CombatStyle): SvgPose {
   const p: SvgPose = {
-    head: [-5, -125], shoulder: [-5, -104], hip: [-12, -60],
-    backElbow: [-31, -82], backHand: [-19, -72], elbow: [18, -84], hand: [39, -103],
-    backKnee: [-29, -31], backFoot: [-42, -2], knee: [17, -34], foot: [31, -2], blade: -28
+    head: [-5, -127], shoulder: [-5, -105], hip: [-13, -58],
+    backElbow: [-33, -84], backHand: [-20, -72], elbow: [19, -86], hand: [41, -104],
+    backKnee: [-31, -30], backFoot: [-46, -2], knee: [18, -33], foot: [33, -2],
+    robe: [-34, -5], tassel: [-14, -16], blade: -28
   };
-  if (style === 'sword') { p.hand = [31, -88]; p.elbow = [14, -81]; p.backHand = [-25, -110]; }
+  if (style === 'sword') { p.hand = [33, -90]; p.elbow = [15, -83]; p.backHand = [-26, -112]; }
   if (/windup|prep/.test(frame)) {
-    // Sink into the rear leg; open the opposite arm to make the turn readable.
-    p.head = [-27, -111]; p.shoulder = [-25, -87]; p.hip = [-23, -47];
-    p.backKnee = [-48, -28]; p.backFoot = [-64, -2]; p.knee = [14, -24]; p.foot = [43, -2];
-    p.elbow = [-53, -83]; p.hand = [-58, -112];
-    p.backElbow = [6, -99]; p.backHand = [31, -126]; p.blade = -155;
-    if (/punch/.test(frame)) { p.elbow = [-58, -69]; p.hand = [-38, -83]; }
-    if (/heavy/.test(frame)) { p.elbow = [-59, -108]; p.hand = [-66, -144]; p.backHand = [34, -86]; }
+    // 沉入后腿，拧腰蓄势，衣袂被前脚带起。
+    p.head = [-29, -112]; p.shoulder = [-27, -88]; p.hip = [-25, -45];
+    p.backKnee = [-52, -27]; p.backFoot = [-70, -2]; p.knee = [15, -22]; p.foot = [47, -2];
+    p.elbow = [-57, -85]; p.hand = [-63, -116];
+    p.backElbow = [8, -100]; p.backHand = [34, -128]; p.blade = -158;
+    p.robe = [42, -12]; p.tassel = [22, -30];
+    if (/punch/.test(frame)) { p.elbow = [-62, -70]; p.hand = [-40, -86]; }
+    if (/heavy/.test(frame)) { p.elbow = [-63, -112]; p.hand = [-72, -150]; p.backHand = [36, -88]; p.robe = [26, -22]; }
     if (/kick/.test(frame)) {
-      p.head = [-20, -124]; p.shoulder = [-17, -101]; p.hip = [-14, -61];
-      p.knee = [23, -83]; p.foot = [7, -44]; p.backFoot = [-34, -2];
-      p.elbow = [14, -126]; p.hand = [32, -149]; p.backElbow = [-43, -79]; p.backHand = [-58, -96];
+      p.head = [-21, -126]; p.shoulder = [-18, -103]; p.hip = [-15, -59];
+      p.knee = [25, -86]; p.foot = [8, -46]; p.backFoot = [-36, -2];
+      p.elbow = [15, -129]; p.hand = [34, -153]; p.backElbow = [-45, -81]; p.backHand = [-61, -99];
+      p.robe = [46, -18];
     }
-    if (/thrust/.test(frame)) { p.hand = [-38, -82]; p.elbow = [-53, -64]; p.blade = -12; p.backHand = [27, -133]; }
-    if (/chop/.test(frame)) { p.elbow = [-46, -128]; p.hand = [-21, -151]; p.blade = -110; }
-    if (/rising/.test(frame)) { p.hand = [-33, -48]; p.elbow = [-51, -68]; p.blade = 28; p.backHand = [17, -145]; }
+    if (/thrust/.test(frame)) { p.hand = [-40, -84]; p.elbow = [-57, -65]; p.blade = -12; p.backHand = [29, -136]; p.robe = [36, -8]; }
+    if (/chop/.test(frame)) { p.elbow = [-49, -132]; p.hand = [-23, -156]; p.blade = -112; p.robe = [30, -20]; }
+    if (/rising/.test(frame)) { p.hand = [-35, -50]; p.elbow = [-54, -70]; p.blade = 28; p.backHand = [19, -148]; p.robe = [40, -4]; }
   }
   if (/strike/.test(frame)) {
-    // Full bow stance and a long counterbalancing arm, rather than two tucked fists.
-    p.head = [17, -115]; p.shoulder = [10, -90]; p.hip = [-9, -47];
-    p.backKnee = [-43, -27]; p.backFoot = [-72, -2]; p.knee = [35, -33]; p.foot = [54, -2];
-    p.backElbow = [-23, -102]; p.backHand = [-58, -124];
-    p.elbow = [40, -77]; p.hand = [72, -66]; p.blade = -4;
+    // 弓步深蹲，前手探到底，后手向后甩开配重，衣袂整片向后撕开。
+    p.head = [20, -114]; p.shoulder = [12, -89]; p.hip = [-10, -44];
+    p.backKnee = [-48, -25]; p.backFoot = [-80, -2]; p.knee = [38, -31]; p.foot = [58, -2];
+    p.backElbow = [-25, -104]; p.backHand = [-63, -128];
+    p.elbow = [44, -74]; p.hand = [80, -62]; p.blade = -4;
+    p.robe = [-58, -14]; p.tassel = [-40, -34];
     if (/kick/.test(frame)) {
-      p.head = [-37, -127]; p.shoulder = [-26, -103]; p.hip = [-7, -61];
-      p.backElbow = [-59, -114]; p.backHand = [-81, -137];
-      p.elbow = [3, -123]; p.hand = [26, -151];
-      p.knee = [40, -70]; p.foot = [90, -60]; p.backKnee = [-22, -29]; p.backFoot = [-33, -2];
+      p.head = [-41, -128]; p.shoulder = [-29, -104]; p.hip = [-8, -58];
+      p.backElbow = [-64, -116]; p.backHand = [-88, -140];
+      p.elbow = [4, -126]; p.hand = [29, -156];
+      p.knee = [44, -74]; p.foot = [98, -62]; p.backKnee = [-24, -28]; p.backFoot = [-36, -2];
+      p.robe = [-64, -22];
     }
-    if (/heavy/.test(frame)) { p.head = [24, -104]; p.shoulder = [15, -80]; p.backHand = [-58, -143]; p.elbow = [47, -64]; }
-    if (/cut/.test(frame)) { p.blade = -12; p.backHand = [-61, -134]; }
-    if (/rising/.test(frame)) { p.blade = -48; p.head = [4, -121]; p.shoulder = [2, -97]; p.backHand = [-59, -77]; }
-    if (/chop/.test(frame)) { p.blade = 32; p.backHand = [-54, -119]; }
+    if (/heavy/.test(frame)) { p.head = [27, -102]; p.shoulder = [17, -76]; p.backHand = [-63, -148]; p.elbow = [52, -60]; p.robe = [-52, -20]; }
+    if (/cut/.test(frame)) { p.blade = -12; p.backHand = [-66, -138]; }
+    if (/rising/.test(frame)) { p.blade = -48; p.head = [5, -120]; p.shoulder = [3, -95]; p.backHand = [-64, -75]; p.robe = [-44, -26]; }
+    if (/chop/.test(frame)) { p.blade = 32; p.backHand = [-58, -121]; p.robe = [-60, -8]; }
   }
   if (/close/.test(frame)) return blendPose(svgPose(frame.replace('close', 'strike'), style), p, 0.65);
   if (/hurt/.test(frame)) {
-    p.head = [-22, -121]; p.shoulder = [-18, -98]; p.elbow = [3, -85]; p.hand = [15, -80];
-    p.backElbow = [-38, -99]; p.backHand = [-42, -119]; p.blade = 28;
+    p.head = [-25, -122]; p.shoulder = [-20, -99]; p.elbow = [4, -87]; p.hand = [17, -81];
+    p.backElbow = [-41, -101]; p.backHand = [-46, -121]; p.blade = 30; p.robe = [48, -20]; p.tassel = [30, -34];
   }
   if (/dodge/.test(frame)) {
-    p.head = [-48, -94]; p.shoulder = [-35, -74]; p.hip = [-13, -42];
-    p.elbow = [-13, -94]; p.hand = [8, -116]; p.knee = [24, -26]; p.backHand = [-65, -52]; p.blade = -40;
+    p.head = [-52, -95]; p.shoulder = [-38, -75]; p.hip = [-14, -40];
+    p.elbow = [-15, -96]; p.hand = [9, -118]; p.knee = [26, -23]; p.backHand = [-70, -50]; p.blade = -42;
+    p.robe = [52, -28];
   }
-  if (/guard|parry/.test(frame)) { p.elbow = [20, -83]; p.hand = [24, -116]; p.backHand = [9, -111]; p.blade = -77; }
+  if (/guard|parry/.test(frame)) { p.elbow = [21, -85]; p.hand = [25, -119]; p.backHand = [10, -114]; p.blade = -79; p.robe = [26, -10]; }
   return p;
 }
 
@@ -85,31 +100,35 @@ export function sampleApproachPose(actionId: string, style: CombatStyle, phase: 
   const movement = approachForAction(actionId);
   if (!movement) return idle;
   const p = svgPose('idle', style);
-  // Head leads the hips by ~60px: the whole body commits to the dash.
-  p.head = [38, -94]; p.shoulder = [22, -77]; p.hip = [-21, -43];
-  p.knee = [13, -35]; p.foot = [34, -2];
-  p.backKnee = [-48, -26]; p.backFoot = [-75, -5];
-  p.elbow = [-4, -65]; p.hand = [15, -82]; p.backElbow = [-40, -66]; p.backHand = [-67, -84];
+  // 压低身法前冲：头领在髋之前，但仍要站得住，不能读成摔倒。
+  p.head = [34, -106]; p.shoulder = [20, -86]; p.hip = [-20, -45];
+  p.knee = [16, -36]; p.foot = [38, -2];
+  p.backKnee = [-50, -26]; p.backFoot = [-78, -5];
+  p.elbow = [-6, -70]; p.hand = [14, -88]; p.backElbow = [-42, -72]; p.backHand = [-70, -90];
+  p.robe = [-58, -20];
   let prepFrame = 'punch_windup';
   switch (movement.kind) {
-    case 'step-in': p.hand = [31, -94]; break;
-    case 'palm-drive': p.head = [42, -86]; p.shoulder = [24, -66]; p.hand = [4, -64]; prepFrame = 'heavy_windup'; break;
-    case 'knee-hop': p.knee = [24, -64]; p.foot = [2, -34]; p.hand = [24, -113]; prepFrame = 'kick_windup'; break;
-    case 'sword-glide': p.hand = [9, -68]; p.blade = -8; prepFrame = 'thrust_prep'; break;
-    case 'cross-step': p.hand = [-31, -89]; p.blade = -165; prepFrame = 'cut_prep'; break;
-    case 'raised-step': p.hand = [-13, -127]; p.elbow = [-34, -101]; p.blade = -130; prepFrame = 'chop_prep'; break;
-    case 'low-skate': p.head = [36, -81]; p.shoulder = [18, -64]; p.hand = [-19, -43]; p.blade = 8; prepFrame = 'rising_prep'; break;
+    case 'step-in': p.hand = [30, -98]; break;
+    case 'palm-drive': p.head = [38, -100]; p.shoulder = [22, -82]; p.hand = [2, -70]; prepFrame = 'heavy_windup'; break;
+    case 'knee-hop': p.knee = [26, -70]; p.foot = [2, -38]; p.hand = [24, -118]; prepFrame = 'kick_windup'; break;
+    case 'sword-glide': p.hand = [9, -74]; p.blade = -8; prepFrame = 'thrust_prep'; break;
+    case 'cross-step': p.hand = [-33, -95]; p.blade = -165; prepFrame = 'cut_prep'; break;
+    case 'raised-step': p.hand = [-14, -132]; p.elbow = [-36, -106]; p.blade = -130; prepFrame = 'chop_prep'; break;
+    case 'low-skate': p.head = [32, -96]; p.shoulder = [16, -78]; p.hand = [-20, -48]; p.blade = 8; prepFrame = 'rising_prep'; break;
   }
   if (retreat) {
     p.head = [-28, -112]; p.shoulder = [-20, -91]; p.hand = [22, -100];
     return phase >= 1 ? idle : p;
   }
-  // Pose-to-pose timing: hold a loaded silhouette, then catch into the attack.
+  // 身法只有两拍：扎住架势，然后换位。中间不做行走循环。
   if (phase < 0.12) return idle;
-  return phase < 0.86 ? p : blendPose(p, svgPose(prepFrame, style), ease(clamp((phase - .86) / .14)));
+  return phase < 0.86 ? p : blendPose(p, svgPose(prepFrame, style), clamp((phase - .86) / .14));
 }
 
-/** Shares the director's markers and hit stop; no CSS/SMIL animation clock. */
+/**
+ * Shares the director's markers and hit stop; no CSS/SMIL animation clock.
+ * 姿势之间是硬切，不是插值：蓄势定住、出招一帧到位、余劲再切、收势切回待机。
+ */
 export function sampleSvgPose(timeline: ResolvedBattleTimeline | null, side: BattleSide, elapsed: number, style: CombatStyle, frame: string, reduced = false): SvgPose {
   const idle = svgPose('idle', style);
   if (!timeline || timeline.kind === 'settlement' || timeline.kind === 'effect_tick') return idle;
@@ -117,16 +136,23 @@ export function sampleSvgPose(timeline: ResolvedBattleTimeline | null, side: Bat
   const c = timeline.choreography;
   const arrival = timeline.actor.actionDelayMs;
   const impact = timeline.impactAtMs;
-  const t = elapsed >= impact && elapsed < impact + c.hitStopMs ? impact : elapsed;
+  const holdEnd = impact + c.hitStopMs;
+  const t = elapsed >= impact && elapsed < holdEnd ? impact : elapsed;
   if (side !== timeline.actor.side) {
     const reaction = timeline.target.reaction;
     if (reaction === 'none' || reaction === 'effect') return idle;
+    // 闪避提前，招架稍早，受击严格在接触帧之后；都是硬切到位。
     const at = reaction === 'dodge' ? Math.max(c.launchAtMs, impact - 95) : reaction === 'parry' ? Math.max(c.launchAtMs, impact - 50) : impact;
-    const onset = reaction === 'hit' ? (t >= at ? 1 : 0) : ease(progress(t, at, impact));
-    return blendPose(idle, svgPose(reaction === 'hit' ? 'hurt' : reaction === 'parry' ? 'guard' : 'dodge', style), onset * (1 - ease(progress(t, c.recoverAtMs, c.restAtMs))));
+    if (t < at) return idle;
+    const pulled = reaction === 'parry' ? 'guard' : reaction === 'hit' ? 'hurt' : 'dodge';
+    const held = svgPose(pulled, style);
+    // 收势：先切回半个待机，再切干净，避免直接弹回原姿势。
+    if (t >= c.restAtMs) return blendPose(idle, held, 0.4);
+    return held;
   }
   if (timeline.actor.motion === 'focus') {
-    return blendPose(idle, svgPose('guard', style), ease(progress(t, 0, impact)) * (1 - ease(progress(t, c.recoverAtMs, c.restAtMs))));
+    if (t < c.launchAtMs) return idle;
+    return t < c.restAtMs ? svgPose('guard', style) : idle;
   }
   if (t < arrival) return sampleApproachPose(timeline.actor.visual.actionId, style, progress(t, 0, arrival));
   const frames = timeline.actor.visual.frames;
@@ -134,32 +160,33 @@ export function sampleSvgPose(timeline: ResolvedBattleTimeline | null, side: Bat
   if (strikeIndex < 0) return svgPose(frame, style);
   const prep = svgPose(frames[Math.max(0, strikeIndex - 1)].frameId, style);
   const strike = svgPose(frames[strikeIndex].frameId, style);
-  // Fit the actual contact limb to the manifest reach, so all weapons meet the defender.
-  if (frames[strikeIndex].frameId.includes('kick')) strike.foot = [c.reach, c.contactY - 176];
-  else if (style === 'fist') strike.hand = [c.reach, c.contactY - 176];
+  // 接触点。招架时留出一段距离，让剑停在格挡位置而不是穿进身体。
+  const reach = timeline.result === 'parry' ? c.reach - 26 : c.reach;
+  if (frames[strikeIndex].frameId.includes('kick')) strike.foot = [reach, c.contactY - 176];
+  else if (style === 'fist') strike.hand = [reach, c.contactY - 176];
   else {
     const radians = strike.blade * Math.PI / 180;
-    strike.hand = [c.reach - Math.cos(radians) * SVG_SWORD_LENGTH, c.contactY - 176 - Math.sin(radians) * SVG_SWORD_LENGTH];
+    strike.hand = [reach - Math.cos(radians) * SVG_SWORD_LENGTH, c.contactY - 176 - Math.sin(radians) * SVG_SWORD_LENGTH];
     strike.elbow = [(strike.shoulder[0] + strike.hand[0]) / 2, strike.hand[1] + 10];
   }
   if (t < c.launchAtMs) return prep;
-  if (t < impact) return blendPose(prep, strike, progress(t, c.launchAtMs, impact) ** 3);
-  // Continue the cut after contact, then gather into a composed ready stance.
-  // A separate follow-through avoids rewinding the release animation.
+  // 出招一帧到位，并连同命中定格一起持住，定格结束才切到收招姿势。
+  if (t < impact + c.hitStopMs) return strike;
+  // 余劲：过接触帧后另起一个收招姿势，不回放释放动作。
   const finish = blendPose(strike, idle, 0.22);
   if (style === 'sword') {
     const rising = frames[strikeIndex].frameId.includes('rising');
     const thrust = frames[strikeIndex].frameId.includes('thrust');
-    finish.hand = thrust ? [49, -82] : rising ? [13, -136] : [42, -68];
-    finish.elbow = thrust ? [25, -80] : rising ? [30, -105] : [32, -73];
-    finish.blade = thrust ? -9 : rising ? -142 : 46;
-    finish.backHand = rising ? [-48, -109] : [-65, -102];
+    finish.hand = thrust ? [52, -84] : rising ? [14, -139] : [45, -70];
+    finish.elbow = thrust ? [26, -82] : rising ? [31, -107] : [34, -75];
+    finish.blade = thrust ? -9 : rising ? -145 : 48;
+    finish.backHand = rising ? [-50, -112] : [-68, -104];
+    finish.robe = rising ? [-40, -30] : [-50, -16];
   } else if (frames[strikeIndex].frameId.includes('kick')) {
-    finish.knee = [28, -88]; finish.foot = [48, -53];
+    finish.knee = [30, -90]; finish.foot = [52, -55];
   } else {
-    finish.hand = [63, -77]; finish.elbow = [36, -70]; finish.backHand = [-44, -130];
+    finish.hand = [66, -79]; finish.elbow = [38, -72]; finish.backHand = [-47, -133];
   }
-  const follow = ease(progress(t, impact + c.hitStopMs, c.recoverAtMs));
-  if (t < c.recoverAtMs) return blendPose(strike, finish, follow);
-  return blendPose(finish, idle, ease(progress(t, c.recoverAtMs, c.restAtMs)));
+  if (t < c.restAtMs) return finish;
+  return idle;
 }
