@@ -173,6 +173,16 @@ function resolveParams(id: string, rig: CombatStyle, trail: string[] = []): Pose
   return params;
 }
 
+/**
+ * 肘只能往一个方向屈：上臂朝下（垂着）时，前臂只能往前、往上转（角度减小），否则就是反折。
+ * 上臂抬到水平以上时不检查——肩能转，侧面看屈向哪边都可能合理（例如后手高举剑指）。
+ */
+export function hyperextended(upper: number, fore: number) {
+  const hanging = Math.sin(rad(upper)) > 0.3;
+  const bend = ((((fore - upper) % 360) + 540) % 360) - 180;
+  return hanging && (bend > 3 || bend < -175);
+}
+
 export function hasSvgPose(id: string) {
   return Object.prototype.hasOwnProperty.call(library.poses, id);
 }
@@ -238,5 +248,10 @@ for (const [id, definition] of Object.entries(library.poses)) {
       if (!paramKeys.includes(key as keyof PoseParams)) throw new Error(`SVG pose ${id} sets unknown parameter ${key}`);
     }
   }
-  for (const rig of rigs) resolveParams(id, rig);
+  for (const rig of rigs) {
+    const params = resolveParams(id, rig);
+    for (const [name, [upper, fore]] of [["arm", params.arm], ["backArm", params.backArm]] as const) {
+      if (hyperextended(upper, fore)) throw new Error(`SVG pose ${id} (${rig}) bends the ${name} elbow backwards: upper ${upper}, fore ${fore}`);
+    }
+  }
 }
