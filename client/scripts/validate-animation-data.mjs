@@ -16,7 +16,7 @@ const manifest = readBattleActions(repoRoot);
 const poseIds = new Set(Object.keys(JSON.parse(readFileSync(posesPath, "utf8")).poses));
 const vfxArts = ["impact", "slash", "parry", "aura", "thrust", "rising"];
 const stagingPresets = JSON.parse(readFileSync(stagingPath, "utf8")).presets;
-const stagingShape = { ...stagingPresets.light, reactions: Object.fromEntries(Object.entries(stagingPresets.light.reactions).map(([k, v]) => [k, { push: 0, tilt: 0, lift: 0, leadMs: 0, onsetMs: 0, ghost: 0, standoff: 0, ...v, pose: "" }])) };
+const stagingShape = { ...stagingPresets.light, reactions: Object.fromEntries(Object.entries(stagingPresets.light.reactions).map(([k, v]) => [k, { push: 0, tilt: 0, lift: 0, leadMs: 0, onsetMs: 0, ghost: 0, standoff: 0, hop: 0, snap: 0, ...v, pose: "" }])) };
 /** staging 覆盖只能写预设里已有的键，数值要是有限数，pose 要在姿势库里。 */
 function checkStaging(label, override, shape = stagingShape) {
   if (override === undefined) return;

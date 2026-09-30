@@ -71,8 +71,12 @@ export interface ReactionStaging {
   ghost?: number;
   /** Parry: how far short of the defender a pinned weapon stops. */
   standoff?: number;
-  /** Override the defender pose (svg-poses id) for this reaction. */
+  /** Override the defender pose (svg-poses id) for this reaction; wins over beats. */
   pose?: string;
+  /** Dodge hop height (px) across the evasion. */
+  hop?: number;
+  /** Hit: fraction of push applied at contact; the rest slides in over the next 200ms as a stagger. */
+  snap?: number;
 }
 
 /**

@@ -43,10 +43,10 @@
     "rising_finish": {"blend": {"from": "rising_strike", "to": "idle", "amount": 0.35}},
     "guard": {"set": {"hip": [-10, -56], "torso": -96, "head": -94, "arm": [20, -95], "backArm": [60, -85], "foot": [24, 0], "backFoot": [-34, 0]}, "rigs": {"sword": {"arm": [40, -40], "blade": -95, "backArm": [70, -100]}}},
     "sword_parry": {"extends": "guard"},
-    "hurt": {"set": {"hip": [-8, -54], "torso": -110, "head": -126, "arm": [26, 44], "backArm": [176, 162], "foot": [24, 0], "backFoot": [-30, 0], "blade": 22, "hands": ["palm", "palm"]}, "rigs": {"sword": {"hands": ["fist", "palm"]}}},
+    "hurt": {"set": {"hip": [0, -54], "torso": -122, "head": -152, "arm": [10, 40], "backArm": [-166, -140], "foot": [30, -10], "backFoot": [-26, 0], "blade": 30, "hands": ["palm", "palm"]}, "rigs": {"sword": {"arm": [4, 22], "blade": 22, "hands": ["fist", "palm"]}}},
     "sword_hurt": {"extends": "hurt"},
     "knocked_back": {"set": {"hands": ["palm", "palm"], "hip": [-12, -52], "torso": -132, "head": -146, "arm": [-20, -35], "backArm": [10, -10], "foot": [34, -10], "backFoot": [-8, 0], "blade": -30}, "rigs": {"sword": {"hands": ["fist", "palm"]}}},
-    "dodge": {"set": {"hip": [-18, -46], "torso": -126, "head": -118, "arm": [50, -60], "backArm": [150, 100], "foot": [28, 0], "backFoot": [-40, 0], "blade": -40}},
+    "dodge": {"set": {"hip": [-16, -46], "torso": -132, "head": -140, "arm": [-62, -20], "backArm": [150, 118], "foot": [34, 0], "backFoot": [-32, 0], "blade": -20, "hands": ["palm", "palm"]}, "rigs": {"sword": {"arm": [-44, -22], "blade": -34, "hands": ["fist", "finger"]}}},
     "sword_dodge": {"extends": "dodge"},
     "retreat": {"set": {"hip": [-2, -60], "torso": -98, "head": -94, "arm": [35, -15], "backArm": [165, 150], "foot": [16, -12], "backFoot": [-26, -2], "blade": -18, "tassel": [-30, -40]}}
   }

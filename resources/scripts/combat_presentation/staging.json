@@ -19,15 +19,17 @@
       },
       "reactions": {
         "hit": {
-          "push": 26,
-          "tilt": 9,
-          "lift": 0
+          "push": 34,
+          "tilt": 10,
+          "lift": 0,
+          "snap": 0.65
         },
         "dodge": {
-          "push": 52,
-          "leadMs": 95,
-          "onsetMs": 85,
-          "ghost": 0.32
+          "push": 74,
+          "leadMs": 110,
+          "onsetMs": 90,
+          "ghost": 0.32,
+          "hop": 12
         },
         "parry": {
           "push": 4,
@@ -50,8 +52,8 @@
       "fallMs": 260,
       "reactions": {
         "hit": {
-          "push": 48,
-          "tilt": 14
+          "push": 58,
+          "tilt": 16
         }
       }
     },

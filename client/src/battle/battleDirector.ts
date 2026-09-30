@@ -142,8 +142,15 @@ export function sampleBattleScene(
     // 受击是硬切：到点直接到位，不做渐进。
     const onset = reaction === "hit" ? 1 : out(progress(reactionTime, startAt, startAt + (look.onsetMs ?? 0)));
     const amount = onset * (1 - recovery);
-    target.x = targetDirection * look.push * amount;
+    // 受击先被打退一大截，定格结束后再踉跄滑出剩下一段；闪避整个人跳开，带一段离地弧线。
+    const holdEnd = reactionHit.atMs + reactionHit.hitStopMs;
+    const stagger = reaction === "hit" ? (look.snap ?? 1) + (1 - (look.snap ?? 1)) * out(progress(t, holdEnd, holdEnd + 200)) : 1;
+    target.x = targetDirection * look.push * amount * stagger;
     if (reaction === "hit" && look.lift) target.y = -look.lift * amount;
+    if (reaction === "dodge" && look.hop) {
+      const jump = progress(visualTime, startAt, startAt + 300);
+      if (jump > 0 && jump < 1) target.y = -look.hop * Math.sin(Math.PI * jump) * (1 - recovery);
+    }
     target.angle = targetDirection * (reaction === "hit" ? look.tilt ?? 0 : 0) * amount;
     result.ghost = reaction === "dodge" ? (look.ghost ?? 0) * amount : 0;
   }

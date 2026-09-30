@@ -27,10 +27,9 @@ export function sampleSvgPose(timeline: ResolvedBattleTimeline | null, side: Bat
     const active = activeReactionAt(timeline, t);
     if (!active || active.hit.reaction === 'none' || active.hit.reaction === 'effect') return idle;
     const look = active.hit.staging.reactions[active.hit.reaction];
-    const heldId = look.pose ?? active.hit.targetVisual.frames[0].frameId;
-    // 收势：先切回半个待机，再切干净，避免直接弹回原姿势。
-    if (t >= c.restAtMs) return blendPose('idle', heldId, 0.4, style);
-    return svgPose(heldId, style);
+    // 一张反应姿势定住到收招；收招时和身体位移一起切回站姿，不留半截混合。
+    if (t >= c.restAtMs) return idle;
+    return svgPose(look.pose ?? active.hit.targetVisual.frames[0].frameId, style);
   }
   const keyPoses = timeline.actor.visual.keyPoses;
   if (timeline.actor.motion === 'focus') {
