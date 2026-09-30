@@ -1,3 +1,7 @@
+<script context="module" lang="ts">
+  let instances = 0;
+</script>
+
 <script lang="ts">
   import { SVG_SWORD_LENGTH, type SvgPose } from '../battle/svgBattlePose';
   import { bones } from '../battle/svgPoseLibrary';
@@ -15,8 +19,14 @@
   type Pt = number[];
   /** 一个形状：路径或圆；fill 缺省为人物本色。 */
   type Shape = { d?: string; c?: [number, number, number]; fill?: string; opacity?: number };
-  /** 一个部件：同一块形体的若干形状，整体描边、整体填色，所以部件内部没有接缝。 */
-  type Part = { key: string; shapes: Shape[] };
+  /**
+   * 一个部件：同一块形体的若干形状，整体描边、整体填色，所以部件内部没有接缝。
+   * joins：这个部件画完后要缝合的连接处——两块形体在连接点附近重新填一遍色，盖掉那里的描边。
+   */
+  type Join = { at: Pt; r: number; shapes: Shape[] };
+  type Part = { key: string; shapes: Shape[]; joins: Join[] };
+  /** 每个实例自己的 clipPath id 前缀，舞台上同时有双方和残影。 */
+  const uid = `actor-${++instances}`;
 
   const sub = (a: Pt, b: Pt) => [a[0] - b[0], a[1] - b[1]];
   const len = (v: Pt) => Math.hypot(v[0], v[1]) || 1;
@@ -100,8 +110,14 @@
   // 部件按由远到近排列：头发 → 后腿 → 后臂 → 躯干与头 → 前腿 → 前臂与剑。
   $: parts = ((): Part[] => {
     const list: Part[] = [];
+    const shapesOf = (key: string) => list.find((part) => part.key === key)?.shapes ?? [];
+    /** 自然相连处（肩、髋、发根）只描外轮廓：画完较近的那块后，在连接点附近把两块的填色重铺一遍。 */
+    const join = (key: string, others: string[], at: Pt, r: number) => {
+      const part = list.find((candidate) => candidate.key === key);
+      if (part) part.joins.push({ at, r, shapes: [...others.flatMap(shapesOf), ...part.shapes] });
+    };
     if (profile === 'female') {
-      list.push({ key: 'hair', shapes: [
+      list.push({ key: 'hair', joins: [], shapes: [
         { d: strand(along(tie, headBackDir, 1), [tie[0] + headBackDir[0] * 10, tie[1] + headBackDir[1] * 10 + 2],
           [tie[0] + headBackDir[0] * 16 + flow[0] * 0.7, tie[1] + headBackDir[1] * 16 + 14 + flow[1] * 0.7],
           [tie[0] + headBackDir[0] * 16 + flow[0] * 1.15, tie[1] + headBackDir[1] * 16 + 30 + flow[1] * 1.15], 2.4) },
@@ -110,12 +126,15 @@
           [tie[0] + headBackDir[0] * 6 + flow[0], tie[1] + headBackDir[1] * 6 + 42 + flow[1]], 5) }
       ] });
     }
-    list.push({ key: 'back-leg', shapes: [...limb(p.hip, p.backKnee, R.thigh, R.knee), ...limb(p.backKnee, p.backFoot, R.knee, R.ankle), ...limb(p.backFoot, backToe, R.ankle, 3)] });
-    list.push({ key: 'back-arm', shapes: [...limb(p.shoulder, p.backElbow, R.shoulder, R.elbow), ...limb(p.backElbow, p.backHand, R.elbow, R.wrist), circle(p.backHand, R.fist)] });
+    list.push({ key: 'back-leg', joins: [], shapes: [...limb(p.hip, p.backKnee, R.thigh, R.knee), ...limb(p.backKnee, p.backFoot, R.knee, R.ankle), ...limb(p.backFoot, backToe, R.ankle, 3)] });
+    list.push({ key: 'back-arm', joins: [], shapes: [...limb(p.shoulder, p.backElbow, R.shoulder, R.elbow), ...limb(p.backElbow, p.backHand, R.elbow, R.wrist), circle(p.backHand, R.fist)] });
     const body: Shape[] = [...limb(chest, p.hip, R.chest, R.pelvis), ...limb(p.shoulder, p.head, R.neck, R.neck), circle(p.head, bones.headRadius)];
     if (profile === 'female') body.push({ d: rotated(tie, Math.atan2(headBackDir[1], headBackDir[0]) * 180 / Math.PI, [[-2.4, -3.6], [2.4, -3.6], [2.4, 3.6], [-2.4, 3.6]]), fill: '#9c3b2e' });
-    list.push({ key: 'body', shapes: body });
-    list.push({ key: 'front-leg', shapes: [...limb(p.hip, p.knee, R.thigh, R.knee), ...limb(p.knee, p.foot, R.knee, R.ankle), ...limb(p.foot, frontToe, R.ankle, 3)] });
+    list.push({ key: 'body', joins: [], shapes: body });
+    join('body', ['back-leg'], p.hip, R.thigh + 10);
+    join('body', ['back-arm'], p.shoulder, R.shoulder + 8);
+    if (profile === 'female') join('body', ['hair'], tie, 8);
+    list.push({ key: 'front-leg', joins: [], shapes: [...limb(p.hip, p.knee, R.thigh, R.knee), ...limb(p.knee, p.foot, R.knee, R.ankle), ...limb(p.foot, frontToe, R.ankle, 3)] });
     const arm: Shape[] = [...limb(p.shoulder, p.elbow, R.shoulder, R.elbow), ...limb(p.elbow, p.hand, R.elbow, R.wrist)];
     if (style === 'sword') {
       const L = SVG_SWORD_LENGTH;
@@ -125,7 +144,10 @@
       arm.push({ d: rotated(p.hand, p.blade, [[7, -2], [L - 8, -2], [L, 0], [L - 8, 2], [7, 2]]), fill: BLADE });
     }
     arm.push(circle(p.hand, R.fist));
-    list.push({ key: 'front-arm', shapes: arm });
+    list.push({ key: 'front-arm', joins: [], shapes: arm });
+    // 两腿在骨盆处相连、两臂在肩处相连，也算自然连接。
+    join('front-leg', ['back-leg', 'body'], p.hip, R.thigh + 10);
+    join('front-arm', ['back-arm', 'body'], p.shoulder, R.shoulder + 8);
     return list;
   })();
 </script>
@@ -144,6 +166,15 @@
           {#if shape.c}<circle cx={shape.c[0]} cy={shape.c[1]} r={shape.c[2]} fill={shape.fill} opacity={shape.opacity} />{:else}<path d={shape.d} fill={shape.fill} opacity={shape.opacity} />{/if}
         {/each}
       </g>
+      {#each part.joins as join, j}
+        <!-- 缝合：只在连接点附近、只在两块形体内部重铺填色，外轮廓的描边保留，接缝处的描边被盖掉。 -->
+        <clipPath id={`${uid}-${part.key}-${j}`}><circle cx={join.at[0]} cy={join.at[1]} r={join.r} /></clipPath>
+        <g clip-path={`url(#${uid}-${part.key}-${j})`}>
+          {#each join.shapes as shape}
+            {#if shape.c}<circle cx={shape.c[0]} cy={shape.c[1]} r={shape.c[2]} fill={shape.fill} opacity={shape.opacity} />{:else}<path d={shape.d} fill={shape.fill} opacity={shape.opacity} />{/if}
+          {/each}
+        </g>
+      {/each}
     {/each}
   </g>
 </svg>
