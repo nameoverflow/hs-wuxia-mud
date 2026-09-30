@@ -71,13 +71,11 @@
     <span class="stage-location">{state.room.name || (state.locale === "zh" ? "江湖 · 交锋" : "Jianghu · Duel")}</span>
     <span class="stage-action" style:opacity={timeline && scene.phase !== "idle" ? 0.9 : 0}>{timeline?.label ?? ""}</span>
   </div>
-  <!-- 比例切换时整块重建，所有姿势按新骨长重新采样。 -->
-  {#key $figureStyle.proportion}
   <div class="duel-world" style:transform={`translate(${scene.cameraX}px, ${scene.shakeY}px) rotate(${scene.angle}deg) scale(${scene.cameraScale})`}>
     {#if scene.trail > 0}
       {#each stroke.echoes as echo, i}
         <div class="figure-home attack-echo" class:enemy={timeline?.actor.side === 'enemy'} style:opacity={scene.trail * (i === 0 ? 0.1 : 0.2)} style:transform={`translate(${echo.x}px,${echo.figure.y}px) scaleX(${direction})`}>
-          <SvgBattleActor pose={echo.pose} style={echo.figure.visual.style} profile={echo.figure.visual.profile} ink={$figureStyle.ink} look={$figureStyle.look} />
+          <SvgBattleActor pose={echo.pose} style={echo.figure.visual.style} profile={echo.figure.visual.profile} look={$figureStyle.look} />
         </div>
       {/each}
     {/if}
@@ -90,11 +88,11 @@
         <div class="ground-shadow" style:transform={`translateX(${figure.x}px) scale(${Math.max(0.55, 1 + figure.y / 60)})`} style:opacity={figure.alpha * Math.max(0.35, 1 + figure.y / 50)}></div>
         {#if scene.ghost > 0 && side === targetSide}
           <div class="figure-pose ghost" style:opacity={scene.ghost} style:transform={`scaleX(${mirror})`}>
-            <SvgBattleActor {pose} style={figure.visual.style} profile={figure.visual.profile} ink={$figureStyle.ink} look={$figureStyle.look} />
+            <SvgBattleActor {pose} style={figure.visual.style} profile={figure.visual.profile} look={$figureStyle.look} />
           </div>
         {/if}
         <div class="figure-pose" data-side={side} data-frame={figure.frameId} style:opacity={figure.alpha} style:transform={`translate(${figure.x}px, ${figure.y}px) rotate(${figure.angle}deg) scaleX(${mirror})`}>
-          <SvgBattleActor {pose} style={figure.visual.style} profile={figure.visual.profile} flash={scene.phase === "impact" ? figure.flash : 0} hairFlow={hairFlows[side]} hairPhase={hairPhase} ink={$figureStyle.ink} look={$figureStyle.look} />
+          <SvgBattleActor {pose} style={figure.visual.style} profile={figure.visual.profile} flash={scene.phase === "impact" ? figure.flash : 0} hairFlow={hairFlows[side]} hairPhase={hairPhase} look={$figureStyle.look} />
         </div>
       </div>
     {/each}
@@ -122,7 +120,6 @@
       <div class="move-stamp" style:opacity={scene.textAlpha} style:transform={`translate(-50%,0) scale(${scene.textScale})`}>{stampLabel}</div>
     {/if}
   </div>
-  {/key}
   {#if scene.invert > 0}<div class="stage-invert" style:opacity={scene.invert * 0.22}></div>{/if}
   {#if timeline?.kind === "settlement"}
     <div class="settlement" style:opacity={scene.resultAlpha}>

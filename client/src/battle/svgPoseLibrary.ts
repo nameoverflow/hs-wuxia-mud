@@ -1,6 +1,5 @@
 import poseData from "../../../resources/scripts/combat_presentation/svg-poses.json";
 import type { CombatStyle } from "./animationTypes";
-import { currentFigureStyle, type FigureStyle } from "./figureStyle";
 
 export type Point = [number, number];
 
@@ -19,12 +18,11 @@ export interface SvgPose {
   backFootPlanted: boolean;
   /** 手型：前手、后手分别是握拳、立掌还是剑指。 */
   hands: [HandShape, HandShape];
-  /** 这副姿势用的骨长（比例不同，头和腿的长度不同）。 */
+  /** 这副姿势用的骨长。 */
   bones: Bones;
 }
 
 export type HandShape = "fist" | "palm" | "finger";
-export type Proportion = FigureStyle["proportion"];
 
 /**
  * 一个关键姿势的参数：髋的位置、躯干/头/手臂的朝向（度，0 朝前、90 朝下），
@@ -119,13 +117,7 @@ export function bendOf(root: Point, joint: Point, end: Point) {
   return cross < 0 ? 1 : -1;
 }
 
-/**
- * 修长比例：头小一号，大腿、小腿各长一截；髋随之抬高，踩地的脚仍然踩地，离地的脚一起抬高，姿势的弯曲程度不变。
- */
-export const tallBones: Bones = { ...library.bones, headRadius: library.bones.headRadius - 1.8, thigh: library.bones.thigh + 4, shin: library.bones.shin + 4 };
-export function bonesFor(proportion: Proportion): Bones {
-  return proportion === "tall" ? tallBones : bones;
-}
+
 /** 踩地时脚踝离地的高度：脚掌有厚度，脚踝不贴地。 */
 export const ANKLE_HEIGHT = 5;
 /** 肩关节在颈根下面多少：手臂从胸口上沿长出来。 */
@@ -135,13 +127,11 @@ const isPlanted = (foot: Point) => foot[1] > -4;
 const ankleOf = (foot: Point): Point => (isPlanted(foot) ? [foot[0], foot[1] - ANKLE_HEIGHT] : foot);
 
 /** 参数 → 关节坐标。脚是落点，髋够不着时自动下沉，宽马步自然就蹲低了。 */
-export function poseFromParams(params: PoseParams, proportion: Proportion = currentFigureStyle().proportion): SvgPose {
-  const b = bonesFor(proportion);
-  const lift = b.thigh + b.shin - bones.thigh - bones.shin;
-  const raise = (p: Point): Point => (isPlanted(p) ? p : [p[0], p[1] - lift]);
-  let hip: Point = [params.hip[0], params.hip[1] - lift];
+export function poseFromParams(params: PoseParams): SvgPose {
+  const b = bones;
+  let hip: Point = [...params.hip];
   const reach = b.thigh + b.shin - 0.5;
-  const frontAnkle = ankleOf(raise(params.foot)), backAnkle = ankleOf(raise(params.backFoot));
+  const frontAnkle = ankleOf(params.foot), backAnkle = ankleOf(params.backFoot);
   for (const foot of [frontAnkle, backAnkle]) {
     const dx = foot[0] - hip[0];
     if (Math.abs(dx) < reach) hip = [hip[0], Math.max(hip[1], foot[1] - Math.sqrt(reach * reach - dx * dx))];
@@ -196,12 +186,12 @@ export function poseParams(id: string, rig: CombatStyle): PoseParams {
 }
 
 /** 返回可修改的关节坐标：采样器会在接触帧上用反解把拳、脚、剑尖送到接触点。 */
-export function svgPose(id: string, rig: CombatStyle, proportion?: Proportion): SvgPose {
-  return poseFromParams(resolveParams(id, rig), proportion);
+export function svgPose(id: string, rig: CombatStyle): SvgPose {
+  return poseFromParams(resolveParams(id, rig));
 }
 
-export function blendPose(fromId: string, toId: string, amount: number, rig: CombatStyle, proportion?: Proportion): SvgPose {
-  return poseFromParams(blendParams(resolveParams(fromId, rig), resolveParams(toId, rig), amount), proportion);
+export function blendPose(fromId: string, toId: string, amount: number, rig: CombatStyle): SvgPose {
+  return poseFromParams(blendParams(resolveParams(fromId, rig), resolveParams(toId, rig), amount));
 }
 
 /** 把整个姿势平移（身体顺着出招方向探出去）。 */

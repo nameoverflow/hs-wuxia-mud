@@ -17,8 +17,6 @@
   export let hairPhase = 0;
   /** 女性造型：maiden 为发髻 + 发簪 + 披发、身形更纤细的少女女侠；ponytail 为此前的高马尾（对照用）。 */
   export let look: FigureStyle['look'] = 'maiden';
-  /** 描边：flat 为等宽描边；brush 为粗细有变化、带手绘抖动的笔触墨线，加自上而下的明暗。 */
-  export let ink: FigureStyle['ink'] = 'flat';
   $: p = pose;
 
   type Pt = number[];
@@ -30,7 +28,7 @@
    */
   type Join = { at: Pt; r: number; shapes: Shape[] };
   type Part = { key: string; shapes: Shape[]; joins: Join[] };
-  /** 每个实例自己的 id 前缀（clipPath、滤镜、渐变），舞台上同时有双方和残影。 */
+  /** 每个实例自己的 clipPath id 前缀，舞台上同时有双方和残影。 */
   const uid = `actor-${++instances}`;
 
   const sub = (a: Pt, b: Pt) => [a[0] - b[0], a[1] - b[1]];
@@ -142,6 +140,19 @@
     return [circle(ankle, SHIN.l[3] * k), { d: closedCurve([P(-5, 0.6), P(-5.6, 3.4), P(-3.6, 7), P(2.6, 6.6), P(8, 3.6), P(13, 1.5), P(13.8, 0.4), P(4, -0.2)]) }];
   }
 
+  /**
+   * 头：侧面的头型而不是正圆——后脑勺圆而饱满，前额微微前凸，脸侧平一些，下颌往前下方收成柔和的下巴。
+   * 点以头半径为单位，x 朝前、y 朝上，跟着头的朝向转。不画五官。
+   */
+  const HEAD_OUTLINE: Pt[] = [
+    [0.08, 1.0], [-0.62, 0.84], [-0.98, 0.3], [-0.92, -0.32], [-0.52, -0.78], [0.12, -0.98],
+    [0.58, -0.8], [0.84, -0.36], [0.9, 0.2], [0.66, 0.74]
+  ];
+  function head(center: Pt, up: Pt, r: number): Shape {
+    const fwd = [-up[1], up[0]].map((v) => -v);
+    return { d: closedCurve(HEAD_OUTLINE.map(([x, y]) => [center[0] + fwd[0] * x * r + up[0] * y * r, center[1] + fwd[1] * x * r + up[1] * y * r])) };
+  }
+
   /** 以 origin 为原点、按 deg 旋转后的多边形。剑用它画，不依赖 SVG transform，描边才能和别的形状一起算。 */
   function rotated(origin: Pt, deg: number, points: Pt[]) {
     const r = deg * Math.PI / 180, cs = Math.cos(r), sn = Math.sin(r);
@@ -223,7 +234,7 @@
     const chestR = maiden ? 11.4 : 13.5, waistR = maiden ? 8.6 : 10.6, pelvisR = maiden ? 11 : 11.5;
     const body: Shape[] = [
       { d: ribbon([chest, waist, p.hip], [chestR, waistR, pelvisR]) }, circle(chest, chestR), circle(p.hip, pelvisR),
-      { d: taper(p.neck, headC, 8 * k, 8 * k) }, circle(headC, headR)
+      { d: taper(p.neck, headC, 8 * k, 8 * k) }, head(headC, headUp, headR)
     ];
     list.push({ key: 'body', joins: [], shapes: body });
     join('body', ['back-leg'], p.hip, 10.5 * k + 10);
@@ -249,48 +260,18 @@
     join('front-arm', ['back-arm', 'body'], p.shoulder, 8.4 * k + 8);
     return list;
   })();
-  $: skin = ink === 'brush' ? `url(#${uid}-shade)` : 'currentColor';
 </script>
 
 <svg class="vector-actor" viewBox="-128 -176 256 192" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  {#if ink === 'brush'}
-    <defs>
-      <!-- 笔触墨线：整体外扩一圈，再朝后下方多扩一截，所以背光的下沿和后侧更粗；再加一点手绘抖动。 -->
-      <filter id={`${uid}-brush`} x="-30%" y="-30%" width="160%" height="160%">
-        <feMorphology in="SourceAlpha" operator="dilate" radius="1" result="thin" />
-        <feOffset in="SourceAlpha" dx="-1.3" dy="1.5" result="shifted" />
-        <feMorphology in="shifted" operator="dilate" radius="1.5" result="heavy" />
-        <feMerge result="stroke"><feMergeNode in="thin" /><feMergeNode in="heavy" /></feMerge>
-        <feTurbulence type="fractalNoise" baseFrequency="0.22" numOctaves="2" seed="7" result="noise" />
-        <feDisplacementMap in="stroke" in2="noise" scale="1.6" xChannelSelector="R" yChannelSelector="G" result="wobbly" />
-        <feFlood flood-color="#0d1714" />
-        <feComposite in2="wobbly" operator="in" />
-      </filter>
-      <!-- 明暗：头肩略亮、腿脚略暗，整体一个渐变，不把身体切成几块。 -->
-      <linearGradient id={`${uid}-shade`} gradientUnits="userSpaceOnUse" x1="0" y1="-150" x2="0" y2="0">
-        <stop offset="0" style:stop-color="color-mix(in srgb, currentColor 86%, white)" />
-        <stop offset="0.55" style:stop-color="currentColor" />
-        <stop offset="1" style:stop-color="color-mix(in srgb, currentColor 78%, black)" />
-      </linearGradient>
-    </defs>
-  {/if}
-  <g fill={skin} style:filter={flash > 0 ? `brightness(${1 + flash * 0.35})` : undefined}>
+  <g fill="currentColor" style:filter={flash > 0 ? `brightness(${1 + flash * 0.35})` : undefined}>
     {#each parts as part (part.key)}
       <!-- 每个部件先整体描一圈深色边，再填色；后画的部件压在前面，边线就成了遮挡线。 -->
       <g class="part" data-part={part.key}>
-        {#if ink === 'brush'}
-          <g filter={`url(#${uid}-brush)`}>
-            {#each part.shapes as shape}
-              {#if shape.c}<circle cx={shape.c[0]} cy={shape.c[1]} r={shape.c[2]} />{:else}<path d={shape.d} />{/if}
-            {/each}
-          </g>
-        {:else}
           <g class="outline">
             {#each part.shapes as shape}
               {#if shape.c}<circle cx={shape.c[0]} cy={shape.c[1]} r={shape.c[2]} />{:else}<path d={shape.d} />{/if}
             {/each}
           </g>
-        {/if}
         {#each part.shapes as shape}
           {#if shape.c}<circle cx={shape.c[0]} cy={shape.c[1]} r={shape.c[2]} fill={shape.fill} opacity={shape.opacity} />{:else}<path d={shape.d} fill={shape.fill} opacity={shape.opacity} />{/if}
         {/each}
