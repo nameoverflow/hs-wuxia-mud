@@ -7,7 +7,7 @@
       "style": "sword",
       "frames": [
         {
-          "frameId": "sword_ready",
+          "frameId": "idle",
           "holdMs": 640
         }
       ],
@@ -42,7 +42,7 @@
       "style": "sword",
       "frames": [
         {
-          "frameId": "sword_ready",
+          "frameId": "idle",
           "holdMs": 20
         },
         {
@@ -54,7 +54,7 @@
           "holdMs": 260
         },
         {
-          "frameId": "sword_ready",
+          "frameId": "idle",
           "holdMs": 280
         }
       ],
@@ -123,7 +123,7 @@
       "style": "sword",
       "frames": [
         {
-          "frameId": "sword_ready",
+          "frameId": "idle",
           "holdMs": 20
         },
         {
@@ -135,7 +135,7 @@
           "holdMs": 320
         },
         {
-          "frameId": "sword_ready",
+          "frameId": "idle",
           "holdMs": 300
         }
       ],
@@ -204,7 +204,7 @@
       "style": "sword",
       "frames": [
         {
-          "frameId": "sword_ready",
+          "frameId": "idle",
           "holdMs": 20
         },
         {
@@ -216,7 +216,7 @@
           "holdMs": 260
         },
         {
-          "frameId": "sword_ready",
+          "frameId": "idle",
           "holdMs": 280
         }
       ],
@@ -285,7 +285,7 @@
       "style": "sword",
       "frames": [
         {
-          "frameId": "sword_ready",
+          "frameId": "idle",
           "holdMs": 20
         },
         {
@@ -297,7 +297,7 @@
           "holdMs": 320
         },
         {
-          "frameId": "sword_ready",
+          "frameId": "idle",
           "holdMs": 300
         }
       ],
@@ -366,7 +366,7 @@
       "style": "sword",
       "frames": [
         {
-          "frameId": "sword_ready",
+          "frameId": "idle",
           "holdMs": 60
         },
         {
@@ -382,7 +382,7 @@
           "holdMs": 160
         },
         {
-          "frameId": "sword_ready",
+          "frameId": "idle",
           "holdMs": 160
         }
       ],
@@ -404,7 +404,7 @@
       "poseTrack": [
         {
           "atMs": 0,
-          "pose": "sword_ready"
+          "pose": "idle"
         },
         {
           "atMs": 60,
@@ -479,7 +479,7 @@
       "style": "sword",
       "frames": [
         {
-          "frameId": "sword_ready",
+          "frameId": "idle",
           "holdMs": 52
         },
         {
@@ -499,7 +499,7 @@
           "holdMs": 221
         },
         {
-          "frameId": "sword_ready",
+          "frameId": "idle",
           "holdMs": 306
         }
       ],
@@ -637,15 +637,15 @@
       "style": "sword",
       "frames": [
         {
-          "frameId": "sword_ready",
+          "frameId": "idle",
           "holdMs": 220
         },
         {
-          "frameId": "sword_parry",
+          "frameId": "guard",
           "holdMs": 280
         },
         {
-          "frameId": "sword_ready",
+          "frameId": "idle",
           "holdMs": 220
         }
       ],
@@ -693,7 +693,7 @@
       "style": "sword",
       "frames": [
         {
-          "frameId": "sword_hurt",
+          "frameId": "hurt",
           "holdMs": 520
         }
       ],
@@ -729,7 +729,7 @@
       "style": "sword",
       "frames": [
         {
-          "frameId": "sword_dodge",
+          "frameId": "dodge",
           "holdMs": 560
         }
       ],
@@ -765,7 +765,7 @@
       "style": "sword",
       "frames": [
         {
-          "frameId": "sword_parry",
+          "frameId": "guard",
           "holdMs": 560
         }
       ],

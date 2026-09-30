@@ -33,7 +33,7 @@
         {#each variants as variant, v}
           <figure data-pose={id} data-style={style} data-variant={v}>
             <div class="cell"><div class="ground"></div><div class="figure"><SvgBattleActor pose={svgPose(id, style)} {style} {profile} look={variant.style.look} /></div></div>
-            <figcaption>{id} · {style === "fist" ? "拳" : "剑"}{variant.label}</figcaption>
+            <figcaption>{id} · {style === "fist" ? "空手" : "持剑"}{variant.label}</figcaption>
           </figure>
         {/each}
       {/each}

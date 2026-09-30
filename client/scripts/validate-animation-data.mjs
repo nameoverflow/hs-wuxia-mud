@@ -3,14 +3,12 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
-import { createHash } from "node:crypto";
 import { readBattleActions } from "./lib/battleActions.mjs";
 
 const clientRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = path.resolve(clientRoot, "..");
 const posesPath = path.join(repoRoot, "resources/scripts/combat_presentation/svg-poses.json");
 const stagingPath = path.join(repoRoot, "resources/scripts/combat_presentation/staging.json");
-const framesPath = path.join(clientRoot, "src/assets/battle/actors/raster-v1");
 const martialArtsPath = path.join(repoRoot, "resources/scripts/martial_arts");
 const manifest = readBattleActions(repoRoot);
 const poseIds = new Set(Object.keys(JSON.parse(readFileSync(posesPath, "utf8")).poses));
@@ -29,12 +27,9 @@ function checkStaging(label, override, shape = stagingShape) {
   }
 }
 const travelMotions = ["approach", "lunge", "drive"];
-const atlas = JSON.parse(readFileSync(path.join(clientRoot, 'src/battle/frameAtlas.json'), 'utf8'));
-const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 
 for (const file of manifest.manifests) if (file.schemaVersion !== 5 || !Array.isArray(file.actions)) fail(`combat_actions/${file.file} must use schemaVersion 5 with an actions array`);
 const actionIds = new Set();
-const frameIds = new Set();
 for (const action of manifest.actions) {
   if (!action.id || actionIds.has(action.id)) fail(`Duplicate or empty rig action id: ${action.id || "<empty>"}`);
   actionIds.add(action.id);
@@ -47,14 +42,6 @@ for (const action of manifest.actions) {
   let durationMs = 0;
   for (const frame of action.frames) {
     if (!frame.frameId || !Number.isFinite(frame.holdMs) || frame.holdMs <= 0) fail(`Animation action ${action.id} has an invalid frame`);
-    frameIds.add(`${action.style}/${frame.frameId}`);
-    for (const layer of ["body", "hair"]) {
-      const asset = path.join(framesPath, action.style, layer, `${frame.frameId}.png`);
-      if (!existsSync(asset)) fail(`Animation action ${action.id} references missing raster frame ${action.style}/${layer}/${frame.frameId}.png`);
-      const png = readFileSync(asset);
-      if (png.readUInt32BE(16) !== 256 || png.readUInt32BE(20) !== 192 || png[25] !== 6) fail(`Invalid 256x192 RGBA frame: ${asset}`);
-      if (atlas[action.style]?.sources?.[layer]?.[frame.frameId] !== hash(png)) fail(`Stale actor atlas for ${asset}; run npm run pack:battle`);
-    }
     durationMs += frame.holdMs;
   }
   if (durationMs !== action.durationMs) fail(`Animation action ${action.id} durationMs=${action.durationMs} does not match frame holds=${durationMs}`);
@@ -116,7 +103,7 @@ for (const action of manifest.actions) {
     // 剑光在最后一段定格后还要收笔，收不完就会残留在下一招开头。
     const fadeMs = action.staging?.trail?.fadeMs ?? stagingPresets[c.weight]?.trail?.fadeMs ?? stagingPresets.light.trail.fadeMs;
     if (lastHold + fadeMs > durationMs) fail(`${action.id}: last hit ends ${durationMs - lastHold}ms before the clip ends, but the trail needs ${fadeMs}ms to fade`);
-    const idle = action.style === 'sword' ? 'sword_ready' : 'idle';
+    const idle = 'idle';
     if (action.frames[0].frameId !== idle || action.frames.at(-1).frameId !== idle) fail(`${action.id}: attack must begin and finish in ready stance`);
     if (!track) {
       if (!kp?.prepare || !kp.contact || !kp.finish || !['hand', 'foot', 'blade'].includes(kp.reachWith)) fail(`${action.id}: attack needs keyPoses prepare/contact/finish/reachWith or a poseTrack`);
@@ -130,15 +117,6 @@ for (const action of manifest.actions) {
 for (const name of ['backdrop', 'thrust', 'slash', 'rising', 'impact', 'parry', 'aura']) {
   if (!existsSync(path.join(clientRoot, 'src/assets/battle/ink-stage-v1', `${name}.webp`))) fail(`Missing generated stage artwork: ${name}`);
 }
-for (const style of ['fist', 'sword']) for (const layer of ['body', 'hair']) {
-  const png = readFileSync(path.join(clientRoot, 'src/assets/battle/ink-stage-v1', `${style}-${layer}-atlas.png`));
-  if (hash(png) !== atlas[style].hashes[layer]) fail(`Stale atlas output ${style}/${layer}; run npm run pack:battle`);
-  if (png.readUInt32BE(16) !== atlas[style].width || png.readUInt32BE(20) !== atlas[style].height) fail(`Atlas geometry mismatch ${style}/${layer}`);
-}
-for (const name of ['thrust', 'slash', 'rising', 'impact', 'parry', 'aura']) {
-  if (hash(readFileSync(path.join(clientRoot, 'src/assets/battle/ink-stage-v1', `${name}.webp`))) !== atlas.effects?.sources?.[name]) fail(`Stale VFX atlas: ${name}; run npm run pack:battle`);
-}
-if (hash(readFileSync(path.join(clientRoot, 'src/assets/battle/ink-stage-v1/vfx-atlas.png'))) !== atlas.effects?.hash) fail('Stale VFX atlas output; run npm run pack:battle');
 
 let moveCount = 0;
 for (const file of readdirSync(martialArtsPath).filter((name) => name.endsWith(".yaml")).sort()) {
@@ -169,7 +147,7 @@ for (const file of readdirSync(martialArtsPath).filter((name) => name.endsWith("
   }
 }
 
-console.log(`Validated ${manifest.actions.length} battle actions, ${frameIds.size} raster frames, and ${moveCount} fixed move bindings.`);
+console.log(`Validated ${manifest.actions.length} battle actions and ${moveCount} fixed move bindings.`);
 
 function fail(message) {
   throw new Error(message);
