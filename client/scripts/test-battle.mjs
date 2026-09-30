@@ -204,6 +204,23 @@ try {
     for (const hit of combo.hits.slice(1)) assert.equal(sample(combo, hit.atMs - 20).enemy.x, 52, 'dodge must not reset between hits');
   });
 
+  const { sampleVfx } = await server.ssrLoadModule('/src/battle/battleVfx.ts');
+  check('sprites travel between anchors, freeze with hit stop and respect result filters', () => {
+    const qi = make(battleActions['rig.sword.qi_wave_a']);
+    const crescent = qi.vfx.find(v => v.kind === 'sprite');
+    const at = t => sampleVfx(qi, sample(qi, t), t).find(s => s.key === crescent.id);
+    assert.equal(at(crescent.startMs - 1), undefined, 'not before its start');
+    const early = at(crescent.startMs + 1), contact = sample(qi, qi.impactAtMs).contact;
+    assert.ok(early.x < contact.x - 100, 'starts at the blade, far from the target');
+    const onHit = at(qi.impactAtMs);
+    assert.ok(Math.abs(onHit.x - contact.x) < 40, 'arrives at the contact on the hit');
+    assert.deepEqual(at(qi.impactAtMs + qi.hits[0].hitStopMs - 1), onHit, 'held by hit stop');
+    assert.equal(at(qi.hits[0].atMs + qi.hits[0].hitStopMs + 60), undefined, 'gone after its life');
+    const dodged = make(battleActions['rig.sword.qi_wave_a'], 'dodge');
+    dodged.vfx = dodged.vfx.map(v => v.kind === 'sprite' ? { ...v, results: ['hit'] } : v);
+    assert.equal(sampleVfx(dodged, sample(dodged, dodged.impactAtMs), dodged.impactAtMs).find(s => s.key === crescent.id), undefined, 'results filter');
+  });
+
   function driver() {
     let now = 0, serial = 0;
     const callbacks = new Map();

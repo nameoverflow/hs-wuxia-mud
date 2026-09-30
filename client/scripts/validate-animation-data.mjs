@@ -95,7 +95,20 @@ for (const action of manifest.actions) {
     });
     if (travelMotions.includes(action.actorMotion) && !track.some((key) => key.pin)) fail(`${action.id}: poseTrack needs at least one pinned contact key`);
   }
-  for (const vfx of action.vfx || []) if (!vfxArts.includes(vfx.art)) fail(`${action.id}: vfx ${vfx.kind} needs art in ${vfxArts.join('/')}`);
+  for (const [i, vfx] of (action.vfx || []).entries()) {
+    const label = `${action.id}: vfx[${i}]`;
+    if (!['trail', 'impact', 'parry', 'aura', 'heal', 'sprite', 'custom'].includes(vfx.kind)) fail(`${label} has unknown kind ${vfx.kind}`);
+    if (!vfxArts.includes(vfx.art)) fail(`${label} needs art in ${vfxArts.join('/')}`);
+    if (vfx.kind !== 'sprite' && vfx.kind !== 'custom') continue;
+    const anchors = ['contact', 'actor', 'target', 'center', 'actor.hand', 'actor.foot', 'actor.blade'];
+    for (const key of ['from', 'to']) if (vfx[key] !== undefined && !anchors.includes(vfx[key])) fail(`${label}.${key} must be one of ${anchors.join('/')}`);
+    for (const key of ['atMs', 'offsetMs', 'size', 'rotate', 'spin', 'opacity', 'fadeInMs', 'fadeOutMs']) if (vfx[key] !== undefined && !Number.isFinite(vfx[key])) fail(`${label}.${key} must be a number`);
+    if (vfx.durationMs !== undefined && !(vfx.durationMs > 0)) fail(`${label}.durationMs must be positive`);
+    if (vfx.hit !== undefined && !(Number.isInteger(vfx.hit) && vfx.hit >= 0 && vfx.hit < (action.hits?.length ?? 1))) fail(`${label}.hit is out of range`);
+    if (vfx.scale !== undefined && !(Array.isArray(vfx.scale) && vfx.scale.length === 2 && vfx.scale.every(Number.isFinite))) fail(`${label}.scale must be [from, to]`);
+    if (vfx.results !== undefined && !(Array.isArray(vfx.results) && vfx.results.every((r) => ['hit', 'dodge', 'parry', 'effect'].includes(r)))) fail(`${label}.results has an unknown result`);
+    if (vfx.kind === 'custom' && (typeof vfx.effect !== 'string' || !vfx.effect)) fail(`${label} needs an effect name`);
+  }
   if (action.actorMotion === 'ranged' && !track && !(kp?.prepare && kp.contact && kp.finish)) fail(`${action.id}: ranged action needs a poseTrack or keyPoses`);
   if (travelMotions.includes(action.actorMotion) && track && track.filter((key) => key.pin).length !== hits.length) fail(`${action.id}: each hit needs exactly one pinned poseTrack key`);
   if (travelMotions.includes(action.actorMotion)) {

@@ -129,16 +129,53 @@ export interface ResolvedHit {
 
 export type VfxArt = "impact" | "slash" | "parry" | "aura" | "thrust" | "rising";
 
-export interface TimelineVfx {
+/**
+ * trail/impact/parry/aura/heal are the built-in layers driven by the director's scalars;
+ * sprite is a free ink sprite with its own timing, anchors and motion; custom calls a registered sampler.
+ */
+export type VfxKind = "trail" | "impact" | "parry" | "aura" | "heal" | "sprite" | "custom";
+
+/** Where a sprite sits: the contact point, a figure's chest, the stage centre, or a live limb of the attacker. */
+export type VfxAnchorRef = "contact" | "actor" | "target" | "center" | "actor.hand" | "actor.foot" | "actor.blade";
+
+export interface SpriteVfxOptions {
+  /** Start on the source clip clock; omitted → relative to hits[hit].atMs + offsetMs. */
+  atMs?: number;
+  hit?: number;
+  offsetMs?: number;
+  durationMs?: number;
+  from?: VfxAnchorRef;
+  /** Travel from → to over the sprite's life. */
+  to?: VfxAnchorRef;
+  /** Rendered box size in source px. */
+  size?: number;
+  scale?: [number, number];
+  rotate?: number;
+  /** Extra rotation over the sprite's life, degrees. */
+  spin?: number;
+  opacity?: number;
+  fadeInMs?: number;
+  fadeOutMs?: number;
+  /** Only when the anchored hit ends in one of these results. */
+  results?: CombatResult[];
+  /** custom: registered sampler name and its parameters. */
+  effect?: string;
+  params?: Record<string, unknown>;
+}
+
+export interface TimelineVfx extends SpriteVfxOptions {
   id: string;
-  kind: "trail" | "impact" | "parry" | "aura" | "heal";
+  kind: VfxKind;
   variant: string;
   art: VfxArt;
   side: BattleSide | "center";
+  /** Resolved sprite lifetime in timeline time. */
+  startMs: number;
+  endMs: number;
 }
 
-export interface ActionVfxDefinition {
-  kind: TimelineVfx["kind"];
+export interface ActionVfxDefinition extends SpriteVfxOptions {
+  kind: VfxKind;
   variant: string;
   art: VfxArt;
   anchor: "actor" | "target" | "center";

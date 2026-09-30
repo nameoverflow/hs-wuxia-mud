@@ -447,6 +447,24 @@
       },
       "vfx": [
         {
+          "kind": "sprite",
+          "variant": "qi-crescent",
+          "art": "slash",
+          "anchor": "actor",
+          "hit": 0,
+          "offsetMs": -130,
+          "durationMs": 150,
+          "from": "actor.blade",
+          "to": "contact",
+          "size": 180,
+          "scale": [
+            0.55,
+            1
+          ],
+          "fadeInMs": 30,
+          "fadeOutMs": 40
+        },
+        {
           "kind": "impact",
           "variant": "hit-spark",
           "anchor": "target",

@@ -76,7 +76,7 @@ export function resolveCombatTimeline(
     heal: event.heal,
     floatText: floatText(event),
     text,
-    vfx: resolveVfx(action, actorSide, targetSide, result)
+    vfx: resolveVfx(action, actorSide, targetSide, result, hits, actionDelayMs, scale)
   };
 }
 
@@ -199,20 +199,36 @@ function visualDurationMs(serverDurationMs: number | null | undefined, fallbackD
   return typeof serverDurationMs === "number" && Number.isFinite(serverDurationMs) && serverDurationMs > 0 ? Math.round(serverDurationMs) : fallbackDurationMs;
 }
 
-function resolveVfx(action: BattleActionDefinition, actorSide: BattleSide, targetSide: BattleSide, result: CombatResult): TimelineVfx[] {
+function resolveVfx(
+  action: BattleActionDefinition,
+  actorSide: BattleSide,
+  targetSide: BattleSide,
+  result: CombatResult,
+  hits: ResolvedHit[],
+  delayMs: number,
+  scale: number
+): TimelineVfx[] {
   return action.vfx
     .filter((vfx: ActionVfxDefinition) => {
       if (vfx.kind === "impact" && result !== "hit") return false;
       if (vfx.kind === "parry" && result !== "parry") return false;
       return true;
     })
-    .map((vfx, index) => ({
-      id: `${action.id}-${vfx.kind}-${vfx.variant}-${index}`,
-      kind: vfx.kind,
-      variant: vfx.variant,
-      art: vfx.art,
-      side: vfx.anchor === "actor" ? actorSide : vfx.anchor === "target" ? targetSide : "center"
-    }));
+    .map((vfx, index) => {
+      // sprite/custom 的起止时间：写 atMs 就按动作时钟，否则挂在某一段命中上。
+      const anchorHit = hits[Math.min(vfx.hit ?? 0, hits.length - 1)];
+      const startMs = vfx.atMs !== undefined ? delayMs + vfx.atMs * scale : anchorHit.atMs + (vfx.offsetMs ?? 0) * scale;
+      return {
+        ...vfx,
+        id: `${action.id}-${vfx.kind}-${vfx.variant}-${index}`,
+        kind: vfx.kind,
+        variant: vfx.variant,
+        art: vfx.art,
+        side: vfx.anchor === "actor" ? actorSide : vfx.anchor === "target" ? targetSide : "center",
+        startMs,
+        endMs: startMs + (vfx.durationMs ?? 200) * scale
+      };
+    });
 }
 
 function resultReaction(result: CombatResult): TargetReaction {

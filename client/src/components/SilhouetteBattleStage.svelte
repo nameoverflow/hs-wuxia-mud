@@ -8,6 +8,7 @@
   import { sampleAttackTrail } from "../battle/svgAttackTrail";
   import { sampleSvgPose } from "../battle/svgBattlePose";
   import { stageArt } from "../battle/stageAssets";
+  import { sampleVfx } from "../battle/battleVfx";
   import type { BattleSide } from "../battle/animationTypes";
 
   export let state: GameState;
@@ -31,11 +32,7 @@
   $: resultWord = timeline?.result === "dodge" ? "闪" : timeline?.result === "parry" ? "架" : timeline?.heal ? "息" : "";
   // 重招才盖招式名印章；普通招式保持克制。
   $: stampLabel = scene.force >= 1 && timeline && scene.phase !== "idle" ? timeline.label : "";
-  $: ink = timeline && scene.burst > 0 ? stageArt[timeline.vfx.find(v => v.kind === "impact")?.art ?? "impact"] : null;
-  $: arc = timeline && scene.trail > 0
-    ? (timeline.hits[Math.max(0, scene.hitIndex)].result === "parry" ? stageArt.parry : stageArt[timeline.vfx.find(v => v.kind === "trail")?.art ?? "slash"])
-    : null;
-  $: auraArt = scene.aura > 0 ? stageArt.aura : null;
+  $: sprites = sampleVfx(timeline, scene, elapsed, reducedMotion);
 
   onMount(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -83,24 +80,14 @@
         <polyline points={stroke.points} stroke="#fff1cb" stroke-width="1.5" opacity="0.9" />
       </g>
     </svg>
-    {#if arc}
-      <!-- 斩击墨痕与招架墨环：锚点定位在接触点，图自身按攻击方向翻转。 -->
-      <div class="ink-anchor" style:transform={`translate(${scene.contact.x}px, ${scene.contact.y}px) rotate(${scene.force >= 1 ? 8 : 0}deg)`}>
-        <img class="ink-vfx arc" src={arc} alt="" draggable="false"
-          style:opacity={scene.trail * 0.85} style:transform={`scaleX(${direction})`} />
+    {#each sprites as sprite (sprite.key)}
+      <!-- 墨迹特效：外层定位到锚点并负责旋转缩放，图自身按攻击方向翻转。 -->
+      <div class="ink-anchor" style:transform={`translate(${sprite.x}px, ${sprite.y}px) rotate(${sprite.rotate}deg) scale(${sprite.scale})`}>
+        <img class="ink-vfx" src={stageArt[sprite.art]} alt="" draggable="false"
+          style:width={`${sprite.size}px`} style:height={`${sprite.size}px`} style:margin={`${-sprite.size / 2}px 0 0 ${-sprite.size / 2}px`}
+          style:opacity={sprite.opacity} style:transform={`scaleX(${sprite.flip})`} />
       </div>
-    {/if}
-    {#if ink && scene.burst > 0}
-      <!-- 命中墨爆：先炸开再淡出，与接触点同步。 -->
-      <div class="ink-anchor" style:transform={`translate(${scene.contact.x}px, ${scene.contact.y}px) scale(${(scene.force >= 1 ? 1.5 : 1) * (1.5 - scene.burst * 0.55)})`}>
-        <img class="ink-vfx burst" src={ink} alt="" draggable="false" style:opacity={scene.burst} />
-      </div>
-    {/if}
-    {#if auraArt}
-      <div class="ink-anchor" style:transform={`translate(${sideHome(targetSide)}px, -66px)`}>
-        <img class="ink-vfx aura" src={auraArt} alt="" draggable="false" style:opacity={scene.aura} />
-      </div>
-    {/if}
+    {/each}
     <div class="result-word" class:healing={!!timeline?.heal} style:opacity={scene.textAlpha} style:transform={`translate(${sideHome(targetSide) + (targetSide === "enemy" ? 35 : -35)}px, ${-147 - scene.textLift}px) scale(${scene.textScale})`}>
       {#if resultWord}<b>{resultWord}</b>{/if}
       {#if hitText && hitText !== resultWord}<span>{hitText}</span>{/if}
@@ -137,10 +124,7 @@
   .vector-effects { position: absolute; left: -240px; top: -200px; width: 480px; height: 240px; overflow: visible; pointer-events: none; }
   /* 图以锚点为中心：定位在外层，图自身回退半个尺寸，这样缩放和翻转都以中心为原点。 */
   .ink-anchor { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
-  .ink-vfx { position: absolute; pointer-events: none; transform-origin: center; }
-  .ink-vfx.arc { width: 320px; height: 320px; margin: -160px 0 0 -160px; mix-blend-mode: screen; }
-  .ink-vfx.burst { width: 240px; height: 240px; margin: -120px 0 0 -120px; mix-blend-mode: screen; }
-  .ink-vfx.aura { width: 190px; height: 190px; margin: -95px 0 0 -95px; mix-blend-mode: screen; }
+  .ink-vfx { position: absolute; pointer-events: none; transform-origin: center; mix-blend-mode: screen; }
   .result-word { position: absolute; white-space: nowrap; display: flex; gap: 5px; align-items: center; justify-content: center; color: #ffe1ac; text-shadow: 0 2px 5px #07110e; font: 700 20px/1 "Songti SC", serif; }
   .result-word b { font-size: 26px; font-weight: 600; }
   .result-word.healing { color: #bae1c6; }

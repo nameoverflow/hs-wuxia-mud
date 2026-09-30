@@ -127,7 +127,27 @@ martial-art YAML animation.action
 
 `offsetTrack` 给出招者叠加根节点位移（x 朝向对手为正，y 向下为正，angle 为倾角），ease 取 cut（保持后跳变）、linear、out。接触键会反向补偿这段位移，所以跃起踢击的脚仍落在对手身上（见 `rig.fist.leap_kick_a` 飞燕踢）。
 
-`actorMotion: "ranged"` 为远程招式：不接近、不位移，接触点仍按 contactY 计算，poseTrack 不需要 pin（见 `rig.sword.qi_wave_a` 剑气纵横）。`choreography` 的定义：
+`actorMotion: "ranged"` 为远程招式：不接近、不位移，接触点仍按 contactY 计算，poseTrack 不需要 pin（见 `rig.sword.qi_wave_a` 剑气纵横）。
+
+### 特效列表
+
+舞台不再有固定的斩痕/墨爆/光环三个槽位，而是按 `battleVfx.ts` 的 `sampleVfx()` 输出的精灵列表逐个绘制。每个精灵有素材、位置、尺寸、缩放、旋转、朝向和透明度。
+
+- 内置层：`trail`（斩痕，招架时换成招架墨环）、`impact`（墨爆）、`aura`/`heal`（光环）仍由导演层的 trail/burst/aura 强度驱动，manifest 里的条目只决定素材。
+- `sprite`：自由特效，自带时间和运动：
+
+```json
+{ "kind": "sprite", "variant": "qi-crescent", "art": "slash", "anchor": "actor",
+  "hit": 0, "offsetMs": -130, "durationMs": 150,
+  "from": "actor.blade", "to": "contact", "size": 180, "scale": [0.55, 1],
+  "fadeInMs": 30, "fadeOutMs": 40 }
+```
+
+  - 时间：写 `atMs` 按动作时钟；否则挂在 `hits[hit]` 上再加 `offsetMs`。随服务端时长缩放，读定格后的时间，所以会跟着命中定格停住。
+  - 锚点：contact、actor、target（人物胸口）、center，或出招者的 actor.hand / actor.foot / actor.blade（剑尖），取当前姿势的实时位置。有 `to` 时在生命周期内从 from 移到 to。
+  - 外观：size、scale [起, 止]、rotate、spin（生命周期内追加旋转）、opacity、fadeInMs/fadeOutMs；素材随攻击方向镜像。
+  - `results`：只在该段结果属于列表时出现，例如只在命中时显示。
+- `custom`：引用 `registerCustomVfx(name, sampler)` 注册的纯函数采样器，给写不进数据的特效用（见下一节）。`choreography` 的定义：
 
 - launchAtMs：从反向蓄势进入快速发力。
 - hitStopMs：命中之后同时保持人物、镜头、轨迹与飘字位移的时长。
