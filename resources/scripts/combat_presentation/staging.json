@@ -3,28 +3,60 @@
   "presets": {
     "light": {
       "force": 0.6,
-      "camera": { "kick": 5.5, "rebound": 0.35, "lift": 0.35, "zoom": 0.045 },
+      "camera": {
+        "kick": 3.5,
+        "rebound": 0.35,
+        "lift": 0.35,
+        "zoom": 0.02
+      },
       "shade": 0.09,
-      "tilt": 1,
+      "tilt": 0,
       "flash": 0.75,
       "fallMs": 180,
-      "trail": { "leadMs": 85, "fadeMs": 170 },
+      "trail": {
+        "leadMs": 85,
+        "fadeMs": 170
+      },
       "reactions": {
-        "hit": { "push": 26, "tilt": 9, "lift": 0 },
-        "dodge": { "push": 52, "leadMs": 95, "onsetMs": 85, "ghost": 0.32 },
-        "parry": { "push": 4, "leadMs": 50, "onsetMs": 65, "standoff": 26 }
+        "hit": {
+          "push": 26,
+          "tilt": 9,
+          "lift": 0
+        },
+        "dodge": {
+          "push": 52,
+          "leadMs": 95,
+          "onsetMs": 85,
+          "ghost": 0.32
+        },
+        "parry": {
+          "push": 4,
+          "leadMs": 50,
+          "onsetMs": 65,
+          "standoff": 26
+        }
       }
     },
     "heavy": {
       "extends": "light",
       "force": 1,
-      "camera": { "kick": 11, "zoom": 0.1 },
+      "camera": {
+        "kick": 7,
+        "zoom": 0.045
+      },
       "shade": 0.22,
-      "tilt": 2.4,
+      "tilt": 0.5,
       "flash": 1,
       "fallMs": 260,
-      "reactions": { "hit": { "push": 48, "tilt": 14 } }
+      "reactions": {
+        "hit": {
+          "push": 48,
+          "tilt": 14
+        }
+      }
     },
-    "quiet": { "extends": "light" }
+    "quiet": {
+      "extends": "light"
+    }
   }
 }

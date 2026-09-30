@@ -563,7 +563,7 @@ testMultiHitActionSplitsDamageAndLocksApproach = do
   case M.lookup "rig.fist.combo_a" (gs ^. world . combatActionTimings) of
     Nothing -> fail "combo action timing was not loaded from the manifest"
     Just timing -> do
-      assert ((timing ^. combatActionTimingApproachMs) == 150) "approach duration was not read from the manifest"
+      assert ((timing ^. combatActionTimingApproachMs) == 280) "approach duration was not read from the manifest"
       assert ((timing ^. combatActionTimingHitShares) == [1, 1, 2]) "hit shares were not read from the manifest"
   let comboWorld = gs & world . martialArts . traverse . artAttackMoves . traverse . attackMoveAnimation . animationRefAction .~ "rig.fist.combo_a"
   (_, inBattle) <- startTrainingBattle comboWorld
@@ -634,7 +634,7 @@ testBattleActionLockBlocksApGrowth = do
   assert ((blockedBattle ^. battleEnemyState . battleAp) == enemyApAfterAction) "enemy AP grew during action lock"
   assert ((blockedBattle ^. battleActionLockRemaining) < lockRemaining) "action lock did not tick down"
 
-  (_, resumed) <- runOk "tick after action lock" blocked (onBattleTick 1)
+  (_, resumed) <- runOk "tick after action lock" blocked (onBattleTick (lockRemaining + 0.2))
   resumedBattle <- getBattle resumed
   assert ((resumedBattle ^. battleActionLockRemaining) == 0) "action lock did not expire"
   assert

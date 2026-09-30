@@ -1,57 +1,96 @@
 <script lang="ts">
   import { SVG_SWORD_LENGTH, type SvgPose } from '../battle/svgBattlePose';
+  import { bones } from '../battle/svgPoseLibrary';
   import type { CombatStyle, VisualProfile } from '../battle/animationTypes';
   export let pose: SvgPose;
   export let style: CombatStyle;
   export let profile: VisualProfile;
   export let flash = 0;
   $: p = pose;
-  const limb = (a: number[], b: number[], c: number[]) => `M${a} L${b} L${c}`;
-  /** 衣袂与剑穗各一笔墨线，末梢直接取关键姿势里的固定点，不做模拟。 */
-  const sweep = (from: number[], to: number[], bulge = 8, sag = 0) =>
-    `M${from} Q${(from[0] + to[0]) / 2 + bulge},${(from[1] + to[1]) / 2 + sag} ${to}`;
-  /** 剑穗从剑首垂下：方向取姿势里的 tassel 点，长度限制在一小段，不随姿势坐标拉成长线。 */
-  const TASSEL_LENGTH = 20;
+
+  type Pt = number[];
+  const sub = (a: Pt, b: Pt) => [a[0] - b[0], a[1] - b[1]];
+  const len = (v: Pt) => Math.hypot(v[0], v[1]) || 1;
+  const unit = (v: Pt) => { const l = len(v); return [v[0] / l, v[1] / l]; };
+  const along = (a: Pt, u: Pt, k: number) => [a[0] + u[0] * k, a[1] + u[1] * k];
+
+  /**
+   * 一段锥形肢体：两端各一个圆，中间用外公切线连起来，所以粗细过渡平滑、关节处自然是圆的。
+   * 返回一条闭合路径，圆由调用处另画。
+   */
+  function taper(a: Pt, b: Pt, ra: number, rb: number) {
+    const d = sub(b, a);
+    const l = len(d);
+    const u = [d[0] / l, d[1] / l];
+    const n = [-u[1], u[0]];
+    const s = Math.max(-0.95, Math.min(0.95, (ra - rb) / l));
+    const c = Math.sqrt(1 - s * s);
+    const m1 = [n[0] * c + u[0] * s, n[1] * c + u[1] * s];
+    const m2 = [-n[0] * c + u[0] * s, -n[1] * c + u[1] * s];
+    const P = (o: Pt, m: Pt, r: number) => `${o[0] + m[0] * r},${o[1] + m[1] * r}`;
+    return `M${P(a, m1, ra)} L${P(b, m1, rb)} L${P(b, m2, rb)} L${P(a, m2, ra)} Z`;
+  }
+
+  /** 脚掌：落地时平放朝前，抬起时顺着小腿方向指出去。 */
+  function footTip(knee: Pt, ankle: Pt) {
+    const shin = unit(sub(ankle, knee));
+    const w = Math.max(0, Math.min(1, shin[1]));
+    return along(ankle, unit([w + shin[0] * (1 - w), shin[1] * (1 - w) + 0.12 * w]), 12);
+  }
+
+  // 粗细（半径）：大腿比小腿粗，上臂比前臂粗，末端收细，剪影才有体积。
+  const R = { thigh: 9, knee: 7, ankle: 4.8, shoulder: 6.8, elbow: 5.4, wrist: 4.4, fist: 6, chest: 12.5, pelvis: 10.5, neck: 5 };
+
+  $: torsoAxis = unit(sub(p.shoulder, p.hip));
+  $: chest = along(p.shoulder, torsoAxis, -7);
+  $: frontToe = footTip(p.knee, p.foot);
+  $: backToe = footTip(p.backKnee, p.backFoot);
   $: pommel = [p.hand[0] - Math.cos(p.blade * Math.PI / 180) * 9, p.hand[1] - Math.sin(p.blade * Math.PI / 180) * 9];
+  /** 剑穗从剑首垂下：方向取姿势里的 tassel 点，长度限制在一小段。 */
   $: tasselEnd = (() => {
-    const dx = p.tassel[0] - pommel[0], dy = p.tassel[1] - pommel[1];
-    const length = Math.hypot(dx, dy) || 1;
-    const reach = Math.min(length, TASSEL_LENGTH);
-    return [pommel[0] + dx / length * reach, pommel[1] + dy / length * reach];
+    const v = sub(p.tassel, pommel);
+    return along(pommel, unit(v), Math.min(len(v), 20));
   })();
+  /** 马尾：从后脑甩出一滴水形，末梢略向下坠。 */
+  $: headBack = along(p.head, unit([-0.9, -0.25]), bones.headRadius * 0.8);
+  $: tailEnd = [headBack[0] - 20, headBack[1] + 20];
 </script>
 
 <svg class="vector-actor" viewBox="-128 -176 256 192" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <g fill="currentColor" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-    <!-- 衣袂先画，压在身体后面，甩向动作的反方向。 -->
-    <path d={sweep(p.hip, p.robe, -10, 6)} fill="none" stroke-width="13" opacity="0.5" />
+  <g fill="currentColor" style:filter={flash > 0 ? `brightness(${1 + flash * 0.35})` : undefined}>
     {#if profile === 'female'}
-      <path d={`M${p.head[0]-15},${p.head[1]-8} C${p.head[0]-32},${p.head[1]-5} ${p.head[0]-18},${p.head[1]+16} ${p.head[0]-31},${p.head[1]+27} S${p.head[0]-32},${p.head[1]+44} ${p.head[0]-39},${p.head[1]+47}`} fill="none" stroke-width="7" />
+      <path d={taper(headBack, tailEnd, 6.5, 2.5)} /><circle cx={tailEnd[0]} cy={tailEnd[1]} r="2.5" />
     {/if}
-    <path d={limb(p.hip, p.backKnee, p.backFoot)} fill="none" stroke-width="19" />
-    <path d={`M${p.backFoot} l8,0`} fill="none" stroke-width="11" />
-    <path d={limb(p.shoulder, p.backElbow, p.backHand)} fill="none" stroke-width="16" />
-    <circle cx={p.backHand[0]} cy={p.backHand[1]} r="8" stroke="none" />
-    <path d={limb(p.hip, p.knee, p.foot)} fill="none" stroke-width="19" />
-    <path d={`M${p.foot} l8,0`} fill="none" stroke-width="11" />
-    <path d={`M${p.shoulder[0]-12},${p.shoulder[1]} Q${p.shoulder[0]},${p.shoulder[1]-10} ${p.shoulder[0]+13},${p.shoulder[1]} Q${p.shoulder[0]+20},${p.shoulder[1]+15} ${p.hip[0]+13},${p.hip[1]+3} Q${p.hip[0]},${p.hip[1]+14} ${p.hip[0]-13},${p.hip[1]+3} Q${p.shoulder[0]-18},${p.shoulder[1]+14} ${p.shoulder[0]-12},${p.shoulder[1]} Z`} stroke="none" />
-    <path d={`M${p.shoulder} L${p.head}`} stroke-width="12" />
-    <ellipse cx={p.head[0]} cy={p.head[1]} rx="19" ry="20" stroke="none" />
-    <path d={limb(p.shoulder, p.elbow, p.hand)} fill="none" stroke-width="16" />
-    <circle cx={p.hand[0]} cy={p.hand[1]} r="8" stroke="none" />
+    <!-- 后侧手脚压暗一档，重叠时也分得清前后。 -->
+    <g class="far-limbs">
+      <path d={taper(p.shoulder, p.backElbow, R.shoulder, R.elbow)} /><circle cx={p.backElbow[0]} cy={p.backElbow[1]} r={R.elbow} />
+      <path d={taper(p.backElbow, p.backHand, R.elbow, R.wrist)} /><circle cx={p.backHand[0]} cy={p.backHand[1]} r={R.fist} />
+      <path d={taper(p.hip, p.backKnee, R.thigh, R.knee)} /><circle cx={p.backKnee[0]} cy={p.backKnee[1]} r={R.knee} />
+      <path d={taper(p.backKnee, p.backFoot, R.knee, R.ankle)} /><circle cx={p.backFoot[0]} cy={p.backFoot[1]} r={R.ankle} />
+      <path d={taper(p.backFoot, backToe, R.ankle, 3)} /><circle cx={backToe[0]} cy={backToe[1]} r="3" />
+    </g>
+    <path d={taper(chest, p.hip, R.chest, R.pelvis)} />
+    <circle cx={chest[0]} cy={chest[1]} r={R.chest} /><circle cx={p.hip[0]} cy={p.hip[1]} r={R.pelvis} />
+    <path d={taper(p.shoulder, p.head, R.neck, R.neck)} />
+    <circle cx={p.head[0]} cy={p.head[1]} r={bones.headRadius} />
+    <path d={taper(p.hip, p.knee, R.thigh, R.knee)} /><circle cx={p.knee[0]} cy={p.knee[1]} r={R.knee} />
+    <path d={taper(p.knee, p.foot, R.knee, R.ankle)} /><circle cx={p.foot[0]} cy={p.foot[1]} r={R.ankle} />
+    <path d={taper(p.foot, frontToe, R.ankle, 3)} /><circle cx={frontToe[0]} cy={frontToe[1]} r="3" />
+    <path d={taper(p.shoulder, p.elbow, R.shoulder, R.elbow)} /><circle cx={p.elbow[0]} cy={p.elbow[1]} r={R.elbow} />
+    <path d={taper(p.elbow, p.hand, R.elbow, R.wrist)} />
     {#if style === 'sword'}
-      <!-- 剑穗：从剑柄垂向末梢，略微下坠。 -->
-      <path d={sweep(pommel, tasselEnd, 2, 4)} fill="none" stroke-width="4" opacity="0.85" />
+      <path d={taper(pommel, tasselEnd, 1.6, 1.2)} opacity="0.85" />
       <g transform={`translate(${p.hand}) rotate(${p.blade})`}>
-        <path d="M-9,0 H5" stroke-width="4" />
-        <path d="M5,-7 V7" stroke-width="3" />
-        <path d={`M7,-2 L${SVG_SWORD_LENGTH-8},-2 ${SVG_SWORD_LENGTH},0 ${SVG_SWORD_LENGTH-8},2 7,2 Z`} stroke="none" fill="#f2ead2" />
+        <path d="M-9,-2 H5 V2 H-9 Z" />
+        <path d="M4,-7 H7 V7 H4 Z" />
+        <path d={`M7,-2 L${SVG_SWORD_LENGTH-8},-2 ${SVG_SWORD_LENGTH},0 ${SVG_SWORD_LENGTH-8},2 7,2 Z`} fill="#f2ead2" />
       </g>
     {/if}
+    <circle cx={p.hand[0]} cy={p.hand[1]} r={R.fist} />
   </g>
-  {#if flash > 0}<circle cx={p.shoulder[0]+7} cy={p.shoulder[1]+22} r="17" fill="#fff4d9" opacity={flash} />{/if}
 </svg>
 
 <style>
   .vector-actor { position: absolute; width: 256px; height: 192px; left: -128px; top: -176px; overflow: visible; }
+  .far-limbs { filter: brightness(0.74); }
 </style>

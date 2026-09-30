@@ -82,7 +82,7 @@ for (const action of manifest.actions) {
     });
   }
   if (!(0 <= c.launchAtMs && c.launchAtMs <= impact && c.hitStopMs >= 0 && lastHold <= c.recoverAtMs && c.recoverAtMs <= c.restAtMs && c.restAtMs <= durationMs)) fail(`${action.id}: unordered choreography markers`);
-  if (!['light', 'heavy', 'quiet'].includes(c.weight) || c.reach < 0 || c.reach > 136 || c.contactY < 20 || c.contactY > 176) fail(`${action.id}: invalid contact geometry/weight`);
+  if (!['light', 'heavy', 'quiet'].includes(c.weight) || c.reach < 0 || c.reach > 160 || c.contactY < 20 || c.contactY > 176) fail(`${action.id}: invalid contact geometry/weight`);
   for (const frame of action.frames) if (!poseIds.has(frame.frameId)) fail(`${action.id}: frame ${frame.frameId} has no SVG pose`);
   const kp = action.keyPoses;
   const track = action.poseTrack;

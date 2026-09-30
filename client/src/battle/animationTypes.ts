@@ -31,7 +31,10 @@ export interface ActorVisual {
 export interface ActionKeyPoses {
   prepare?: string;
   contact: string;
+  /** Follow-through for actions that stay in place; travelling actions retreat instead. */
   finish?: string;
+  /** Pose held while sliding back home; defaults to "retreat". */
+  retreat?: string;
   /** Which point of the contact pose is pinned to choreography.reach/contactY. */
   reachWith?: "hand" | "foot" | "blade";
 }

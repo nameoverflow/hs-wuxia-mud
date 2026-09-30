@@ -3,6 +3,7 @@ import { stageArt } from "./stageAssets";
 import { clipImpactOffsetMs } from "./animationClip";
 import { stagingFor } from "./stagingProfile";
 import { battleActionFor, idleVisualForStyle, reactionVisualFor, visualForBattleAction } from "./battleActionCatalog";
+import { TRAVEL_MOTIONS } from "./animationTypes";
 import type {
   ActionVfxDefinition,
   ActorVisual,
@@ -141,7 +142,7 @@ function resolveHits(
 ): ResolvedHit[] {
   const scale = playbackMs / action.durationMs;
   const source = action.hits?.length
-    ? action.hits.map((hit) => ({ atMs: delayMs + Math.round(hit.atMs * scale), hitStopMs: hit.hitStopMs * scale, share: hit.share ?? 1, staging: hit.staging }))
+    ? action.hits.map((hit) => ({ atMs: delayMs + hit.atMs * scale, hitStopMs: hit.hitStopMs * scale, share: hit.share ?? 1, staging: hit.staging }))
     : [{ atMs: delayMs + clipImpactOffsetMs(action.frames, action.impactFrame, playbackMs), hitStopMs: action.choreography.hitStopMs * scale, share: 1, staging: undefined }];
   // 服务端给了逐段结果就照用；老服务端只有总数时，按份额拆分，各段共用同一个结果。
   const outcomes = event.hits?.length === source.length ? event.hits : undefined;
@@ -204,15 +205,22 @@ function resolvePoseKeys(
   scale: number
 ): PoseKeyDefinition[] {
   if (action.actorMotion === "focus") return [];
-  if (action.poseTrack?.length) return action.poseTrack.map((key) => ({ ...key, atMs: delayMs + key.atMs * scale }));
+  const travels = TRAVEL_MOTIONS.includes(action.actorMotion);
+  const retreat = { atMs: choreography.recoverAtMs, pose: action.keyPoses?.retreat ?? "retreat" };
+  const idle = { atMs: choreography.restAtMs, pose: "idle" };
+  if (action.poseTrack?.length) {
+    const track = action.poseTrack.map((key) => ({ ...key, atMs: delayMs + key.atMs * scale }));
+    // 冲到对手面前的招式，收招一律换成后撤姿势滑回原位，站定后再切待机。
+    return travels ? [...track.filter((key) => key.atMs < retreat.atMs), retreat, idle] : track;
+  }
   const keyPoses = action.keyPoses;
-  if (!keyPoses?.prepare || !keyPoses.finish || !keyPoses.reachWith) return [];
-  const final = hits[hits.length - 1];
+  if (!keyPoses?.prepare || !keyPoses.reachWith) return [];
+  // 蓄势定住 → 出手一帧到位并一直保持到特效散去 → 后撤滑回 → 站定。
   return [
     { atMs: delayMs, pose: keyPoses.prepare },
     { atMs: choreography.launchAtMs, pose: keyPoses.contact, pin: keyPoses.reachWith },
-    { atMs: final.atMs + final.hitStopMs, pose: keyPoses.finish },
-    { atMs: choreography.restAtMs, pose: "idle" }
+    ...(travels ? [retreat] : keyPoses.finish ? [{ atMs: hits[hits.length - 1].atMs + hits[hits.length - 1].hitStopMs, pose: keyPoses.finish }] : []),
+    idle
   ];
 }
 

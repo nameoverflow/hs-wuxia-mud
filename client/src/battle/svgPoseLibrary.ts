@@ -1,53 +1,136 @@
 import poseData from "../../../resources/scripts/combat_presentation/svg-poses.json";
 import type { CombatStyle } from "./animationTypes";
 
-type Point = [number, number];
+export type Point = [number, number];
+
+/** Joint positions in figure space (feet on y≈0, facing +x). Every segment has a fixed bone length. */
 export interface SvgPose {
   head: Point; shoulder: Point; hip: Point;
   backElbow: Point; backHand: Point; elbow: Point; hand: Point;
   backKnee: Point; backFoot: Point; knee: Point; foot: Point;
-  /** 衣袂末梢。纯装饰的一笔墨线，不参与物理，只随关键姿势定住。 */
-  robe: Point;
-  /** 剑穗末梢。拳招不使用。 */
+  /** 剑穗方向点：剑穗从剑首朝这里垂下一小段。拳招不使用。 */
   tassel: Point;
   blade: number;
 }
 
 /**
- * 关键姿势表的一条定义。姿势从 base + 骨架差异出发，
- * 或 extends 另一个姿势，或 blend 两个姿势；最后用 set 覆盖个别关节。
+ * 一个关键姿势的参数：髋的位置、躯干/头/手臂的朝向（度，0 朝前、90 朝下），
+ * 双脚落点和膝盖朝向。骨长是常量，所以任何姿势、任何混合都不会把肢体拉长。
  */
+export interface PoseParams {
+  hip: Point;
+  torso: number;
+  head: number;
+  /** 前臂链：上臂、前臂的绝对朝向。 */
+  arm: [number, number];
+  backArm: [number, number];
+  foot: Point;
+  backFoot: Point;
+  /** 膝盖弯向：1 朝前（+x），-1 朝后。 */
+  knees: [number, number];
+  blade: number;
+  tassel: Point;
+}
+
 interface PoseDefinition {
   extends?: string;
   blend?: { from: string; to: string; amount: number };
-  set?: Partial<SvgPose>;
+  set?: Partial<PoseParams>;
+  /** Per-rig overrides applied after set, e.g. how the sword hand differs. */
+  rigs?: Partial<Record<CombatStyle, Partial<PoseParams>>>;
 }
 
 interface PoseLibrary {
   schemaVersion: number;
-  joints: (keyof SvgPose)[];
-  base: SvgPose;
-  rigs: Record<CombatStyle, Partial<SvgPose>>;
+  bones: Bones;
+  base: PoseParams;
+  rigs: Record<CombatStyle, Partial<PoseParams>>;
   poses: Record<string, PoseDefinition>;
 }
 
-const library = poseData as unknown as PoseLibrary;
-const rigs: CombatStyle[] = ["fist", "sword"];
-
-export function blendPose(a: SvgPose, b: SvgPose, amount: number): SvgPose {
-  if (amount <= 0) return a;
-  if (amount >= 1) return b;
-  const mix = (x: number, y: number) => x + (y - x) * amount;
-  return Object.fromEntries(Object.entries(a).map(([key, value]) => [key, typeof value === "number"
-    ? mix(value, b.blade) : (value as Point).map((v, i) => mix(v, (b[key as keyof SvgPose] as Point)[i]))])) as unknown as SvgPose;
+export interface Bones {
+  torso: number; neck: number; headRadius: number;
+  upperArm: number; forearm: number; thigh: number; shin: number;
 }
 
-const clonePose = (pose: SvgPose): SvgPose =>
-  Object.fromEntries(Object.entries(pose).map(([key, value]) => [key, typeof value === "number" ? value : [...value]])) as unknown as SvgPose;
+const library = poseData as unknown as PoseLibrary;
+export const bones: Bones = library.bones;
+const rigs: CombatStyle[] = ["fist", "sword"];
+const paramKeys = Object.keys(library.base) as (keyof PoseParams)[];
 
-const resolved = new Map<string, SvgPose>();
+const rad = (deg: number) => deg * Math.PI / 180;
+const dir = (deg: number): Point => [Math.cos(rad(deg)), Math.sin(rad(deg))];
+const add = (a: Point, b: Point, k = 1): Point => [a[0] + b[0] * k, a[1] + b[1] * k];
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+/** 角度走最短弧。 */
+const lerpAngle = (a: number, b: number, t: number) => a + ((((b - a) % 360) + 540) % 360 - 180) * t;
 
-function resolvePose(id: string, rig: CombatStyle, trail: string[] = []): SvgPose {
+export function blendParams(a: PoseParams, b: PoseParams, amount: number): PoseParams {
+  if (amount <= 0) return a;
+  if (amount >= 1) return b;
+  const point = (p: Point, q: Point): Point => [lerp(p[0], q[0], amount), lerp(p[1], q[1], amount)];
+  return {
+    hip: point(a.hip, b.hip),
+    torso: lerpAngle(a.torso, b.torso, amount),
+    head: lerpAngle(a.head, b.head, amount),
+    arm: [lerpAngle(a.arm[0], b.arm[0], amount), lerpAngle(a.arm[1], b.arm[1], amount)],
+    backArm: [lerpAngle(a.backArm[0], b.backArm[0], amount), lerpAngle(a.backArm[1], b.backArm[1], amount)],
+    foot: point(a.foot, b.foot),
+    backFoot: point(a.backFoot, b.backFoot),
+    knees: amount < 0.5 ? a.knees : b.knees,
+    blade: lerpAngle(a.blade, b.blade, amount),
+    tassel: point(a.tassel, b.tassel)
+  };
+}
+
+/**
+ * 两段骨的解析反解：从 root 伸向 target，bend 决定关节弯向哪一侧。
+ * 够不着时伸直指向目标，末端停在最远处。
+ */
+export function solveTwoBone(root: Point, target: Point, a: number, b: number, bend: number): { joint: Point; end: Point } {
+  const dx = target[0] - root[0], dy = target[1] - root[1];
+  const d = Math.max(Math.abs(a - b) + 0.01, Math.min(a + b - 0.01, Math.hypot(dx, dy)));
+  const theta = Math.atan2(dy, dx);
+  const alpha = Math.acos(Math.max(-1, Math.min(1, (a * a + d * d - b * b) / (2 * a * d))));
+  const jointAngle = theta - Math.sign(bend || 1) * alpha;
+  const joint: Point = [root[0] + Math.cos(jointAngle) * a, root[1] + Math.sin(jointAngle) * a];
+  return { joint, end: [root[0] + Math.cos(theta) * d, root[1] + Math.sin(theta) * d] };
+}
+
+/** 关节弯向：target 在 root 正下方时，关节在前（+x）为 1。 */
+export function bendOf(root: Point, joint: Point, end: Point) {
+  const cross = (end[0] - root[0]) * (joint[1] - root[1]) - (end[1] - root[1]) * (joint[0] - root[0]);
+  return cross < 0 ? 1 : -1;
+}
+
+const legLength = () => bones.thigh + bones.shin;
+
+/** 参数 → 关节坐标。脚是落点，髋够不着时自动下沉，宽马步自然就蹲低了。 */
+export function poseFromParams(params: PoseParams): SvgPose {
+  let hip: Point = [...params.hip];
+  const reach = legLength() - 0.5;
+  for (const foot of [params.foot, params.backFoot]) {
+    const dx = foot[0] - hip[0];
+    if (Math.abs(dx) < reach) hip = [hip[0], Math.max(hip[1], foot[1] - Math.sqrt(reach * reach - dx * dx))];
+  }
+  const shoulder = add(hip, dir(params.torso), bones.torso);
+  const head = add(shoulder, dir(params.head), bones.neck + bones.headRadius);
+  const elbow = add(shoulder, dir(params.arm[0]), bones.upperArm);
+  const hand = add(elbow, dir(params.arm[1]), bones.forearm);
+  const backElbow = add(shoulder, dir(params.backArm[0]), bones.upperArm);
+  const backHand = add(backElbow, dir(params.backArm[1]), bones.forearm);
+  const front = solveTwoBone(hip, params.foot, bones.thigh, bones.shin, params.knees[0]);
+  const back = solveTwoBone(hip, params.backFoot, bones.thigh, bones.shin, params.knees[1]);
+  return {
+    head, shoulder, hip, elbow, hand, backElbow, backHand,
+    knee: front.joint, foot: front.end, backKnee: back.joint, backFoot: back.end,
+    tassel: [...params.tassel], blade: params.blade
+  };
+}
+
+const resolved = new Map<string, PoseParams>();
+
+function resolveParams(id: string, rig: CombatStyle, trail: string[] = []): PoseParams {
   const key = `${rig}/${id}`;
   const cached = resolved.get(key);
   if (cached) return cached;
@@ -57,27 +140,76 @@ function resolvePose(id: string, rig: CombatStyle, trail: string[] = []): SvgPos
   const next = [...trail, id];
   if (definition.extends && definition.blend) throw new Error(`SVG pose ${id} cannot both extend and blend`);
   const start = definition.blend
-    ? blendPose(resolvePose(definition.blend.from, rig, next), resolvePose(definition.blend.to, rig, next), definition.blend.amount)
-    : definition.extends ? resolvePose(definition.extends, rig, next) : { ...library.base, ...library.rigs[rig] };
-  const pose = { ...start, ...definition.set } as SvgPose;
-  resolved.set(key, pose);
-  return pose;
+    ? blendParams(resolveParams(definition.blend.from, rig, next), resolveParams(definition.blend.to, rig, next), definition.blend.amount)
+    : definition.extends ? resolveParams(definition.extends, rig, next) : { ...library.base, ...library.rigs[rig] };
+  const params = { ...start, ...definition.set, ...definition.rigs?.[rig] } as PoseParams;
+  resolved.set(key, params);
+  return params;
 }
 
 export function hasSvgPose(id: string) {
   return Object.prototype.hasOwnProperty.call(library.poses, id);
 }
 
-/** 返回可修改的副本：采样器会在接触帧上改写手、脚的位置。 */
-export function svgPose(id: string, rig: CombatStyle): SvgPose {
-  return clonePose(resolvePose(id, rig));
+export function svgPoseIds() {
+  return Object.keys(library.poses);
 }
 
-if (library.schemaVersion !== 1) throw new Error(`Unsupported SVG pose schema ${library.schemaVersion}`);
+export function poseParams(id: string, rig: CombatStyle): PoseParams {
+  return resolveParams(id, rig);
+}
+
+/** 返回可修改的关节坐标：采样器会在接触帧上用反解把拳、脚、剑尖送到接触点。 */
+export function svgPose(id: string, rig: CombatStyle): SvgPose {
+  return poseFromParams(resolveParams(id, rig));
+}
+
+export function blendPose(fromId: string, toId: string, amount: number, rig: CombatStyle): SvgPose {
+  return poseFromParams(blendParams(resolveParams(fromId, rig), resolveParams(toId, rig), amount));
+}
+
+/** 把整个姿势平移（身体顺着出招方向探出去）。 */
+export function shiftPose(pose: SvgPose, dx: number, dy = 0): SvgPose {
+  const move = (p: Point): Point => [p[0] + dx, p[1] + dy];
+  return {
+    head: move(pose.head), shoulder: move(pose.shoulder), hip: move(pose.hip),
+    elbow: move(pose.elbow), hand: move(pose.hand), backElbow: move(pose.backElbow), backHand: move(pose.backHand),
+    knee: move(pose.knee), foot: move(pose.foot), backKnee: move(pose.backKnee), backFoot: move(pose.backFoot),
+    tassel: move(pose.tassel), blade: pose.blade
+  };
+}
+
+/**
+ * 把前手或前脚送到目标点，骨长不变：先在够不着时整个身体朝目标横移，再做两段反解。
+ * 关节弯向沿用原姿势，所以手肘、膝盖不会翻到反方向。
+ */
+export function reachWith(pose: SvgPose, limb: "hand" | "foot", target: Point): SvgPose {
+  const root = limb === "hand" ? pose.shoulder : pose.hip;
+  const joint = limb === "hand" ? pose.elbow : pose.knee;
+  const end = limb === "hand" ? pose.hand : pose.foot;
+  const [a, b] = limb === "hand" ? [bones.upperArm, bones.forearm] : [bones.thigh, bones.shin];
+  const bend = bendOf(root, joint, end);
+  const length = a + b - 0.5;
+  const dy = target[1] - root[1];
+  let shifted = pose;
+  const dx = target[0] - root[0];
+  if (Math.hypot(dx, dy) > length && Math.abs(dy) < length) {
+    shifted = shiftPose(pose, dx - Math.sign(dx || 1) * Math.sqrt(length * length - dy * dy));
+  }
+  const newRoot = limb === "hand" ? shifted.shoulder : shifted.hip;
+  const solved = solveTwoBone(newRoot, target, a, b, bend);
+  return limb === "hand"
+    ? { ...shifted, elbow: solved.joint, hand: solved.end }
+    : { ...shifted, knee: solved.joint, foot: solved.end };
+}
+
+if (library.schemaVersion !== 2) throw new Error(`Unsupported SVG pose schema ${library.schemaVersion}`);
 for (const rig of rigs) if (!library.rigs[rig]) throw new Error(`SVG pose library has no rig ${rig}`);
 for (const [id, definition] of Object.entries(library.poses)) {
-  for (const joint of Object.keys({ ...definition.set })) {
-    if (!library.joints.includes(joint as keyof SvgPose)) throw new Error(`SVG pose ${id} sets unknown joint ${joint}`);
+  for (const layer of [definition.set, ...Object.values(definition.rigs || {})]) {
+    for (const key of Object.keys(layer || {})) {
+      if (!paramKeys.includes(key as keyof PoseParams)) throw new Error(`SVG pose ${id} sets unknown parameter ${key}`);
+    }
   }
-  for (const rig of rigs) resolvePose(id, rig);
+  for (const rig of rigs) resolveParams(id, rig);
 }

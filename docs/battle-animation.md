@@ -31,7 +31,8 @@ martial-art YAML animation.action (+ params)
 - `client/src/battle/battleVfx.ts`、`vfxRegistry.ts`、`customVfx.ts`：特效精灵采样、自定义采样器注册表和内置采样器。
 - `client/src/components/SilhouetteBattleStage.svelte`：实际游戏和回放页共用的 SVG 舞台。
 - `client/src/battle/battleApproach.ts`：接近段的换位曲线（姿态、时长和起伏来自 manifest 的 approach）。
-- `client/src/battle/svgBattlePose.ts`：按姿势键在关键姿势间硬切、接近段姿态、接触点匹配；复用同一时间线和 hit stop。
+- `client/src/battle/svgBattlePose.ts`：按姿势键在关键姿势间硬切、接近段姿态、接触点反解；复用同一时间线和 hit stop。
+- `client/src/battle/PoseSheet.svelte`（`/pose-sheet.html`）：姿势总览，调姿势用。
 - `client/src/components/SvgBattleActor.svelte`：圆头、躯干、四肢、马尾和兵器的矢量轮廓。
 - `client/src/game.ts`：权威状态、显示气血、队列和结算。
 - `client/src/battle/battleAudio.ts`：可选的轻量 Web Audio 打击/招架/调息反馈，默认关闭，用户点击后启用。
@@ -187,8 +188,10 @@ registerCustomVfx("blade_fan", ({ vfx, progress, direction, anchor, reduced }) =
 
 ## 交锋规则
 
-- 双方在中心附近对峙，根位置相距 280 个素材像素。先原地前倾压缩，再单步加速冲到距目标 reach 的位置；到位承接蓄势姿态，再按原版节奏出招；攻击期间根位置保持不动，收势时配退步回到原位。
-- 接近、起手、接触和收势共用一条时间线。恢复位移采用平滑曲线，不 set 回原点。
+- 节奏参照一款手游的录屏（2026-09 逐帧分析）：每招只用三四张关键姿势，每张定住 100–330ms；流畅感来自一直在动的东西——整个人的位移和特效——而不是四肢补间。
+- 双方根位置相距 460 个素材像素（`SIDE_HOME = 230`），镜头缩到 0.62，冲刺距离才读得出来。
+- 一次攻击：冲刺（一张冲刺画，整个人先快后慢地滑到距目标 reach 处，离地一点，影子留在地上）→ 蓄势定住 → 出手一帧到位并保持到特效散去 → 换后撤姿势滑回原位 → 站定。单招约 0.7–0.8s，加上 0.26–0.28s 冲刺。
+- 接近、起手、接触和收势共用一条时间线；冲刺用 `dashIn`、后撤用 `dashOut`（`battleApproach.ts`），都是连续位移。
 - hit 在接触时进入受击姿态；dodge 提前侧闪并留下短暂残影；parry 提前架势，接触时出现防守笔触，后退幅度很小。
 - `svgAttackTrail.ts` 回采实际剑尖/拳脚轨迹，以细剑光和淡残影表现发力。火花和防守反馈仍围绕接触点组织。普通招式镜头缩放约 1.5%，重招约 3.5%。
 - 相同 action 连续出现时依然是不同播放实例，不使用资源缓存键来决定是否重新开始。
@@ -200,29 +203,26 @@ registerCustomVfx("blade_fan", ({ vfx, progress, direction, anchor, reduced }) =
 
 ## 专属接近步法
 
-每次攻击以一次前倾冲刺完成接近，然后承接“大开大合”版攻击。前 50% 时间在原地压身，后 50% 用加速曲线覆盖距离并急停。`actor.actionDelayMs` 标记到位时间；接近期间 phase 为 approach，人物帧标记为 approach.pose 的姿势 ID（如 `approach_raised_step`）。攻击帧读取扣除接近段后的局部时间。积压队列仍仅压缩末尾静止读字时间，保留接近与攻击标记。
+每次攻击以一次冲刺完成接近。`approach.pose` 是整段冲刺保持的那一张画，`approach.durationMs`（当前 260/280ms）是冲刺时长，`lift` 是离地高度。`actor.actionDelayMs` 标记到位时间；接近期间 phase 为 approach，人物帧标记为冲刺姿势 ID（如 `approach_raised_step`）。攻击帧读取扣除接近段后的局部时间。积压队列仍仅压缩末尾静止读字时间。调息、持续效果和结算不接近。减弱动态模式隐藏位移，保留相同伤害时机。
 
-| 招式 | 位移动作 | 基准接近时长 |
-| --- | --- | --- |
-| 直拳 | 收拳前倾冲刺 | 150ms |
-| 沉劲掌 | 深压身蹬地爆冲 | 165ms |
-| 横踢 | 低掠提膝冲刺 | 165ms |
-| 一线穿云 | 收剑前倾直冲 | 140ms |
-| 横江一扫 | 拖剑前倾冲刺 | 155ms |
-| 迎风劈剑 | 负剑前倾冲刺 | 160ms |
-| 挑灯式 | 低身拖剑爆冲 | 155ms |
-
-各招有独立的前倾躯干、持械和蹬腿姿态，不使用交替迈步循环。冲刺末段衔接蓄力姿态，攻击恢复连续的大幅挥斩和独立随势动作；回位也采用单次撤身。调息、持续效果和结算不接近。减弱动态模式隐藏位移与连续步法，保留相同伤害时机。
-
-攻击段恢复 manifest 的 600–820ms，冲刺段保持 140–165ms。保留宽站位、弓步与反向展臂、72px 剑身、实际剑尖轨迹和淡残影。撤回后续的攻击加速、关键姿态跳切和延长尾停；积压队列保留 45ms 尾段。
+冲到对手面前的招式（approach/lunge/drive），收招时一律换成 `keyPoses.retreat`（默认 `retreat`）滑回原位；有 poseTrack 的招式，收招标记之后的键会被后撤姿势取代。
 
 ## SVG 姿态与素材
 
-关键姿势表是数据：`resources/scripts/combat_presentation/svg-poses.json`（不放进 combat_actions，那个目录会被服务端逐个解析）。每个姿势从 base 加骨架差异（rigs.fist/sword）出发，或 `extends` 另一个姿势，或 `blend` 两个姿势（from/to/amount），最后用 `set` 覆盖个别关节。`svgPoseLibrary.ts` 在加载时解析全部姿势、检查未知关节与循环引用；catalog 与 `validate:animations` 校验 manifest 引用的姿势和素材都存在。新增招式时，先在 svg-poses.json 加姿势，再在 manifest 引用，不需要改 TS。
+关键姿势表是数据：`resources/scripts/combat_presentation/svg-poses.json`（schema 2，不放进 combat_actions，那个目录会被服务端逐个解析）。骨长是常量（`bones`：躯干、颈、头半径、上臂、前臂、大腿、小腿），姿势只给参数：
+
+- `hip` 髋的位置；`torso`、`head` 躯干与头的朝向（度，0 朝前、-90 朝上、90 朝下）。
+- `arm`、`backArm`：上臂、前臂的绝对朝向。手肘只能往前弯（前臂角度比上臂小）。
+- `foot`、`backFoot`：双脚落点，腿用两段反解求膝盖；`knees` 为膝盖弯向，侧视图里两条腿都用 1（朝前）。脚够不着时髋自动下沉，所以宽弓步自然就蹲低了；双脚间距要控制在腿长能够到的范围（约 130）。
+- `blade` 剑的朝向，`tassel` 剑穗方向点。
+
+每个姿势从 base 加骨架差异（rigs.fist/sword）出发，或 `extends` 另一个姿势，或 `blend` 两个姿势（角度走最短弧），再用 `set` 覆盖参数，`rigs.sword` 单独覆盖剑手。接触键用反解把拳、脚送到接触点；剑招保持手臂不动，转剑让剑尖落点，身体只做横向微调。骨长因此在任何姿势和混合里都不变。
+
+`npm run dev` 后打开 `/pose-sheet.html` 可以看到全部姿势按拳、剑两种骨架排成的总览，调姿势时用它逐个检查比例、关节弯向和落脚。`svgPoseLibrary.ts` 在加载时解析全部姿势、检查未知关节与循环引用；catalog 与 `validate:animations` 校验 manifest 引用的姿势和素材都存在。新增招式时，先在 svg-poses.json 加姿势，再在 manifest 引用，不需要改 TS。
 
 `svgBattlePose.ts` 只负责按时间线在关键姿势之间切换。攻击从蓄势加速插值到最大动作，命中时保持，随后走完独立随势动作，再平滑收回。拳头、脚尖或剑尖由 manifest 的 reach/contactY 对齐接触位置。双方朝向仍由舞台镜像处理。弓步、反向展臂、举剑下劈、低起上挑与提膝侧踢形成不同的大开合轮廓；剑长为 72 个素材像素。
 
-`sampleSvgPose` 使用 BattleClock 的 elapsed 与 choreography 标记，不启动 CSS/SMIL 独立动画，因此暂停、慢放、定位和 hit stop 同步。减弱动态模式使用离散姿态并关闭原有位移/震动。male/female profile 共用圆头身体，female 增加简洁的波浪马尾。
+`sampleSvgPose` 使用 BattleClock 的 elapsed 与 choreography 标记，不启动 CSS/SMIL 独立动画，因此暂停、慢放、定位和 hit stop 同步。减弱动态模式使用离散姿态并关闭原有位移/震动。剪影是实心单色：四肢是锥形段（大腿粗于小腿、上臂粗于前臂），躯干是胸宽腰窄的一段，后侧手脚压暗一档以分前后。male/female profile 共用圆头身体，female 增加马尾。
 
 历史 action manifest 的 `frameset: raster-v1` 字段、帧 ID 和 PNG 原始资源暂时保留用于兼容与旧资源校验；运行时 ActorVisual.kind 为 svg，catalog 校验 SVG 姿态覆盖。旧图集不再由舞台引用或预加载，生产 bundle 不包含人物和特效图集。`pack:battle` 仅用于维护旧图集，修改 SVG 不需要重打包。
 

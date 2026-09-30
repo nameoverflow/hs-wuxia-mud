@@ -41,7 +41,8 @@ export function reachPointAt(timeline: ResolvedBattleTimeline, t: number) {
 
 /** 闪避提前、招架稍早、受击严格在接触帧；提前量都来自该段的 staging。 */
 export function reactionStartAt(timeline: ResolvedBattleTimeline, hit: ResolvedHit) {
-  const launch = timeline.choreography.launchAtMs;
+  // 对手冲到面前、开始蓄势时就可以起反应，不必等出手那一帧。
+  const launch = timeline.actor.actionDelayMs;
   if (hit.reaction === "dodge") return Math.max(launch, hit.atMs - (hit.staging.reactions.dodge.leadMs ?? 0));
   if (hit.reaction === "parry") return Math.max(launch, hit.atMs - (hit.staging.reactions.parry.leadMs ?? 0));
   return hit.atMs;

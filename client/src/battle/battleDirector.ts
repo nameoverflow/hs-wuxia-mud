@@ -1,4 +1,4 @@
-import { entryAt } from "./battleApproach";
+import { dashIn, dashOut } from "./battleApproach";
 import { clipFrameAt } from "./animationClip";
 import { activeReactionAt, actorOffsetAt, hitIndexAt, lastHit, visualTimeAt } from "./battleTiming";
 import { TRAVEL_MOTIONS, type ActorVisual, type BattleSide, type ResolvedBattleTimeline, type StagingProfile } from "./animationTypes";
@@ -100,7 +100,8 @@ export function sampleBattleScene(
   const attack = TRAVEL_MOTIONS.includes(timeline.actor.motion);
   const strikes = attack || timeline.actor.motion === "ranged";
   const quiet = timeline.kind === "effect_tick";
-  const recovery = smooth(progress(visualTime, c.recoverAtMs, c.restAtMs));
+  const retreat = progress(visualTime, c.recoverAtMs, c.restAtMs);
+  const recovery = smooth(retreat);
   const envelope = quiet ? 0 : out(progress(visualTime, 0, Math.max(1, c.launchAtMs))) * (1 - recovery);
   result.force = quiet || !strikes ? 0 : staging.force;
   result.phase = t < arrival ? "approach" : t < c.launchAtMs ? "prepare" : t < impact ? "strike" : t < c.recoverAtMs ? "impact" : t < c.restAtMs ? "recover" : "idle";
@@ -115,9 +116,12 @@ export function sampleBattleScene(
   result.contact.y = strikes ? c.contactY - 176 : -70;
   if (attack) {
     const travel = Math.max(8, sideHome("enemy") - sideHome("player") - c.reach);
-    // 一帧换位，不是滑行；回位用一次硬切的撤步，收在两拍内。
-    actor.x = direction * travel * entryAt(progress(visualTime, 0, arrival)) * (1 - hardStep(recovery));
-    actor.y = visualTime < arrival ? -(timeline.actor.approach?.lift ?? 0) * Math.sin(Math.PI * progress(visualTime, 0, arrival)) : 0;
+    // 冲刺与后撤都是连续位移：姿势定住，整个人滑过去、再滑回来，离地一点，影子留在地上。
+    const dash = progress(visualTime, 0, arrival);
+    actor.x = direction * travel * dashIn(dash) * (1 - dashOut(retreat));
+    const lift = timeline.actor.approach?.lift ?? 0;
+    const arc = (p: number) => (p <= 0 || p >= 1 ? 0 : Math.sin(Math.PI * p));
+    actor.y = (-lift * arc(dash) - lift * 0.6 * arc(retreat)) || 0;
   }
   if (!quiet && timeline.actor.offsetKeys.length) {
     // 身法轨道：跃起、后翻、滑步等附加位移，叠加在站位之上。
@@ -137,7 +141,7 @@ export function sampleBattleScene(
     const reactionTime = reaction === "hit" ? reactionHit.atMs + Math.max(0, t - reactionHit.atMs - reactionHit.hitStopMs) : visualTime;
     // 受击是硬切：到点直接到位，不做渐进。
     const onset = reaction === "hit" ? 1 : out(progress(reactionTime, startAt, startAt + (look.onsetMs ?? 0)));
-    const amount = onset * (1 - hardStep(recovery));
+    const amount = onset * (1 - recovery);
     target.x = targetDirection * look.push * amount;
     if (reaction === "hit" && look.lift) target.y = -look.lift * amount;
     target.angle = targetDirection * (reaction === "hit" ? look.tilt ?? 0 : 0) * amount;
@@ -199,9 +203,6 @@ export function sampleBattleScene(
   return result;
 }
 
-/** 回位不走平滑插值：过了阈值直接切到落位，两拍内收住。 */
-function hardStep(recovery: number) {
-  return recovery < 0.55 ? 0 : 1;
-}
-
-export function sideHome(side: BattleSide) { return side === "player" ? -140 : 140; }
+/** 双方站位相距约四个身位，冲刺才看得出距离。 */
+export const SIDE_HOME = 230;
+export function sideHome(side: BattleSide) { return side === "player" ? -SIDE_HOME : SIDE_HOME; }

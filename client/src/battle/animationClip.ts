@@ -9,7 +9,8 @@ export function clipFrameAt(frames: BattleAnimationFrame[], elapsedMs: number, p
   const sourceDurationMs = clipDurationMs(frames);
   if (sourceDurationMs <= 0) throw new Error("Animation clip frame durations must be positive");
   const scaledElapsedMs = playbackDurationMs > 0 ? Math.max(0, elapsedMs) * (sourceDurationMs / playbackDurationMs) : 0;
-  let cursor = Math.min(scaledElapsedMs, Math.max(0, sourceDurationMs - Number.EPSILON));
+  // 缩放换算会留下 1e-12 量级的误差，加一点容差，保证正好落在帧边界时取到后一帧。
+  let cursor = Math.min(scaledElapsedMs + 1e-6, Math.max(0, sourceDurationMs - Number.EPSILON));
   for (let index = 0; index < frames.length; index += 1) {
     const frame = frames[index];
     if (cursor < frame.holdMs || index === frames.length - 1) return { frame, index };
@@ -24,7 +25,8 @@ export function clipImpactOffsetMs(frames: BattleAnimationFrame[], impactFrame: 
   }
   const sourceDurationMs = clipDurationMs(frames);
   const sourceOffsetMs = frames.slice(0, impactFrame).reduce((sum, frame) => sum + frame.holdMs, 0);
-  return sourceDurationMs > 0 ? Math.round(sourceOffsetMs * (playbackDurationMs / sourceDurationMs)) : 0;
+  // 不取整：取整会让命中点落在出手帧之前一点点。
+  return sourceDurationMs > 0 ? sourceOffsetMs * (playbackDurationMs / sourceDurationMs) : 0;
 }
 
 export function validateClipFrames(actionId: string, frames: BattleAnimationFrame[], durationMs: number, impactFrame: number) {

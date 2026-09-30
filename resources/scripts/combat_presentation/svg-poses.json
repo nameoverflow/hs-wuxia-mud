@@ -1,106 +1,53 @@
 {
-  "schemaVersion": 1,
-  "joints": ["head", "shoulder", "hip", "backElbow", "backHand", "elbow", "hand", "backKnee", "backFoot", "knee", "foot", "robe", "tassel", "blade"],
-  "base": {
-    "head": [-5, -127], "shoulder": [-5, -105], "hip": [-13, -58],
-    "backElbow": [-33, -84], "backHand": [-20, -72], "elbow": [19, -86], "hand": [41, -104],
-    "backKnee": [-31, -30], "backFoot": [-46, -2], "knee": [18, -33], "foot": [33, -2],
-    "robe": [-34, -5], "tassel": [-14, -16], "blade": -28
-  },
-  "rigs": {
-    "fist": {},
-    "sword": { "hand": [33, -90], "elbow": [15, -83], "backHand": [-26, -112] }
-  },
+  "schemaVersion": 2,
+  "bones": {"torso": 41, "neck": 9, "headRadius": 15.5, "upperArm": 26, "forearm": 24, "thigh": 34, "shin": 33},
+  "base": {"hip": [-4, -56], "torso": -84, "head": -86, "arm": [45, -45], "backArm": [72, -105], "foot": [26, 0], "backFoot": [-30, 0], "knees": [1, 1], "blade": -40, "tassel": [-20, -10]},
+  "rigs": {"fist": {}, "sword": {"arm": [40, -12], "backArm": [-150, -95], "blade": -38}},
   "poses": {
     "idle": {},
-    "sword_ready": {},
-
-    "windup": { "set": {
-      "head": [-29, -112], "shoulder": [-27, -88], "hip": [-25, -45],
-      "backKnee": [-52, -27], "backFoot": [-70, -2], "knee": [15, -22], "foot": [47, -2],
-      "elbow": [-57, -85], "hand": [-63, -116], "backElbow": [8, -100], "backHand": [34, -128], "blade": -158,
-      "robe": [42, -12], "tassel": [22, -30]
-    } },
-    "punch_windup": { "extends": "windup", "set": { "elbow": [-62, -70], "hand": [-40, -86] } },
-    "heavy_windup": { "extends": "windup", "set": { "elbow": [-63, -112], "hand": [-72, -150], "backHand": [36, -88], "robe": [26, -22] } },
-    "kick_windup": { "extends": "windup", "set": {
-      "head": [-21, -126], "shoulder": [-18, -103], "hip": [-15, -59],
-      "knee": [25, -86], "foot": [8, -46], "backFoot": [-36, -2],
-      "elbow": [15, -129], "hand": [34, -153], "backElbow": [-45, -81], "backHand": [-61, -99], "robe": [46, -18]
-    } },
-    "thrust_prep": { "extends": "windup", "set": { "hand": [-40, -84], "elbow": [-57, -65], "blade": -12, "backHand": [29, -136], "robe": [36, -8] } },
-    "cut_prep": { "extends": "windup" },
-    "chop_prep": { "extends": "windup", "set": { "elbow": [-49, -132], "hand": [-23, -156], "blade": -112, "robe": [30, -20] } },
-    "rising_prep": { "extends": "windup", "set": { "hand": [-35, -50], "elbow": [-54, -70], "blade": 28, "backHand": [19, -148], "robe": [40, -4] } },
-
-    "strike": { "set": {
-      "head": [20, -114], "shoulder": [12, -89], "hip": [-10, -44],
-      "backKnee": [-48, -25], "backFoot": [-80, -2], "knee": [38, -31], "foot": [58, -2],
-      "backElbow": [-25, -104], "backHand": [-63, -128],
-      "elbow": [44, -74], "hand": [80, -62], "blade": -4,
-      "robe": [-58, -14], "tassel": [-40, -34]
-    } },
-    "punch_strike": { "extends": "strike" },
-    "heavy_strike": { "extends": "strike", "set": { "head": [27, -102], "shoulder": [17, -76], "backHand": [-63, -148], "elbow": [52, -60], "robe": [-52, -20] } },
-    "kick_strike": { "extends": "strike", "set": {
-      "head": [-41, -128], "shoulder": [-29, -104], "hip": [-8, -58],
-      "backElbow": [-64, -116], "backHand": [-88, -140], "elbow": [4, -126], "hand": [29, -156],
-      "knee": [44, -74], "foot": [98, -62], "backKnee": [-24, -28], "backFoot": [-36, -2], "robe": [-64, -22]
-    } },
-    "thrust_strike": { "extends": "strike" },
-    "cut_strike": { "extends": "strike", "set": { "blade": -12, "backHand": [-66, -138] } },
-    "chop_strike": { "extends": "strike", "set": { "blade": 32, "backHand": [-58, -121], "robe": [-60, -8] } },
-    "rising_strike": { "extends": "strike", "set": { "blade": -48, "head": [5, -120], "shoulder": [3, -95], "backHand": [-64, -75], "robe": [-44, -26] } },
-
-    "thrust_close": { "blend": { "from": "thrust_strike", "to": "idle", "amount": 0.65 } },
-    "cut_close": { "blend": { "from": "cut_strike", "to": "idle", "amount": 0.65 } },
-    "chop_close": { "blend": { "from": "chop_strike", "to": "idle", "amount": 0.65 } },
-    "rising_close": { "blend": { "from": "rising_strike", "to": "idle", "amount": 0.65 } },
-
-    "punch_finish": { "blend": { "from": "punch_strike", "to": "idle", "amount": 0.22 }, "set": { "hand": [66, -79], "elbow": [38, -72], "backHand": [-47, -133] } },
-    "heavy_finish": { "blend": { "from": "heavy_strike", "to": "idle", "amount": 0.22 }, "set": { "hand": [66, -79], "elbow": [38, -72], "backHand": [-47, -133] } },
-    "kick_finish": { "blend": { "from": "kick_strike", "to": "idle", "amount": 0.22 }, "set": { "knee": [30, -90], "foot": [52, -55] } },
-    "thrust_finish": { "blend": { "from": "thrust_strike", "to": "idle", "amount": 0.22 }, "set": { "hand": [52, -84], "elbow": [26, -82], "blade": -9, "backHand": [-68, -104], "robe": [-50, -16] } },
-    "cut_finish": { "blend": { "from": "cut_strike", "to": "idle", "amount": 0.22 }, "set": { "hand": [45, -70], "elbow": [34, -75], "blade": 48, "backHand": [-68, -104], "robe": [-50, -16] } },
-    "chop_finish": { "blend": { "from": "chop_strike", "to": "idle", "amount": 0.22 }, "set": { "hand": [45, -70], "elbow": [34, -75], "blade": 48, "backHand": [-68, -104], "robe": [-50, -16] } },
-    "rising_finish": { "blend": { "from": "rising_strike", "to": "idle", "amount": 0.22 }, "set": { "hand": [14, -139], "elbow": [31, -107], "blade": -145, "backHand": [-50, -112], "robe": [-40, -30] } },
-
-    "combo_recoil": { "blend": { "from": "punch_strike", "to": "punch_windup", "amount": 0.7 }, "set": { "backHand": [-40, -120] } },
-    "low_punch_strike": { "extends": "strike", "set": {
-      "head": [26, -104], "shoulder": [16, -80], "hip": [-8, -38], "knee": [40, -26], "backKnee": [-50, -20],
-      "elbow": [46, -62], "backElbow": [-28, -96], "backHand": [-60, -120], "robe": [-60, -10]
-    } },
-
-    "hurt": { "set": {
-      "head": [-25, -122], "shoulder": [-20, -99], "elbow": [4, -87], "hand": [17, -81],
-      "backElbow": [-41, -101], "backHand": [-46, -121], "blade": 30, "robe": [48, -20], "tassel": [30, -34]
-    } },
-    "dodge": { "set": {
-      "head": [-52, -95], "shoulder": [-38, -75], "hip": [-14, -40],
-      "elbow": [-15, -96], "hand": [9, -118], "knee": [26, -23], "backHand": [-70, -50], "blade": -42, "robe": [52, -28]
-    } },
-    "guard": { "set": { "elbow": [21, -85], "hand": [25, -119], "backHand": [10, -114], "blade": -79, "robe": [26, -10] } },
-    "knocked_back": { "extends": "hurt", "set": {
-      "head": [-46, -104], "shoulder": [-36, -84], "hip": [-18, -48],
-      "elbow": [-8, -112], "hand": [10, -132], "backElbow": [-60, -104], "backHand": [-78, -122],
-      "knee": [24, -40], "foot": [44, -8], "backKnee": [-34, -24], "backFoot": [-40, -2],
-      "robe": [56, -30], "tassel": [40, -44], "blade": 60
-    } },
-    "sword_hurt": { "extends": "hurt" },
-    "sword_dodge": { "extends": "dodge" },
-    "sword_parry": { "extends": "guard" },
-
-    "approach": { "set": {
-      "head": [34, -106], "shoulder": [20, -86], "hip": [-20, -45],
-      "knee": [16, -36], "foot": [38, -2], "backKnee": [-50, -26], "backFoot": [-78, -5],
-      "elbow": [-6, -70], "hand": [14, -88], "backElbow": [-42, -72], "backHand": [-70, -90], "robe": [-58, -20]
-    } },
-    "approach_step_in": { "extends": "approach", "set": { "hand": [30, -98] } },
-    "approach_palm_drive": { "extends": "approach", "set": { "head": [38, -100], "shoulder": [22, -82], "hand": [2, -70] } },
-    "approach_knee_hop": { "extends": "approach", "set": { "knee": [26, -70], "foot": [2, -38], "hand": [24, -118] } },
-    "approach_sword_glide": { "extends": "approach", "set": { "hand": [9, -74], "blade": -8 } },
-    "approach_cross_step": { "extends": "approach", "set": { "hand": [-33, -95], "blade": -165 } },
-    "approach_raised_step": { "extends": "approach", "set": { "hand": [-14, -132], "elbow": [-36, -106], "blade": -130 } },
-    "approach_low_skate": { "extends": "approach", "set": { "head": [32, -96], "shoulder": [16, -78], "hand": [-20, -48], "blade": 8 } }
+    "sword_ready": {"extends": "idle"},
+    "approach": {"set": {"hip": [-6, -54], "torso": -52, "head": -48, "arm": [150, 172], "backArm": [165, 195], "foot": [24, -20], "backFoot": [-46, -6], "blade": 188, "tassel": [40, -60]}, "rigs": {"sword": {"arm": [145, 170], "backArm": [160, 190]}}},
+    "approach_step_in": {"extends": "approach"},
+    "approach_palm_drive": {"extends": "approach", "set": {"hip": [-6, -50], "torso": -44, "head": -40, "arm": [160, 180], "backArm": [170, 200]}},
+    "approach_knee_hop": {"extends": "approach", "set": {"foot": [18, -30], "torso": -60, "head": -55}},
+    "approach_sword_glide": {"extends": "approach"},
+    "approach_cross_step": {"extends": "approach", "set": {"blade": 200, "arm": [155, 178]}},
+    "approach_raised_step": {"extends": "approach", "set": {"arm": [-150, -160], "blade": -150}},
+    "approach_low_skate": {"extends": "approach", "set": {"hip": [-6, -46], "torso": -40, "head": -36, "blade": 175}},
+    "punch_windup": {"set": {"hip": [-16, -46], "torso": -98, "head": -92, "arm": [118, -12], "backArm": [12, -22], "foot": [34, 0], "backFoot": [-46, 0]}},
+    "punch_strike": {"set": {"hip": [4, -46], "torso": -66, "head": -70, "arm": [-6, -4], "backArm": [160, 140], "foot": [48, 0], "backFoot": [-46, 0]}},
+    "punch_finish": {"blend": {"from": "punch_strike", "to": "idle", "amount": 0.35}},
+    "combo_recoil": {"blend": {"from": "punch_strike", "to": "punch_windup", "amount": 0.7}},
+    "low_punch_strike": {"set": {"hip": [6, -40], "torso": -58, "head": -64, "arm": [18, 12], "backArm": [165, 140], "foot": [52, 0], "backFoot": [-46, 0]}},
+    "heavy_windup": {"set": {"hip": [-18, -44], "torso": -104, "head": -96, "arm": [150, -55], "backArm": [140, -45], "foot": [28, 0], "backFoot": [-42, 0]}},
+    "heavy_strike": {"set": {"hip": [6, -42], "torso": -60, "head": -64, "arm": [-4, -2], "backArm": [16, 4], "foot": [52, 0], "backFoot": [-48, 0]}},
+    "heavy_finish": {"blend": {"from": "heavy_strike", "to": "idle", "amount": 0.35}},
+    "kick_windup": {"set": {"hip": [-6, -60], "torso": -100, "head": -98, "arm": [60, -60], "backArm": [100, -110], "foot": [18, -42], "backFoot": [-12, 0]}},
+    "kick_strike": {"set": {"hip": [-6, -62], "torso": -122, "head": -112, "arm": [-150, -125], "backArm": [175, 160], "foot": [58, -52], "backFoot": [-16, 0]}},
+    "kick_finish": {"set": {"hip": [-6, -60], "torso": -106, "head": -100, "arm": [70, -50], "backArm": [120, -110], "foot": [24, -24], "backFoot": [-14, 0]}},
+    "thrust_prep": {"set": {"hip": [-16, -46], "torso": -98, "head": -92, "arm": [118, 12], "backArm": [-150, -95], "foot": [28, 0], "backFoot": [-40, 0], "blade": -6}},
+    "thrust_strike": {"set": {"hip": [4, -44], "torso": -66, "head": -70, "arm": [-4, -4], "backArm": [178, 190], "foot": [50, 0], "backFoot": [-48, 0], "blade": -3, "tassel": [-40, -60]}},
+    "thrust_close": {"blend": {"from": "thrust_strike", "to": "idle", "amount": 0.35}},
+    "thrust_finish": {"blend": {"from": "thrust_strike", "to": "idle", "amount": 0.35}},
+    "cut_prep": {"set": {"hip": [-16, -46], "torso": -104, "head": -94, "arm": [165, -150], "backArm": [20, -40], "foot": [28, 0], "backFoot": [-40, 0], "blade": -165}},
+    "cut_strike": {"set": {"hip": [4, -44], "torso": -70, "head": -72, "arm": [8, -2], "backArm": [-165, -140], "foot": [50, 0], "backFoot": [-48, 0], "blade": 8, "tassel": [-40, -60]}},
+    "cut_close": {"blend": {"from": "cut_strike", "to": "idle", "amount": 0.35}},
+    "cut_finish": {"blend": {"from": "cut_strike", "to": "idle", "amount": 0.35}},
+    "chop_prep": {"set": {"hip": [-12, -48], "torso": -98, "head": -92, "arm": [-110, -80], "backArm": [110, -40], "foot": [32, 0], "backFoot": [-44, 0], "blade": -105}},
+    "chop_strike": {"set": {"hip": [6, -42], "torso": -58, "head": -62, "arm": [14, 28], "backArm": [-165, -135], "foot": [50, 0], "backFoot": [-48, 0], "blade": 32, "tassel": [-40, -70]}},
+    "chop_close": {"blend": {"from": "chop_strike", "to": "idle", "amount": 0.35}},
+    "chop_finish": {"blend": {"from": "chop_strike", "to": "idle", "amount": 0.35}},
+    "rising_prep": {"set": {"hip": [-12, -44], "torso": -72, "head": -74, "arm": [110, 150], "backArm": [-150, -100], "foot": [30, 0], "backFoot": [-42, 0], "blade": 165}},
+    "rising_strike": {"set": {"hip": [2, -56], "torso": -80, "head": -82, "arm": [-40, -58], "backArm": [160, 175], "foot": [42, 0], "backFoot": [-42, 0], "blade": -58, "tassel": [-30, -40]}},
+    "rising_close": {"blend": {"from": "rising_strike", "to": "idle", "amount": 0.35}},
+    "rising_finish": {"blend": {"from": "rising_strike", "to": "idle", "amount": 0.35}},
+    "guard": {"set": {"hip": [-10, -56], "torso": -96, "head": -94, "arm": [20, -95], "backArm": [60, -85], "foot": [24, 0], "backFoot": [-34, 0]}, "rigs": {"sword": {"arm": [40, -40], "blade": -95, "backArm": [70, -100]}}},
+    "sword_parry": {"extends": "guard"},
+    "hurt": {"set": {"hip": [-10, -56], "torso": -116, "head": -132, "arm": [40, 70], "backArm": [150, 110], "foot": [22, 0], "backFoot": [-28, 0], "blade": 30}},
+    "sword_hurt": {"extends": "hurt"},
+    "knocked_back": {"set": {"hip": [-12, -52], "torso": -146, "head": -160, "arm": [-20, -35], "backArm": [10, -10], "foot": [34, -10], "backFoot": [-8, 0], "blade": 60}},
+    "dodge": {"set": {"hip": [-18, -46], "torso": -126, "head": -118, "arm": [50, -60], "backArm": [150, 100], "foot": [28, 0], "backFoot": [-40, 0], "blade": -40}},
+    "sword_dodge": {"extends": "dodge"},
+    "retreat": {"set": {"hip": [-2, -60], "torso": -98, "head": -94, "arm": [150, 178], "backArm": [95, 40], "foot": [16, -12], "backFoot": [-26, -2], "blade": 180, "tassel": [40, -50]}}
   }
 }

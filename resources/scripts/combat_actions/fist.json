@@ -43,27 +43,23 @@
       "frames": [
         {
           "frameId": "idle",
-          "holdMs": 40
+          "holdMs": 20
         },
         {
           "frameId": "punch_windup",
-          "holdMs": 120
+          "holdMs": 140
         },
         {
           "frameId": "punch_strike",
-          "holdMs": 130
-        },
-        {
-          "frameId": "punch_strike",
-          "holdMs": 70
+          "holdMs": 260
         },
         {
           "frameId": "idle",
-          "holdMs": 90
+          "holdMs": 280
         }
       ],
       "impactFrame": 2,
-      "durationMs": 450,
+      "durationMs": 700,
       "tags": [
         "fist",
         "attack",
@@ -79,8 +75,8 @@
       },
       "approach": {
         "pose": "approach_step_in",
-        "durationMs": 150,
-        "lift": 3
+        "durationMs": 260,
+        "lift": 10
       },
       "targetReaction": {
         "hit": "hit",
@@ -110,11 +106,11 @@
       ],
       "frameset": "raster-v1",
       "choreography": {
-        "launchAtMs": 115,
-        "hitStopMs": 60,
-        "recoverAtMs": 250,
-        "restAtMs": 360,
-        "reach": 72,
+        "launchAtMs": 130,
+        "hitStopMs": 40,
+        "recoverAtMs": 420,
+        "restAtMs": 640,
+        "reach": 88,
         "contactY": 110,
         "weight": "light"
       }
@@ -126,7 +122,7 @@
       "frames": [
         {
           "frameId": "idle",
-          "holdMs": 40
+          "holdMs": 20
         },
         {
           "frameId": "heavy_windup",
@@ -134,19 +130,15 @@
         },
         {
           "frameId": "heavy_strike",
-          "holdMs": 150
-        },
-        {
-          "frameId": "heavy_windup",
-          "holdMs": 90
+          "holdMs": 320
         },
         {
           "frameId": "idle",
-          "holdMs": 130
+          "holdMs": 300
         }
       ],
       "impactFrame": 2,
-      "durationMs": 590,
+      "durationMs": 820,
       "tags": [
         "fist",
         "attack",
@@ -162,8 +154,8 @@
       },
       "approach": {
         "pose": "approach_palm_drive",
-        "durationMs": 165,
-        "lift": 1
+        "durationMs": 280,
+        "lift": 10
       },
       "targetReaction": {
         "hit": "hit",
@@ -193,11 +185,11 @@
       ],
       "frameset": "raster-v1",
       "choreography": {
-        "launchAtMs": 165,
-        "hitStopMs": 95,
-        "recoverAtMs": 360,
-        "restAtMs": 470,
-        "reach": 78,
+        "launchAtMs": 170,
+        "hitStopMs": 60,
+        "recoverAtMs": 520,
+        "restAtMs": 760,
+        "reach": 88,
         "contactY": 118,
         "weight": "heavy"
       }
@@ -209,27 +201,23 @@
       "frames": [
         {
           "frameId": "idle",
-          "holdMs": 40
+          "holdMs": 20
         },
         {
           "frameId": "kick_windup",
-          "holdMs": 160
+          "holdMs": 180
         },
         {
           "frameId": "kick_strike",
-          "holdMs": 140
-        },
-        {
-          "frameId": "kick_strike",
-          "holdMs": 80
+          "holdMs": 320
         },
         {
           "frameId": "idle",
-          "holdMs": 110
+          "holdMs": 300
         }
       ],
       "impactFrame": 2,
-      "durationMs": 530,
+      "durationMs": 820,
       "tags": [
         "fist",
         "attack",
@@ -246,8 +234,8 @@
       },
       "approach": {
         "pose": "approach_knee_hop",
-        "durationMs": 165,
-        "lift": 5
+        "durationMs": 280,
+        "lift": 14
       },
       "targetReaction": {
         "hit": "hit",
@@ -277,11 +265,11 @@
       ],
       "frameset": "raster-v1",
       "choreography": {
-        "launchAtMs": 150,
-        "hitStopMs": 90,
-        "recoverAtMs": 330,
-        "restAtMs": 430,
-        "reach": 90,
+        "launchAtMs": 170,
+        "hitStopMs": 60,
+        "recoverAtMs": 520,
+        "restAtMs": 760,
+        "reach": 100,
         "contactY": 116,
         "weight": "heavy"
       }
@@ -293,35 +281,35 @@
       "frames": [
         {
           "frameId": "idle",
-          "holdMs": 40
+          "holdMs": 52
         },
         {
           "frameId": "punch_windup",
-          "holdMs": 110
+          "holdMs": 143
         },
         {
           "frameId": "punch_strike",
-          "holdMs": 180
+          "holdMs": 234
         },
         {
           "frameId": "punch_strike",
-          "holdMs": 50
+          "holdMs": 65
         },
         {
           "frameId": "kick_windup",
-          "holdMs": 140
+          "holdMs": 182
         },
         {
           "frameId": "kick_strike",
-          "holdMs": 180
+          "holdMs": 234
         },
         {
           "frameId": "idle",
-          "holdMs": 160
+          "holdMs": 215
         }
       ],
       "impactFrame": 2,
-      "durationMs": 860,
+      "durationMs": 1125,
       "tags": [
         "fist",
         "attack",
@@ -332,22 +320,22 @@
       "actorMotion": "approach",
       "approach": {
         "pose": "approach_step_in",
-        "durationMs": 150,
-        "lift": 3
+        "durationMs": 280,
+        "lift": 10
       },
       "hits": [
         {
-          "atMs": 150,
+          "atMs": 195,
           "hitStopMs": 40,
           "share": 1
         },
         {
-          "atMs": 330,
+          "atMs": 429,
           "hitStopMs": 40,
           "share": 1
         },
         {
-          "atMs": 560,
+          "atMs": 728,
           "hitStopMs": 80,
           "share": 2,
           "staging": {
@@ -369,36 +357,36 @@
           "pose": "punch_windup"
         },
         {
-          "atMs": 115,
+          "atMs": 150,
           "pose": "punch_strike",
           "pin": "hand"
         },
         {
-          "atMs": 190,
+          "atMs": 247,
           "pose": "combo_recoil"
         },
         {
-          "atMs": 285,
+          "atMs": 370,
           "pose": "low_punch_strike",
           "pin": "hand",
           "contactY": 132
         },
         {
-          "atMs": 370,
+          "atMs": 481,
           "pose": "kick_windup"
         },
         {
-          "atMs": 505,
+          "atMs": 656,
           "pose": "kick_strike",
           "pin": "foot",
           "contactY": 104
         },
         {
-          "atMs": 640,
+          "atMs": 832,
           "pose": "kick_finish"
         },
         {
-          "atMs": 760,
+          "atMs": 988,
           "pose": "idle"
         }
       ],
@@ -430,11 +418,11 @@
       ],
       "frameset": "raster-v1",
       "choreography": {
-        "launchAtMs": 115,
+        "launchAtMs": 150,
         "hitStopMs": 40,
-        "recoverAtMs": 650,
-        "restAtMs": 760,
-        "reach": 72,
+        "recoverAtMs": 845,
+        "restAtMs": 1065,
+        "reach": 88,
         "contactY": 110,
         "weight": "heavy"
       }
@@ -446,7 +434,7 @@
       "frames": [
         {
           "frameId": "idle",
-          "holdMs": 50
+          "holdMs": 20
         },
         {
           "frameId": "heavy_windup",
@@ -454,19 +442,15 @@
         },
         {
           "frameId": "heavy_strike",
-          "holdMs": 160
-        },
-        {
-          "frameId": "heavy_windup",
-          "holdMs": 90
+          "holdMs": 320
         },
         {
           "frameId": "idle",
-          "holdMs": 170
+          "holdMs": 300
         }
       ],
       "impactFrame": 2,
-      "durationMs": 650,
+      "durationMs": 820,
       "tags": [
         "fist",
         "attack",
@@ -483,13 +467,13 @@
       },
       "approach": {
         "pose": "approach_palm_drive",
-        "durationMs": 165,
-        "lift": 1
+        "durationMs": 280,
+        "lift": 10
       },
       "hits": [
         {
-          "atMs": 230,
-          "hitStopMs": 110,
+          "atMs": 200,
+          "hitStopMs": 70,
           "staging": {
             "camera": {
               "kick": 16
@@ -534,11 +518,11 @@
       ],
       "frameset": "raster-v1",
       "choreography": {
-        "launchAtMs": 185,
-        "hitStopMs": 110,
-        "recoverAtMs": 400,
-        "restAtMs": 520,
-        "reach": 72,
+        "launchAtMs": 170,
+        "hitStopMs": 70,
+        "recoverAtMs": 520,
+        "restAtMs": 760,
+        "reach": 88,
         "contactY": 104,
         "weight": "heavy"
       }
@@ -550,23 +534,23 @@
       "frames": [
         {
           "frameId": "idle",
-          "holdMs": 40
+          "holdMs": 52
         },
         {
           "frameId": "kick_windup",
-          "holdMs": 160
+          "holdMs": 208
         },
         {
           "frameId": "kick_strike",
-          "holdMs": 180
+          "holdMs": 234
         },
         {
           "frameId": "idle",
-          "holdMs": 170
+          "holdMs": 215
         }
       ],
       "impactFrame": 2,
-      "durationMs": 550,
+      "durationMs": 709,
       "tags": [
         "fist",
         "attack",
@@ -576,12 +560,12 @@
       "actorMotion": "lunge",
       "approach": {
         "pose": "approach_knee_hop",
-        "durationMs": 165,
-        "lift": 5
+        "durationMs": 280,
+        "lift": 14
       },
       "hits": [
         {
-          "atMs": 200,
+          "atMs": 260,
           "hitStopMs": 80
         }
       ],
@@ -591,16 +575,16 @@
           "pose": "kick_windup"
         },
         {
-          "atMs": 140,
+          "atMs": 182,
           "pose": "kick_strike",
           "pin": "foot"
         },
         {
-          "atMs": 300,
+          "atMs": 390,
           "pose": "kick_finish"
         },
         {
-          "atMs": 430,
+          "atMs": 559,
           "pose": "idle"
         }
       ],
@@ -610,18 +594,18 @@
           "y": 0
         },
         {
-          "atMs": 120,
+          "atMs": 156,
           "y": -44,
           "angle": -6,
           "ease": "out"
         },
         {
-          "atMs": 300,
+          "atMs": 390,
           "y": -44,
           "angle": -6
         },
         {
-          "atMs": 380,
+          "atMs": 494,
           "y": 0,
           "angle": 0,
           "ease": "linear"
@@ -655,11 +639,11 @@
       ],
       "frameset": "raster-v1",
       "choreography": {
-        "launchAtMs": 140,
+        "launchAtMs": 182,
         "hitStopMs": 80,
-        "recoverAtMs": 330,
-        "restAtMs": 430,
-        "reach": 90,
+        "recoverAtMs": 429,
+        "restAtMs": 649,
+        "reach": 100,
         "contactY": 96,
         "weight": "heavy"
       }

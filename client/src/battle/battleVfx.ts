@@ -18,15 +18,15 @@ export function sampleVfx(timeline: ResolvedBattleTimeline | null, scene: Battle
   if (scene.trail > 0) {
     // 斩击墨痕与招架墨环：锚点定位在接触点，图自身按攻击方向翻转。
     const art = hit.result === "parry" ? "parry" : timeline.vfx.find((v) => v.kind === "trail")?.art ?? "slash";
-    sprites.push({ key: "arc", art, x: scene.contact.x, y: scene.contact.y, size: 320, scale: 1, rotate: scene.force >= 1 ? 8 : 0, flip: direction, opacity: scene.trail * 0.85 });
+    sprites.push({ key: "arc", art, x: scene.contact.x, y: scene.contact.y, size: 200, scale: 1, rotate: scene.force >= 1 ? 8 : 0, flip: direction, opacity: scene.trail * 0.85 });
   }
   if (scene.burst > 0) {
     // 命中墨爆：先炸开再淡出，与接触点同步。
     const art = timeline.vfx.find((v) => v.kind === "impact")?.art ?? "impact";
-    sprites.push({ key: "burst", art, x: scene.contact.x, y: scene.contact.y, size: 240, scale: (scene.force >= 1 ? 1.5 : 1) * (1.5 - scene.burst * 0.55), rotate: 0, flip: 1, opacity: scene.burst });
+    sprites.push({ key: "burst", art, x: scene.contact.x, y: scene.contact.y, size: 140, scale: (scene.force >= 1 ? 1.4 : 1) * (1.5 - scene.burst * 0.55), rotate: 0, flip: 1, opacity: scene.burst });
   }
   if (scene.aura > 0) {
-    sprites.push({ key: "aura", art: "aura", x: sideHome(timeline.target.side), y: -66, size: 190, scale: 1, rotate: 0, flip: 1, opacity: scene.aura });
+    sprites.push({ key: "aura", art: "aura", x: sideHome(timeline.target.side), y: -66, size: 140, scale: 1, rotate: 0, flip: 1, opacity: scene.aura });
   }
 
   const visualTime = visualTimeAt(timeline, elapsed);

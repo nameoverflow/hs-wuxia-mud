@@ -1,19 +1,14 @@
-import { blendPose, svgPose, type SvgPose } from './svgPoseLibrary';
+import { blendPose, reachWith, shiftPose, svgPose, type SvgPose } from './svgPoseLibrary';
 import type { BattleApproach, BattleSide, CombatStyle, PoseKeyDefinition, ResolvedBattleTimeline } from './animationTypes';
 import { activeReactionAt, actorOffsetAt, hitForPinnedKey, poseKeyAt, visualTimeAt } from './battleTiming';
 
 export { blendPose, svgPose, type SvgPose };
 export const SVG_SWORD_LENGTH = 72;
 
-const clamp = (n: number) => Math.max(0, Math.min(1, n));
-const progress = (t: number, a: number, b: number) => clamp((t - a) / Math.max(1, b - a));
 
-/** One compressed silhouette and one launch: no alternating walk cycle. */
-export function sampleApproachPose(approach: BattleApproach, prepare: string, style: CombatStyle, phase: number): SvgPose {
-  // 身法只有两拍：扎住架势，然后换位。中间不做行走循环。
-  if (phase < 0.12) return svgPose('idle', style);
-  const p = svgPose(approach.pose, style);
-  return phase < 0.86 ? p : blendPose(p, svgPose(prepare, style), clamp((phase - .86) / .14));
+/** 冲刺只用一张画：整段保持冲刺姿势，位移由导演层连续推过去，不做迈步循环。 */
+export function sampleApproachPose(approach: BattleApproach, style: CombatStyle): SvgPose {
+  return svgPose(approach.pose, style);
 }
 
 /**
@@ -32,10 +27,10 @@ export function sampleSvgPose(timeline: ResolvedBattleTimeline | null, side: Bat
     const active = activeReactionAt(timeline, t);
     if (!active || active.hit.reaction === 'none' || active.hit.reaction === 'effect') return idle;
     const look = active.hit.staging.reactions[active.hit.reaction];
-    const held = svgPose(look.pose ?? active.hit.targetVisual.frames[0].frameId, style);
+    const heldId = look.pose ?? active.hit.targetVisual.frames[0].frameId;
     // 收势：先切回半个待机，再切干净，避免直接弹回原姿势。
-    if (t >= c.restAtMs) return blendPose(idle, held, 0.4);
-    return held;
+    if (t >= c.restAtMs) return blendPose('idle', heldId, 0.4, style);
+    return svgPose(heldId, style);
   }
   const keyPoses = timeline.actor.visual.keyPoses;
   if (timeline.actor.motion === 'focus') {
@@ -44,7 +39,7 @@ export function sampleSvgPose(timeline: ResolvedBattleTimeline | null, side: Bat
   }
   const keys = timeline.actor.poseKeys;
   if (!keys.length) return svgPose(frame, style);
-  if (t < arrival && timeline.actor.approach) return sampleApproachPose(timeline.actor.approach, keys[0].pose, style, progress(t, 0, arrival));
+  if (t < arrival && timeline.actor.approach) return sampleApproachPose(timeline.actor.approach, style);
   // 姿势键之间一律硬切：蓄势定住、出招一帧到位并随定格持住、余劲另起、收势切回待机。
   return keyedPose(poseKeyAt(keys, t) ?? keys[0], timeline, style, t);
 }
@@ -59,12 +54,15 @@ function keyedPose(key: PoseKeyDefinition, timeline: ResolvedBattleTimeline, sty
   const offset = actorOffsetAt(timeline, t);
   const reach = (key.reach ?? c.reach) - (hit.result === 'parry' ? hit.staging.reactions.parry.standoff ?? 0 : 0) - offset.x;
   const y = (key.contactY ?? c.contactY) - 176 - offset.y;
-  if (key.pin === 'foot') pose.foot = [reach, y];
-  else if (key.pin === 'hand') pose.hand = [reach, y];
-  else {
-    const radians = pose.blade * Math.PI / 180;
-    pose.hand = [reach - Math.cos(radians) * SVG_SWORD_LENGTH, y - Math.sin(radians) * SVG_SWORD_LENGTH];
-    pose.elbow = [(pose.shoulder[0] + pose.hand[0]) / 2, pose.hand[1] + 10];
+  // 骨长不变：够不着就整个人顺势探过去，再反解手臂或腿。
+  if (key.pin === 'foot') return reachWith(pose, 'foot', [reach, y]);
+  if (key.pin === 'hand') return reachWith(pose, 'hand', [reach, y]);
+  // 剑：手臂姿势不动，把剑转过去让剑尖落在接触点，身体只做横向微调；剑尖离手太高或太低时才改用手臂反解。
+  const dy = y - pose.hand[1];
+  if (Math.abs(dy) < SVG_SWORD_LENGTH - 0.5) {
+    const dx = Math.sqrt(SVG_SWORD_LENGTH * SVG_SWORD_LENGTH - dy * dy);
+    return { ...shiftPose(pose, reach - dx - pose.hand[0]), blade: Math.atan2(dy, dx) * 180 / Math.PI };
   }
-  return pose;
+  const radians = pose.blade * Math.PI / 180;
+  return reachWith(pose, 'hand', [reach - Math.cos(radians) * SVG_SWORD_LENGTH, y - Math.sin(radians) * SVG_SWORD_LENGTH]);
 }

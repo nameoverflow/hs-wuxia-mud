@@ -65,6 +65,8 @@
       {@const mirror = side === "enemy" ? -1 : 1}
       {@const pose = sampleSvgPose(timeline, side, elapsed, figure.visual.style, figure.frameId, reducedMotion)}
       <div class="figure-home" class:enemy={side === "enemy"} style:transform={`translateX(${sideHome(side)}px)`}>
+        <!-- 地面阴影留在地上，人离地时变小变淡，冲刺和跃起才读得出高度。 -->
+        <div class="ground-shadow" style:transform={`translateX(${figure.x}px) scale(${Math.max(0.55, 1 + figure.y / 60)})`} style:opacity={figure.alpha * Math.max(0.35, 1 + figure.y / 50)}></div>
         {#if scene.ghost > 0 && side === targetSide}
           <div class="figure-pose ghost" style:opacity={scene.ghost} style:transform={`scaleX(${mirror})`}>
             <SvgBattleActor {pose} style={figure.visual.style} profile={figure.visual.profile} />
@@ -90,7 +92,7 @@
           style:opacity={sprite.opacity} style:transform={`scaleX(${sprite.flip})`} />
       </div>
     {/each}
-    <div class="result-word" class:healing={!!timeline?.heal} style:opacity={scene.textAlpha} style:transform={`translate(${sideHome(targetSide) + (targetSide === "enemy" ? 35 : -35)}px, ${-147 - scene.textLift}px) scale(${scene.textScale})`}>
+    <div class="result-word" class:healing={!!timeline?.heal} style:opacity={scene.textAlpha} style:transform={`translate(${sideHome(targetSide) + (targetSide === "enemy" ? 35 : -35)}px, ${-170 - scene.textLift}px) scale(${scene.textScale})`}>
       {#if resultWord}<b>{resultWord}</b>{/if}
       {#if hitText && hitText !== resultWord}<span>{hitText}</span>{/if}
     </div>
@@ -99,7 +101,7 @@
       <div class="move-stamp" style:opacity={scene.textAlpha} style:transform={`translate(-50%,0) scale(${scene.textScale})`}>{stampLabel}</div>
     {/if}
   </div>
-  {#if scene.invert > 0}<div class="stage-invert" style:opacity={scene.invert * 0.55}></div>{/if}
+  {#if scene.invert > 0}<div class="stage-invert" style:opacity={scene.invert * 0.22}></div>{/if}
   {#if timeline?.kind === "settlement"}
     <div class="settlement" style:opacity={scene.resultAlpha}>
       <strong>{timeline.label}</strong>
@@ -118,17 +120,18 @@
   .stage-caption { position: absolute; inset: 15px 18px auto; display: flex; justify-content: space-between; gap: 12px; font: 12px/1.4 "Songti SC", "Noto Serif CJK SC", serif; color: #d4cfb8; letter-spacing: 0.14em; }
   .stage-location { opacity: 0.65; }
   .stage-action { font-size: 15px; color: #efe0af; text-align: right; }
-  .duel-world { position: absolute; left: 50%; top: 81%; width: 0; height: 0; transform-origin: center -65px; zoom: 0.88; }
+  .duel-world { position: absolute; left: 50%; top: 81%; width: 0; height: 0; transform-origin: center -65px; zoom: 0.62; }
   .figure-home { position: absolute; width: 0; height: 0; color: #e8d5a3; }
   .figure-home.enemy { color: #a0bdb3; }
   .figure-pose { position: absolute; width: 0; height: 0; transform-origin: 0 0; }
+  .ground-shadow { position: absolute; left: -26px; top: -5px; width: 52px; height: 10px; border-radius: 50%; background: #050b09; opacity: 0.55; transform-origin: center; }
   .ghost { color: #b9d4cd; }
   .vector-effects { position: absolute; left: -240px; top: -200px; width: 480px; height: 240px; overflow: visible; pointer-events: none; }
   /* 图以锚点为中心：定位在外层，图自身回退半个尺寸，这样缩放和翻转都以中心为原点。 */
   .ink-anchor { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
   .ink-vfx { position: absolute; pointer-events: none; transform-origin: center; mix-blend-mode: screen; }
-  .result-word { position: absolute; white-space: nowrap; display: flex; gap: 5px; align-items: center; justify-content: center; color: #ffe1ac; text-shadow: 0 2px 5px #07110e; font: 700 20px/1 "Songti SC", serif; }
-  .result-word b { font-size: 26px; font-weight: 600; }
+  .result-word { position: absolute; white-space: nowrap; display: flex; gap: 5px; align-items: center; justify-content: center; color: #ffe1ac; text-shadow: 0 2px 5px #07110e; font: 700 30px/1 "Songti SC", serif; }
+  .result-word b { font-size: 38px; font-weight: 600; }
   .result-word.healing { color: #bae1c6; }
   .move-stamp { position: absolute; left: 0; top: -196px; white-space: nowrap; font: 600 22px/1 "STKaiti", "KaiTi", "Songti SC", serif; letter-spacing: 0.24em; color: #ffeec2; text-shadow: 0 2px 12px #07110e, 0 0 26px #6d5a2a; }
   .settlement { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px; background: #08110d66; color: #eddbac; text-shadow: 0 2px 10px #07110e; }
@@ -136,6 +139,6 @@
   .settlement span { max-width: 85%; text-align: center; font: 13px/1.7 "Songti SC", serif; }
   .stage-baseline { position: absolute; inset: auto 20px 11px; display: flex; justify-content: center; gap: 13px; color: #c2c8b9; font: 11px/1.4 "Songti SC", serif; letter-spacing: 0.12em; }
   .stage-baseline i { font-style: normal; opacity: 0.4; }
-  @container (max-width: 420px) { .duel-world { zoom: 0.65; } .stage-caption { inset: 12px 12px auto; font-size: 10px; } .stage-action { font-size: 12px; } .move-stamp { font-size: 16px; } }
-  @container (max-width: 320px) { .duel-world { zoom: 0.5; } }
+  @container (max-width: 420px) { .duel-world { zoom: 0.44; } .stage-caption { inset: 12px 12px auto; font-size: 10px; } .stage-action { font-size: 12px; } .move-stamp { font-size: 16px; } }
+  @container (max-width: 320px) { .duel-world { zoom: 0.36; } }
 </style>

@@ -43,27 +43,23 @@
       "frames": [
         {
           "frameId": "sword_ready",
-          "holdMs": 40
+          "holdMs": 20
         },
         {
           "frameId": "thrust_prep",
-          "holdMs": 130
+          "holdMs": 140
         },
         {
           "frameId": "thrust_strike",
-          "holdMs": 110
-        },
-        {
-          "frameId": "thrust_close",
-          "holdMs": 70
+          "holdMs": 260
         },
         {
           "frameId": "sword_ready",
-          "holdMs": 100
+          "holdMs": 280
         }
       ],
       "impactFrame": 2,
-      "durationMs": 450,
+      "durationMs": 700,
       "tags": [
         "sword",
         "jian",
@@ -81,8 +77,8 @@
       },
       "approach": {
         "pose": "approach_sword_glide",
-        "durationMs": 140,
-        "lift": 2
+        "durationMs": 260,
+        "lift": 10
       },
       "targetReaction": {
         "hit": "hit",
@@ -112,11 +108,11 @@
       ],
       "frameset": "raster-v1",
       "choreography": {
-        "launchAtMs": 125,
-        "hitStopMs": 60,
-        "recoverAtMs": 270,
-        "restAtMs": 360,
-        "reach": 108,
+        "launchAtMs": 130,
+        "hitStopMs": 40,
+        "recoverAtMs": 420,
+        "restAtMs": 640,
+        "reach": 140,
         "contactY": 111,
         "weight": "light"
       }
@@ -128,27 +124,23 @@
       "frames": [
         {
           "frameId": "sword_ready",
-          "holdMs": 50
+          "holdMs": 20
         },
         {
           "frameId": "chop_prep",
-          "holdMs": 175
+          "holdMs": 180
         },
         {
           "frameId": "chop_strike",
-          "holdMs": 145
-        },
-        {
-          "frameId": "chop_close",
-          "holdMs": 95
+          "holdMs": 320
         },
         {
           "frameId": "sword_ready",
-          "holdMs": 130
+          "holdMs": 300
         }
       ],
       "impactFrame": 2,
-      "durationMs": 595,
+      "durationMs": 820,
       "tags": [
         "sword",
         "jian",
@@ -166,8 +158,8 @@
       },
       "approach": {
         "pose": "approach_raised_step",
-        "durationMs": 160,
-        "lift": 3
+        "durationMs": 280,
+        "lift": 10
       },
       "targetReaction": {
         "hit": "hit",
@@ -198,10 +190,10 @@
       "frameset": "raster-v1",
       "choreography": {
         "launchAtMs": 170,
-        "hitStopMs": 95,
-        "recoverAtMs": 365,
-        "restAtMs": 470,
-        "reach": 98,
+        "hitStopMs": 60,
+        "recoverAtMs": 520,
+        "restAtMs": 760,
+        "reach": 125,
         "contactY": 116,
         "weight": "heavy"
       }
@@ -213,27 +205,23 @@
       "frames": [
         {
           "frameId": "sword_ready",
-          "holdMs": 40
+          "holdMs": 20
         },
         {
           "frameId": "cut_prep",
-          "holdMs": 135
+          "holdMs": 140
         },
         {
           "frameId": "cut_strike",
-          "holdMs": 115
-        },
-        {
-          "frameId": "cut_close",
-          "holdMs": 70
+          "holdMs": 260
         },
         {
           "frameId": "sword_ready",
-          "holdMs": 100
+          "holdMs": 280
         }
       ],
       "impactFrame": 2,
-      "durationMs": 460,
+      "durationMs": 700,
       "tags": [
         "sword",
         "jian",
@@ -251,8 +239,8 @@
       },
       "approach": {
         "pose": "approach_cross_step",
-        "durationMs": 155,
-        "lift": 2
+        "durationMs": 260,
+        "lift": 10
       },
       "targetReaction": {
         "hit": "hit",
@@ -283,10 +271,10 @@
       "frameset": "raster-v1",
       "choreography": {
         "launchAtMs": 130,
-        "hitStopMs": 65,
-        "recoverAtMs": 280,
-        "restAtMs": 370,
-        "reach": 108,
+        "hitStopMs": 40,
+        "recoverAtMs": 420,
+        "restAtMs": 640,
+        "reach": 135,
         "contactY": 108,
         "weight": "light"
       }
@@ -298,27 +286,23 @@
       "frames": [
         {
           "frameId": "sword_ready",
-          "holdMs": 50
+          "holdMs": 20
         },
         {
           "frameId": "rising_prep",
-          "holdMs": 175
+          "holdMs": 180
         },
         {
           "frameId": "rising_strike",
-          "holdMs": 145
-        },
-        {
-          "frameId": "rising_close",
-          "holdMs": 100
+          "holdMs": 320
         },
         {
           "frameId": "sword_ready",
-          "holdMs": 135
+          "holdMs": 300
         }
       ],
       "impactFrame": 2,
-      "durationMs": 605,
+      "durationMs": 820,
       "tags": [
         "sword",
         "jian",
@@ -336,8 +320,8 @@
       },
       "approach": {
         "pose": "approach_low_skate",
-        "durationMs": 155,
-        "lift": 1
+        "durationMs": 280,
+        "lift": 10
       },
       "targetReaction": {
         "hit": "hit",
@@ -368,10 +352,10 @@
       "frameset": "raster-v1",
       "choreography": {
         "launchAtMs": 170,
-        "hitStopMs": 95,
-        "recoverAtMs": 370,
-        "restAtMs": 475,
-        "reach": 96,
+        "hitStopMs": 60,
+        "recoverAtMs": 520,
+        "restAtMs": 760,
+        "reach": 125,
         "contactY": 104,
         "weight": "heavy"
       }
@@ -452,7 +436,7 @@
           "art": "slash",
           "anchor": "actor",
           "hit": 0,
-          "offsetMs": -130,
+          "offsetMs": -140,
           "durationMs": 150,
           "from": "actor.blade",
           "to": "contact",
@@ -495,31 +479,31 @@
       "frames": [
         {
           "frameId": "sword_ready",
-          "holdMs": 40
+          "holdMs": 52
         },
         {
           "frameId": "cut_prep",
-          "holdMs": 110
+          "holdMs": 143
         },
         {
           "frameId": "cut_strike",
-          "holdMs": 130
+          "holdMs": 169
         },
         {
           "frameId": "chop_strike",
-          "holdMs": 150
+          "holdMs": 195
         },
         {
           "frameId": "thrust_strike",
-          "holdMs": 170
+          "holdMs": 221
         },
         {
           "frameId": "sword_ready",
-          "holdMs": 250
+          "holdMs": 306
         }
       ],
       "impactFrame": 2,
-      "durationMs": 850,
+      "durationMs": 1086,
       "tags": [
         "sword",
         "attack",
@@ -529,20 +513,20 @@
       "actorMotion": "approach",
       "approach": {
         "pose": "approach_sword_glide",
-        "durationMs": 140,
-        "lift": 2
+        "durationMs": 280,
+        "lift": 10
       },
       "hits": [
         {
-          "atMs": 150,
+          "atMs": 195,
           "hitStopMs": 40
         },
         {
-          "atMs": 330,
+          "atMs": 429,
           "hitStopMs": 40
         },
         {
-          "atMs": 520,
+          "atMs": 676,
           "hitStopMs": 90,
           "share": 2,
           "staging": {
@@ -558,34 +542,34 @@
           "pose": "cut_prep"
         },
         {
-          "atMs": 110,
+          "atMs": 143,
           "pose": "cut_strike",
           "pin": "blade"
         },
         {
-          "atMs": 190,
+          "atMs": 247,
           "pose": "chop_prep"
         },
         {
-          "atMs": 280,
+          "atMs": 364,
           "pose": "chop_strike",
           "pin": "blade"
         },
         {
-          "atMs": 370,
+          "atMs": 481,
           "pose": "thrust_prep"
         },
         {
-          "atMs": 470,
+          "atMs": 611,
           "pose": "thrust_strike",
           "pin": "blade"
         },
         {
-          "atMs": 610,
+          "atMs": 793,
           "pose": "thrust_finish"
         },
         {
-          "atMs": 690,
+          "atMs": 897,
           "pose": "idle"
         }
       ],
@@ -621,8 +605,8 @@
           "art": "slash",
           "effect": "blade_fan",
           "hit": 2,
-          "offsetMs": -20,
-          "durationMs": 300,
+          "offsetMs": -26,
+          "durationMs": 390,
           "size": 230,
           "opacity": 0.8,
           "results": [
@@ -637,11 +621,11 @@
       ],
       "frameset": "raster-v1",
       "choreography": {
-        "launchAtMs": 110,
+        "launchAtMs": 143,
         "hitStopMs": 40,
-        "recoverAtMs": 620,
-        "restAtMs": 690,
-        "reach": 108,
+        "recoverAtMs": 806,
+        "restAtMs": 1026,
+        "reach": 135,
         "contactY": 110,
         "weight": "heavy"
       }

@@ -34,7 +34,7 @@ try {
       assert.deepEqual(pose(timeline.impactAtMs + timeline.choreography.hitStopMs - 1), contact);
       const before = pose(timeline.impactAtMs - 0.001);
       assert.ok(Math.abs(before.hand[0] - contact.hand[0]) < 0.1, 'contact must be continuous');
-      assert.deepEqual(pose(timeline.durationMs), pose(0));
+      assert.deepEqual(pose(timeline.durationMs), svgPoseModule.svgPose('idle', action.style), 'ends in the ready stance');
     }
   });
 
@@ -104,17 +104,24 @@ try {
     assert.equal(sample(timeline, timeline.impactAtMs + timeline.choreography.hitStopMs + 1).invert, 0, 'flash ends with the hold');
   });
 
-  check('attacks cut between key poses instead of blending', () => {
+  check('poses cut and hold while the whole figure travels continuously', () => {
     for (const action of attacks) {
       const timeline = make(action);
       const pose = t => sampleSvgPose(timeline, 'player', t, action.style, action.frames[action.impactFrame].frameId);
       const c = timeline.choreography;
+      const arrival = timeline.actor.actionDelayMs;
       // 出招一帧到位：刚过起手标记就已是接触姿势。
       assert.deepEqual(pose(c.launchAtMs + 1), pose(timeline.impactAtMs), `${action.id}: strike must cut in`);
-      // 位移是换位不是滑行：入场前半段原地，过中点直接落位。
-      const arrival = timeline.actor.actionDelayMs;
-      assert.equal(sample(timeline, arrival * 0.4).player.x, 0, `${action.id}: plant before the cut`);
-      assert.equal(sample(timeline, arrival * 0.6).player.x, sample(timeline, arrival).player.x, `${action.id}: land in one cut`);
+      // 冲刺全程是同一张冲刺姿势。
+      assert.deepEqual(pose(arrival * 0.2), pose(arrival * 0.8), `${action.id}: one held dash drawing`);
+      // 位移连续：冲刺逐帧前进、后撤逐帧退回，每帧（33ms）步幅有上限，不会瞬移。
+      const frames = t0 => t1 => Array.from({ length: Math.ceil((t1 - t0) / 33) + 1 }, (_, i) => sample(timeline, Math.min(t1, t0 + i * 33)).player.x);
+      const dash = frames(0)(arrival), back = frames(c.recoverAtMs)(c.restAtMs);
+      for (let i = 1; i < dash.length; i++) assert.ok(dash[i] >= dash[i - 1] && dash[i] - dash[i - 1] < 90, `${action.id}: dash is a slide, not a teleport`);
+      for (let i = 1; i < back.length; i++) assert.ok(back[i] <= back[i - 1] + 1e-9 && back[i - 1] - back[i] < 90, `${action.id}: retreat slides home`);
+      assert.ok(dash[1] > 0, `${action.id}: dash starts moving at once`);
+      // 出手姿势一直保持到收招，收招时换成后撤姿势。
+      if (!action.poseTrack) assert.deepEqual(pose(c.recoverAtMs - 1), pose(timeline.hits.at(-1).atMs + timeline.hits.at(-1).hitStopMs + 1), `${action.id}: strike holds until the retreat`);
     }
   });
 

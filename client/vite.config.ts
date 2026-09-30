@@ -8,7 +8,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: fileURLToPath(new URL("./index.html", import.meta.url)),
-        battleLab: fileURLToPath(new URL("./battle-lab.html", import.meta.url))
+        battleLab: fileURLToPath(new URL("./battle-lab.html", import.meta.url)),
+        poseSheet: fileURLToPath(new URL("./pose-sheet.html", import.meta.url))
       }
     }
   },
