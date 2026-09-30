@@ -38,11 +38,11 @@
     return along(ankle, unit([w + shin[0] * (1 - w), shin[1] * (1 - w) + 0.12 * w]), 12);
   }
 
-  // 粗细（半径）：大腿比小腿粗，上臂比前臂粗，末端收细，剪影才有体积。
-  const R = { thigh: 9, knee: 7, ankle: 4.8, shoulder: 6.8, elbow: 5.4, wrist: 4.4, fist: 6, chest: 12.5, pelvis: 10.5, neck: 5 };
+  // 粗细（半径）：四肢从胸腔、骨盆两个体块里长出来——肩（三角肌）和大腿根做粗，与体块衔接成一整块；往末端收细。
+  const R = { thigh: 10.5, knee: 7.2, ankle: 4.6, shoulder: 8.4, elbow: 5.8, wrist: 4.4, fist: 5.8, chest: 13.5, pelvis: 11.5, neck: 7.5 };
 
   $: torsoAxis = unit(sub(p.shoulder, p.hip));
-  $: chest = along(p.shoulder, torsoAxis, -7);
+  $: chest = along(p.shoulder, torsoAxis, -8);
   $: frontToe = footTip(p.knee, p.foot);
   $: backToe = footTip(p.backKnee, p.backFoot);
   $: pommel = [p.hand[0] - Math.cos(p.blade * Math.PI / 180) * 9, p.hand[1] - Math.sin(p.blade * Math.PI / 180) * 9];
@@ -61,8 +61,8 @@
     {#if profile === 'female'}
       <path d={taper(headBack, tailEnd, 6.5, 2.5)} /><circle cx={tailEnd[0]} cy={tailEnd[1]} r="2.5" />
     {/if}
-    <!-- 后侧手脚压暗一档，重叠时也分得清前后。 -->
-    <g class="far-limbs">
+    <!-- 全身同一个颜色：后侧手脚先画，被身体压住，整个人读成一块剪影。 -->
+    <g>
       <path d={taper(p.shoulder, p.backElbow, R.shoulder, R.elbow)} /><circle cx={p.backElbow[0]} cy={p.backElbow[1]} r={R.elbow} />
       <path d={taper(p.backElbow, p.backHand, R.elbow, R.wrist)} /><circle cx={p.backHand[0]} cy={p.backHand[1]} r={R.fist} />
       <path d={taper(p.hip, p.backKnee, R.thigh, R.knee)} /><circle cx={p.backKnee[0]} cy={p.backKnee[1]} r={R.knee} />
@@ -92,5 +92,4 @@
 
 <style>
   .vector-actor { position: absolute; width: 256px; height: 192px; left: -128px; top: -176px; overflow: visible; }
-  .far-limbs { filter: brightness(0.74); }
 </style>
