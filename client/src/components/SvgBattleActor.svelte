@@ -109,8 +109,8 @@
   })();
   $: headUp = unit(sub(p.head, p.neck));
   $: headBackDir = [headUp[1], -headUp[0]];
-  /** 高马尾：在头顶偏后束起，发根先向上、向后翘起一截，再垂到腰。 */
-  $: root = along(along(p.head, headUp, bones.headRadius * 0.82), headBackDir, bones.headRadius * 0.32);
+  /** 马尾：在后脑偏上束起，发根向后微微翘起一小截，再垂到腰。 */
+  $: root = along(along(p.head, headUp, bones.headRadius * 0.5), headBackDir, bones.headRadius * 0.62);
   $: flow = hairFlow;
   /** 摆动沿发束向下传：越靠发梢摆得越大、越晚。两个频率叠加，不像节拍器。 */
   const swing = (phase: number, lag: number) => Math.sin(phase / 300 - lag) * 1 + Math.sin(phase / 170 - lag * 1.6) * 0.4;
@@ -132,7 +132,7 @@
       const onHead = (u: number, b: number) => [root[0] + up[0] * u + back[0] * b, root[1] + up[1] * u + back[1] * b];
       const hanging = (b: number, down: number, f: number, sw: number) =>
         [root[0] + back[0] * b + flow[0] * f + sw, root[1] + back[1] * b + down + flow[1] * f];
-      const apex = onHead(8, 10);
+      const apex = onHead(4, 9);
       list.push({ key: 'hair', joins: [], shapes: [
         // 发梢分出的一缕：从中段分叉，尖朝外翻。
         { d: ribbon([hanging(22, 14, 0.45, sway1), hanging(27, 36, 1, sway1 * 1.2), hanging(26, 54, 1.7, sway2 * 1.25)], [3.4, 2.6, 0.5]) },
