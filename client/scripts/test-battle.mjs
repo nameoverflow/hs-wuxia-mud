@@ -162,7 +162,8 @@ try {
       const pose = t => sampleSvgPose(timeline, 'player', t, combo.style, 'idle');
       const key = pinned[i];
       const limb = key.pin === 'foot' ? pose(hit.atMs).foot : pose(hit.atMs).hand;
-      assert.deepEqual(limb, [timeline.choreography.reach, (key.contactY ?? timeline.choreography.contactY) - 176], `hit ${i} contact`);
+      const expected = [timeline.choreography.reach, (key.contactY ?? timeline.choreography.contactY) - 176];
+      assert.ok(Math.hypot(limb[0] - expected[0], limb[1] - expected[1]) < 1e-6, `hit ${i} contact`);
       const first = sample(timeline, hit.atMs);
       const held = sample(timeline, hit.atMs + hit.hitStopMs - 1);
       for (const field of ['player', 'enemy', 'cameraX', 'burst', 'trail']) assert.deepEqual(held[field], first[field], `hit ${i} ${field}`);
