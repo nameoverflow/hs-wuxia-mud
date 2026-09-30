@@ -6,7 +6,9 @@ import type {
   BattleActionDefinition,
   BattleSide,
   CombatStyle,
+  PoseKeyDefinition,
   ResolvedBattleTimeline,
+  ResolvedHit,
   TargetReaction,
   TimelineVfx,
   VisualProfile
@@ -30,7 +32,15 @@ export function resolveCombatTimeline(
   const actionDurationMs = visualDurationMs(event.visual?.durationMs, action.durationMs);
   const approach = event.kind === 'effect_tick' ? undefined : action.approach;
   const actionDelayMs = (approach?.durationMs ?? 0) * actionDurationMs / action.durationMs;
-  const impactAtMs = actionDelayMs + clipImpactOffsetMs(action.frames, action.impactFrame, actionDurationMs);
+  const scale = actionDurationMs / action.durationMs;
+  const hits = resolveHits(action, event, actionDelayMs, actionDurationMs);
+  const choreography = {
+    ...action.choreography,
+    launchAtMs: actionDelayMs + action.choreography.launchAtMs * scale,
+    hitStopMs: hits[0].hitStopMs,
+    recoverAtMs: actionDelayMs + action.choreography.recoverAtMs * scale,
+    restAtMs: actionDelayMs + action.choreography.restAtMs * scale
+  };
   const targetVisual =
     reaction === "effect" || reaction === "none" ? idleVisualForStyle(targetStyle, targetProfile) : reactionVisualFor(reaction, targetProfile, targetStyle);
 
@@ -40,20 +50,16 @@ export function resolveCombatTimeline(
     actorSide,
     targetSide,
     durationMs: actionDurationMs + actionDelayMs,
-    impactAtMs,
+    impactAtMs: hits[0].atMs,
+    hits,
     label: event.message?.kind === "script" && event.message.text.trim().length <= 12 ? event.message.text.trim() : action.label,
-    choreography: {
-      ...action.choreography,
-      launchAtMs: actionDelayMs + action.choreography.launchAtMs * actionDurationMs / action.durationMs,
-      hitStopMs: action.choreography.hitStopMs * actionDurationMs / action.durationMs,
-      recoverAtMs: actionDelayMs + action.choreography.recoverAtMs * actionDurationMs / action.durationMs,
-      restAtMs: actionDelayMs + action.choreography.restAtMs * actionDurationMs / action.durationMs
-    },
+    choreography,
     actor: {
       side: actorSide,
       visual: actorVisual,
       motion: action.actorMotion,
       approach,
+      poseKeys: resolvePoseKeys(action, choreography, hits, actionDelayMs, scale),
       actionDelayMs
     },
     target: {
@@ -90,12 +96,14 @@ export function resolveSettlementTimeline(
     targetSide,
     durationMs: 900,
     impactAtMs: 0,
+    hits: [{ atMs: 0, hitStopMs: 0, damage: null, heal: null, floatText: "" }],
     label: actorSide === "player" ? "胜" : "败",
     choreography: { launchAtMs: 0, hitStopMs: 0, recoverAtMs: 0, restAtMs: 900, reach: 0, contactY: 100, weight: "quiet" },
     actor: {
       side: actorSide,
       visual: actorVisual,
       motion: "none",
+      poseKeys: [],
       actionDelayMs: 0
     },
     target: {
@@ -110,6 +118,61 @@ export function resolveSettlementTimeline(
     text,
     vfx: []
   };
+}
+
+function resolveHits(action: BattleActionDefinition, event: CombatEvent, delayMs: number, playbackMs: number): ResolvedHit[] {
+  const scale = playbackMs / action.durationMs;
+  const source = action.hits?.length
+    ? action.hits.map((hit) => ({ atMs: delayMs + Math.round(hit.atMs * scale), hitStopMs: hit.hitStopMs * scale, share: hit.share ?? 1 }))
+    : [{ atMs: delayMs + clipImpactOffsetMs(action.frames, action.impactFrame, playbackMs), hitStopMs: action.choreography.hitStopMs * scale, share: 1 }];
+  const damage = splitByShare(event.damage, source.map((hit) => hit.share));
+  const heal = splitByShare(event.heal, source.map((hit) => hit.share));
+  return source.map((hit, index) => ({
+    atMs: hit.atMs,
+    hitStopMs: hit.hitStopMs,
+    damage: damage[index],
+    heal: heal[index],
+    floatText: floatText({ ...event, damage: damage[index], heal: heal[index] })
+  }));
+}
+
+/** 按份额拆分总量，累计取整，保证各段之和等于服务端给的总数。 */
+function splitByShare(total: number | null | undefined, shares: number[]): (number | null)[] {
+  if (total === null || total === undefined) return shares.map(() => null);
+  const sum = shares.reduce((a, b) => a + b, 0);
+  let before = 0;
+  let acc = 0;
+  return shares.map((share) => {
+    acc += share;
+    const upTo = Math.round(total * acc / sum);
+    const part = upTo - before;
+    before = upTo;
+    return part;
+  });
+}
+
+/**
+ * 没有写 poseTrack 的动作，按 keyPoses 展开成默认的四个键：
+ * 到位蓄势 → 起手即接触 → 最后一段定格结束切余劲 → 收势待机。
+ */
+function resolvePoseKeys(
+  action: BattleActionDefinition,
+  choreography: ResolvedBattleTimeline["choreography"],
+  hits: ResolvedHit[],
+  delayMs: number,
+  scale: number
+): PoseKeyDefinition[] {
+  if (action.actorMotion === "focus") return [];
+  if (action.poseTrack?.length) return action.poseTrack.map((key) => ({ ...key, atMs: delayMs + key.atMs * scale }));
+  const keyPoses = action.keyPoses;
+  if (!keyPoses?.prepare || !keyPoses.finish || !keyPoses.reachWith) return [];
+  const final = hits[hits.length - 1];
+  return [
+    { atMs: delayMs, pose: keyPoses.prepare },
+    { atMs: choreography.launchAtMs, pose: keyPoses.contact, pin: keyPoses.reachWith },
+    { atMs: final.atMs + final.hitStopMs, pose: keyPoses.finish },
+    { atMs: choreography.restAtMs, pose: "idle" }
+  ];
 }
 
 function visualDurationMs(serverDurationMs: number | null | undefined, fallbackDurationMs: number) {
@@ -139,7 +202,7 @@ function resultReaction(result: CombatResult): TargetReaction {
   return "effect";
 }
 
-function floatText(event: CombatEvent) {
+function floatText(event: Pick<CombatEvent, "damage" | "heal" | "result">) {
   if ((event.damage || 0) > 0) return `-${event.damage}`;
   if ((event.heal || 0) > 0) return `+${event.heal}`;
   if (event.result === "dodge") return "闪";

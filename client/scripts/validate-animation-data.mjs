@@ -46,17 +46,37 @@ for (const action of manifest.actions) {
   const c = action.choreography;
   const impact = action.frames.slice(0, action.impactFrame).reduce((sum, frame) => sum + frame.holdMs, 0);
   if (!c || ![c.launchAtMs, c.hitStopMs, c.recoverAtMs, c.restAtMs, c.reach, c.contactY].every(Number.isFinite)) fail(`${action.id}: missing choreography`);
-  if (!(0 <= c.launchAtMs && c.launchAtMs <= impact && c.hitStopMs >= 0 && impact + c.hitStopMs <= c.recoverAtMs && c.recoverAtMs <= c.restAtMs && c.restAtMs <= durationMs)) fail(`${action.id}: unordered choreography markers`);
+  const hits = action.hits ?? [{ atMs: impact, hitStopMs: c.hitStopMs }];
+  if (!Array.isArray(hits) || !hits.length) fail(`${action.id}: hits must be a non-empty array`);
+  if (hits[0].atMs !== impact) fail(`${action.id}: first hit must land on impactFrame (${impact}ms)`);
+  hits.forEach((hit, i) => {
+    if (!Number.isFinite(hit.atMs) || !Number.isFinite(hit.hitStopMs) || hit.hitStopMs < 0) fail(`${action.id}: hit ${i} needs atMs/hitStopMs`);
+    if (hit.share !== undefined && !(hit.share > 0)) fail(`${action.id}: hit ${i} share must be positive`);
+    if (i > 0 && hits[i - 1].atMs + hits[i - 1].hitStopMs > hit.atMs) fail(`${action.id}: hit ${i} starts inside the previous hold`);
+  });
+  const lastHold = hits.at(-1).atMs + hits.at(-1).hitStopMs;
+  if (!(0 <= c.launchAtMs && c.launchAtMs <= impact && c.hitStopMs >= 0 && lastHold <= c.recoverAtMs && c.recoverAtMs <= c.restAtMs && c.restAtMs <= durationMs)) fail(`${action.id}: unordered choreography markers`);
   if (!['light', 'heavy', 'quiet'].includes(c.weight) || c.reach < 0 || c.reach > 136 || c.contactY < 20 || c.contactY > 176) fail(`${action.id}: invalid contact geometry/weight`);
   for (const frame of action.frames) if (!poseIds.has(frame.frameId)) fail(`${action.id}: frame ${frame.frameId} has no SVG pose`);
   const kp = action.keyPoses;
-  for (const id of [kp?.prepare, kp?.contact, kp?.finish, action.approach?.pose].filter(Boolean)) if (!poseIds.has(id)) fail(`${action.id}: missing SVG pose ${id}`);
+  const track = action.poseTrack;
+  for (const id of [kp?.prepare, kp?.contact, kp?.finish, action.approach?.pose, ...(track ?? []).map((key) => key.pose)].filter(Boolean)) if (!poseIds.has(id)) fail(`${action.id}: missing SVG pose ${id}`);
+  if (track) {
+    if (!Array.isArray(track) || !track.length || track[0].atMs !== 0) fail(`${action.id}: poseTrack must start at 0ms`);
+    track.forEach((key, i) => {
+      if (!Number.isFinite(key.atMs) || (i > 0 && key.atMs < track[i - 1].atMs) || key.atMs > durationMs) fail(`${action.id}: poseTrack key ${i} out of order`);
+      if (key.pin !== undefined && !['hand', 'foot', 'blade'].includes(key.pin)) fail(`${action.id}: poseTrack key ${i} has invalid pin`);
+    });
+    if (!track.some((key) => key.pin)) fail(`${action.id}: poseTrack needs at least one pinned contact key`);
+  }
   for (const vfx of action.vfx || []) if (!vfxArts.includes(vfx.art)) fail(`${action.id}: vfx ${vfx.kind} needs art in ${vfxArts.join('/')}`);
   if (['approach', 'lunge', 'drive'].includes(action.actorMotion)) {
     const idle = action.style === 'sword' ? 'sword_ready' : 'idle';
     if (action.frames[0].frameId !== idle || action.frames.at(-1).frameId !== idle) fail(`${action.id}: attack must begin and finish in ready stance`);
-    if (!kp?.prepare || !kp.contact || !kp.finish || !['hand', 'foot', 'blade'].includes(kp.reachWith)) fail(`${action.id}: attack needs keyPoses prepare/contact/finish/reachWith`);
-    if (kp.contact !== action.frames[action.impactFrame].frameId) fail(`${action.id}: keyPoses.contact must match the impact frame`);
+    if (!track) {
+      if (!kp?.prepare || !kp.contact || !kp.finish || !['hand', 'foot', 'blade'].includes(kp.reachWith)) fail(`${action.id}: attack needs keyPoses prepare/contact/finish/reachWith or a poseTrack`);
+      if (kp.contact !== action.frames[action.impactFrame].frameId) fail(`${action.id}: keyPoses.contact must match the impact frame`);
+    }
     if (!action.approach || !(action.approach.durationMs > 0) || !Number.isFinite(action.approach.lift)) fail(`${action.id}: attack needs approach pose/durationMs/lift`);
   }
   if (action.actorMotion === 'focus' && !kp?.contact) fail(`${action.id}: focus action needs keyPoses.contact`);

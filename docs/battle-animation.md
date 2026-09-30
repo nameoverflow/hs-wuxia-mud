@@ -72,7 +72,37 @@ martial-art YAML animation.action
 - keyPoses：SVG 采样器硬切的三个关键姿势（蓄势、接触、余劲），均为 `svg-poses.json` 的姿势 ID。contact 必须等于 impactFrame 的 frameId。reachWith 取 hand、foot、blade，决定哪个点对齐 reach/contactY，也决定攻击轨迹追踪哪个点。focus 动作只需 contact（持势姿势）。
 - approach：接近步法的姿势、基准时长与离地高度；冲刺末段混入 keyPoses.prepare。
 - vfx[].art：舞台素材键，对应 `stageAssets.ts` 的 stageArt（impact、slash、thrust、rising、parry、aura）。
-- 受击方姿势取反应动作（rig.*.hurt/dodge/parry）第一帧的 frameId。`choreography` 的定义：
+- 受击方姿势取反应动作（rig.*.hurt/dodge/parry）第一帧的 frameId。
+
+### 多段命中与姿势轨道
+
+一招可以有多次接触。`hits` 与 `poseTrack` 都写在动作自身的时钟上（不含接近段，随服务端 durationMs 等比缩放）：
+
+```json
+"hits": [
+  { "atMs": 150, "hitStopMs": 40, "share": 1 },
+  { "atMs": 330, "hitStopMs": 40, "share": 1 },
+  { "atMs": 560, "hitStopMs": 80, "share": 2 }
+],
+"poseTrack": [
+  { "atMs": 0, "pose": "punch_windup" },
+  { "atMs": 115, "pose": "punch_strike", "pin": "hand" },
+  { "atMs": 190, "pose": "combo_recoil" },
+  { "atMs": 285, "pose": "low_punch_strike", "pin": "hand", "contactY": 132 },
+  { "atMs": 370, "pose": "kick_windup" },
+  { "atMs": 505, "pose": "kick_strike", "pin": "foot", "contactY": 104 },
+  { "atMs": 640, "pose": "kick_finish" },
+  { "atMs": 760, "pose": "idle" }
+]
+```
+
+- hits：每段一次定格。第一段必须落在 impactFrame 上；后一段不能落在前一段定格内；最后一段定格结束不晚于 recoverAtMs。省略时等于 `[{ atMs: impactFrame 起点, hitStopMs: choreography.hitStopMs }]`。
+- share：伤害/治疗的分配权重，默认平分。客户端按累计取整拆分服务端给的总数，保证各段之和不变；气血显示、飘字、墨爆、闪白、镜头回弹都逐段触发。服务端目前仍只给一个结果，所以各段共用同一个 hit/dodge/parry。
+- poseTrack：姿势键之间一律硬切。`pin` 把该姿势的 hand/foot/blade 钉到接触点，可用 reach/contactY 单独覆盖（reach 通常保持与 choreography 一致，因为人物站位按它计算）。第一个键必须在 0ms，接近步法末段混入这个姿势。至少要有一个 pin 键。
+- 省略 poseTrack 时由 keyPoses 展开成四个键：到位 prepare → launchAtMs contact（pin reachWith）→ 最后一段定格结束 finish → restAtMs idle。
+- 所有采样器通过 `battleTiming.ts` 的 visualTimeAt 读取定格后的时间；BattleClock 每段触发一次回调（参数为段序号），拖动时间轴不会重复触发已提交的段。
+
+`rig.fist.combo_a`（连环三捶）是多段示例，暂未绑定到任何武学招式，可在 battle-lab 单招回放里查看。`choreography` 的定义：
 
 - launchAtMs：从反向蓄势进入快速发力。
 - hitStopMs：命中之后同时保持人物、镜头、轨迹与飘字位移的时长。

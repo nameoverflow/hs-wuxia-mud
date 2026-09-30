@@ -65,6 +65,12 @@
     "chop_finish": { "blend": { "from": "chop_strike", "to": "idle", "amount": 0.22 }, "set": { "hand": [45, -70], "elbow": [34, -75], "blade": 48, "backHand": [-68, -104], "robe": [-50, -16] } },
     "rising_finish": { "blend": { "from": "rising_strike", "to": "idle", "amount": 0.22 }, "set": { "hand": [14, -139], "elbow": [31, -107], "blade": -145, "backHand": [-50, -112], "robe": [-40, -30] } },
 
+    "combo_recoil": { "blend": { "from": "punch_strike", "to": "punch_windup", "amount": 0.7 }, "set": { "backHand": [-40, -120] } },
+    "low_punch_strike": { "extends": "strike", "set": {
+      "head": [26, -104], "shoulder": [16, -80], "hip": [-8, -38], "knee": [40, -26], "backKnee": [-50, -20],
+      "elbow": [46, -62], "backElbow": [-28, -96], "backHand": [-60, -120], "robe": [-60, -10]
+    } },
+
     "hurt": { "set": {
       "head": [-25, -122], "shoulder": [-20, -99], "elbow": [4, -87], "hand": [17, -81],
       "backElbow": [-41, -101], "backHand": [-46, -121], "blade": 30, "robe": [48, -20], "tassel": [30, -34]

@@ -40,6 +40,34 @@ export interface BattleApproach {
   lift: number;
 }
 
+/** One contact inside an action, on the source clip clock. Omitted → a single hit at impactFrame. */
+export interface ActionHitDefinition {
+  atMs: number;
+  hitStopMs: number;
+  /** Relative portion of the event's damage/heal; defaults to an even split. */
+  share?: number;
+}
+
+export type ReachPoint = NonNullable<ActionKeyPoses["reachWith"]>;
+
+/** A hard-cut pose key on the source clip clock (after the approach). */
+export interface PoseKeyDefinition {
+  atMs: number;
+  pose: string;
+  /** Pin this point of the pose to the contact (reach/contactY); omitted → pose as authored. */
+  pin?: ReachPoint;
+  reach?: number;
+  contactY?: number;
+}
+
+export interface ResolvedHit {
+  atMs: number;
+  hitStopMs: number;
+  damage: number | null;
+  heal: number | null;
+  floatText: string;
+}
+
 export type VfxArt = "impact" | "slash" | "parry" | "aura" | "thrust" | "rising";
 
 export interface TimelineVfx {
@@ -69,6 +97,8 @@ export interface BattleActionDefinition {
   actorMotion: ActorMotion;
   keyPoses?: ActionKeyPoses;
   approach?: BattleApproach;
+  hits?: ActionHitDefinition[];
+  poseTrack?: PoseKeyDefinition[];
   targetReaction: Partial<Record<CombatResult, TargetReaction>>;
   vfx: ActionVfxDefinition[];
   choreography: BattleChoreography;
@@ -91,7 +121,10 @@ export interface ResolvedBattleTimeline {
   actorSide: BattleSide;
   targetSide: BattleSide;
   durationMs: number;
+  /** First hit; kept as a convenience for single-contact consumers. */
   impactAtMs: number;
+  /** Every contact in timeline time, sorted. Holds never overlap the next hit. */
+  hits: ResolvedHit[];
   choreography: BattleChoreography;
   label: string;
   actor: {
@@ -99,6 +132,8 @@ export interface ResolvedBattleTimeline {
     visual: ActorVisual;
     motion: ActorMotion;
     approach?: BattleApproach;
+    /** Hard-cut pose keys in timeline time; empty → pose from the current clip frame. */
+    poseKeys: PoseKeyDefinition[];
     actionDelayMs: number;
   };
   target: {

@@ -26,6 +26,8 @@
 
   $: direction = timeline?.actor.side === "enemy" ? -1 : 1;
   $: targetSide = timeline?.target.side ?? "enemy";
+  // 多段命中时逐段飘字；尚未接触时沿用整招的字。
+  $: hitText = timeline ? (timeline.hits[scene.hitIndex]?.floatText ?? timeline.floatText) : "";
   $: resultWord = timeline?.result === "dodge" ? "闪" : timeline?.result === "parry" ? "架" : timeline?.heal ? "息" : "";
   // 重招才盖招式名印章；普通招式保持克制。
   $: stampLabel = scene.force >= 1 && timeline && scene.phase !== "idle" ? timeline.label : "";
@@ -101,7 +103,7 @@
     {/if}
     <div class="result-word" class:healing={!!timeline?.heal} style:opacity={scene.textAlpha} style:transform={`translate(${sideHome(targetSide) + (targetSide === "enemy" ? 35 : -35)}px, ${-147 - scene.textLift}px) scale(${scene.textScale})`}>
       {#if resultWord}<b>{resultWord}</b>{/if}
-      {#if timeline?.floatText && timeline.floatText !== resultWord}<span>{timeline.floatText}</span>{/if}
+      {#if hitText && hitText !== resultWord}<span>{hitText}</span>{/if}
     </div>
     {#if stampLabel}
       <!-- 招式名印章：重招命中时压在舞台上方。 -->

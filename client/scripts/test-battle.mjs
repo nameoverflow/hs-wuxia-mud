@@ -17,13 +17,15 @@ try {
   const attacks = Object.values(battleActions).filter(a => ['approach', 'lunge', 'drive'].includes(a.actorMotion));
 
   const { sampleSvgPose, SVG_SWORD_LENGTH } = await server.ssrLoadModule('/src/battle/svgBattlePose.ts');
+  const { reachPointAt } = await server.ssrLoadModule('/src/battle/battleTiming.ts');
   check('SVG contacts match manifest reach and hit stop freezes articulated poses', () => {
     for (const action of attacks) {
       const timeline = make(action);
       const pose = t => sampleSvgPose(timeline, 'player', t, action.style, action.frames[action.impactFrame].frameId);
       const contact = pose(timeline.impactAtMs);
-      const limb = action.keyPoses.reachWith === 'foot' ? contact.foot : contact.hand;
-      const blade = action.keyPoses.reachWith === 'blade' ? SVG_SWORD_LENGTH : 0;
+      const pin = reachPointAt(timeline, timeline.impactAtMs);
+      const limb = pin === 'foot' ? contact.foot : contact.hand;
+      const blade = pin === 'blade' ? SVG_SWORD_LENGTH : 0;
       assert.ok(Math.abs(limb[0] + blade * Math.cos(contact.blade * Math.PI / 180) - timeline.choreography.reach) < 0.001, action.id);
       assert.ok(Math.abs(limb[1] + blade * Math.sin(contact.blade * Math.PI / 180) - (timeline.choreography.contactY - 176)) < 0.001, action.id);
       assert.deepEqual(pose(timeline.impactAtMs + timeline.choreography.hitStopMs - 1), contact);
@@ -120,8 +122,9 @@ try {
       const frameId = action.frames[action.impactFrame].frameId;
       const reachOf = timeline => {
         const pose = sampleSvgPose(timeline, 'player', timeline.impactAtMs, action.style, frameId);
-        const limb = action.keyPoses.reachWith === 'foot' ? pose.foot : pose.hand;
-        const blade = action.keyPoses.reachWith === 'blade' ? SVG_SWORD_LENGTH * Math.cos(pose.blade * Math.PI / 180) : 0;
+        const pin = reachPointAt(timeline, timeline.impactAtMs);
+        const limb = pin === 'foot' ? pose.foot : pose.hand;
+        const blade = pin === 'blade' ? SVG_SWORD_LENGTH * Math.cos(pose.blade * Math.PI / 180) : 0;
         return limb[0] + blade;
       };
       assert.ok(reachOf(parry) < reachOf(hit) - 15, `${action.id}: parried weapon must not pierce the body`);
@@ -135,6 +138,31 @@ try {
     assert.equal(frame.cameraScale, 1);
     assert.equal(frame.enemy.frameId, 'sword_hurt');
     assert.ok(frame.textAlpha > 0);
+  });
+
+  check('multi-hit actions split damage, pin every contact and freeze each hold', () => {
+    const combo = battleActions['rig.fist.combo_a'];
+    const timeline = make(combo);
+    assert.equal(timeline.hits.length, 3);
+    assert.deepEqual(timeline.hits.map(h => h.damage), [5, 4, 9]);
+    assert.equal(timeline.hits.reduce((sum, h) => sum + h.damage, 0), 18);
+    assert.deepEqual(timeline.hits.map(h => h.floatText), ['-5', '-4', '-9']);
+    const pinned = timeline.actor.poseKeys.filter(k => k.pin);
+    timeline.hits.forEach((hit, i) => {
+      const pose = t => sampleSvgPose(timeline, 'player', t, combo.style, 'idle');
+      const key = pinned[i];
+      const limb = key.pin === 'foot' ? pose(hit.atMs).foot : pose(hit.atMs).hand;
+      assert.deepEqual(limb, [timeline.choreography.reach, (key.contactY ?? timeline.choreography.contactY) - 176], `hit ${i} contact`);
+      const first = sample(timeline, hit.atMs);
+      const held = sample(timeline, hit.atMs + hit.hitStopMs - 1);
+      for (const field of ['player', 'enemy', 'cameraX', 'burst', 'trail']) assert.deepEqual(held[field], first[field], `hit ${i} ${field}`);
+      assert.deepEqual(pose(hit.atMs + hit.hitStopMs - 1), pose(hit.atMs));
+      assert.equal(first.hitIndex, i);
+      assert.equal(first.burst, 1, `hit ${i} re-bursts`);
+      assert.equal(first.invert, 1, `hit ${i} flashes`);
+      assert.equal(sample(timeline, hit.atMs + hit.hitStopMs + 1).invert, 0);
+    });
+    assert.equal(sample(timeline, timeline.hits[1].atMs - 1).hitIndex, 0);
   });
 
   function driver() {
@@ -167,6 +195,16 @@ try {
     clock.suspend(true); clock.pause(false); d.step(1000); assert.equal(current.elapsedMs, 50);
     clock.suspend(false); d.step(timeline.impactAtMs - 50); assert.equal(impacts, 1);
     clock.cancel(); d.step(10000); assert.equal(completed, false); assert.equal(current.id, null);
+  });
+
+  check('the clock fires every hit once, in order, even after scrubbing past them', () => {
+    const d = driver(), clock = new BattleClock(d.api), timeline = make(battleActions['rig.fist.combo_a']);
+    const fired = [];
+    clock.play(timeline, i => fired.push(i), () => {});
+    d.step(timeline.hits[0].atMs); assert.deepEqual(fired, [0]);
+    clock.pause(); clock.seek(timeline.hits[2].atMs + 1); d.step(100); assert.deepEqual(fired, [0]);
+    clock.pause(false); d.step(1); assert.deepEqual(fired, [0, 1, 2]);
+    clock.seek(0); d.step(timeline.durationMs); assert.deepEqual(fired, [0, 1, 2]);
   });
 
   check('scrubbing never repeats an applied impact', () => {

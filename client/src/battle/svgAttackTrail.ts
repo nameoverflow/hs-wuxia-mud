@@ -1,13 +1,13 @@
 import type { ActorVisual, ResolvedBattleTimeline } from './animationTypes';
 import { sampleBattleScene, sideHome } from './battleDirector';
 import { sampleSvgPose, SVG_SWORD_LENGTH } from './svgBattlePose';
+import { reachPointAt, visualTimeAt } from './battleTiming';
 
 /** Sample the actual weapon/limb path; effects share the clock, including hit stop. */
 export function sampleAttackTrail(timeline: ResolvedBattleTimeline | null, elapsed: number, player: ActorVisual, enemy: ActorVisual, reduced = false) {
   if (!timeline || reduced || !['approach', 'lunge', 'drive'].includes(timeline.actor.motion)) return { points: '', echoes: [] };
   const c = timeline.choreography;
-  const impact = timeline.impactAtMs;
-  const t = elapsed >= impact && elapsed < impact + c.hitStopMs ? impact : elapsed;
+  const t = visualTimeAt(timeline, elapsed);
   const side = timeline.actor.side;
   const mirror = side === 'player' ? 1 : -1;
   const sample = (ms: number) => {
@@ -16,8 +16,9 @@ export function sampleAttackTrail(timeline: ResolvedBattleTimeline | null, elaps
   };
   const start = Math.max(c.launchAtMs, t - 125);
   const points = Array.from({ length: 12 }, (_, i) => {
-    const { pose, figure, x } = sample(start + Math.max(0, t - start) * i / 11);
-    const reachWith = timeline.actor.visual.keyPoses?.reachWith ?? 'hand';
+    const ms = start + Math.max(0, t - start) * i / 11;
+    const { pose, figure, x } = sample(ms);
+    const reachWith = reachPointAt(timeline, visualTimeAt(timeline, ms));
     const limb = reachWith === 'foot' ? pose.foot : pose.hand;
     const length = reachWith === 'blade' ? SVG_SWORD_LENGTH : 0;
     const angle = pose.blade * Math.PI / 180;

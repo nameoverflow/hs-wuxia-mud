@@ -24,7 +24,8 @@ manifest.actions.forEach((action) => {
   const poses = [
     ...action.frames.map((frame) => frame.frameId),
     ...Object.entries(action.keyPoses || {}).filter(([key]) => key !== "reachWith").map(([, id]) => id as string),
-    ...(action.approach ? [action.approach.pose] : [])
+    ...(action.approach ? [action.approach.pose] : []),
+    ...(action.poseTrack || []).map((key) => key.pose)
   ];
   for (const pose of poses) if (!hasSvgPose(pose)) throw new Error(`${action.id}: missing SVG pose ${pose}`);
   for (const vfx of action.vfx || []) if (!(vfx.art in stageArt)) throw new Error(`${action.id}: unknown vfx art ${vfx.art}`);

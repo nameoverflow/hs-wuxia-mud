@@ -30,14 +30,15 @@ export class BattleClock {
   private paused = false;
   private suspended = false;
   private speed = 1;
-  private impacted = false;
+  /** 下一段待触发的命中；拖动时间轴不会让已触发的命中重来。 */
+  private nextHit = 0;
   private generation = 0;
-  private onImpact: () => void = () => {};
+  private onImpact: (hitIndex: number) => void = () => {};
   private onComplete: () => void = () => {};
 
   constructor(private driver: ClockDriver = browserDriver) {}
 
-  play(timeline: ResolvedBattleTimeline, onImpact: () => void, onComplete: () => void) {
+  play(timeline: ResolvedBattleTimeline, onImpact: (hitIndex: number) => void, onComplete: () => void) {
     this.cancel();
     this.timeline = timeline;
     this.onImpact = onImpact;
@@ -78,7 +79,7 @@ export class BattleClock {
     this.frame = null;
     this.timeline = null;
     this.elapsed = 0;
-    this.impacted = false;
+    this.nextHit = 0;
     this.paused = false;
     this.emit();
   }
@@ -96,9 +97,8 @@ export class BattleClock {
     if (!stopped) this.elapsed = Math.min(timeline.durationMs, this.elapsed + Math.max(0, now - this.previous) * this.speed);
     this.previous = now;
     this.emit();
-    if (!stopped && !this.impacted && this.elapsed >= timeline.impactAtMs) {
-      this.impacted = true;
-      this.onImpact();
+    while (!stopped && this.nextHit < timeline.hits.length && this.elapsed >= timeline.hits[this.nextHit].atMs) {
+      this.onImpact(this.nextHit++);
       if (this.generation !== generation) return;
     }
     if (!stopped && this.elapsed >= timeline.durationMs) {

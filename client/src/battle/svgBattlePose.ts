@@ -1,5 +1,6 @@
 import { blendPose, svgPose, type SvgPose } from './svgPoseLibrary';
-import type { BattleApproach, BattleSide, CombatStyle, ResolvedBattleTimeline } from './animationTypes';
+import type { BattleApproach, BattleSide, CombatStyle, PoseKeyDefinition, ResolvedBattleTimeline } from './animationTypes';
+import { poseKeyAt, visualTimeAt } from './battleTiming';
 
 export { blendPose, svgPose, type SvgPose };
 export const SVG_SWORD_LENGTH = 72;
@@ -26,8 +27,7 @@ export function sampleSvgPose(timeline: ResolvedBattleTimeline | null, side: Bat
   const arrival = timeline.actor.actionDelayMs;
   if (reduced) return side === timeline.actor.side && elapsed < arrival ? idle : svgPose(frame, style);
   const impact = timeline.impactAtMs;
-  const holdEnd = impact + c.hitStopMs;
-  const t = elapsed >= impact && elapsed < holdEnd ? impact : elapsed;
+  const t = visualTimeAt(timeline, elapsed);
   if (side !== timeline.actor.side) {
     const reaction = timeline.target.reaction;
     if (reaction === 'none' || reaction === 'effect') return idle;
@@ -44,23 +44,26 @@ export function sampleSvgPose(timeline: ResolvedBattleTimeline | null, side: Bat
     if (t < c.launchAtMs) return idle;
     return t < c.restAtMs ? svgPose(keyPoses?.contact ?? 'guard', style) : idle;
   }
-  if (!keyPoses?.prepare || !keyPoses.finish || !keyPoses.reachWith) return svgPose(frame, style);
-  if (t < arrival && timeline.actor.approach) return sampleApproachPose(timeline.actor.approach, keyPoses.prepare, style, progress(t, 0, arrival));
-  const prep = svgPose(keyPoses.prepare, style);
-  const strike = svgPose(keyPoses.contact, style);
-  // 接触点。招架时留出一段距离，让剑停在格挡位置而不是穿进身体。
-  const reach = timeline.result === 'parry' ? c.reach - 26 : c.reach;
-  if (keyPoses.reachWith === 'foot') strike.foot = [reach, c.contactY - 176];
-  else if (keyPoses.reachWith === 'hand') strike.hand = [reach, c.contactY - 176];
+  const keys = timeline.actor.poseKeys;
+  if (!keys.length) return svgPose(frame, style);
+  if (t < arrival && timeline.actor.approach) return sampleApproachPose(timeline.actor.approach, keys[0].pose, style, progress(t, 0, arrival));
+  // 姿势键之间一律硬切：蓄势定住、出招一帧到位并随定格持住、余劲另起、收势切回待机。
+  return keyedPose(poseKeyAt(keys, t) ?? keys[0], timeline, style);
+}
+
+/** 接触键把拳、脚或剑尖钉在 reach/contactY 上。招架时留出一段距离，让兵刃停在格挡位置而不是穿进身体。 */
+function keyedPose(key: PoseKeyDefinition, timeline: ResolvedBattleTimeline, style: CombatStyle): SvgPose {
+  const pose = svgPose(key.pose, style);
+  if (!key.pin) return pose;
+  const c = timeline.choreography;
+  const reach = (key.reach ?? c.reach) - (timeline.result === 'parry' ? 26 : 0);
+  const y = (key.contactY ?? c.contactY) - 176;
+  if (key.pin === 'foot') pose.foot = [reach, y];
+  else if (key.pin === 'hand') pose.hand = [reach, y];
   else {
-    const radians = strike.blade * Math.PI / 180;
-    strike.hand = [reach - Math.cos(radians) * SVG_SWORD_LENGTH, c.contactY - 176 - Math.sin(radians) * SVG_SWORD_LENGTH];
-    strike.elbow = [(strike.shoulder[0] + strike.hand[0]) / 2, strike.hand[1] + 10];
+    const radians = pose.blade * Math.PI / 180;
+    pose.hand = [reach - Math.cos(radians) * SVG_SWORD_LENGTH, y - Math.sin(radians) * SVG_SWORD_LENGTH];
+    pose.elbow = [(pose.shoulder[0] + pose.hand[0]) / 2, pose.hand[1] + 10];
   }
-  if (t < c.launchAtMs) return prep;
-  // 出招一帧到位，并连同命中定格一起持住，定格结束才切到收招姿势。
-  if (t < impact + c.hitStopMs) return strike;
-  // 余劲：过接触帧后另起一个收招姿势，不回放释放动作。
-  if (t < c.restAtMs) return svgPose(keyPoses.finish, style);
-  return idle;
+  return pose;
 }

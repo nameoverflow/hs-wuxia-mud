@@ -802,8 +802,8 @@ async function playNextBattleTimeline() {
     ? window.setTimeout(() => playBattleWhoosh(next.timeline), next.timeline.choreography.launchAtMs * 0.85)
     : null;
 
-  battleClock.play(next.timeline, () => {
-    applyPresentedImpact(next.timeline);
+  battleClock.play(next.timeline, (hitIndex) => {
+    applyPresentedImpact(next.timeline, hitIndex);
     playBattleImpact(next.timeline);
   }, () => {
     if (whooshTimer !== null) { window.clearTimeout(whooshTimer); whooshTimer = null; }
@@ -836,7 +836,7 @@ function compressBattleRest(timeline: ResolvedBattleTimeline): ResolvedBattleTim
   return { ...timeline, durationMs: timeline.durationMs - cut, actor: { ...timeline.actor, visual: { ...timeline.actor.visual, frames } } };
 }
 
-function applyPresentedImpact(timeline: ResolvedBattleTimeline) {
+function applyPresentedImpact(timeline: ResolvedBattleTimeline, hitIndex: number) {
   if (timeline.kind === "settlement") return;
   game.update((state) => {
     const current = state.battle.presentation ?? {
@@ -845,7 +845,8 @@ function applyPresentedImpact(timeline: ResolvedBattleTimeline) {
     };
     const key = timeline.target.side === "player" ? "playerHp" : "enemyHp";
     const target = timeline.target.side === "player" ? state.battle.player : state.battle.enemy;
-    const change = (timeline.heal || 0) - (timeline.damage || 0);
+    const hit = timeline.hits[hitIndex];
+    const change = (hit?.heal || 0) - (hit?.damage || 0);
     const hp = Math.max(0, Math.min(target?.combatantSnapshotMaxHp ?? state.stats.maxHp, current[key] + change));
     return { ...state, battle: { ...state.battle, presentation: { ...current, [key]: hp } } };
   });

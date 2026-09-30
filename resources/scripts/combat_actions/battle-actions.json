@@ -827,6 +827,148 @@
       }
     },
     {
+      "id": "rig.fist.combo_a",
+      "label": "连环三捶",
+      "style": "fist",
+      "frames": [
+        {
+          "frameId": "idle",
+          "holdMs": 40
+        },
+        {
+          "frameId": "punch_windup",
+          "holdMs": 110
+        },
+        {
+          "frameId": "punch_strike",
+          "holdMs": 180
+        },
+        {
+          "frameId": "punch_strike",
+          "holdMs": 50
+        },
+        {
+          "frameId": "kick_windup",
+          "holdMs": 140
+        },
+        {
+          "frameId": "kick_strike",
+          "holdMs": 180
+        },
+        {
+          "frameId": "idle",
+          "holdMs": 160
+        }
+      ],
+      "impactFrame": 2,
+      "durationMs": 860,
+      "tags": [
+        "fist",
+        "attack",
+        "combo",
+        "strike",
+        "kick"
+      ],
+      "actorMotion": "approach",
+      "approach": {
+        "pose": "approach_step_in",
+        "durationMs": 150,
+        "lift": 3
+      },
+      "hits": [
+        {
+          "atMs": 150,
+          "hitStopMs": 40,
+          "share": 1
+        },
+        {
+          "atMs": 330,
+          "hitStopMs": 40,
+          "share": 1
+        },
+        {
+          "atMs": 560,
+          "hitStopMs": 80,
+          "share": 2
+        }
+      ],
+      "poseTrack": [
+        {
+          "atMs": 0,
+          "pose": "punch_windup"
+        },
+        {
+          "atMs": 115,
+          "pose": "punch_strike",
+          "pin": "hand"
+        },
+        {
+          "atMs": 190,
+          "pose": "combo_recoil"
+        },
+        {
+          "atMs": 285,
+          "pose": "low_punch_strike",
+          "pin": "hand",
+          "contactY": 132
+        },
+        {
+          "atMs": 370,
+          "pose": "kick_windup"
+        },
+        {
+          "atMs": 505,
+          "pose": "kick_strike",
+          "pin": "foot",
+          "contactY": 104
+        },
+        {
+          "atMs": 640,
+          "pose": "kick_finish"
+        },
+        {
+          "atMs": 760,
+          "pose": "idle"
+        }
+      ],
+      "targetReaction": {
+        "hit": "hit",
+        "dodge": "dodge",
+        "parry": "parry",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "trail",
+          "variant": "slash-arc",
+          "anchor": "actor",
+          "art": "slash"
+        },
+        {
+          "kind": "impact",
+          "variant": "hit-spark",
+          "anchor": "target",
+          "art": "impact"
+        },
+        {
+          "kind": "parry",
+          "variant": "parry-arc",
+          "anchor": "target",
+          "art": "parry"
+        }
+      ],
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 115,
+        "hitStopMs": 40,
+        "recoverAtMs": 650,
+        "restAtMs": 760,
+        "reach": 72,
+        "contactY": 110,
+        "weight": "heavy"
+      }
+    },
+    {
       "id": "rig.fist.guard",
       "label": "抱元守一",
       "style": "fist",
