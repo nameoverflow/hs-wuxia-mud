@@ -9,6 +9,7 @@
   import { sampleBattleScene } from "./battleDirector";
   import { idleVisualForStyle } from "./battleActionCatalog";
   import { preloadBattleAssets } from "./stageAssets";
+  import { figureStyle } from "./figureStyle";
   import { playBattleDemo, seedBattle, submitBattleAction } from "./battleFixtures";
   import type { BattleSide, VisualProfile } from "./animationTypes";
   import type { CombatResult } from "../protocol";
@@ -68,6 +69,9 @@
       <label>结果<select bind:value={outcome}><option value="hit">命中</option><option value="dodge">闪避</option><option value="parry">招架</option><option value="effect">效果</option></select></label>
       <label>出招方<select bind:value={side}><option value="player">行者</option><option value="enemy">守擂人</option></select></label>
       <label>行者剪影<select bind:value={profile}><option value="female">束发</option><option value="male">无发饰</option></select></label>
+      <label>描边<select bind:value={$figureStyle.ink}><option value="flat">等宽</option><option value="brush">笔触 + 明暗</option></select></label>
+      <label>比例<select bind:value={$figureStyle.proportion}><option value="classic">现在</option><option value="tall">修长</option></select></label>
+      <label>女侠造型<select bind:value={$figureStyle.look}><option value="maiden">发髻披发</option><option value="ponytail">高马尾</option></select></label>
       <button disabled={!ready} on:click={playOne}>播放这一招</button>
       <p>拖动时间轴可逐帧检查。暂停和慢放使用游戏中的同一条时间线。</p>
     </aside>

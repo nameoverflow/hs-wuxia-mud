@@ -1,14 +1,22 @@
 <script lang="ts">
   import SvgBattleActor from "../components/SvgBattleActor.svelte";
   import { svgPose, svgPoseIds } from "./svgPoseLibrary";
+  import { figureStyle, type FigureStyle } from "./figureStyle";
   import type { CombatStyle, VisualProfile } from "./animationTypes";
 
   // 姿势总览：每个姿势按拳、剑两种骨架各画一格，地面线在 y=0，方便逐个检查比例、关节弯向和落脚。
   let filter = "";
   let profile: VisualProfile = "female";
-  /** 女性造型对照：新版少女女侠、旧版高马尾，或两版并排。 */
-  let look: "maiden" | "ponytail" | "compare" = "maiden";
-  $: looks = look === "compare" ? (["maiden", "ponytail"] as const) : ([look] as const);
+  /** 并排对比哪一项：每个姿势按这一项的两种取值各画一格，其余取当前设置。 */
+  let compare: "none" | "ink" | "proportion" | "look" = "none";
+  const OPTIONS = {
+    ink: [["flat", "等宽描边"], ["brush", "笔触明暗"]],
+    proportion: [["classic", "现在比例"], ["tall", "修长比例"]],
+    look: [["maiden", "发髻披发"], ["ponytail", "高马尾"]]
+  } as const;
+  $: variants = compare === "none"
+    ? [{ style: $figureStyle, label: "" }]
+    : OPTIONS[compare].map(([value, label]) => ({ style: { ...$figureStyle, [compare]: value } as FigureStyle, label: ` · ${label}` }));
   const styles: CombatStyle[] = ["fist", "sword"];
   $: ids = svgPoseIds().filter((id) => id.includes(filter.trim()));
 </script>
@@ -18,15 +26,18 @@
     <h1>剪影姿势总览</h1>
     <label>筛选 <input bind:value={filter} placeholder="姿势名" /></label>
     <label>剪影 <select bind:value={profile}><option value="female">束发</option><option value="male">无发饰</option></select></label>
-    <label>女侠造型 <select bind:value={look}><option value="maiden">发髻披发（新）</option><option value="ponytail">高马尾（旧）</option><option value="compare">并排对比</option></select></label>
+    <label>描边 <select bind:value={$figureStyle.ink}><option value="flat">等宽</option><option value="brush">笔触 + 明暗</option></select></label>
+    <label>比例 <select bind:value={$figureStyle.proportion}><option value="classic">现在</option><option value="tall">修长</option></select></label>
+    <label>女侠造型 <select bind:value={$figureStyle.look}><option value="maiden">发髻披发</option><option value="ponytail">高马尾</option></select></label>
+    <label>并排对比 <select bind:value={compare}><option value="none">不对比</option><option value="ink">描边</option><option value="proportion">比例</option><option value="look">女侠造型</option></select></label>
   </header>
   <section class="grid">
     {#each ids as id}
       {#each styles as style}
-        {#each looks as variant}
-          <figure data-pose={id} data-style={style} data-look={variant}>
-            <div class="cell"><div class="ground"></div><div class="figure"><SvgBattleActor pose={svgPose(id, style)} {style} {profile} look={variant} /></div></div>
-            <figcaption>{id} · {style === "fist" ? "拳" : "剑"}{look === "compare" ? (variant === "maiden" ? " · 新" : " · 旧") : ""}</figcaption>
+        {#each variants as variant, v}
+          <figure data-pose={id} data-style={style} data-variant={v}>
+            <div class="cell"><div class="ground"></div><div class="figure"><SvgBattleActor pose={svgPose(id, style, variant.style.proportion)} {style} {profile} look={variant.style.look} ink={variant.style.ink} /></div></div>
+            <figcaption>{id} · {style === "fist" ? "拳" : "剑"}{variant.label}</figcaption>
           </figure>
         {/each}
       {/each}

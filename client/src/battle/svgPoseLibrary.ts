@@ -1,5 +1,6 @@
 import poseData from "../../../resources/scripts/combat_presentation/svg-poses.json";
 import type { CombatStyle } from "./animationTypes";
+import { currentFigureStyle, type FigureStyle } from "./figureStyle";
 
 export type Point = [number, number];
 
@@ -16,7 +17,14 @@ export interface SvgPose {
   /** 脚踩在地上：脚掌平贴地面。离地的脚（冲刺、踢腿、跳起）顺着小腿指出去。 */
   footPlanted: boolean;
   backFootPlanted: boolean;
+  /** 手型：前手、后手分别是握拳、立掌还是剑指。 */
+  hands: [HandShape, HandShape];
+  /** 这副姿势用的骨长（比例不同，头和腿的长度不同）。 */
+  bones: Bones;
 }
+
+export type HandShape = "fist" | "palm" | "finger";
+export type Proportion = FigureStyle["proportion"];
 
 /**
  * 一个关键姿势的参数：髋的位置、躯干/头/手臂的朝向（度，0 朝前、90 朝下），
@@ -35,6 +43,8 @@ export interface PoseParams {
   knees: [number, number];
   blade: number;
   tassel: Point;
+  /** 前手、后手的手型。 */
+  hands: [HandShape, HandShape];
 }
 
 interface PoseDefinition {
@@ -84,7 +94,8 @@ export function blendParams(a: PoseParams, b: PoseParams, amount: number): PoseP
     backFoot: point(a.backFoot, b.backFoot),
     knees: amount < 0.5 ? a.knees : b.knees,
     blade: lerpAngle(a.blade, b.blade, amount),
-    tassel: point(a.tassel, b.tassel)
+    tassel: point(a.tassel, b.tassel),
+    hands: amount < 0.5 ? a.hands : b.hands
   };
 }
 
@@ -108,7 +119,13 @@ export function bendOf(root: Point, joint: Point, end: Point) {
   return cross < 0 ? 1 : -1;
 }
 
-const legLength = () => bones.thigh + bones.shin;
+/**
+ * 修长比例：头小一号，大腿、小腿各长一截；髋随之抬高，踩地的脚仍然踩地，离地的脚一起抬高，姿势的弯曲程度不变。
+ */
+export const tallBones: Bones = { ...library.bones, headRadius: library.bones.headRadius - 1.8, thigh: library.bones.thigh + 4, shin: library.bones.shin + 4 };
+export function bonesFor(proportion: Proportion): Bones {
+  return proportion === "tall" ? tallBones : bones;
+}
 /** 踩地时脚踝离地的高度：脚掌有厚度，脚踝不贴地。 */
 export const ANKLE_HEIGHT = 5;
 /** 肩关节在颈根下面多少：手臂从胸口上沿长出来。 */
@@ -118,28 +135,32 @@ const isPlanted = (foot: Point) => foot[1] > -4;
 const ankleOf = (foot: Point): Point => (isPlanted(foot) ? [foot[0], foot[1] - ANKLE_HEIGHT] : foot);
 
 /** 参数 → 关节坐标。脚是落点，髋够不着时自动下沉，宽马步自然就蹲低了。 */
-export function poseFromParams(params: PoseParams): SvgPose {
-  let hip: Point = [...params.hip];
-  const reach = legLength() - 0.5;
-  const frontAnkle = ankleOf(params.foot), backAnkle = ankleOf(params.backFoot);
+export function poseFromParams(params: PoseParams, proportion: Proportion = currentFigureStyle().proportion): SvgPose {
+  const b = bonesFor(proportion);
+  const lift = b.thigh + b.shin - bones.thigh - bones.shin;
+  const raise = (p: Point): Point => (isPlanted(p) ? p : [p[0], p[1] - lift]);
+  let hip: Point = [params.hip[0], params.hip[1] - lift];
+  const reach = b.thigh + b.shin - 0.5;
+  const frontAnkle = ankleOf(raise(params.foot)), backAnkle = ankleOf(raise(params.backFoot));
   for (const foot of [frontAnkle, backAnkle]) {
     const dx = foot[0] - hip[0];
     if (Math.abs(dx) < reach) hip = [hip[0], Math.max(hip[1], foot[1] - Math.sqrt(reach * reach - dx * dx))];
   }
-  const neck = add(hip, dir(params.torso), bones.torso);
+  const neck = add(hip, dir(params.torso), b.torso);
   const shoulder = add(neck, dir(params.torso), -SHOULDER_DROP);
-  const head = add(neck, dir(params.head), bones.neck + bones.headRadius);
-  const elbow = add(shoulder, dir(params.arm[0]), bones.upperArm);
-  const hand = add(elbow, dir(params.arm[1]), bones.forearm);
-  const backElbow = add(shoulder, dir(params.backArm[0]), bones.upperArm);
-  const backHand = add(backElbow, dir(params.backArm[1]), bones.forearm);
-  const front = solveTwoBone(hip, frontAnkle, bones.thigh, bones.shin, params.knees[0]);
-  const back = solveTwoBone(hip, backAnkle, bones.thigh, bones.shin, params.knees[1]);
+  const head = add(neck, dir(params.head), b.neck + b.headRadius);
+  const elbow = add(shoulder, dir(params.arm[0]), b.upperArm);
+  const hand = add(elbow, dir(params.arm[1]), b.forearm);
+  const backElbow = add(shoulder, dir(params.backArm[0]), b.upperArm);
+  const backHand = add(backElbow, dir(params.backArm[1]), b.forearm);
+  const front = solveTwoBone(hip, frontAnkle, b.thigh, b.shin, params.knees[0]);
+  const back = solveTwoBone(hip, backAnkle, b.thigh, b.shin, params.knees[1]);
   return {
     neck, head, shoulder, hip, elbow, hand, backElbow, backHand,
     knee: front.joint, foot: front.end, backKnee: back.joint, backFoot: back.end,
     tassel: [...params.tassel], blade: params.blade,
-    footPlanted: isPlanted(params.foot), backFootPlanted: isPlanted(params.backFoot)
+    footPlanted: isPlanted(params.foot), backFootPlanted: isPlanted(params.backFoot),
+    hands: params.hands, bones: b
   };
 }
 
@@ -175,12 +196,12 @@ export function poseParams(id: string, rig: CombatStyle): PoseParams {
 }
 
 /** 返回可修改的关节坐标：采样器会在接触帧上用反解把拳、脚、剑尖送到接触点。 */
-export function svgPose(id: string, rig: CombatStyle): SvgPose {
-  return poseFromParams(resolveParams(id, rig));
+export function svgPose(id: string, rig: CombatStyle, proportion?: Proportion): SvgPose {
+  return poseFromParams(resolveParams(id, rig), proportion);
 }
 
-export function blendPose(fromId: string, toId: string, amount: number, rig: CombatStyle): SvgPose {
-  return poseFromParams(blendParams(resolveParams(fromId, rig), resolveParams(toId, rig), amount));
+export function blendPose(fromId: string, toId: string, amount: number, rig: CombatStyle, proportion?: Proportion): SvgPose {
+  return poseFromParams(blendParams(resolveParams(fromId, rig), resolveParams(toId, rig), amount), proportion);
 }
 
 /** 把整个姿势平移（身体顺着出招方向探出去）。 */
@@ -203,7 +224,7 @@ export function reachWith(pose: SvgPose, limb: "hand" | "foot", target: Point): 
   const root = limb === "hand" ? pose.shoulder : pose.hip;
   const joint = limb === "hand" ? pose.elbow : pose.knee;
   const end = limb === "hand" ? pose.hand : pose.foot;
-  const [a, b] = limb === "hand" ? [bones.upperArm, bones.forearm] : [bones.thigh, bones.shin];
+  const [a, b] = limb === "hand" ? [pose.bones.upperArm, pose.bones.forearm] : [pose.bones.thigh, pose.bones.shin];
   const bend = bendOf(root, joint, end);
   const length = a + b - 0.5;
   const dy = target[1] - root[1];
