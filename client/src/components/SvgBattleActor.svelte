@@ -15,7 +15,7 @@
   /** 站着时的轻微摆动相位，取舞台时间，暂停和拖动时间轴都确定。 */
   export let hairPhase = 0;
   /**
-   * 女性造型：maiden 为发髻 + 发簪 + 披发 + 鬓发、身形更纤细的少女女侠；ponytail 为此前的高马尾（对照用）。
+   * 女性造型：maiden 为发髻 + 发簪 + 披发、身形更纤细的少女女侠；ponytail 为此前的高马尾（对照用）。
    */
   export let look: 'maiden' | 'ponytail' = 'maiden';
   $: p = pose;
@@ -137,15 +137,13 @@
       const part = list.find((candidate) => candidate.key === key);
       if (part) part.joins.push({ at, r, shapes: [...others.flatMap(shapesOf), ...part.shapes] });
     };
-    // 少女女侠：后脑挽发髻、斜插发簪，发髻下披散几缕长短不一的长发，脸侧一缕鬓发。
-    const up = headUp, back = headBackDir, fwd = [-back[0], -back[1]];
+    // 少女女侠：后脑挽发髻、平插发簪，发髻下披散几缕长短不一的长发。
+    const up = headUp, back = headBackDir;
     const onFace = (u: number, b: number): Pt => [headC[0] + up[0] * headR * u + back[0] * headR * b, headC[1] + up[1] * headR * u + back[1] * headR * b];
     // 发髻从后脑上方鼓出来；发簪几乎平着向后穿过发髻，只微微上翘。
     const bun = onFace(0.5, 0.98), bunTop = onFace(0.82, 0.72);
     const pinDir = unit([up[0] * 0.3 + back[0] * 0.95, up[1] * 0.3 + back[1] * 0.95]);
     const looseRoot = onFace(0.05, 0.86);
-    // 鬓发从额角发际线沿着脸的前缘垂下，大半露在轮廓外侧。
-    const lockRoot = onFace(0.62, -0.62);
     if (maiden) {
       /** 垂下的发丝：以后脑为根，b 向后、down 向下；外力和摆动越往下越大。 */
       const h = (b: number, down: number, f: number, sw: number): Pt =>
@@ -181,13 +179,8 @@
     join('body', ['back-leg'], p.hip, R.thigh + 10);
     join('body', ['back-arm'], p.shoulder, R.shoulder + 8);
     if (maiden) {
-      join('body', ['hair'], looseRoot, 7);
-      join('body', ['hair'], bun, 7);
-      // 鬓发：从发际线垂到下颌以下，叠在脸前，靠描边读出一缕发丝；发根处缝合进头里。
-      const lockMid: Pt = [headC[0] + fwd[0] * headR * 1.02 + flow[0] * 0.2, headC[1] + fwd[1] * headR * 1.02 + headR * 0.25 + flow[1] * 0.2];
-      const lockEnd: Pt = [headC[0] + fwd[0] * headR * 0.86 + back[0] * sway1 * 0.4 + flow[0] * 0.55, headC[1] + fwd[1] * headR * 0.86 + headR + 9 + flow[1] * 0.55];
-      list.push({ key: 'side-lock', joins: [], shapes: [{ d: ribbon([lockRoot, lockMid, lockEnd], [1.6, 1.5, 0.35]) }] });
-      join('side-lock', ['body'], lockRoot, 2.6);
+      join('body', ['hair'], looseRoot, 10);
+      join('body', ['hair'], bun, 8);
     } else if (profile === 'female') join('body', ['hair'], root, 8);
     list.push({ key: 'front-leg', joins: [], shapes: [...limb(p.hip, p.knee, R.thigh, R.knee), ...limb(p.knee, p.foot, R.knee, R.ankle), ...foot(p.knee, p.foot, p.footPlanted)] });
     const arm: Shape[] = [...limb(p.shoulder, p.elbow, R.shoulder, R.elbow), ...limb(p.elbow, p.hand, R.elbow, R.wrist)];
