@@ -176,10 +176,16 @@ try {
     assert.equal(sample(timeline, timeline.hits[1].atMs - 1).hitIndex, 0);
   });
 
+  // 收招阶段位移按平滑曲线退回；接触后不久还没进入收招，这里算出收招进度供断言使用。
+  const smoothRecovery = (tl, t) => { const c = tl.choreography; const p = Math.max(0, Math.min(1, (t - c.recoverAtMs) / Math.max(1, c.restAtMs - c.recoverAtMs))); return p * p * (3 - 2 * p); };
   check('staging overrides drive reaction, camera and pose per action and per hit', () => {
     const palm = make(battleActions['rig.fist.palm_knockback_a']);
     const at = sample(palm, palm.impactAtMs);
-    assert.equal(at.enemy.x, 120, 'knockback push');
+    const snap = palm.hits[0].staging.reactions.hit.snap;
+    // 接触瞬间先打退一部分，定格结束后 200ms 内踉跄滑完剩下的。
+    assert.ok(Math.abs(at.enemy.x - 120 * snap) < 1e-9, 'knockback snaps part of the push at contact');
+    const settled = palm.hits[0].atMs + palm.hits[0].hitStopMs + 220;
+    assert.ok(Math.abs(sample(palm, settled).enemy.x - 120 * (1 - smoothRecovery(palm, settled))) < 1e-9, 'then staggers the rest');
     assert.equal(at.enemy.y, -14, 'knockback lift');
     assert.equal(at.enemy.angle, 26, 'knockback tilt');
     const knocked = sampleSvgPose(palm, 'enemy', palm.impactAtMs, 'sword', at.enemy.frameId);
@@ -189,7 +195,9 @@ try {
     const combo = make(battleActions['rig.fist.combo_a']);
     const first = sample(combo, combo.hits[0].atMs), last = sample(combo, combo.hits[2].atMs);
     assert.ok(last.cameraX > first.cameraX, 'heavier final hit kicks harder');
-    assert.equal(last.enemy.x, 70);
+    const lastHit = combo.hits[2];
+    const lastSettled = lastHit.atMs + lastHit.hitStopMs + 220;
+    assert.ok(Math.abs(sample(combo, lastSettled).enemy.x - 70 * (1 - smoothRecovery(combo, lastSettled))) < 1e-9, 'final hit pushes further');
   });
 
   check('offset tracks lift the actor while the pinned limb still lands on the target', () => {
@@ -209,7 +217,7 @@ try {
     assert.equal(at.contact.y, qi.choreography.contactY - 176);
     assert.equal(at.burst, 1);
     const combo = make(battleActions['rig.fist.combo_a'], 'dodge');
-    for (const hit of combo.hits.slice(1)) assert.equal(sample(combo, hit.atMs - 20).enemy.x, 52, 'dodge must not reset between hits');
+    for (const hit of combo.hits.slice(1)) assert.equal(sample(combo, hit.atMs - 20).enemy.x, hit.staging.reactions.dodge.push, 'dodge must not reset between hits');
   });
 
   const vfxModule = await server.ssrLoadModule('/src/battle/battleVfx.ts');
