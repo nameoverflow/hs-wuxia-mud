@@ -69,29 +69,31 @@
   }
 
   // 粗细（半径）：四肢从胸腔、骨盆两个体块里长出来——肩（三角肌）和大腿根做粗，与体块衔接成一整块；往末端收细。
-  const R = { thigh: 10.5, knee: 7.2, ankle: 4.6, shoulder: 8.4, elbow: 5.8, wrist: 4.4, fist: 5.8, chest: 13.5, pelvis: 11.5, neck: 7.5 };
+  const R = { thigh: 10.5, knee: 7.2, ankle: 4.6, shoulder: 8.4, elbow: 5.8, wrist: 4.4, fist: 5.8, chest: 13.5, pelvis: 11.5, neck: 9 };
   const BLADE = '#f2ead2';
 
   /**
-   * 马尾：发绳系在后脑，发束贴着后脑垂下、带一点 S 形，末梢被外力带着飘。
-   * 一条主发束加一缕稍短的副发，都是两头收细的缎带。
+   * 马尾：一条穿过若干控制点的平滑缎带（Catmull-Rom 样条），每个控制点有自己的半宽，
+   * 所以能做出"发根收紧、翘起处饱满、垂下后收尖"的形状。
    */
-  function cubic(p0: Pt, p1: Pt, p2: Pt, p3: Pt, t: number) {
-    const u = 1 - t;
-    return [0, 1].map((i) => u * u * u * p0[i] + 3 * u * u * t * p1[i] + 3 * u * t * t * p2[i] + t * t * t * p3[i]);
-  }
-  function strand(p0: Pt, p1: Pt, p2: Pt, p3: Pt, root: number) {
-    const n = 18;
-    const pts = Array.from({ length: n + 1 }, (_, i) => cubic(p0, p1, p2, p3, i / n));
+  function ribbon(points: Pt[], widths: number[]) {
+    const at = (i: number) => points[Math.max(0, Math.min(points.length - 1, i))];
+    const center: Pt[] = [], half: number[] = [];
+    for (let i = 0; i < points.length - 1; i++) {
+      const [p0, p1, p2, p3] = [at(i - 1), at(i), at(i + 1), at(i + 2)];
+      for (let k = 0; k < 8; k++) {
+        const t = k / 8, t2 = t * t, t3 = t2 * t;
+        center.push([0, 1].map((j) => 0.5 * (2 * p1[j] + (p2[j] - p0[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t2 + (3 * p1[j] - p0[j] - 3 * p2[j] + p3[j]) * t3)));
+        half.push(widths[i] + (widths[i + 1] - widths[i]) * t);
+      }
+    }
+    center.push(points[points.length - 1]);
+    half.push(widths[widths.length - 1]);
     const left: string[] = [], right: string[] = [];
-    pts.forEach((pt, i) => {
-      const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n, i + 1)];
-      const d = unit(sub(b, a));
-      const t = i / n;
-      // 根部饱满、中段略鼓、末梢收尖。
-      const w = root * (1 - t) ** 0.45 * (1 + 0.4 * Math.sin(Math.PI * t * 0.8)) + 0.3;
-      left.push(`${pt[0] - d[1] * w},${pt[1] + d[0] * w}`);
-      right.push(`${pt[0] + d[1] * w},${pt[1] - d[0] * w}`);
+    center.forEach((pt, i) => {
+      const d = unit(sub(center[Math.min(center.length - 1, i + 1)], center[Math.max(0, i - 1)]));
+      left.push(`${pt[0] - d[1] * half[i]},${pt[1] + d[0] * half[i]}`);
+      right.push(`${pt[0] + d[1] * half[i]},${pt[1] - d[0] * half[i]}`);
     });
     return `M${left.join(" L")} L${right.reverse().join(" L")} Z`;
   }
@@ -107,9 +109,13 @@
   })();
   $: headUp = unit(sub(p.head, p.neck));
   $: headBackDir = [headUp[1], -headUp[0]];
-  $: tie = along(along(p.head, headUp, bones.headRadius * 0.28), headBackDir, bones.headRadius * 0.9);
-  $: sway = Math.sin(hairPhase / 260) * 2.5;
-  $: flow = [hairFlow[0] + sway, hairFlow[1]];
+  /** 高马尾：在头顶偏后束起，发根先向上、向后翘起一截，再垂到腰。 */
+  $: root = along(along(p.head, headUp, bones.headRadius * 0.82), headBackDir, bones.headRadius * 0.32);
+  $: flow = hairFlow;
+  /** 摆动沿发束向下传：越靠发梢摆得越大、越晚。两个频率叠加，不像节拍器。 */
+  const swing = (phase: number, lag: number) => Math.sin(phase / 300 - lag) * 1 + Math.sin(phase / 170 - lag * 1.6) * 0.4;
+  $: sway1 = swing(hairPhase, 0.4) * 2.5;
+  $: sway2 = swing(hairPhase, 1.1) * 6;
 
   // 部件按由远到近排列：头发 → 后腿 → 后臂 → 躯干与头 → 前腿 → 前臂与剑。
   $: parts = ((): Part[] => {
@@ -121,23 +127,26 @@
       if (part) part.joins.push({ at, r, shapes: [...others.flatMap(shapesOf), ...part.shapes] });
     };
     if (profile === 'female') {
+      // 发根和翘起的那一截跟着头走；垂下的部分受重力，外力（冲刺、急停、受击）和摆动越往下越大。
+      const up = headUp, back = headBackDir;
+      const onHead = (u: number, b: number) => [root[0] + up[0] * u + back[0] * b, root[1] + up[1] * u + back[1] * b];
+      const hanging = (b: number, down: number, f: number, sw: number) =>
+        [root[0] + back[0] * b + flow[0] * f + sw, root[1] + back[1] * b + down + flow[1] * f];
+      const apex = onHead(8, 10);
       list.push({ key: 'hair', joins: [], shapes: [
-        { d: strand(along(tie, headBackDir, 1), [tie[0] + headBackDir[0] * 10, tie[1] + headBackDir[1] * 10 + 2],
-          [tie[0] + headBackDir[0] * 16 + flow[0] * 0.7, tie[1] + headBackDir[1] * 16 + 14 + flow[1] * 0.7],
-          [tie[0] + headBackDir[0] * 16 + flow[0] * 1.15, tie[1] + headBackDir[1] * 16 + 30 + flow[1] * 1.15], 2.4) },
-        { d: strand(tie, [tie[0] + headBackDir[0] * 8, tie[1] + headBackDir[1] * 8 + 3],
-          [tie[0] + headBackDir[0] * 11 + flow[0] * 0.5, tie[1] + headBackDir[1] * 11 + 20 + flow[1] * 0.5],
-          [tie[0] + headBackDir[0] * 6 + flow[0], tie[1] + headBackDir[1] * 6 + 42 + flow[1]], 5) }
+        // 发梢分出的一缕：从中段分叉，尖朝外翻。
+        { d: ribbon([hanging(22, 14, 0.45, sway1), hanging(27, 36, 1, sway1 * 1.2), hanging(26, 54, 1.7, sway2 * 1.25)], [3.4, 2.6, 0.5]) },
+        { d: ribbon([onHead(-2, -1), apex, hanging(21, 8, 0.3, sway1 * 0.4), hanging(22, 34, 0.9, sway1), hanging(15, 64, 1.6, sway2)], [3.6, 5.2, 6.4, 5, 0.6]) },
+        circle(onHead(1, 1), 4.6)
       ] });
     }
     list.push({ key: 'back-leg', joins: [], shapes: [...limb(p.hip, p.backKnee, R.thigh, R.knee), ...limb(p.backKnee, p.backFoot, R.knee, R.ankle), ...foot(p.backKnee, p.backFoot, p.backFootPlanted)] });
     list.push({ key: 'back-arm', joins: [], shapes: [...limb(p.shoulder, p.backElbow, R.shoulder, R.elbow), ...limb(p.backElbow, p.backHand, R.elbow, R.wrist), circle(p.backHand, R.fist)] });
     const body: Shape[] = [...limb(chest, p.hip, R.chest, R.pelvis), ...limb(p.neck, p.head, R.neck, R.neck), circle(p.head, bones.headRadius)];
-    if (profile === 'female') body.push({ d: rotated(tie, Math.atan2(headBackDir[1], headBackDir[0]) * 180 / Math.PI, [[-2.4, -3.6], [2.4, -3.6], [2.4, 3.6], [-2.4, 3.6]]), fill: '#9c3b2e' });
     list.push({ key: 'body', joins: [], shapes: body });
     join('body', ['back-leg'], p.hip, R.thigh + 10);
     join('body', ['back-arm'], p.shoulder, R.shoulder + 8);
-    if (profile === 'female') join('body', ['hair'], tie, 8);
+    if (profile === 'female') join('body', ['hair'], root, 8);
     list.push({ key: 'front-leg', joins: [], shapes: [...limb(p.hip, p.knee, R.thigh, R.knee), ...limb(p.knee, p.foot, R.knee, R.ankle), ...foot(p.knee, p.foot, p.footPlanted)] });
     const arm: Shape[] = [...limb(p.shoulder, p.elbow, R.shoulder, R.elbow), ...limb(p.elbow, p.hand, R.elbow, R.wrist)];
     if (style === 'sword') {

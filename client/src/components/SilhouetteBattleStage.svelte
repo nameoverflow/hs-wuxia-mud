@@ -36,8 +36,9 @@
     const now = now_[side], lag1 = lag1_[side], lag2 = lag2_[side];
     const vx = ((now.x - lag1.x) / 40 * 0.55 + (lag1.x - lag2.x) / 50 * 0.45) * mirror;
     const vy = (now.y - lag1.y) / 40 * 0.55 + (lag1.y - lag2.y) / 50 * 0.45;
-    const x = Math.max(-34, Math.min(20, -vx * 26));
-    const y = Math.max(-26, Math.min(14, -Math.abs(vx) * 9 - vy * 18));
+    // 往前飘最多一点点：头发画在身体后面，再往前就被身体挡住了；后退时改成向上扬起。
+    const x = Math.max(-34, Math.min(6, -vx * 26));
+    const y = Math.max(-30, Math.min(14, -Math.abs(vx) * (vx < 0 ? 18 : 9) - vy * 18));
     return [x, y];
   }
   $: stroke = sampleAttackTrail(timeline, elapsed, playerIdle, enemyIdle, reducedMotion);

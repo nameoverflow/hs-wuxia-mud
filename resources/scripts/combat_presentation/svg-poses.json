@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "bones": {"torso": 42, "neck": 6, "headRadius": 15, "upperArm": 26, "forearm": 24, "thigh": 34, "shin": 33},
+  "bones": {"torso": 42, "neck": -1, "headRadius": 15, "upperArm": 26, "forearm": 24, "thigh": 34, "shin": 33},
   "base": {"hip": [-4, -56], "torso": -84, "head": -86, "arm": [30, -20], "backArm": [62, -22], "foot": [26, 0], "backFoot": [-30, 0], "knees": [1, 1], "blade": -40, "tassel": [-20, -10]},
   "rigs": {"fist": {}, "sword": {"hip": [-6, -52], "torso": -80, "arm": [42, -10], "backArm": [200, 252], "blade": -34, "foot": [30, 0], "backFoot": [-36, 0]}},
   "poses": {
