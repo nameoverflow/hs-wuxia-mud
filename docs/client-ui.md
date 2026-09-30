@@ -142,7 +142,7 @@ client 负责：
 - `CombatSettlementMsg` 排在队列末尾，最后一击播完后再关闭战斗面板。
 - 如果 server 先发了非战斗 `PlayerStatsMsg`，client 会等队列清空后再退出战斗界面。
 
-`BattlePanel.svelte` 渲染 resolved timeline。动作定义在 `resources/scripts/combat_actions/battle-actions.json`，manifest 读取在 `client/src/battle/battleActionCatalog.ts`，事件到时间线的选择逻辑在 `client/src/battle/animationResolver.ts`。
+`BattlePanel.svelte` 渲染 resolved timeline。动作定义在 `resources/scripts/combat_actions/*.json`（按 sword/fist/effects 分文件），姿势与舞台参数在 `resources/scripts/combat_presentation/`，manifest 读取在 `client/src/battle/battleActionCatalog.ts`，事件到时间线的选择逻辑在 `client/src/battle/animationResolver.ts`。
 
 ## 武学面板
 

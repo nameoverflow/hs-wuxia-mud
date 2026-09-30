@@ -160,9 +160,14 @@ type ActiveSkillId = Text
 
 type CombatActionId = Text
 
+-- | What the server needs from a presentation action: how long its clip runs,
+-- how long the client-only approach lasts before it, and how its damage splits
+-- across hits. Everything else in the manifest is presentation.
 data CombatActionTiming = CombatActionTiming
   { _combatActionTimingId :: CombatActionId,
-    _combatActionTimingLockMs :: Int
+    _combatActionTimingLockMs :: Int,
+    _combatActionTimingApproachMs :: Int,
+    _combatActionTimingHitShares :: [Double]
   }
   deriving (Generic, Show, Eq)
 
@@ -178,6 +183,12 @@ instance FromJSON CombatActionTiming where
       case configuredLockMs <|> configuredDurationMs <|> configuredCamelDurationMs of
         Just lockMs -> pure lockMs
         Nothing -> fail "CombatActionTiming requires lock_ms or durationMs"
+    approach <- o .:? "approach"
+    _combatActionTimingApproachMs <-
+      maybe (pure 0) (withObject "CombatActionApproach" (\a -> a .:? "durationMs" .!= 0)) approach
+    hits <- o .:? "hits" .!= []
+    shares <- mapM (withObject "CombatActionHit" (\h -> h .:? "share" .!= 1)) hits
+    let _combatActionTimingHitShares = if null shares then [1] else shares
     pure CombatActionTiming {..}
 
 instance Configurable CombatActionTiming
@@ -189,14 +200,17 @@ instance FromJSON ActiveSkillTarget
 
 data AnimationRef = AnimationRef
   { _animationRefAction :: Text,
-    _animationRefTags :: [Text]
+    _animationRefTags :: [Text],
+    -- | Free-form presentation overrides (label, staging, vfx art) passed to the client untouched.
+    _animationRefParams :: Maybe Value
   }
   deriving (Generic, Show, Eq)
 
 data CombatVisualHint = CombatVisualHint
   { _combatVisualActionId :: Text,
     _combatVisualTags :: [Text],
-    _combatVisualDurationMs :: Maybe Int
+    _combatVisualDurationMs :: Maybe Int,
+    _combatVisualParams :: Maybe Value
   }
   deriving (Generic, Show, Eq)
 
@@ -207,6 +221,7 @@ instance FromJSON AnimationRef where
   parseJSON = withObject "AnimationRef" $ \o -> do
     _animationRefAction <- o .: "action"
     _animationRefTags <- o .:? "tags" .!= []
+    _animationRefParams <- o .:? "params"
     pure AnimationRef {..}
 
 instance FromJSON CombatVisualHint where
@@ -214,6 +229,7 @@ instance FromJSON CombatVisualHint where
     _combatVisualActionId <- o .: "actionId"
     _combatVisualTags <- o .:? "tags" .!= []
     _combatVisualDurationMs <- o .:? "durationMs"
+    _combatVisualParams <- o .:? "params"
     pure CombatVisualHint {..}
 
 instance ToJSON CombatVisualHint where
@@ -221,7 +237,8 @@ instance ToJSON CombatVisualHint where
     object
       [ "actionId" .= _combatVisualActionId,
         "tags" .= _combatVisualTags,
-        "durationMs" .= _combatVisualDurationMs
+        "durationMs" .= _combatVisualDurationMs,
+        "params" .= _combatVisualParams
       ]
 
 data ActiveSkill = ActiveSkill

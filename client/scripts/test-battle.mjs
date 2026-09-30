@@ -221,6 +221,34 @@ try {
     assert.equal(sampleVfx(dodged, sample(dodged, dodged.impactAtMs), dodged.impactAtMs).find(s => s.key === crescent.id), undefined, 'results filter');
   });
 
+  check('server per-hit outcomes drive each hit, and animation params restyle a shared clip', () => {
+    const combo = battleActions['rig.fist.combo_a'];
+    const timeline = resolveCombatTimeline({
+      kind: 'normal', message: { kind: 'script', text: combo.label }, result: 'hit', damage: 14, heal: null,
+      hits: [{ result: 'hit', damage: 5, heal: null }, { result: 'dodge', damage: 0, heal: null }, { result: 'hit', damage: 9, heal: null }],
+      visual: { actionId: combo.id, durationMs: combo.durationMs }
+    }, 1, 'player', 'enemy', combo.label, 'female', 'male', 'fist', 'sword');
+    assert.deepEqual(timeline.hits.map(h => h.result), ['hit', 'dodge', 'hit']);
+    assert.deepEqual(timeline.hits.map(h => h.damage), [5, 0, 9]);
+    assert.equal(timeline.hits[1].floatText, '闪');
+    assert.equal(sample(timeline, timeline.hits[0].atMs).burst, 1);
+    const dodged = sample(timeline, timeline.hits[1].atMs);
+    assert.equal(dodged.burst, 0, 'no ink burst on a dodged hit');
+    assert.equal(dodged.enemy.frameId, 'sword_dodge', 'defender dodges the middle hit');
+    assert.equal(sample(timeline, timeline.hits[2].atMs).enemy.frameId, 'sword_hurt', 'and is hit by the last one');
+
+    const punch = battleActions['rig.fist.punch_a'];
+    const restyled = resolveCombatTimeline({
+      kind: 'normal', message: { kind: 'script', text: '一段很长的招式描述文字超过十二个字' }, result: 'hit', damage: 10, heal: null,
+      visual: { actionId: punch.id, durationMs: punch.durationMs, params: { label: '崩拳', vfxArt: { trail: 'rising', impact: 'nope' }, staging: { camera: { kick: 20 } } } }
+    }, 2, 'player', 'enemy', 'x', 'female', 'male', 'fist', 'sword');
+    assert.equal(restyled.label, '崩拳');
+    assert.equal(restyled.vfx.find(v => v.kind === 'trail').art, 'rising');
+    assert.equal(restyled.vfx.find(v => v.kind === 'impact').art, 'impact', 'unknown art names are ignored');
+    assert.equal(restyled.hits[0].staging.camera.kick, 20);
+    assert.equal(restyled.staging.camera.kick, 20);
+  });
+
   function driver() {
     let now = 0, serial = 0;
     const callbacks = new Map();

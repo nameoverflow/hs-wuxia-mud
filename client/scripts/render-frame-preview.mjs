@@ -3,10 +3,11 @@ import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readBattleActions } from "./lib/battleActions.mjs";
 
 const clientRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = path.resolve(clientRoot, "..");
-const manifest = JSON.parse(readFileSync(path.join(repoRoot, "resources/scripts/combat_actions/battle-actions.json"), "utf8"));
+const manifest = readBattleActions(repoRoot);
 const options = parseArgs(process.argv.slice(2));
 const action = manifest.actions.find((candidate) => candidate.id === options.action);
 if (!action) throw new Error(`Unknown battle action ${options.action}`);

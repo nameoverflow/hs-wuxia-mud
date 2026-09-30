@@ -1,4 +1,5 @@
-import type { CombatEvent, CombatResult } from "../protocol";
+import type { CombatEvent, CombatResult, CombatVisualParams } from "../protocol";
+import { stageArt } from "./stageAssets";
 import { clipImpactOffsetMs } from "./animationClip";
 import { stagingFor } from "./stagingProfile";
 import { battleActionFor, idleVisualForStyle, reactionVisualFor, visualForBattleAction } from "./battleActionCatalog";
@@ -11,6 +12,8 @@ import type {
   PoseKeyDefinition,
   ResolvedBattleTimeline,
   ResolvedHit,
+  StagingOverride,
+  VfxArt,
   TargetReaction,
   TimelineVfx,
   VisualProfile
@@ -35,7 +38,8 @@ export function resolveCombatTimeline(
   const scale = actionDurationMs / action.durationMs;
   const reactionVisual = (reaction: TargetReaction) =>
     reaction === "effect" || reaction === "none" ? idleVisualForStyle(targetStyle, targetProfile) : reactionVisualFor(reaction, targetProfile, targetStyle);
-  const hits = resolveHits(action, event, actionDelayMs, actionDurationMs, reactionVisual);
+  const params = visualParams(event.visual?.params);
+  const hits = resolveHits(action, event, actionDelayMs, actionDurationMs, reactionVisual, params.staging);
   const { result, reaction } = hits[0];
   const choreography = {
     ...action.choreography,
@@ -54,8 +58,8 @@ export function resolveCombatTimeline(
     durationMs: actionDurationMs + actionDelayMs,
     impactAtMs: hits[0].atMs,
     hits,
-    staging: stagingFor(action.choreography.weight, action.staging),
-    label: event.message?.kind === "script" && event.message.text.trim().length <= 12 ? event.message.text.trim() : action.label,
+    staging: stagingFor(action.choreography.weight, action.staging, params.staging),
+    label: params.label ?? (event.message?.kind === "script" && event.message.text.trim().length <= 12 ? event.message.text.trim() : action.label),
     choreography,
     actor: {
       side: actorSide,
@@ -77,6 +81,7 @@ export function resolveCombatTimeline(
     floatText: floatText(event),
     text,
     vfx: resolveVfx(action, actorSide, targetSide, result, hits, actionDelayMs, scale)
+      .map((vfx) => ({ ...vfx, art: params.vfxArt?.[vfx.kind] ?? vfx.art }))
   };
 }
 
@@ -131,16 +136,19 @@ function resolveHits(
   event: CombatEvent,
   delayMs: number,
   playbackMs: number,
-  reactionVisual: (reaction: TargetReaction) => ActorVisual
+  reactionVisual: (reaction: TargetReaction) => ActorVisual,
+  paramStaging?: StagingOverride
 ): ResolvedHit[] {
   const scale = playbackMs / action.durationMs;
   const source = action.hits?.length
     ? action.hits.map((hit) => ({ atMs: delayMs + Math.round(hit.atMs * scale), hitStopMs: hit.hitStopMs * scale, share: hit.share ?? 1, staging: hit.staging }))
     : [{ atMs: delayMs + clipImpactOffsetMs(action.frames, action.impactFrame, playbackMs), hitStopMs: action.choreography.hitStopMs * scale, share: 1, staging: undefined }];
-  const damage = splitByShare(event.damage, source.map((hit) => hit.share));
-  const heal = splitByShare(event.heal, source.map((hit) => hit.share));
+  // 服务端给了逐段结果就照用；老服务端只有总数时，按份额拆分，各段共用同一个结果。
+  const outcomes = event.hits?.length === source.length ? event.hits : undefined;
+  const damage = outcomes ? outcomes.map((hit) => hit.damage) : splitByShare(event.damage, source.map((hit) => hit.share));
+  const heal = outcomes ? outcomes.map((hit) => hit.heal) : splitByShare(event.heal, source.map((hit) => hit.share));
   return source.map((hit, index) => {
-    const result = event.result || "hit";
+    const result = outcomes?.[index].result || event.result || "hit";
     const reaction = action.targetReaction[result] || resultReaction(result);
     return {
       atMs: hit.atMs,
@@ -151,12 +159,25 @@ function resolveHits(
       result,
       reaction,
       targetVisual: reactionVisual(reaction),
-      staging: stagingFor(action.choreography.weight, action.staging, hit.staging)
+      staging: stagingFor(action.choreography.weight, action.staging, paramStaging, hit.staging)
     };
   });
 }
 
 /** 按份额拆分总量，累计取整，保证各段之和等于服务端给的总数。 */
+/** 只取认得的参数；素材名不认识就忽略，避免内容里写错一个字把整场战斗画面弄崩。 */
+function visualParams(raw: CombatVisualParams | null | undefined): { label?: string; staging?: StagingOverride; vfxArt?: Partial<Record<string, VfxArt>> } {
+  if (!raw || typeof raw !== "object") return {};
+  const vfxArt = raw.vfxArt && typeof raw.vfxArt === "object"
+    ? Object.fromEntries(Object.entries(raw.vfxArt).filter((entry): entry is [string, VfxArt] => entry[1] in stageArt))
+    : undefined;
+  return {
+    label: typeof raw.label === "string" && raw.label.trim() ? raw.label.trim() : undefined,
+    staging: raw.staging && typeof raw.staging === "object" ? (raw.staging as StagingOverride) : undefined,
+    vfxArt
+  };
+}
+
 function splitByShare(total: number | null | undefined, shares: number[]): (number | null)[] {
   if (total === null || total === undefined) return shares.map(() => null);
   const sum = shares.reduce((a, b) => a + b, 0);

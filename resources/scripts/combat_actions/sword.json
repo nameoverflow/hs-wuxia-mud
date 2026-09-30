@@ -1,0 +1,657 @@
+{
+  "schemaVersion": 5,
+  "actions": [
+    {
+      "id": "rig.sword.idle",
+      "label": "Sword idle",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "sword_ready",
+          "holdMs": 640
+        }
+      ],
+      "impactFrame": 0,
+      "durationMs": 640,
+      "tags": [
+        "sword",
+        "idle"
+      ],
+      "actorMotion": "none",
+      "targetReaction": {
+        "hit": "none",
+        "dodge": "none",
+        "parry": "none",
+        "effect": "none"
+      },
+      "vfx": [],
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 0,
+        "hitStopMs": 0,
+        "recoverAtMs": 358,
+        "restAtMs": 640,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "quiet"
+      }
+    },
+    {
+      "id": "rig.sword.thrust_a",
+      "label": "一线穿云",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "sword_ready",
+          "holdMs": 40
+        },
+        {
+          "frameId": "thrust_prep",
+          "holdMs": 130
+        },
+        {
+          "frameId": "thrust_strike",
+          "holdMs": 110
+        },
+        {
+          "frameId": "thrust_close",
+          "holdMs": 70
+        },
+        {
+          "frameId": "sword_ready",
+          "holdMs": 100
+        }
+      ],
+      "impactFrame": 2,
+      "durationMs": 450,
+      "tags": [
+        "sword",
+        "jian",
+        "attack",
+        "stab",
+        "thrust",
+        "quick"
+      ],
+      "actorMotion": "approach",
+      "keyPoses": {
+        "prepare": "thrust_prep",
+        "contact": "thrust_strike",
+        "finish": "thrust_finish",
+        "reachWith": "blade"
+      },
+      "approach": {
+        "pose": "approach_sword_glide",
+        "durationMs": 140,
+        "lift": 2
+      },
+      "targetReaction": {
+        "hit": "hit",
+        "dodge": "dodge",
+        "parry": "parry",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "trail",
+          "variant": "stab-line",
+          "anchor": "actor",
+          "art": "thrust"
+        },
+        {
+          "kind": "impact",
+          "variant": "hit-spark",
+          "anchor": "target",
+          "art": "impact"
+        },
+        {
+          "kind": "parry",
+          "variant": "parry-arc",
+          "anchor": "target",
+          "art": "parry"
+        }
+      ],
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 125,
+        "hitStopMs": 60,
+        "recoverAtMs": 270,
+        "restAtMs": 360,
+        "reach": 108,
+        "contactY": 111,
+        "weight": "light"
+      }
+    },
+    {
+      "id": "rig.sword.chop_a",
+      "label": "迎风劈剑",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "sword_ready",
+          "holdMs": 50
+        },
+        {
+          "frameId": "chop_prep",
+          "holdMs": 175
+        },
+        {
+          "frameId": "chop_strike",
+          "holdMs": 145
+        },
+        {
+          "frameId": "chop_close",
+          "holdMs": 95
+        },
+        {
+          "frameId": "sword_ready",
+          "holdMs": 130
+        }
+      ],
+      "impactFrame": 2,
+      "durationMs": 595,
+      "tags": [
+        "sword",
+        "jian",
+        "attack",
+        "slash",
+        "chop",
+        "heavy"
+      ],
+      "actorMotion": "approach",
+      "keyPoses": {
+        "prepare": "chop_prep",
+        "contact": "chop_strike",
+        "finish": "chop_finish",
+        "reachWith": "blade"
+      },
+      "approach": {
+        "pose": "approach_raised_step",
+        "durationMs": 160,
+        "lift": 3
+      },
+      "targetReaction": {
+        "hit": "hit",
+        "dodge": "dodge",
+        "parry": "parry",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "trail",
+          "variant": "slash-arc",
+          "anchor": "actor",
+          "art": "slash"
+        },
+        {
+          "kind": "impact",
+          "variant": "hit-spark",
+          "anchor": "target",
+          "art": "impact"
+        },
+        {
+          "kind": "parry",
+          "variant": "parry-arc",
+          "anchor": "target",
+          "art": "parry"
+        }
+      ],
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 170,
+        "hitStopMs": 95,
+        "recoverAtMs": 365,
+        "restAtMs": 470,
+        "reach": 98,
+        "contactY": 116,
+        "weight": "heavy"
+      }
+    },
+    {
+      "id": "rig.sword.cut_a",
+      "label": "横江一剑",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "sword_ready",
+          "holdMs": 40
+        },
+        {
+          "frameId": "cut_prep",
+          "holdMs": 135
+        },
+        {
+          "frameId": "cut_strike",
+          "holdMs": 115
+        },
+        {
+          "frameId": "cut_close",
+          "holdMs": 70
+        },
+        {
+          "frameId": "sword_ready",
+          "holdMs": 100
+        }
+      ],
+      "impactFrame": 2,
+      "durationMs": 460,
+      "tags": [
+        "sword",
+        "jian",
+        "attack",
+        "slash",
+        "cut",
+        "horizontal"
+      ],
+      "actorMotion": "approach",
+      "keyPoses": {
+        "prepare": "cut_prep",
+        "contact": "cut_strike",
+        "finish": "cut_finish",
+        "reachWith": "blade"
+      },
+      "approach": {
+        "pose": "approach_cross_step",
+        "durationMs": 155,
+        "lift": 2
+      },
+      "targetReaction": {
+        "hit": "hit",
+        "dodge": "dodge",
+        "parry": "parry",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "trail",
+          "variant": "slash-arc",
+          "anchor": "actor",
+          "art": "slash"
+        },
+        {
+          "kind": "impact",
+          "variant": "hit-spark",
+          "anchor": "target",
+          "art": "impact"
+        },
+        {
+          "kind": "parry",
+          "variant": "parry-arc",
+          "anchor": "target",
+          "art": "parry"
+        }
+      ],
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 130,
+        "hitStopMs": 65,
+        "recoverAtMs": 280,
+        "restAtMs": 370,
+        "reach": 108,
+        "contactY": 108,
+        "weight": "light"
+      }
+    },
+    {
+      "id": "rig.sword.rising_cut_a",
+      "label": "挑灯式",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "sword_ready",
+          "holdMs": 50
+        },
+        {
+          "frameId": "rising_prep",
+          "holdMs": 175
+        },
+        {
+          "frameId": "rising_strike",
+          "holdMs": 145
+        },
+        {
+          "frameId": "rising_close",
+          "holdMs": 100
+        },
+        {
+          "frameId": "sword_ready",
+          "holdMs": 135
+        }
+      ],
+      "impactFrame": 2,
+      "durationMs": 605,
+      "tags": [
+        "sword",
+        "jian",
+        "attack",
+        "uppercut",
+        "rising-cut",
+        "lift"
+      ],
+      "actorMotion": "lunge",
+      "keyPoses": {
+        "prepare": "rising_prep",
+        "contact": "rising_strike",
+        "finish": "rising_finish",
+        "reachWith": "blade"
+      },
+      "approach": {
+        "pose": "approach_low_skate",
+        "durationMs": 155,
+        "lift": 1
+      },
+      "targetReaction": {
+        "hit": "hit",
+        "dodge": "dodge",
+        "parry": "parry",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "trail",
+          "variant": "uppercut-arc",
+          "anchor": "actor",
+          "art": "rising"
+        },
+        {
+          "kind": "impact",
+          "variant": "hit-spark",
+          "anchor": "target",
+          "art": "impact"
+        },
+        {
+          "kind": "parry",
+          "variant": "parry-arc",
+          "anchor": "target",
+          "art": "parry"
+        }
+      ],
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 170,
+        "hitStopMs": 95,
+        "recoverAtMs": 370,
+        "restAtMs": 475,
+        "reach": 96,
+        "contactY": 104,
+        "weight": "heavy"
+      }
+    },
+    {
+      "id": "rig.sword.qi_wave_a",
+      "label": "剑气纵横",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "sword_ready",
+          "holdMs": 60
+        },
+        {
+          "frameId": "chop_prep",
+          "holdMs": 200
+        },
+        {
+          "frameId": "chop_strike",
+          "holdMs": 120
+        },
+        {
+          "frameId": "chop_close",
+          "holdMs": 160
+        },
+        {
+          "frameId": "sword_ready",
+          "holdMs": 160
+        }
+      ],
+      "impactFrame": 3,
+      "durationMs": 700,
+      "tags": [
+        "sword",
+        "attack",
+        "ranged",
+        "qi"
+      ],
+      "actorMotion": "ranged",
+      "hits": [
+        {
+          "atMs": 380,
+          "hitStopMs": 70
+        }
+      ],
+      "poseTrack": [
+        {
+          "atMs": 0,
+          "pose": "sword_ready"
+        },
+        {
+          "atMs": 60,
+          "pose": "chop_prep"
+        },
+        {
+          "atMs": 250,
+          "pose": "chop_strike"
+        },
+        {
+          "atMs": 450,
+          "pose": "chop_finish"
+        },
+        {
+          "atMs": 560,
+          "pose": "idle"
+        }
+      ],
+      "targetReaction": {
+        "hit": "hit",
+        "dodge": "dodge",
+        "parry": "parry",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "sprite",
+          "variant": "qi-crescent",
+          "art": "slash",
+          "anchor": "actor",
+          "hit": 0,
+          "offsetMs": -130,
+          "durationMs": 150,
+          "from": "actor.blade",
+          "to": "contact",
+          "size": 180,
+          "scale": [
+            0.55,
+            1
+          ],
+          "fadeInMs": 30,
+          "fadeOutMs": 40
+        },
+        {
+          "kind": "impact",
+          "variant": "hit-spark",
+          "anchor": "target",
+          "art": "impact"
+        },
+        {
+          "kind": "parry",
+          "variant": "parry-arc",
+          "anchor": "target",
+          "art": "parry"
+        }
+      ],
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 250,
+        "hitStopMs": 70,
+        "recoverAtMs": 470,
+        "restAtMs": 560,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "heavy"
+      }
+    },
+    {
+      "id": "rig.sword.guard",
+      "label": "横剑守势",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "sword_ready",
+          "holdMs": 220
+        },
+        {
+          "frameId": "sword_parry",
+          "holdMs": 280
+        },
+        {
+          "frameId": "sword_ready",
+          "holdMs": 220
+        }
+      ],
+      "impactFrame": 1,
+      "durationMs": 720,
+      "tags": [
+        "sword",
+        "guard",
+        "stance",
+        "buff",
+        "self"
+      ],
+      "actorMotion": "focus",
+      "keyPoses": {
+        "contact": "guard"
+      },
+      "targetReaction": {
+        "hit": "effect",
+        "dodge": "effect",
+        "parry": "effect",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "aura",
+          "variant": "guard-ring",
+          "anchor": "actor",
+          "art": "aura"
+        }
+      ],
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 160,
+        "hitStopMs": 0,
+        "recoverAtMs": 403,
+        "restAtMs": 720,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "quiet"
+      }
+    },
+    {
+      "id": "rig.sword.hurt",
+      "label": "Sword hurt",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "sword_hurt",
+          "holdMs": 520
+        }
+      ],
+      "impactFrame": 0,
+      "durationMs": 520,
+      "tags": [
+        "sword",
+        "reaction",
+        "hurt"
+      ],
+      "actorMotion": "none",
+      "targetReaction": {
+        "hit": "none",
+        "dodge": "none",
+        "parry": "none",
+        "effect": "none"
+      },
+      "vfx": [],
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 0,
+        "hitStopMs": 0,
+        "recoverAtMs": 291,
+        "restAtMs": 520,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "quiet"
+      }
+    },
+    {
+      "id": "rig.sword.dodge",
+      "label": "Sword dodge",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "sword_dodge",
+          "holdMs": 560
+        }
+      ],
+      "impactFrame": 0,
+      "durationMs": 560,
+      "tags": [
+        "sword",
+        "reaction",
+        "dodge"
+      ],
+      "actorMotion": "none",
+      "targetReaction": {
+        "hit": "none",
+        "dodge": "none",
+        "parry": "none",
+        "effect": "none"
+      },
+      "vfx": [],
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 0,
+        "hitStopMs": 0,
+        "recoverAtMs": 314,
+        "restAtMs": 560,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "quiet"
+      }
+    },
+    {
+      "id": "rig.sword.parry",
+      "label": "Sword parry",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "sword_parry",
+          "holdMs": 560
+        }
+      ],
+      "impactFrame": 0,
+      "durationMs": 560,
+      "tags": [
+        "sword",
+        "reaction",
+        "parry",
+        "guard"
+      ],
+      "actorMotion": "none",
+      "targetReaction": {
+        "hit": "none",
+        "dodge": "none",
+        "parry": "none",
+        "effect": "none"
+      },
+      "vfx": [],
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 0,
+        "hitStopMs": 0,
+        "recoverAtMs": 314,
+        "restAtMs": 560,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "quiet"
+      }
+    }
+  ]
+}

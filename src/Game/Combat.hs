@@ -11,6 +11,8 @@ module Game.Combat where
 
 import Control.Exception (Exception)
 import Control.Lens
+import Control.Monad (forM, when)
+import Data.Aeson (Value)
 import Control.Monad.Error.Class
 import Control.Monad.Except
 import Control.Monad.Identity (Identity, runIdentity)
@@ -306,7 +308,11 @@ apGain dt stats =
   dt * fromIntegral (stats ^. dsAgility) * apGainRate
 
 combatEventResp :: CombatEventKind -> Text -> Text -> CombatMessage -> Maybe Int -> Maybe Int -> CombatResult -> CombatVisualHint -> ActionResp
-combatEventResp kind actorName targetName message damage heal result visual =
+combatEventResp kind actorName targetName message damage heal result =
+  combatEventRespHits kind actorName targetName message damage heal result [CombatHitOutcome result damage heal]
+
+combatEventRespHits :: CombatEventKind -> Text -> Text -> CombatMessage -> Maybe Int -> Maybe Int -> CombatResult -> [CombatHitOutcome] -> CombatVisualHint -> ActionResp
+combatEventRespHits kind actorName targetName message damage heal result hits visual =
   CombatEventMsg $
     CombatEvent
       { combatEventKind = kind,
@@ -316,13 +322,16 @@ combatEventResp kind actorName targetName message damage heal result visual =
         combatEventDamage = damage,
         combatEventHeal = heal,
         combatEventResult = result,
+        combatEventHits = hits,
         combatEventVisual = visual
       }
 
+-- | The client plays the approach lead-in before the action clip, so the lock covers both.
 lockBattleForVisual :: CombatVisualHint -> Combat ()
 lockBattleForVisual visual = do
   durationMs <- combatVisualLockDurationMs visual
-  battleActionLockRemaining %= max (fromIntegral durationMs / 1000)
+  approachMs <- combatActionApproachMs $ visual ^. combatVisualActionId
+  battleActionLockRemaining %= max (fromIntegral (durationMs + approachMs) / 1000)
 
 combatVisualLockDurationMs :: CombatVisualHint -> Combat Int
 combatVisualLockDurationMs visual =
@@ -335,23 +344,42 @@ combatActionDurationMs actionId = do
   timingMap <- view combatActionTimings
   pure $ maybe 720 (view combatActionTimingLockMs) (M.lookup actionId timingMap)
 
-combatVisualHint :: Text -> [Text] -> Combat CombatVisualHint
-combatVisualHint actionId tags = do
+combatActionApproachMs :: Text -> Combat Int
+combatActionApproachMs actionId = do
+  timingMap <- view combatActionTimings
+  pure $ maybe 0 (view combatActionTimingApproachMs) (M.lookup actionId timingMap)
+
+combatActionHitShares :: Text -> Combat [Double]
+combatActionHitShares actionId = do
+  timingMap <- view combatActionTimings
+  pure $ maybe [1] (view combatActionTimingHitShares) (M.lookup actionId timingMap)
+
+-- | Split a total across hits by share with cumulative half-up rounding, so the
+-- parts always sum to the total. Mirrors the client's splitByShare.
+splitByShares :: Int -> [Double] -> [Int]
+splitByShares total shares = zipWith (-) cumulative (0 : cumulative)
+  where
+    shareSum = sum shares
+    cumulative = [floor (fromIntegral total * acc / shareSum + 0.5) | acc <- drop 1 (scanl (+) 0 shares)]
+
+combatVisualHint :: Text -> [Text] -> Maybe Value -> Combat CombatVisualHint
+combatVisualHint actionId tags params = do
   durationMs <- combatActionDurationMs actionId
   pure
     CombatVisualHint
       { _combatVisualActionId = actionId,
         _combatVisualTags = tags,
-        _combatVisualDurationMs = Just durationMs
+        _combatVisualDurationMs = Just durationMs,
+        _combatVisualParams = params
       }
 
 effectTickVisual :: Text -> Combat CombatVisualHint
 effectTickVisual effectKind =
-  combatVisualHint ("rig.effect." <> effectKind) ["effect", effectKind]
+  combatVisualHint ("rig.effect." <> effectKind) ["effect", effectKind] Nothing
 
 resolveAnimationRef :: MartialArt -> AnimationRef -> Combat CombatVisualHint
 resolveAnimationRef _ animationRef =
-  combatVisualHint (animationRef ^. animationRefAction) (animationRef ^. animationRefTags)
+  combatVisualHint (animationRef ^. animationRefAction) (animationRef ^. animationRefTags) (animationRef ^. animationRefParams)
 
 battleAttack :: Lens' Battle BattleState -> Lens' Battle BattleState -> Combat ()
 battleAttack left right = do
@@ -373,63 +401,54 @@ runAttackPipeline left right preparedAttack attacker defender = do
       move = preparedAttackMove preparedAttack
       moveText = move ^. attackMoveMsg
   visual <- resolveAnimationRef (preparedAttackMartialArt preparedAttack) (move ^. attackMoveAnimation)
-  hit <- contest attackScore dodgeScore
+  shares <- combatActionHitShares $ visual ^. combatVisualActionId
+  let fullDamage = applyCombatHooks attacker defender preparedAttack $ computeDamage attackerStats defenderStats preparedAttack
+  -- 每一段各自判定闪避与招架；单段招式的随机数消耗与原来完全一致。
+  outcomes <- forM (splitByShares fullDamage shares) $ \part -> do
+    hit <- contest attackScore dodgeScore
+    if not hit
+      then pure $ CombatHitOutcome CombatDodge (Just 0) Nothing
+      else do
+        parryFailed <- contest attackScore parryScore
+        pure $
+          if parryFailed
+            then CombatHitOutcome CombatHit (Just $ max 1 part) Nothing
+            else CombatHitOutcome CombatParry (Just 0) Nothing
   uid <- use battleOwner
   attackerName <- use $ left . battleChar . charName
   defenderName <- use $ right . battleChar . charName
-  if not hit
-    then
-      do
-        lockBattleForVisual visual
-        tell
-          [ ( uid,
-              combatEventResp
-                CombatEventNormal
-                attackerName
-                defenderName
-                (CombatScriptText $ moveText <> "，却被侧身闪避")
-                (Just 0)
-                Nothing
-                CombatDodge
-                visual
-            )
-          ]
-    else do
-      parryFailed <- contest attackScore parryScore
-      if not parryFailed
-        then
-          do
-            lockBattleForVisual visual
-            tell
-              [ ( uid,
-                  combatEventResp
-                    CombatEventNormal
-                    attackerName
-                    defenderName
-                    (CombatScriptText $ moveText <> "，被抬手格开")
-                    (Just 0)
-                    Nothing
-                    CombatParry
-                    visual
-                )
-              ]
-        else do
-          let damage = applyCombatHooks attacker defender preparedAttack $ computeDamage attackerStats defenderStats preparedAttack
-          right . battleChar . charHP -= damage
-          lockBattleForVisual visual
-          tell
-            [ ( uid,
-                combatEventResp
-                  CombatEventNormal
-                  attackerName
-                  defenderName
-                  (CombatScriptText moveText)
-                  (Just damage)
-                  Nothing
-                  CombatHit
-                  visual
-              )
-            ]
+  let landed = sum [damage | CombatHitOutcome CombatHit (Just damage) _ <- outcomes]
+      result = aggregateHitResult outcomes
+      message = case result of
+        CombatDodge -> moveText <> "，却被侧身闪避"
+        CombatParry -> moveText <> "，被抬手格开"
+        _ -> moveText
+  when (landed > 0) $ right . battleChar . charHP -= landed
+  lockBattleForVisual visual
+  tell
+    [ ( uid,
+        combatEventRespHits
+          CombatEventNormal
+          attackerName
+          defenderName
+          (CombatScriptText message)
+          (Just landed)
+          Nothing
+          result
+          outcomes
+          visual
+      )
+    ]
+
+-- | Any landed hit makes the event a hit; otherwise the first hit's result stands.
+aggregateHitResult :: [CombatHitOutcome] -> CombatResult
+aggregateHitResult outcomes
+  | CombatHit `elem` results = CombatHit
+  | otherwise = case results of
+      first : _ -> first
+      [] -> CombatEffect
+  where
+    results = map combatHitResult outcomes
 
 selectPreparedAttack :: Character -> Combat (Maybe PreparedAttack)
 selectPreparedAttack char = do
@@ -526,10 +545,13 @@ useActiveSkill martialArt activeSkill caster target = do
       Self -> use $ caster . battleChar . charName
       _ -> use $ target . battleChar . charName
   visual <- resolveAnimationRef martialArt (activeSkill ^. activeSkillAnimation)
+  shares <- combatActionHitShares $ visual ^. combatVisualActionId
+  let splitAmount = maybe (Nothing <$ shares) (map Just . (`splitByShares` shares))
+      outcomes = zipWith (CombatHitOutcome activeSkillResult) (splitAmount damageAmount) (splitAmount healAmount)
   lockBattleForVisual visual
   tell
     [ ( uid,
-        combatEventResp
+        combatEventRespHits
           CombatEventActiveSkill
           casterName
           targetName
@@ -537,6 +559,7 @@ useActiveSkill martialArt activeSkill caster target = do
           damageAmount
           healAmount
           activeSkillResult
+          outcomes
           visual
       )
     ]

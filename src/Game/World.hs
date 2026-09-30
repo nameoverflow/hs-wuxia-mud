@@ -165,7 +165,13 @@ validateWorld wrld =
         artId' = martialArt ^. artId
 
     validateCombatActionTiming timing =
-      [ "combat action " <> timing ^. combatActionTimingId <> " has non-positive lock_ms"
+      [ "combat action " <> timing ^. combatActionTimingId <> " has a negative approach duration"
+        | timing ^. combatActionTimingApproachMs < 0
+      ]
+        <> [ "combat action " <> timing ^. combatActionTimingId <> " has a non-positive hit share"
+             | any (<= 0) (timing ^. combatActionTimingHitShares)
+           ]
+        <> [ "combat action " <> timing ^. combatActionTimingId <> " has non-positive lock_ms"
         | timing ^. combatActionTimingLockMs <= 0
       ]
 

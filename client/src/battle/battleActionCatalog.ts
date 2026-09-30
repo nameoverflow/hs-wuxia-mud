@@ -1,4 +1,3 @@
-import actionData from "../../../resources/scripts/combat_actions/battle-actions.json";
 import { validateClipFrames } from "./animationClip";
 import { hasSvgPose } from "./svgPoseLibrary";
 import { stageArt } from "./stageAssets";
@@ -16,9 +15,17 @@ interface BattleActionManifest {
   actions: BattleActionDefinition[];
 }
 
-const manifest = actionData as BattleActionManifest;
+// Every manifest in combat_actions/ (the server loads the same directory).
+const manifestFiles = import.meta.glob<BattleActionManifest>("../../../resources/scripts/combat_actions/*.json", { eager: true, import: "default" });
+const manifest: BattleActionManifest = { schemaVersion: 5, actions: [] };
+for (const [file, data] of Object.entries(manifestFiles)) {
+  if (data.schemaVersion !== 5) throw new Error(`Unsupported battle action schema ${data.schemaVersion} in ${file}`);
+  for (const action of data.actions) {
+    if (manifest.actions.some((existing) => existing.id === action.id)) throw new Error(`Duplicate battle action ${action.id} in ${file}`);
+    manifest.actions.push(action);
+  }
+}
 
-if (manifest.schemaVersion !== 5) throw new Error(`Unsupported battle action schema ${manifest.schemaVersion}`);
 manifest.actions.forEach((action) => {
   validateClipFrames(action.id, action.frames, action.durationMs, action.impactFrame);
   const poses = [

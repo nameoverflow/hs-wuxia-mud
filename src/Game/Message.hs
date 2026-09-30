@@ -368,6 +368,22 @@ combatResultText CombatDodge = "dodge"
 combatResultText CombatParry = "parry"
 combatResultText CombatEffect = "effect"
 
+-- | One contact of a multi-hit action. A single-hit action sends one entry.
+data CombatHitOutcome = CombatHitOutcome
+  { combatHitResult :: CombatResult,
+    combatHitDamage :: Maybe Int,
+    combatHitHeal :: Maybe Int
+  }
+  deriving (Show, Eq, Generic)
+
+instance ToJSON CombatHitOutcome where
+  toJSON CombatHitOutcome {..} =
+    object
+      [ "result" .= combatResultText combatHitResult,
+        "damage" .= combatHitDamage,
+        "heal" .= combatHitHeal
+      ]
+
 data CombatEvent = CombatEvent
   { combatEventKind :: CombatEventKind,
     combatEventActorName :: T.Text,
@@ -376,6 +392,7 @@ data CombatEvent = CombatEvent
     combatEventDamage :: Maybe Int,
     combatEventHeal :: Maybe Int,
     combatEventResult :: CombatResult,
+    combatEventHits :: [CombatHitOutcome],
     combatEventVisual :: CombatVisualHint
   }
   deriving (Show, Eq, Generic)
@@ -390,6 +407,7 @@ instance ToJSON CombatEvent where
         "damage" .= combatEventDamage,
         "heal" .= combatEventHeal,
         "result" .= combatResultText combatEventResult,
+        "hits" .= combatEventHits,
         "visual" .= combatEventVisual
       ]
 

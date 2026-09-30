@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 5,
+  "actions": [
+    {
+      "id": "rig.effect.dot",
+      "label": "余伤",
+      "style": "fist",
+      "frames": [
+        {
+          "frameId": "idle",
+          "holdMs": 360
+        }
+      ],
+      "impactFrame": 0,
+      "durationMs": 360,
+      "tags": [
+        "effect",
+        "dot"
+      ],
+      "actorMotion": "none",
+      "targetReaction": {
+        "hit": "effect",
+        "dodge": "effect",
+        "parry": "effect",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "impact",
+          "variant": "dot-spark",
+          "anchor": "target",
+          "art": "aura"
+        }
+      ],
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 0,
+        "hitStopMs": 0,
+        "recoverAtMs": 202,
+        "restAtMs": 360,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "quiet"
+      }
+    },
+    {
+      "id": "rig.effect.hot",
+      "label": "回气",
+      "style": "fist",
+      "frames": [
+        {
+          "frameId": "idle",
+          "holdMs": 360
+        }
+      ],
+      "impactFrame": 0,
+      "durationMs": 360,
+      "tags": [
+        "effect",
+        "hot"
+      ],
+      "actorMotion": "none",
+      "targetReaction": {
+        "hit": "effect",
+        "dodge": "effect",
+        "parry": "effect",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "heal",
+          "variant": "heal-pulse",
+          "anchor": "target",
+          "art": "aura"
+        }
+      ],
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 0,
+        "hitStopMs": 0,
+        "recoverAtMs": 202,
+        "restAtMs": 360,
+        "reach": 0,
+        "contactY": 110,
+        "weight": "quiet"
+      }
+    }
+  ]
+}

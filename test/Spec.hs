@@ -43,6 +43,7 @@ main = do
   testActiveSkillIgnoresApAndSendsSnapshot
   testActiveSkillQueuesDuringActionLock
   testNormalAttackUsesCombatPipeline
+  testMultiHitActionSplitsDamageAndLocksApproach
   testBattleActionTickDoesNotSyncApOnly
   testBattleMaintenanceDoesNotNaturallyRecoverHpOrQi
   testBattleActionLockBlocksApGrowth
@@ -553,6 +554,35 @@ testNormalAttackUsesCombatPipeline = do
       assert (damage `elem` expectedDamages) "normal attack damage did not use derived strength and mitigation"
       battle <- getBattle afterTick
       assert ((battle ^. battleEnemyState . battleChar . charHP) == 114 - damage) "normal attack damage was not applied to the enemy"
+
+testMultiHitActionSplitsDamageAndLocksApproach :: IO ()
+testMultiHitActionSplitsDamageAndLocksApproach = do
+  assert (splitByShares 18 [1, 1, 2] == [5, 4, 9]) "hit shares must split like the client"
+  assert (sum (splitByShares 7 [1, 1, 1]) == 7) "hit shares must preserve the total"
+  gs <- newTestPlayerState
+  case M.lookup "rig.fist.combo_a" (gs ^. world . combatActionTimings) of
+    Nothing -> fail "combo action timing was not loaded from the manifest"
+    Just timing -> do
+      assert ((timing ^. combatActionTimingApproachMs) == 150) "approach duration was not read from the manifest"
+      assert ((timing ^. combatActionTimingHitShares) == [1, 1, 2]) "hit shares were not read from the manifest"
+  let comboWorld = gs & world . martialArts . traverse . artAttackMoves . traverse . attackMoveAnimation . animationRefAction .~ "rig.fist.combo_a"
+  (_, inBattle) <- startTrainingBattle comboWorld
+  let ready =
+        inBattle
+          & battles . ix "tester" . battleState . battleAp .~ 100
+          & battles . ix "tester" . battleEnemyState . battleAp .~ 0
+          & battles . ix "tester" . battleActionLockRemaining .~ 0
+  enemyHpBefore <- (^. battleEnemyState . battleChar . charHP) <$> getBattle ready
+  (responses, afterTick) <- runOk "multi-hit attack tick" ready (updateBattle 0 "tester")
+  let comboEvents = [event | (_, CombatEventMsg event) <- responses, length (combatEventHits event) == 3]
+  case comboEvents of
+    [] -> fail "multi-hit attack did not report three hit outcomes"
+    event : _ -> do
+      let landed = sum [damage | CombatHitOutcome CombatHit (Just damage) _ <- combatEventHits event]
+      assert (combatEventDamage event == Just landed) "event damage must equal the landed hits"
+      battle <- getBattle afterTick
+      assert ((battle ^. battleEnemyState . battleChar . charHP) == enemyHpBefore - landed) "landed hits were not applied to the enemy"
+      assert ((battle ^. battleActionLockRemaining) >= 1.0) "action lock must cover the approach plus the clip"
 
 testBattleActionTickDoesNotSyncApOnly :: IO ()
 testBattleActionTickDoesNotSyncApOnly = do

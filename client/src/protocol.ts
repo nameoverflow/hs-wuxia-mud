@@ -239,6 +239,24 @@ export interface CombatVisualHint {
   actionId: string;
   tags: string[];
   durationMs?: number | null;
+  /** Per-move presentation overrides from the martial-art YAML (animation.params), passed through by the server. */
+  params?: CombatVisualParams | null;
+}
+
+export interface CombatVisualParams {
+  /** Stage label/stamp instead of the action label. */
+  label?: string;
+  /** Deep-merged over the action's staging (after its preset, before per-hit overrides). */
+  staging?: Record<string, unknown>;
+  /** Replace a VFX layer's artwork by kind, e.g. { "trail": "thrust" }. */
+  vfxArt?: Record<string, string>;
+}
+
+/** One contact of a multi-hit action; single-hit actions send one entry. */
+export interface CombatHitOutcome {
+  result: CombatResult;
+  damage: number | null;
+  heal: number | null;
 }
 
 export type CombatEventKind = "normal" | "active_skill" | "effect_tick";
@@ -253,6 +271,8 @@ export interface CombatEvent {
   damage: number | null;
   heal: number | null;
   result: CombatResult;
+  /** Per-hit outcomes; absent from older servers, in which case the client splits damage by share. */
+  hits?: CombatHitOutcome[];
   visual: CombatVisualHint;
 }
 

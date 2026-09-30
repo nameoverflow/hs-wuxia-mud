@@ -3,9 +3,10 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import { readBattleActions } from './lib/battleActions.mjs';
 
 const client = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const data = JSON.parse(readFileSync(path.join(client, '../resources/scripts/combat_actions/battle-actions.json'), 'utf8'));
+const data = readBattleActions(path.join(client, '..'));
 const atlas = {};
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 for (const style of ['fist', 'sword']) {

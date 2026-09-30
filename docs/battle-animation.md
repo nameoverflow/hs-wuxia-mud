@@ -32,7 +32,7 @@ martial-art YAML animation.action
 
 ## Action manifest v5
 
-`resources/scripts/combat_actions/battle-actions.json` 仍与 Haskell 服务端共享 action ID 和 durationMs。历史 `rig.*` 前缀继续兼容武学 YAML，不代表运行时还有骨骼系统。
+动作按风格分文件放在 `resources/scripts/combat_actions/`（`sword.json`、`fist.json`、`effects.json`，每个文件都是 `{ schemaVersion, actions }`），可以继续按武学拆出新文件。Haskell 服务端读取同一目录，只取 id、durationMs、approach.durationMs 和 hits 的 share；其余字段都是表现数据。历史 `rig.*` 前缀继续兼容武学 YAML，不代表运行时还有骨骼系统。
 
 普通攻击包含：站定 → 蓄势 → 最大动作 → 收势 → 站定。每帧的 holdMs 与总 durationMs 一致；impactFrame 标记最大动作开始。例：
 
@@ -97,7 +97,7 @@ martial-art YAML animation.action
 ```
 
 - hits：每段一次定格。第一段必须落在 impactFrame 上；后一段不能落在前一段定格内；最后一段定格结束不晚于 recoverAtMs。省略时等于 `[{ atMs: impactFrame 起点, hitStopMs: choreography.hitStopMs }]`。
-- share：伤害/治疗的分配权重，默认平分。客户端按累计取整拆分服务端给的总数，保证各段之和不变；气血显示、飘字、墨爆、闪白、镜头回弹都逐段触发。服务端目前仍只给一个结果，所以各段共用同一个 hit/dodge/parry。
+- share：伤害/治疗的分配权重，默认平分。服务端按同样的累计取整规则拆分，每段各自判定闪避/招架，并在 `CombatEventMsg.hits` 里给出逐段结果；客户端逐段推进气血、飘字、结果字、墨爆、闪白和镜头回弹。收到不带 hits 的旧消息时，客户端按 share 自行拆分总数，各段共用顶层结果。
 - poseTrack：姿势键之间一律硬切。`pin` 把该姿势的 hand/foot/blade 钉到接触点，可用 reach/contactY 单独覆盖（reach 通常保持与 choreography 一致，因为人物站位按它计算）。第一个键必须在 0ms，接近步法末段混入这个姿势。至少要有一个 pin 键。
 - 省略 poseTrack 时由 keyPoses 展开成四个键：到位 prepare → launchAtMs contact（pin reachWith）→ 最后一段定格结束 finish → restAtMs idle。
 - 所有采样器通过 `battleTiming.ts` 的 visualTimeAt 读取定格后的时间；BattleClock 每段触发一次回调（参数为段序号），拖动时间轴不会重复触发已提交的段。

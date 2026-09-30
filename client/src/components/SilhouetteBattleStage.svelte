@@ -29,7 +29,9 @@
   $: targetSide = timeline?.target.side ?? "enemy";
   // 多段命中时逐段飘字；尚未接触时沿用整招的字。
   $: hitText = timeline ? (timeline.hits[scene.hitIndex]?.floatText ?? timeline.floatText) : "";
-  $: resultWord = timeline?.result === "dodge" ? "闪" : timeline?.result === "parry" ? "架" : timeline?.heal ? "息" : "";
+  // 多段时逐段显示结果字：先中后闪就先飘伤害再出“闪”。
+  $: hitResult = timeline ? timeline.hits[Math.max(0, scene.hitIndex)].result : null;
+  $: resultWord = hitResult === "dodge" ? "闪" : hitResult === "parry" ? "架" : timeline?.heal ? "息" : "";
   // 重招才盖招式名印章；普通招式保持克制。
   $: stampLabel = scene.force >= 1 && timeline && scene.phase !== "idle" ? timeline.label : "";
   $: sprites = sampleVfx(timeline, scene, elapsed, reducedMotion);

@@ -4,15 +4,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 import { createHash } from "node:crypto";
+import { readBattleActions } from "./lib/battleActions.mjs";
 
 const clientRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = path.resolve(clientRoot, "..");
-const actionsPath = path.join(repoRoot, "resources/scripts/combat_actions/battle-actions.json");
 const posesPath = path.join(repoRoot, "resources/scripts/combat_presentation/svg-poses.json");
 const stagingPath = path.join(repoRoot, "resources/scripts/combat_presentation/staging.json");
 const framesPath = path.join(clientRoot, "src/assets/battle/actors/raster-v1");
 const martialArtsPath = path.join(repoRoot, "resources/scripts/martial_arts");
-const manifest = JSON.parse(readFileSync(actionsPath, "utf8"));
+const manifest = readBattleActions(repoRoot);
 const poseIds = new Set(Object.keys(JSON.parse(readFileSync(posesPath, "utf8")).poses));
 const vfxArts = ["impact", "slash", "parry", "aura", "thrust", "rising"];
 const stagingPresets = JSON.parse(readFileSync(stagingPath, "utf8")).presets;
@@ -32,7 +32,7 @@ const travelMotions = ["approach", "lunge", "drive"];
 const atlas = JSON.parse(readFileSync(path.join(clientRoot, 'src/battle/frameAtlas.json'), 'utf8'));
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 
-if (manifest.schemaVersion !== 5 || !Array.isArray(manifest.actions)) fail("battle-actions.json must use schemaVersion 5 with an actions array");
+for (const file of manifest.manifests) if (file.schemaVersion !== 5 || !Array.isArray(file.actions)) fail(`combat_actions/${file.file} must use schemaVersion 5 with an actions array`);
 const actionIds = new Set();
 const frameIds = new Set();
 for (const action of manifest.actions) {
@@ -148,6 +148,18 @@ for (const file of readdirSync(martialArtsPath).filter((name) => name.endsWith("
         if (typeof actionId !== "string" || !actionId) fail(`${file}: ${art.id}.${move.id} must bind animation.action`);
         if (move.animation?.pool !== undefined) fail(`${file}: ${art.id}.${move.id} still uses animation.pool`);
         if (!actionIds.has(actionId)) fail(`${file}: ${art.id}.${move.id} references missing action ${actionId}`);
+        const params = move.animation?.params;
+        if (params !== undefined) {
+          const label = `${file}: ${art.id}.${move.id}.animation.params`;
+          if (!params || typeof params !== "object" || Array.isArray(params)) fail(`${label} must be a mapping`);
+          for (const key of Object.keys(params)) if (!["label", "staging", "vfxArt"].includes(key)) fail(`${label} has unknown key ${key}`);
+          if (params.label !== undefined && (typeof params.label !== "string" || !params.label.trim())) fail(`${label}.label must be text`);
+          checkStaging(`${label}.staging`, params.staging);
+          for (const [kind, artName] of Object.entries(params.vfxArt || {})) {
+            if (!["trail", "impact", "parry", "aura", "heal", "sprite", "custom"].includes(kind)) fail(`${label}.vfxArt has unknown kind ${kind}`);
+            if (!vfxArts.includes(artName)) fail(`${label}.vfxArt.${kind} must be one of ${vfxArts.join("/")}`);
+          }
+        }
       }
     }
   }

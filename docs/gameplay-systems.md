@@ -63,6 +63,8 @@ selectPreparedAttack
   -> apply damage and emit CombatEventMsg
 ```
 
+多段动作（manifest 里声明了 `hits`）先算出整招伤害，再按各段 `share` 累计取整拆开；每一段各自掷闪避与招架，只有命中的段扣血。单段招式的随机数消耗与判定顺序不变。主动招式的伤害/治疗同样按段拆分，但不做闪避招架判定。
+
 当前命中、闪避和招架使用 `A/(A+B)` 风格的对抗判定：
 
 - 攻击侧主要参考招式基础伤害、武功等级、`str` 和 `agi`。
@@ -119,7 +121,21 @@ animation:
   tags: ["fist", "heavy", "strike"]
 ```
 
-每个普通招式和主动技能都通过 `animation.action` 固定引用 `resources/scripts/combat_actions/battle-actions.json` 中的动作。server 把最终 `actionId` 放入 `CombatEventMsg.visual`；client 按 action 播放 raster keyframes、位移、目标反馈和 VFX，不再使用 animation pool。
+每个普通招式和主动技能都通过 `animation.action` 固定引用 `resources/scripts/combat_actions/*.json` 中的动作。server 把最终 `actionId` 放入 `CombatEventMsg.visual`；client 按 action 播放 SVG 关键姿势、位移、目标反馈和 VFX，不再使用 animation pool。
+
+同一个动作可以被多个招式复用，并用 `animation.params` 换皮，不用新建动作：
+
+```yaml
+animation:
+  action: rig.fist.punch_a
+  tags: ["fist", "strike"]
+  params:
+    label: "崩拳"                     # 舞台招式名
+    vfxArt: { trail: rising }         # 按层换素材
+    staging:                          # 覆盖舞台参数（见 battle-animation.md）
+      camera: { kick: 9 }
+      reactions: { hit: { push: 40 } }
+```
 
 ## 状态效果
 

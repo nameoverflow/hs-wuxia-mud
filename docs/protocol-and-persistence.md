@@ -123,13 +123,20 @@ client 根据 `systemMessageKey` / `errorSummaryCode` 和参数做本地化。�
     "damage": 16,
     "heal": null,
     "result": "hit",
+    "hits": [{ "result": "hit", "damage": 16, "heal": null }],
     "visual": {
       "actionId": "rig.fist.punch_a",
-      "tags": ["fist", "strike"]
+      "tags": ["fist", "strike"],
+      "durationMs": 450,
+      "params": null
     }
   }
 }
 ```
+
+- `hits`：逐段结果，段数等于该动作 manifest 的 `hits` 数（未声明时为 1）。多段招式每段各自判定闪避/招架，`damage` 是命中段之和；顶层 `result` 只要有一段命中就是 `hit`，否则取第一段的结果。
+- `visual.durationMs`：动作剪辑时长（不含接近步法），客户端按它缩放整段表现。服务端的行动锁 = 这个时长 + manifest 里 `approach.durationMs`。
+- `visual.params`：武学 YAML 里 `animation.params` 原样透传，见 [battle-animation.md](./battle-animation.md)。
 
 `contents.kind` 当前取值：
 
