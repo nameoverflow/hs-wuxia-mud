@@ -4,7 +4,7 @@
 
 <script lang="ts">
   import { SVG_SWORD_LENGTH, type SvgPose } from '../battle/svgBattlePose';
-  import { bones } from '../battle/svgPoseLibrary';
+  import { ANKLE_HEIGHT, bones } from '../battle/svgPoseLibrary';
   import type { CombatStyle, VisualProfile } from '../battle/animationTypes';
   export let pose: SvgPose;
   export let style: CombatStyle;
@@ -49,11 +49,17 @@
   }
   const limb = (a: Pt, b: Pt, ra: number, rb: number): Shape[] => [{ d: taper(a, b, ra, rb) }, circle(a, ra), circle(b, rb)];
 
-  /** 脚掌：落地时平放朝前，抬起时顺着小腿方向指出去。 */
-  function footTip(knee: Pt, ankle: Pt) {
+  /**
+   * 脚：踩地时脚掌平贴地面朝前，脚跟、脚尖都着地，站得稳；离地时顺着小腿方向指出去。
+   */
+  function foot(knee: Pt, ankle: Pt, planted: boolean): Shape[] {
+    if (planted) {
+      const ground = ankle[1] + ANKLE_HEIGHT;
+      const heel = [ankle[0] - 4, ground - 2.8], toe = [ankle[0] + 12, ground - 2.3];
+      return [...limb(ankle, [ankle[0] + 1, ground - 3], R.ankle, 3), ...limb(heel, toe, 2.8, 2.3)];
+    }
     const shin = unit(sub(ankle, knee));
-    const w = Math.max(0, Math.min(1, shin[1]));
-    return along(ankle, unit([w + shin[0] * (1 - w), shin[1] * (1 - w) + 0.12 * w]), 12);
+    return limb(ankle, along(ankle, unit([shin[0] * 0.6 + 0.4, shin[1] * 0.6]), 12), R.ankle, 3);
   }
 
   /** 以 origin 为原点、按 deg 旋转后的多边形。剑用它画，不依赖 SVG transform，描边才能和别的形状一起算。 */
@@ -90,10 +96,8 @@
     return `M${left.join(" L")} L${right.reverse().join(" L")} Z`;
   }
 
-  $: torsoAxis = unit(sub(p.shoulder, p.hip));
-  $: chest = along(p.shoulder, torsoAxis, -8);
-  $: frontToe = footTip(p.knee, p.foot);
-  $: backToe = footTip(p.backKnee, p.backFoot);
+  $: torsoAxis = unit(sub(p.neck, p.hip));
+  $: chest = along(p.neck, torsoAxis, -10);
   $: bladeDir = [Math.cos(p.blade * Math.PI / 180), Math.sin(p.blade * Math.PI / 180)];
   $: pommel = along(p.hand, bladeDir, -9);
   /** 剑穗从剑首垂下：方向取姿势里的 tassel 点，长度限制在一小段。 */
@@ -101,7 +105,7 @@
     const v = sub(p.tassel, pommel);
     return along(pommel, unit(v), Math.min(len(v), 20));
   })();
-  $: headUp = unit(sub(p.head, p.shoulder));
+  $: headUp = unit(sub(p.head, p.neck));
   $: headBackDir = [headUp[1], -headUp[0]];
   $: tie = along(along(p.head, headUp, bones.headRadius * 0.28), headBackDir, bones.headRadius * 0.9);
   $: sway = Math.sin(hairPhase / 260) * 2.5;
@@ -126,15 +130,15 @@
           [tie[0] + headBackDir[0] * 6 + flow[0], tie[1] + headBackDir[1] * 6 + 42 + flow[1]], 5) }
       ] });
     }
-    list.push({ key: 'back-leg', joins: [], shapes: [...limb(p.hip, p.backKnee, R.thigh, R.knee), ...limb(p.backKnee, p.backFoot, R.knee, R.ankle), ...limb(p.backFoot, backToe, R.ankle, 3)] });
+    list.push({ key: 'back-leg', joins: [], shapes: [...limb(p.hip, p.backKnee, R.thigh, R.knee), ...limb(p.backKnee, p.backFoot, R.knee, R.ankle), ...foot(p.backKnee, p.backFoot, p.backFootPlanted)] });
     list.push({ key: 'back-arm', joins: [], shapes: [...limb(p.shoulder, p.backElbow, R.shoulder, R.elbow), ...limb(p.backElbow, p.backHand, R.elbow, R.wrist), circle(p.backHand, R.fist)] });
-    const body: Shape[] = [...limb(chest, p.hip, R.chest, R.pelvis), ...limb(p.shoulder, p.head, R.neck, R.neck), circle(p.head, bones.headRadius)];
+    const body: Shape[] = [...limb(chest, p.hip, R.chest, R.pelvis), ...limb(p.neck, p.head, R.neck, R.neck), circle(p.head, bones.headRadius)];
     if (profile === 'female') body.push({ d: rotated(tie, Math.atan2(headBackDir[1], headBackDir[0]) * 180 / Math.PI, [[-2.4, -3.6], [2.4, -3.6], [2.4, 3.6], [-2.4, 3.6]]), fill: '#9c3b2e' });
     list.push({ key: 'body', joins: [], shapes: body });
     join('body', ['back-leg'], p.hip, R.thigh + 10);
     join('body', ['back-arm'], p.shoulder, R.shoulder + 8);
     if (profile === 'female') join('body', ['hair'], tie, 8);
-    list.push({ key: 'front-leg', joins: [], shapes: [...limb(p.hip, p.knee, R.thigh, R.knee), ...limb(p.knee, p.foot, R.knee, R.ankle), ...limb(p.foot, frontToe, R.ankle, 3)] });
+    list.push({ key: 'front-leg', joins: [], shapes: [...limb(p.hip, p.knee, R.thigh, R.knee), ...limb(p.knee, p.foot, R.knee, R.ankle), ...foot(p.knee, p.foot, p.footPlanted)] });
     const arm: Shape[] = [...limb(p.shoulder, p.elbow, R.shoulder, R.elbow), ...limb(p.elbow, p.hand, R.elbow, R.wrist)];
     if (style === 'sword') {
       const L = SVG_SWORD_LENGTH;

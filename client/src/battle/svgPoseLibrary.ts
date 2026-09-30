@@ -5,12 +5,17 @@ export type Point = [number, number];
 
 /** Joint positions in figure space (feet on y≈0, facing +x). Every segment has a fixed bone length. */
 export interface SvgPose {
+  /** 颈根：头从这里长出去。肩关节 shoulder 在它下面一点，手臂从胸口上沿长出来而不是从脖子上。 */
+  neck: Point;
   head: Point; shoulder: Point; hip: Point;
   backElbow: Point; backHand: Point; elbow: Point; hand: Point;
   backKnee: Point; backFoot: Point; knee: Point; foot: Point;
   /** 剑穗方向点：剑穗从剑首朝这里垂下一小段。拳招不使用。 */
   tassel: Point;
   blade: number;
+  /** 脚踩在地上：脚掌平贴地面。离地的脚（冲刺、踢腿、跳起）顺着小腿指出去。 */
+  footPlanted: boolean;
+  backFootPlanted: boolean;
 }
 
 /**
@@ -104,27 +109,37 @@ export function bendOf(root: Point, joint: Point, end: Point) {
 }
 
 const legLength = () => bones.thigh + bones.shin;
+/** 踩地时脚踝离地的高度：脚掌有厚度，脚踝不贴地。 */
+export const ANKLE_HEIGHT = 5;
+/** 肩关节在颈根下面多少：手臂从胸口上沿长出来。 */
+const SHOULDER_DROP = 8;
+/** 落点 y 在地面附近就算踩地。 */
+const isPlanted = (foot: Point) => foot[1] > -4;
+const ankleOf = (foot: Point): Point => (isPlanted(foot) ? [foot[0], foot[1] - ANKLE_HEIGHT] : foot);
 
 /** 参数 → 关节坐标。脚是落点，髋够不着时自动下沉，宽马步自然就蹲低了。 */
 export function poseFromParams(params: PoseParams): SvgPose {
   let hip: Point = [...params.hip];
   const reach = legLength() - 0.5;
-  for (const foot of [params.foot, params.backFoot]) {
+  const frontAnkle = ankleOf(params.foot), backAnkle = ankleOf(params.backFoot);
+  for (const foot of [frontAnkle, backAnkle]) {
     const dx = foot[0] - hip[0];
     if (Math.abs(dx) < reach) hip = [hip[0], Math.max(hip[1], foot[1] - Math.sqrt(reach * reach - dx * dx))];
   }
-  const shoulder = add(hip, dir(params.torso), bones.torso);
-  const head = add(shoulder, dir(params.head), bones.neck + bones.headRadius);
+  const neck = add(hip, dir(params.torso), bones.torso);
+  const shoulder = add(neck, dir(params.torso), -SHOULDER_DROP);
+  const head = add(neck, dir(params.head), bones.neck + bones.headRadius);
   const elbow = add(shoulder, dir(params.arm[0]), bones.upperArm);
   const hand = add(elbow, dir(params.arm[1]), bones.forearm);
   const backElbow = add(shoulder, dir(params.backArm[0]), bones.upperArm);
   const backHand = add(backElbow, dir(params.backArm[1]), bones.forearm);
-  const front = solveTwoBone(hip, params.foot, bones.thigh, bones.shin, params.knees[0]);
-  const back = solveTwoBone(hip, params.backFoot, bones.thigh, bones.shin, params.knees[1]);
+  const front = solveTwoBone(hip, frontAnkle, bones.thigh, bones.shin, params.knees[0]);
+  const back = solveTwoBone(hip, backAnkle, bones.thigh, bones.shin, params.knees[1]);
   return {
-    head, shoulder, hip, elbow, hand, backElbow, backHand,
+    neck, head, shoulder, hip, elbow, hand, backElbow, backHand,
     knee: front.joint, foot: front.end, backKnee: back.joint, backFoot: back.end,
-    tassel: [...params.tassel], blade: params.blade
+    tassel: [...params.tassel], blade: params.blade,
+    footPlanted: isPlanted(params.foot), backFootPlanted: isPlanted(params.backFoot)
   };
 }
 
@@ -172,7 +187,8 @@ export function blendPose(fromId: string, toId: string, amount: number, rig: Com
 export function shiftPose(pose: SvgPose, dx: number, dy = 0): SvgPose {
   const move = (p: Point): Point => [p[0] + dx, p[1] + dy];
   return {
-    head: move(pose.head), shoulder: move(pose.shoulder), hip: move(pose.hip),
+    ...pose,
+    neck: move(pose.neck), head: move(pose.head), shoulder: move(pose.shoulder), hip: move(pose.hip),
     elbow: move(pose.elbow), hand: move(pose.hand), backElbow: move(pose.backElbow), backHand: move(pose.backHand),
     knee: move(pose.knee), foot: move(pose.foot), backKnee: move(pose.backKnee), backFoot: move(pose.backFoot),
     tassel: move(pose.tassel), blade: pose.blade
@@ -200,7 +216,7 @@ export function reachWith(pose: SvgPose, limb: "hand" | "foot", target: Point): 
   const solved = solveTwoBone(newRoot, target, a, b, bend);
   return limb === "hand"
     ? { ...shifted, elbow: solved.joint, hand: solved.end }
-    : { ...shifted, knee: solved.joint, foot: solved.end };
+    : { ...shifted, knee: solved.joint, foot: solved.end, footPlanted: false };
 }
 
 if (library.schemaVersion !== 2) throw new Error(`Unsupported SVG pose schema ${library.schemaVersion}`);
