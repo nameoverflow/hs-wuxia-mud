@@ -112,6 +112,9 @@ for (const action of manifest.actions) {
   if (action.actorMotion === 'ranged' && !track && !(kp?.prepare && kp.contact && kp.finish)) fail(`${action.id}: ranged action needs a poseTrack or keyPoses`);
   if (travelMotions.includes(action.actorMotion) && track && track.filter((key) => key.pin).length !== hits.length) fail(`${action.id}: each hit needs exactly one pinned poseTrack key`);
   if (travelMotions.includes(action.actorMotion)) {
+    // 剑光在最后一段定格后还要收笔，收不完就会残留在下一招开头。
+    const fadeMs = action.staging?.trail?.fadeMs ?? stagingPresets[c.weight]?.trail?.fadeMs ?? stagingPresets.light.trail.fadeMs;
+    if (lastHold + fadeMs > durationMs) fail(`${action.id}: last hit ends ${durationMs - lastHold}ms before the clip ends, but the trail needs ${fadeMs}ms to fade`);
     const idle = action.style === 'sword' ? 'sword_ready' : 'idle';
     if (action.frames[0].frameId !== idle || action.frames.at(-1).frameId !== idle) fail(`${action.id}: attack must begin and finish in ready stance`);
     if (!track) {

@@ -1,6 +1,8 @@
 import { validateClipFrames } from "./animationClip";
 import { hasSvgPose } from "./svgPoseLibrary";
 import { stageArt } from "./stageAssets";
+import { hasCustomVfx } from "./vfxRegistry";
+import "./customVfx";
 import type {
   ActorVisual,
   ActionVfxDefinition,
@@ -39,6 +41,7 @@ manifest.actions.forEach((action) => {
   ];
   for (const pose of poses) if (!hasSvgPose(pose)) throw new Error(`${action.id}: missing SVG pose ${pose}`);
   for (const vfx of action.vfx || []) if (!(vfx.art in stageArt)) throw new Error(`${action.id}: unknown vfx art ${vfx.art}`);
+  for (const vfx of action.vfx || []) if (vfx.kind === "custom" && !hasCustomVfx(vfx.effect ?? "")) throw new Error(`${action.id}: unknown custom vfx ${vfx.effect}`);
 });
 
 export const battleActions: Record<string, BattleActionDefinition> = Object.fromEntries(

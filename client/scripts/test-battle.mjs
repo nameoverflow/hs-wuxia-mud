@@ -204,7 +204,8 @@ try {
     for (const hit of combo.hits.slice(1)) assert.equal(sample(combo, hit.atMs - 20).enemy.x, 52, 'dodge must not reset between hits');
   });
 
-  const { sampleVfx } = await server.ssrLoadModule('/src/battle/battleVfx.ts');
+  const vfxModule = await server.ssrLoadModule('/src/battle/battleVfx.ts');
+  const { sampleVfx } = vfxModule;
   check('sprites travel between anchors, freeze with hit stop and respect result filters', () => {
     const qi = make(battleActions['rig.sword.qi_wave_a']);
     const crescent = qi.vfx.find(v => v.kind === 'sprite');
@@ -247,6 +248,19 @@ try {
     assert.equal(restyled.vfx.find(v => v.kind === 'impact').art, 'impact', 'unknown art names are ignored');
     assert.equal(restyled.hits[0].staging.camera.kick, 20);
     assert.equal(restyled.staging.camera.kick, 20);
+  });
+
+  check('custom VFX samplers expand one manifest entry into procedural sprites', () => {
+    const net = make(battleActions['rig.sword.sword_net_a']);
+    const fan = net.vfx.find(v => v.kind === 'custom');
+    const mid = (fan.startMs + fan.endMs) / 2;
+    const midSprites = sampleVfx(net, sample(net, mid), mid).filter(s => s.key.startsWith(fan.id));
+    assert.ok(midSprites.length >= 3, 'several blades are live mid-fan');
+    assert.ok(new Set(midSprites.map(s => s.rotate)).size === midSprites.length, 'blades fan out at different angles');
+    const dodged = make(battleActions['rig.sword.sword_net_a'], 'dodge');
+    assert.equal(sampleVfx(dodged, sample(dodged, mid), mid).filter(s => s.key.startsWith(fan.id)).length, 0, 'results filter applies to custom VFX');
+    const { registerCustomVfx } = vfxModule;
+    assert.throws(() => registerCustomVfx('blade_fan', () => []), /already registered/);
   });
 
   function driver() {

@@ -1,52 +1,11 @@
-import type { BattleSide, ResolvedBattleTimeline, TimelineVfx, VfxAnchorRef, VfxArt } from "./animationTypes";
+import type { BattleSide, ResolvedBattleTimeline, TimelineVfx, VfxAnchorRef } from "./animationTypes";
 import { sideHome, type BattleSceneSample } from "./battleDirector";
 import { visualTimeAt } from "./battleTiming";
 import { sampleSvgPose, SVG_SWORD_LENGTH } from "./svgBattlePose";
+import { customVfx, type VfxContext, type VfxSprite } from "./vfxRegistry";
+import "./customVfx";
 
-/** One ink sprite on the stage, in duel-world source px. The stage renders the list in order. */
-export interface VfxSprite {
-  key: string;
-  art: VfxArt;
-  x: number;
-  y: number;
-  /** Rendered box size before scale. */
-  size: number;
-  scale: number;
-  rotate: number;
-  /** 1 or -1: artwork is drawn facing right and mirrors with the attack direction. */
-  flip: number;
-  opacity: number;
-}
-
-export interface VfxContext {
-  timeline: ResolvedBattleTimeline;
-  scene: BattleSceneSample;
-  vfx: TimelineVfx;
-  elapsed: number;
-  /** Hit-stop-warped time; everything freezes with the held contact. */
-  visualTime: number;
-  /** 0→1 through the sprite's life. */
-  progress: number;
-  direction: number;
-  reduced: boolean;
-  anchor: (ref: VfxAnchorRef) => { x: number; y: number };
-}
-
-export type CustomVfxSampler = (context: VfxContext) => VfxSprite[];
-
-const customSamplers = new Map<string, CustomVfxSampler>();
-
-/**
- * 给写不进数据的招式留一个口子：注册一个纯函数采样器，manifest 用 kind "custom" + effect 名引用。
- * 采样器只能读时间和时间线，所以暂停、慢放、拖动时间轴都照常工作。
- */
-export function registerCustomVfx(name: string, sampler: CustomVfxSampler) {
-  customSamplers.set(name, sampler);
-}
-
-export function hasCustomVfx(name: string) {
-  return customSamplers.has(name);
-}
+export { registerCustomVfx, hasCustomVfx, type VfxSprite, type VfxContext, type CustomVfxSampler } from "./vfxRegistry";
 
 const clamp = (v: number) => Math.max(0, Math.min(1, v));
 
@@ -79,7 +38,7 @@ export function sampleVfx(timeline: ResolvedBattleTimeline | null, scene: Battle
     if (vfx.results && !vfx.results.includes(anchoredHit.result)) continue;
     const progress = clamp((visualTime - vfx.startMs) / Math.max(1, vfx.endMs - vfx.startMs));
     if (vfx.kind === "custom") {
-      const sampler = vfx.effect ? customSamplers.get(vfx.effect) : undefined;
+      const sampler = vfx.effect ? customVfx(vfx.effect) : undefined;
       if (!sampler) throw new Error(`Unknown custom VFX ${vfx.effect}`);
       sprites.push(...sampler({ timeline, scene, vfx, elapsed, visualTime, progress, direction, reduced, anchor }));
       continue;

@@ -489,6 +489,164 @@
       }
     },
     {
+      "id": "rig.sword.sword_net_a",
+      "label": "天罗剑网",
+      "style": "sword",
+      "frames": [
+        {
+          "frameId": "sword_ready",
+          "holdMs": 40
+        },
+        {
+          "frameId": "cut_prep",
+          "holdMs": 110
+        },
+        {
+          "frameId": "cut_strike",
+          "holdMs": 130
+        },
+        {
+          "frameId": "chop_strike",
+          "holdMs": 150
+        },
+        {
+          "frameId": "thrust_strike",
+          "holdMs": 170
+        },
+        {
+          "frameId": "sword_ready",
+          "holdMs": 250
+        }
+      ],
+      "impactFrame": 2,
+      "durationMs": 850,
+      "tags": [
+        "sword",
+        "attack",
+        "combo",
+        "net"
+      ],
+      "actorMotion": "approach",
+      "approach": {
+        "pose": "approach_sword_glide",
+        "durationMs": 140,
+        "lift": 2
+      },
+      "hits": [
+        {
+          "atMs": 150,
+          "hitStopMs": 40
+        },
+        {
+          "atMs": 330,
+          "hitStopMs": 40
+        },
+        {
+          "atMs": 520,
+          "hitStopMs": 90,
+          "share": 2,
+          "staging": {
+            "camera": {
+              "kick": 14
+            }
+          }
+        }
+      ],
+      "poseTrack": [
+        {
+          "atMs": 0,
+          "pose": "cut_prep"
+        },
+        {
+          "atMs": 110,
+          "pose": "cut_strike",
+          "pin": "blade"
+        },
+        {
+          "atMs": 190,
+          "pose": "chop_prep"
+        },
+        {
+          "atMs": 280,
+          "pose": "chop_strike",
+          "pin": "blade"
+        },
+        {
+          "atMs": 370,
+          "pose": "thrust_prep"
+        },
+        {
+          "atMs": 470,
+          "pose": "thrust_strike",
+          "pin": "blade"
+        },
+        {
+          "atMs": 610,
+          "pose": "thrust_finish"
+        },
+        {
+          "atMs": 690,
+          "pose": "idle"
+        }
+      ],
+      "targetReaction": {
+        "hit": "hit",
+        "dodge": "dodge",
+        "parry": "parry",
+        "effect": "effect"
+      },
+      "vfx": [
+        {
+          "kind": "trail",
+          "variant": "slash-arc",
+          "anchor": "actor",
+          "art": "slash"
+        },
+        {
+          "kind": "impact",
+          "variant": "hit-spark",
+          "anchor": "target",
+          "art": "impact"
+        },
+        {
+          "kind": "parry",
+          "variant": "parry-arc",
+          "anchor": "target",
+          "art": "parry"
+        },
+        {
+          "kind": "custom",
+          "variant": "blade-fan",
+          "anchor": "target",
+          "art": "slash",
+          "effect": "blade_fan",
+          "hit": 2,
+          "offsetMs": -20,
+          "durationMs": 300,
+          "size": 230,
+          "opacity": 0.8,
+          "results": [
+            "hit"
+          ],
+          "params": {
+            "count": 6,
+            "spread": 300,
+            "stagger": 0.5
+          }
+        }
+      ],
+      "frameset": "raster-v1",
+      "choreography": {
+        "launchAtMs": 110,
+        "hitStopMs": 40,
+        "recoverAtMs": 620,
+        "restAtMs": 690,
+        "reach": 108,
+        "contactY": 110,
+        "weight": "heavy"
+      }
+    },
+    {
       "id": "rig.sword.guard",
       "label": "横剑守势",
       "style": "sword",

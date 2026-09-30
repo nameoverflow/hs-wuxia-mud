@@ -5,13 +5,15 @@
 ## 运行时
 
 ```text
-martial-art YAML animation.action
-  → CombatEventMsg.visual.actionId + durationMs
+martial-art YAML animation.action (+ params)
+  → CombatEventMsg.visual.actionId + durationMs + params，hits[] 逐段结果
   → battleActionCatalog / animationResolver
   → game.ts 战斗事件队列
   → BattleClock（唯一播放时钟）
-      ├─ battleDirector：纯函数采样姿势、位移、命中、镜头、特效
-      ├─ impact callback：显示气血更新与声音
+      ├─ battleDirector：纯函数采样位移、受击、镜头、强度
+      ├─ svgBattlePose：按姿势键硬切，接触键钉住拳脚剑尖
+      ├─ battleVfx：把强度和 sprite/custom 条目展开成特效精灵列表
+      ├─ impact callback（每段一次）：显示气血更新与声音
       └─ complete callback：下一次交锋 / 结算
   → SilhouetteBattleStage.svelte：SVG 人物与特效 + transform/opacity
 ```
@@ -22,10 +24,14 @@ martial-art YAML animation.action
 
 - `client/src/battle/battleClock.ts`：播放、暂停、倍速、定位、取消；每次 play 都重置游标。
 - `client/src/battle/battleDirector.ts`：完全确定性的画面采样，不读取当前时间、不生成随机画面。
-- `client/src/battle/animationResolver.ts`：解析服务器动作与时长；给攻击添加专属接近段，并同步顺延命中及所有演出标记。
+- `client/src/battle/animationResolver.ts`：解析服务器动作与时长；给攻击添加专属接近段，并同步顺延命中及所有演出标记；展开 hits、poseTrack、offsetTrack、staging 与 params。
+- `client/src/battle/battleTiming.ts`：命中定格的时间扭曲、当前段、姿势键、受击段与身法位移的查询，所有采样器共用。
+- `client/src/battle/stagingProfile.ts`：读取 `combat_presentation/staging.json` 预设并按 动作 → params → 单段 合并。
+- `client/src/battle/svgPoseLibrary.ts`：读取并校验 `combat_presentation/svg-poses.json` 姿势库。
+- `client/src/battle/battleVfx.ts`、`vfxRegistry.ts`、`customVfx.ts`：特效精灵采样、自定义采样器注册表和内置采样器。
 - `client/src/components/SilhouetteBattleStage.svelte`：实际游戏和回放页共用的 SVG 舞台。
-- `client/src/battle/battleApproach.ts`：按 action ID 定义前倾冲刺姿态、时长和起伏。
-- `client/src/battle/svgBattlePose.ts`：矢量姿态、连续插值、招式 reach 接触点匹配；复用同一时间线和 hit stop。
+- `client/src/battle/battleApproach.ts`：接近段的换位曲线（姿态、时长和起伏来自 manifest 的 approach）。
+- `client/src/battle/svgBattlePose.ts`：按姿势键在关键姿势间硬切、接近段姿态、接触点匹配；复用同一时间线和 hit stop。
 - `client/src/components/SvgBattleActor.svelte`：圆头、躯干、四肢、马尾和兵器的矢量轮廓。
 - `client/src/game.ts`：权威状态、显示气血、队列和结算。
 - `client/src/battle/battleAudio.ts`：可选的轻量 Web Audio 打击/招架/调息反馈，默认关闭，用户点击后启用。
@@ -147,7 +153,27 @@ martial-art YAML animation.action
   - 锚点：contact、actor、target（人物胸口）、center，或出招者的 actor.hand / actor.foot / actor.blade（剑尖），取当前姿势的实时位置。有 `to` 时在生命周期内从 from 移到 to。
   - 外观：size、scale [起, 止]、rotate、spin（生命周期内追加旋转）、opacity、fadeInMs/fadeOutMs；素材随攻击方向镜像。
   - `results`：只在该段结果属于列表时出现，例如只在命中时显示。
-- `custom`：引用 `registerCustomVfx(name, sampler)` 注册的纯函数采样器，给写不进数据的特效用（见下一节）。`choreography` 的定义：
+- `custom`：引用 `registerCustomVfx(name, sampler)` 注册的纯函数采样器，给写不进数据的特效用（见下一节）。
+
+### 代码采样器（逃生口）
+
+数据表达不了的效果（按参数生成多笔、程序化的轨迹等）写成纯函数，注册到 `client/src/battle/customVfx.ts`：
+
+```ts
+registerCustomVfx("blade_fan", ({ vfx, progress, direction, anchor, reduced }) => [
+  /* 返回 VfxSprite[]：key、art、x、y、size、scale、rotate、flip、opacity */
+]);
+```
+
+采样器拿到的是 timeline、当前场景采样、定格后的时间、0→1 的生命进度、攻击方向、锚点解析函数和减弱动态开关，只能根据这些算出精灵，不能自带时钟或随机数，这样暂停、慢放、拖动时间轴和截图测试都照常工作。manifest 用 `{ "kind": "custom", "effect": "blade_fan", "params": { … } }` 引用，时间、锚点、results 过滤与 sprite 相同；catalog 加载时会检查 effect 名已注册。内置的 `blade_fan`（剑网：以锚点为心扇形展开的多笔斩痕，params 为 count、spread、stagger）用于 `rig.sword.sword_net_a` 天罗剑网。
+
+### 新增一个招式的流程
+
+1. 姿势：在 `combat_presentation/svg-poses.json` 里用 extends/blend/set 加关键姿势（预备、接触、余劲，必要时加过渡姿势）。
+2. 动作：在 `combat_actions/` 的某个文件里加 action。单段招式写 keyPoses 即可；多段写 hits + poseTrack（每段一个 pin 键）；需要跃起、后撤写 offsetTrack；远程用 `actorMotion: "ranged"`；手感用 staging 或 `hits[i].staging` 调；特效用 vfx 的 sprite / custom。
+3. 绑定：武学 YAML 的 `animation.action` 指向它；只是换名字、换素材、调力度的变体，用 `animation.params`，不必新建动作。
+4. 校验：`npm run validate:animations`（字段、姿势、素材、段序、剑光收笔时间）和 `npm run test:battle`；服务端 `stack test` 会检查所有招式引用的动作都存在。
+5. 观感：`npm run dev` 打开 `/battle-lab.html` 单招回放，用暂停和拖动逐段检查接触、定格和特效。`choreography` 的定义：
 
 - launchAtMs：从反向蓄势进入快速发力。
 - hitStopMs：命中之后同时保持人物、镜头、轨迹与飘字位移的时长。
@@ -236,4 +262,4 @@ bash .codex/skills/animation-visual-qa/scripts/storyboard-from-video.sh \
 
 ## 已知表达边界
 
-当前为可运行的 SVG 风格试作，覆盖拳脚、剑术与无发饰/马尾两种轮廓；其他武器需要新增姿态和矢量形状。攻击采用设计好的关节点插值，肢体允许适度伸缩，并非严格保持骨长的骨骼/IK 系统。舞台背景仍为位图。声音为轻量合成反馈；视觉 QA 不等同于全设备帧率或音质测量。
+当前为可运行的 SVG 风格试作，覆盖拳脚、剑术与无发饰/马尾两种轮廓；其他武器需要在 `SvgBattleActor.svelte` 增加矢量形状，并在姿势库 `rigs` 里加一个骨架差异。镜头只有冲击、回弹和推近三个参数，还没有独立的镜头关键帧轨道；受击方也只有位移、倾角、离地和换姿势，没有自己的多键轨道。攻击采用设计好的关节点插值，肢体允许适度伸缩，并非严格保持骨长的骨骼/IK 系统。舞台背景仍为位图。声音为轻量合成反馈；视觉 QA 不等同于全设备帧率或音质测量。
