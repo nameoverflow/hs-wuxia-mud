@@ -10,6 +10,15 @@
   /** 衣袂与剑穗各一笔墨线，末梢直接取关键姿势里的固定点，不做模拟。 */
   const sweep = (from: number[], to: number[], bulge = 8, sag = 0) =>
     `M${from} Q${(from[0] + to[0]) / 2 + bulge},${(from[1] + to[1]) / 2 + sag} ${to}`;
+  /** 剑穗从剑首垂下：方向取姿势里的 tassel 点，长度限制在一小段，不随姿势坐标拉成长线。 */
+  const TASSEL_LENGTH = 20;
+  $: pommel = [p.hand[0] - Math.cos(p.blade * Math.PI / 180) * 9, p.hand[1] - Math.sin(p.blade * Math.PI / 180) * 9];
+  $: tasselEnd = (() => {
+    const dx = p.tassel[0] - pommel[0], dy = p.tassel[1] - pommel[1];
+    const length = Math.hypot(dx, dy) || 1;
+    const reach = Math.min(length, TASSEL_LENGTH);
+    return [pommel[0] + dx / length * reach, pommel[1] + dy / length * reach];
+  })();
 </script>
 
 <svg class="vector-actor" viewBox="-128 -176 256 192" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -32,7 +41,7 @@
     <circle cx={p.hand[0]} cy={p.hand[1]} r="8" stroke="none" />
     {#if style === 'sword'}
       <!-- 剑穗：从剑柄垂向末梢，略微下坠。 -->
-      <path d={sweep(p.hand, p.tassel, 4, 10)} fill="none" stroke-width="4" opacity="0.85" />
+      <path d={sweep(pommel, tasselEnd, 2, 4)} fill="none" stroke-width="4" opacity="0.85" />
       <g transform={`translate(${p.hand}) rotate(${p.blade})`}>
         <path d="M-9,0 H5" stroke-width="4" />
         <path d="M5,-7 V7" stroke-width="3" />
