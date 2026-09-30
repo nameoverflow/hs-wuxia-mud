@@ -62,7 +62,7 @@ function sampleSprite(vfx: TimelineVfx, p: number, visualTime: number, direction
     size: vfx.size ?? 200,
     scale: scaleFrom + (scaleTo - scaleFrom) * p,
     rotate: direction * ((vfx.rotate ?? 0) + (reduced ? 0 : (vfx.spin ?? 0) * p)),
-    flip: direction,
+    flip: vfx.mirror ? -direction : direction,
     opacity: (vfx.opacity ?? 1) * fadeIn * fadeOut
   };
 }

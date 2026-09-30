@@ -152,7 +152,7 @@ martial-art YAML animation.action (+ params)
 
   - 时间：写 `atMs` 按动作时钟；否则挂在 `hits[hit]` 上再加 `offsetMs`。随服务端时长缩放，读定格后的时间，所以会跟着命中定格停住。
   - 锚点：contact、actor、target（人物胸口）、center，或出招者的 actor.hand / actor.foot / actor.blade（剑尖），取当前姿势的实时位置。有 `to` 时在生命周期内从 from 移到 to。
-  - 外观：size、scale [起, 止]、rotate、spin（生命周期内追加旋转）、opacity、fadeInMs/fadeOutMs；素材随攻击方向镜像。
+  - 外观：size、scale [起, 止]、rotate、spin（生命周期内追加旋转）、opacity、fadeInMs/fadeOutMs；素材随攻击方向镜像，`mirror: true` 反过来镜像（剑气用它让弧形凸面朝前飞）。
   - `results`：只在该段结果属于列表时出现，例如只在命中时显示。
 - `custom`：引用 `registerCustomVfx(name, sampler)` 注册的纯函数采样器，给写不进数据的特效用（见下一节）。
 
@@ -222,7 +222,7 @@ registerCustomVfx("blade_fan", ({ vfx, progress, direction, anchor, reduced }) =
 
 `svgBattlePose.ts` 只负责按时间线在关键姿势之间切换。攻击从蓄势加速插值到最大动作，命中时保持，随后走完独立随势动作，再平滑收回。拳头、脚尖或剑尖由 manifest 的 reach/contactY 对齐接触位置。双方朝向仍由舞台镜像处理。弓步、反向展臂、举剑下劈、低起上挑与提膝侧踢形成不同的大开合轮廓；剑长为 72 个素材像素。
 
-`sampleSvgPose` 使用 BattleClock 的 elapsed 与 choreography 标记，不启动 CSS/SMIL 独立动画，因此暂停、慢放、定位和 hit stop 同步。减弱动态模式使用离散姿态并关闭原有位移/震动。剪影是实心单色：四肢是锥形段（大腿粗于小腿、上臂粗于前臂），躯干是胸宽腰窄的一段，后侧手脚压暗一档以分前后。male/female profile 共用圆头身体，female 增加马尾。
+`sampleSvgPose` 使用 BattleClock 的 elapsed 与 choreography 标记，不启动 CSS/SMIL 独立动画，因此暂停、慢放、定位和 hit stop 同步。减弱动态模式使用离散姿态并关闭原有位移/震动。剪影是实心单色：四肢是锥形段（大腿粗于小腿、上臂粗于前臂），躯干是胸宽腰窄的一段，后侧手脚压暗一档以分前后。male/female profile 共用圆头身体，female 增加马尾：发绳（一点暗红）系在后脑，主发束加一缕副发，都是两头收细的缎带；末梢受力由舞台按人物滞后速度算出（冲刺向后扬、急停向前甩、受击一震、起落上下飘），站着时轻微摆动。全身一个颜色，四肢从胸腔、骨盆两个体块里长出来。
 
 历史 action manifest 的 `frameset: raster-v1` 字段、帧 ID 和 PNG 原始资源暂时保留用于兼容与旧资源校验；运行时 ActorVisual.kind 为 svg，catalog 校验 SVG 姿态覆盖。旧图集不再由舞台引用或预加载，生产 bundle 不包含人物和特效图集。`pack:battle` 仅用于维护旧图集，修改 SVG 不需要重打包。
 

@@ -9,6 +9,7 @@
   import { sampleSvgPose } from "../battle/svgBattlePose";
   import { stageArt } from "../battle/stageAssets";
   import { sampleVfx } from "../battle/battleVfx";
+  import { visualTimeAt } from "../battle/battleTiming";
   import type { BattleSide } from "../battle/animationTypes";
 
   export let state: GameState;
@@ -23,6 +24,22 @@
   $: enemyIdle = idleVisualForStyle(enemyVisual?.style ?? combatStyleFromSnapshot(state.battle.enemy?.combatantSnapshotCombatStyle), enemyVisual?.profile ?? visualProfileFromGender(state.battle.enemy?.combatantSnapshotGender));
   $: elapsed = previewTime ?? ($battlePlayback.id === timeline?.id ? $battlePlayback.elapsedMs : 0);
   $: scene = sampleBattleScene(timeline, elapsed, playerIdle, enemyIdle, reducedMotion);
+  // 马尾的外力来自人物自己的速度（取稍早的速度，所以有滞后和甩尾）。只采样根节点位置，不影响画面确定性。
+  $: sceneLag1 = sampleBattleScene(timeline, Math.max(0, elapsed - 40), playerIdle, enemyIdle, reducedMotion);
+  $: sceneLag2 = sampleBattleScene(timeline, Math.max(0, elapsed - 90), playerIdle, enemyIdle, reducedMotion);
+  // 摆动相位读定格后的时间：命中定格时头发和人一起停住。
+  $: hairPhase = timeline ? visualTimeAt(timeline, elapsed) : 0;
+  $: hairFlows = { player: hairFlow("player", scene, sceneLag1, sceneLag2, reducedMotion), enemy: hairFlow("enemy", scene, sceneLag1, sceneLag2, reducedMotion) };
+  function hairFlow(side: BattleSide, now_: typeof scene, lag1_: typeof scene, lag2_: typeof scene, reduced: boolean) {
+    if (reduced) return [0, 0];
+    const mirror = side === "enemy" ? -1 : 1;
+    const now = now_[side], lag1 = lag1_[side], lag2 = lag2_[side];
+    const vx = ((now.x - lag1.x) / 40 * 0.55 + (lag1.x - lag2.x) / 50 * 0.45) * mirror;
+    const vy = (now.y - lag1.y) / 40 * 0.55 + (lag1.y - lag2.y) / 50 * 0.45;
+    const x = Math.max(-34, Math.min(20, -vx * 26));
+    const y = Math.max(-26, Math.min(14, -Math.abs(vx) * 9 - vy * 18));
+    return [x, y];
+  }
   $: stroke = sampleAttackTrail(timeline, elapsed, playerIdle, enemyIdle, reducedMotion);
 
   $: direction = timeline?.actor.side === "enemy" ? -1 : 1;
@@ -73,7 +90,7 @@
           </div>
         {/if}
         <div class="figure-pose" data-side={side} data-frame={figure.frameId} style:opacity={figure.alpha} style:transform={`translate(${figure.x}px, ${figure.y}px) rotate(${figure.angle}deg) scaleX(${mirror})`}>
-          <SvgBattleActor {pose} style={figure.visual.style} profile={figure.visual.profile} flash={scene.phase === "impact" ? figure.flash : 0} />
+          <SvgBattleActor {pose} style={figure.visual.style} profile={figure.visual.profile} flash={scene.phase === "impact" ? figure.flash : 0} hairFlow={hairFlows[side]} hairPhase={hairPhase} />
         </div>
       </div>
     {/each}

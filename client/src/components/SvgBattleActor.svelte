@@ -6,6 +6,10 @@
   export let style: CombatStyle;
   export let profile: VisualProfile;
   export let flash = 0;
+  /** 马尾末梢的外力偏移（人物自身朝向坐标，px）：由舞台按人物速度算出，冲刺向后扬、急停向前甩。 */
+  export let hairFlow: number[] = [0, 0];
+  /** 站着时的轻微摆动相位，取舞台时间，暂停和拖动时间轴都确定。 */
+  export let hairPhase = 0;
   $: p = pose;
 
   type Pt = number[];
@@ -51,15 +55,55 @@
     const v = sub(p.tassel, pommel);
     return along(pommel, unit(v), Math.min(len(v), 20));
   })();
-  /** 马尾：从后脑甩出一滴水形，末梢略向下坠。 */
-  $: headBack = along(p.head, unit([-0.9, -0.25]), bones.headRadius * 0.8);
-  $: tailEnd = [headBack[0] - 20, headBack[1] + 20];
+  /**
+   * 马尾：发绳系在后脑偏上，发束先向后甩出再受重力垂下，末梢被外力带着飘。
+   * 一条主发束加一缕稍短的副发，都是两头收细的缎带。
+   */
+  function cubic(p0: Pt, p1: Pt, p2: Pt, p3: Pt, t: number) {
+    const u = 1 - t;
+    return [0, 1].map((i) => u * u * u * p0[i] + 3 * u * u * t * p1[i] + 3 * u * t * t * p2[i] + t * t * t * p3[i]);
+  }
+  function strand(p0: Pt, p1: Pt, p2: Pt, p3: Pt, root: number) {
+    const n = 18;
+    const pts = Array.from({ length: n + 1 }, (_, i) => cubic(p0, p1, p2, p3, i / n));
+    const left: string[] = [], right: string[] = [];
+    pts.forEach((pt, i) => {
+      const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n, i + 1)];
+      const d = unit(sub(b, a));
+      const t = i / n;
+      // 根部饱满、中段略鼓、末梢收尖。
+      const w = root * (1 - t) ** 0.45 * (1 + 0.4 * Math.sin(Math.PI * t * 0.8)) + 0.3;
+      left.push(`${pt[0] - d[1] * w},${pt[1] + d[0] * w}`);
+      right.push(`${pt[0] + d[1] * w},${pt[1] - d[0] * w}`);
+    });
+    return `M${left.join(" L")} L${right.reverse().join(" L")} Z`;
+  }
+  $: headUp = unit(sub(p.head, p.shoulder));
+  $: headBackDir = [headUp[1], -headUp[0]];
+  $: tie = along(along(p.head, headUp, bones.headRadius * 0.28), headBackDir, bones.headRadius * 0.9);
+  $: sway = Math.sin(hairPhase / 260) * 2.5;
+  $: flow = [hairFlow[0] + sway, hairFlow[1]];
+  $: hairMain = strand(
+    tie,
+    [tie[0] + headBackDir[0] * 8, tie[1] + headBackDir[1] * 8 + 3],
+    [tie[0] + headBackDir[0] * 11 + flow[0] * 0.5, tie[1] + headBackDir[1] * 11 + 20 + flow[1] * 0.5],
+    [tie[0] + headBackDir[0] * 6 + flow[0], tie[1] + headBackDir[1] * 6 + 42 + flow[1]],
+    5
+  );
+  $: hairWisp = strand(
+    along(tie, headBackDir, 1),
+    [tie[0] + headBackDir[0] * 10, tie[1] + headBackDir[1] * 10 + 2],
+    [tie[0] + headBackDir[0] * 16 + flow[0] * 0.7, tie[1] + headBackDir[1] * 16 + 14 + flow[1] * 0.7],
+    [tie[0] + headBackDir[0] * 16 + flow[0] * 1.15, tie[1] + headBackDir[1] * 16 + 30 + flow[1] * 1.15],
+    2.4
+  );
 </script>
 
 <svg class="vector-actor" viewBox="-128 -176 256 192" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <g fill="currentColor" style:filter={flash > 0 ? `brightness(${1 + flash * 0.35})` : undefined}>
     {#if profile === 'female'}
-      <path d={taper(headBack, tailEnd, 6.5, 2.5)} /><circle cx={tailEnd[0]} cy={tailEnd[1]} r="2.5" />
+      <path d={hairWisp} opacity="0.9" />
+      <path d={hairMain} />
     {/if}
     <!-- 全身同一个颜色：后侧手脚先画，被身体压住，整个人读成一块剪影。 -->
     <g>
@@ -73,6 +117,10 @@
     <circle cx={chest[0]} cy={chest[1]} r={R.chest} /><circle cx={p.hip[0]} cy={p.hip[1]} r={R.pelvis} />
     <path d={taper(p.shoulder, p.head, R.neck, R.neck)} />
     <circle cx={p.head[0]} cy={p.head[1]} r={bones.headRadius} />
+    {#if profile === 'female'}
+      <!-- 发绳：一点暗红，点明马尾从哪里扎起。 -->
+      <ellipse cx={tie[0]} cy={tie[1]} rx="2.4" ry="3.6" fill="#9c3b2e" transform={`rotate(${Math.atan2(headBackDir[1], headBackDir[0]) * 180 / Math.PI} ${tie[0]} ${tie[1]})`} />
+    {/if}
     <path d={taper(p.hip, p.knee, R.thigh, R.knee)} /><circle cx={p.knee[0]} cy={p.knee[1]} r={R.knee} />
     <path d={taper(p.knee, p.foot, R.knee, R.ankle)} /><circle cx={p.foot[0]} cy={p.foot[1]} r={R.ankle} />
     <path d={taper(p.foot, frontToe, R.ankle, 3)} /><circle cx={frontToe[0]} cy={frontToe[1]} r="3" />

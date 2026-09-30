@@ -105,6 +105,7 @@ for (const action of manifest.actions) {
     for (const key of ['atMs', 'offsetMs', 'size', 'rotate', 'spin', 'opacity', 'fadeInMs', 'fadeOutMs']) if (vfx[key] !== undefined && !Number.isFinite(vfx[key])) fail(`${label}.${key} must be a number`);
     if (vfx.durationMs !== undefined && !(vfx.durationMs > 0)) fail(`${label}.durationMs must be positive`);
     if (vfx.hit !== undefined && !(Number.isInteger(vfx.hit) && vfx.hit >= 0 && vfx.hit < (action.hits?.length ?? 1))) fail(`${label}.hit is out of range`);
+    if (vfx.mirror !== undefined && typeof vfx.mirror !== 'boolean') fail(`${label}.mirror must be true/false`);
     if (vfx.scale !== undefined && !(Array.isArray(vfx.scale) && vfx.scale.length === 2 && vfx.scale.every(Number.isFinite))) fail(`${label}.scale must be [from, to]`);
     if (vfx.results !== undefined && !(Array.isArray(vfx.results) && vfx.results.every((r) => ['hit', 'dodge', 'parry', 'effect'].includes(r)))) fail(`${label}.results has an unknown result`);
     if (vfx.kind === 'custom' && (typeof vfx.effect !== 'string' || !vfx.effect)) fail(`${label} needs an effect name`);

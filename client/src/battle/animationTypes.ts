@@ -156,6 +156,8 @@ export interface SpriteVfxOptions {
   rotate?: number;
   /** Extra rotation over the sprite's life, degrees. */
   spin?: number;
+  /** Mirror the artwork against the attack direction, e.g. so a crescent flies convex side first. */
+  mirror?: boolean;
   opacity?: number;
   fadeInMs?: number;
   fadeOutMs?: number;

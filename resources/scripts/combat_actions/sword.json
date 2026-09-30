@@ -446,7 +446,8 @@
             1
           ],
           "fadeInMs": 30,
-          "fadeOutMs": 40
+          "fadeOutMs": 40,
+          "mirror": true
         },
         {
           "kind": "impact",
