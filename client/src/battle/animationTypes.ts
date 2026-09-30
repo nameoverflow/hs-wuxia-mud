@@ -21,18 +21,39 @@ export interface ActorVisual {
   profile: VisualProfile;
   style: CombatStyle;
   frames: BattleAnimationFrame[];
+  keyPoses?: ActionKeyPoses;
 }
+
+/** SVG key poses the sampler cuts between; ids refer to resources/scripts/combat_poses/svg-poses.json. */
+export interface ActionKeyPoses {
+  prepare?: string;
+  contact: string;
+  finish?: string;
+  /** Which point of the contact pose is pinned to choreography.reach/contactY. */
+  reachWith?: "hand" | "foot" | "blade";
+}
+
+/** Per-action footwork. A presentation lead-in, not server combat time. */
+export interface BattleApproach {
+  pose: string;
+  durationMs: number;
+  lift: number;
+}
+
+export type VfxArt = "impact" | "slash" | "parry" | "aura" | "thrust" | "rising";
 
 export interface TimelineVfx {
   id: string;
   kind: "trail" | "impact" | "parry" | "aura" | "heal";
   variant: string;
+  art: VfxArt;
   side: BattleSide | "center";
 }
 
 export interface ActionVfxDefinition {
   kind: TimelineVfx["kind"];
   variant: string;
+  art: VfxArt;
   anchor: "actor" | "target" | "center";
 }
 
@@ -46,6 +67,8 @@ export interface BattleActionDefinition {
   tags: string[];
   durationMs: number;
   actorMotion: ActorMotion;
+  keyPoses?: ActionKeyPoses;
+  approach?: BattleApproach;
   targetReaction: Partial<Record<CombatResult, TargetReaction>>;
   vfx: ActionVfxDefinition[];
   choreography: BattleChoreography;
@@ -75,6 +98,7 @@ export interface ResolvedBattleTimeline {
     side: BattleSide;
     visual: ActorVisual;
     motion: ActorMotion;
+    approach?: BattleApproach;
     actionDelayMs: number;
   };
   target: {

@@ -22,8 +22,8 @@ try {
       const timeline = make(action);
       const pose = t => sampleSvgPose(timeline, 'player', t, action.style, action.frames[action.impactFrame].frameId);
       const contact = pose(timeline.impactAtMs);
-      const limb = action.frames[action.impactFrame].frameId.includes('kick') ? contact.foot : contact.hand;
-      const blade = action.style === 'sword' ? SVG_SWORD_LENGTH : 0;
+      const limb = action.keyPoses.reachWith === 'foot' ? contact.foot : contact.hand;
+      const blade = action.keyPoses.reachWith === 'blade' ? SVG_SWORD_LENGTH : 0;
       assert.ok(Math.abs(limb[0] + blade * Math.cos(contact.blade * Math.PI / 180) - timeline.choreography.reach) < 0.001, action.id);
       assert.ok(Math.abs(limb[1] + blade * Math.sin(contact.blade * Math.PI / 180) - (timeline.choreography.contactY - 176)) < 0.001, action.id);
       assert.deepEqual(pose(timeline.impactAtMs + timeline.choreography.hitStopMs - 1), contact);
@@ -120,8 +120,8 @@ try {
       const frameId = action.frames[action.impactFrame].frameId;
       const reachOf = timeline => {
         const pose = sampleSvgPose(timeline, 'player', timeline.impactAtMs, action.style, frameId);
-        const limb = frameId.includes('kick') ? pose.foot : pose.hand;
-        const blade = action.style === 'sword' ? SVG_SWORD_LENGTH * Math.cos(pose.blade * Math.PI / 180) : 0;
+        const limb = action.keyPoses.reachWith === 'foot' ? pose.foot : pose.hand;
+        const blade = action.keyPoses.reachWith === 'blade' ? SVG_SWORD_LENGTH * Math.cos(pose.blade * Math.PI / 180) : 0;
         return limb[0] + blade;
       };
       assert.ok(reachOf(parry) < reachOf(hit) - 15, `${action.id}: parried weapon must not pierce the body`);

@@ -30,7 +30,7 @@ martial-art YAML animation.action
 - `client/src/game.ts`：权威状态、显示气血、队列和结算。
 - `client/src/battle/battleAudio.ts`：可选的轻量 Web Audio 打击/招架/调息反馈，默认关闭，用户点击后启用。
 
-## Action manifest v4
+## Action manifest v5
 
 `resources/scripts/combat_actions/battle-actions.json` 仍与 Haskell 服务端共享 action ID 和 durationMs。历史 `rig.*` 前缀继续兼容武学 YAML，不代表运行时还有骨骼系统。
 
@@ -61,7 +61,18 @@ martial-art YAML animation.action
 }
 ```
 
-其余已有的 style、frameset、actorMotion、tags、targetReaction、vfx 字段仍须保留。`choreography` 的定义：
+其余已有的 style、frameset、actorMotion、tags、targetReaction 字段仍须保留。v5 起，招式的外观全部由数据声明，TS 代码里不再按 actionId 或 frameId 字符串分支：
+
+```json
+"keyPoses": { "prepare": "punch_windup", "contact": "punch_strike", "finish": "punch_finish", "reachWith": "hand" },
+"approach": { "pose": "approach_step_in", "durationMs": 150, "lift": 3 },
+"vfx": [{ "kind": "trail", "variant": "stab-line", "anchor": "actor", "art": "thrust" }]
+```
+
+- keyPoses：SVG 采样器硬切的三个关键姿势（蓄势、接触、余劲），均为 `svg-poses.json` 的姿势 ID。contact 必须等于 impactFrame 的 frameId。reachWith 取 hand、foot、blade，决定哪个点对齐 reach/contactY，也决定攻击轨迹追踪哪个点。focus 动作只需 contact（持势姿势）。
+- approach：接近步法的姿势、基准时长与离地高度；冲刺末段混入 keyPoses.prepare。
+- vfx[].art：舞台素材键，对应 `stageAssets.ts` 的 stageArt（impact、slash、thrust、rising、parry、aura）。
+- 受击方姿势取反应动作（rig.*.hurt/dodge/parry）第一帧的 frameId。`choreography` 的定义：
 
 - launchAtMs：从反向蓄势进入快速发力。
 - hitStopMs：命中之后同时保持人物、镜头、轨迹与飘字位移的时长。
@@ -88,7 +99,7 @@ martial-art YAML animation.action
 
 ## 专属接近步法
 
-每次攻击以一次前倾冲刺完成接近，然后承接“大开大合”版攻击。前 50% 时间在原地压身，后 50% 用加速曲线覆盖距离并急停。`actor.actionDelayMs` 标记到位时间；接近期间 phase 为 approach，人物帧标记为 approach-步法名。攻击帧读取扣除接近段后的局部时间。积压队列仍仅压缩末尾静止读字时间，保留接近与攻击标记。
+每次攻击以一次前倾冲刺完成接近，然后承接“大开大合”版攻击。前 50% 时间在原地压身，后 50% 用加速曲线覆盖距离并急停。`actor.actionDelayMs` 标记到位时间；接近期间 phase 为 approach，人物帧标记为 approach.pose 的姿势 ID（如 `approach_raised_step`）。攻击帧读取扣除接近段后的局部时间。积压队列仍仅压缩末尾静止读字时间，保留接近与攻击标记。
 
 | 招式 | 位移动作 | 基准接近时长 |
 | --- | --- | --- |
@@ -106,7 +117,9 @@ martial-art YAML animation.action
 
 ## SVG 姿态与素材
 
-`svgBattlePose.ts` 覆盖 manifest 中全部 26 个姿态 ID。攻击从蓄势加速插值到最大动作，命中时保持，随后走完独立随势动作，再平滑收回。拳头、脚尖或剑尖由 manifest 的 reach/contactY 对齐接触位置。双方朝向仍由舞台镜像处理。弓步、反向展臂、举剑下劈、低起上挑与提膝侧踢形成不同的大开合轮廓；剑长为 72 个素材像素。
+关键姿势表是数据：`resources/scripts/combat_poses/svg-poses.json`（不放进 combat_actions，那个目录会被服务端逐个解析）。每个姿势从 base 加骨架差异（rigs.fist/sword）出发，或 `extends` 另一个姿势，或 `blend` 两个姿势（from/to/amount），最后用 `set` 覆盖个别关节。`svgPoseLibrary.ts` 在加载时解析全部姿势、检查未知关节与循环引用；catalog 与 `validate:animations` 校验 manifest 引用的姿势和素材都存在。新增招式时，先在 svg-poses.json 加姿势，再在 manifest 引用，不需要改 TS。
+
+`svgBattlePose.ts` 只负责按时间线在关键姿势之间切换。攻击从蓄势加速插值到最大动作，命中时保持，随后走完独立随势动作，再平滑收回。拳头、脚尖或剑尖由 manifest 的 reach/contactY 对齐接触位置。双方朝向仍由舞台镜像处理。弓步、反向展臂、举剑下劈、低起上挑与提膝侧踢形成不同的大开合轮廓；剑长为 72 个素材像素。
 
 `sampleSvgPose` 使用 BattleClock 的 elapsed 与 choreography 标记，不启动 CSS/SMIL 独立动画，因此暂停、慢放、定位和 hit stop 同步。减弱动态模式使用离散姿态并关闭原有位移/震动。male/female profile 共用圆头身体，female 增加简洁的波浪马尾。
 

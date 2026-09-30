@@ -143,7 +143,7 @@ test('dash arrives before the restored broad attack', async ({ page }) => {
   const timeline = await frozenAction(page, 'rig.sword.chop_a');
   await page.evaluate((t) => (window as any).__battleLab.seek(t), timeline.actor.actionDelayMs * .7);
   await expect(page.locator('.silhouette-stage')).toHaveAttribute('data-phase', 'approach');
-  await expect(page.locator('[data-side="player"]')).toHaveAttribute('data-frame', 'approach-raised-step');
+  await expect(page.locator('[data-side="player"]')).toHaveAttribute('data-frame', 'approach_raised_step');
   await page.evaluate((t) => (window as any).__battleLab.seek(t), timeline.actor.actionDelayMs);
   await expect(page.locator('.silhouette-stage')).toHaveAttribute('data-phase', 'prepare');
   expect(await page.evaluate(() => (window as any).__battleLab.state().game.battle.presentation.enemyHp)).toBe(180);

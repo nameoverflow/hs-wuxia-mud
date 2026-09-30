@@ -1,4 +1,4 @@
-import { approachForAction, entryAt } from "./battleApproach";
+import { entryAt } from "./battleApproach";
 import { clipFrameAt } from "./animationClip";
 import type { ActorVisual, BattleSide, ResolvedBattleTimeline } from "./animationTypes";
 
@@ -98,7 +98,7 @@ export function sampleBattleScene(
 
   if (!quiet) {
     actor.visual = timeline.actor.visual;
-    actor.frameId = t < arrival ? `approach-${approachForAction(actor.visual.actionId)?.kind}`
+    actor.frameId = t < arrival && timeline.actor.approach ? timeline.actor.approach.pose
       : clipFrameAt(actor.visual.frames, Math.max(0, visualTime - arrival), timeline.durationMs - arrival).frame.frameId;
   }
 
@@ -106,8 +106,7 @@ export function sampleBattleScene(
     const travel = Math.max(8, sideHome("enemy") - sideHome("player") - c.reach);
     // 一帧换位，不是滑行；回位用一次硬切的撤步，收在两拍内。
     actor.x = direction * travel * entryAt(progress(visualTime, 0, arrival)) * (1 - hardStep(recovery));
-    const approach = approachForAction(timeline.actor.visual.actionId);
-    actor.y = visualTime < arrival ? -(approach?.lift ?? 0) * Math.sin(Math.PI * progress(visualTime, 0, arrival)) : 0;
+    actor.y = visualTime < arrival ? -(timeline.actor.approach?.lift ?? 0) * Math.sin(Math.PI * progress(visualTime, 0, arrival)) : 0;
     result.contact.x = sideHome(timeline.target.side);
     result.contact.y = c.contactY - 176;
   } else {

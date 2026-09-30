@@ -6,7 +6,7 @@ import aura from "../assets/battle/ink-stage-v1/aura.webp";
 import thrust from "../assets/battle/ink-stage-v1/thrust.webp";
 import rising from "../assets/battle/ink-stage-v1/rising.webp";
 
-/** 水墨特效素材。均为白墨透明底，贴在暗色舞台上。 */
+/** 水墨特效素材。均为白墨透明底，贴在暗色舞台上。动作 manifest 的 vfx[].art 直接引用这里的键。 */
 export const stageArt = { backdrop, impact, slash, parry, aura, thrust, rising };
 let loading: Promise<void> | null = null;
 
@@ -23,15 +23,3 @@ export function preloadBattleAssets() {
   return loading;
 }
 
-/**
- * 把动作 manifest 里的 vfx 变体映射到实际素材。
- * 素材是按招式方向做的，所以挑图要以招式为主，动作类型只作兜底。
- */
-export function vfxArt(kind: string, variant: string, actionId: string) {
-  if (kind === "impact") return variant === "dot-spark" ? aura : impact;
-  if (kind === "parry") return parry;
-  if (kind === "aura" || kind === "heal") return aura;
-  if (variant === "stab-line" || actionId.includes("thrust")) return thrust;
-  if (actionId.includes("rising")) return rising;
-  return slash;
-}

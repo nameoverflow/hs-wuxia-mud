@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "actions": [
     {
       "id": "rig.sword.idle",
@@ -73,6 +73,17 @@
         "quick"
       ],
       "actorMotion": "approach",
+      "keyPoses": {
+        "prepare": "thrust_prep",
+        "contact": "thrust_strike",
+        "finish": "thrust_finish",
+        "reachWith": "blade"
+      },
+      "approach": {
+        "pose": "approach_sword_glide",
+        "durationMs": 140,
+        "lift": 2
+      },
       "targetReaction": {
         "hit": "hit",
         "dodge": "dodge",
@@ -83,17 +94,20 @@
         {
           "kind": "trail",
           "variant": "stab-line",
-          "anchor": "actor"
+          "anchor": "actor",
+          "art": "thrust"
         },
         {
           "kind": "impact",
           "variant": "hit-spark",
-          "anchor": "target"
+          "anchor": "target",
+          "art": "impact"
         },
         {
           "kind": "parry",
           "variant": "parry-arc",
-          "anchor": "target"
+          "anchor": "target",
+          "art": "parry"
         }
       ],
       "frameset": "raster-v1",
@@ -144,6 +158,17 @@
         "heavy"
       ],
       "actorMotion": "approach",
+      "keyPoses": {
+        "prepare": "chop_prep",
+        "contact": "chop_strike",
+        "finish": "chop_finish",
+        "reachWith": "blade"
+      },
+      "approach": {
+        "pose": "approach_raised_step",
+        "durationMs": 160,
+        "lift": 3
+      },
       "targetReaction": {
         "hit": "hit",
         "dodge": "dodge",
@@ -154,17 +179,20 @@
         {
           "kind": "trail",
           "variant": "slash-arc",
-          "anchor": "actor"
+          "anchor": "actor",
+          "art": "slash"
         },
         {
           "kind": "impact",
           "variant": "hit-spark",
-          "anchor": "target"
+          "anchor": "target",
+          "art": "impact"
         },
         {
           "kind": "parry",
           "variant": "parry-arc",
-          "anchor": "target"
+          "anchor": "target",
+          "art": "parry"
         }
       ],
       "frameset": "raster-v1",
@@ -215,6 +243,17 @@
         "horizontal"
       ],
       "actorMotion": "approach",
+      "keyPoses": {
+        "prepare": "cut_prep",
+        "contact": "cut_strike",
+        "finish": "cut_finish",
+        "reachWith": "blade"
+      },
+      "approach": {
+        "pose": "approach_cross_step",
+        "durationMs": 155,
+        "lift": 2
+      },
       "targetReaction": {
         "hit": "hit",
         "dodge": "dodge",
@@ -225,17 +264,20 @@
         {
           "kind": "trail",
           "variant": "slash-arc",
-          "anchor": "actor"
+          "anchor": "actor",
+          "art": "slash"
         },
         {
           "kind": "impact",
           "variant": "hit-spark",
-          "anchor": "target"
+          "anchor": "target",
+          "art": "impact"
         },
         {
           "kind": "parry",
           "variant": "parry-arc",
-          "anchor": "target"
+          "anchor": "target",
+          "art": "parry"
         }
       ],
       "frameset": "raster-v1",
@@ -286,6 +328,17 @@
         "lift"
       ],
       "actorMotion": "lunge",
+      "keyPoses": {
+        "prepare": "rising_prep",
+        "contact": "rising_strike",
+        "finish": "rising_finish",
+        "reachWith": "blade"
+      },
+      "approach": {
+        "pose": "approach_low_skate",
+        "durationMs": 155,
+        "lift": 1
+      },
       "targetReaction": {
         "hit": "hit",
         "dodge": "dodge",
@@ -296,17 +349,20 @@
         {
           "kind": "trail",
           "variant": "uppercut-arc",
-          "anchor": "actor"
+          "anchor": "actor",
+          "art": "rising"
         },
         {
           "kind": "impact",
           "variant": "hit-spark",
-          "anchor": "target"
+          "anchor": "target",
+          "art": "impact"
         },
         {
           "kind": "parry",
           "variant": "parry-arc",
-          "anchor": "target"
+          "anchor": "target",
+          "art": "parry"
         }
       ],
       "frameset": "raster-v1",
@@ -348,6 +404,9 @@
         "self"
       ],
       "actorMotion": "focus",
+      "keyPoses": {
+        "contact": "guard"
+      },
       "targetReaction": {
         "hit": "effect",
         "dodge": "effect",
@@ -358,7 +417,8 @@
         {
           "kind": "aura",
           "variant": "guard-ring",
-          "anchor": "actor"
+          "anchor": "actor",
+          "art": "aura"
         }
       ],
       "frameset": "raster-v1",
@@ -551,6 +611,17 @@
         "punch"
       ],
       "actorMotion": "approach",
+      "keyPoses": {
+        "prepare": "punch_windup",
+        "contact": "punch_strike",
+        "finish": "punch_finish",
+        "reachWith": "hand"
+      },
+      "approach": {
+        "pose": "approach_step_in",
+        "durationMs": 150,
+        "lift": 3
+      },
       "targetReaction": {
         "hit": "hit",
         "dodge": "dodge",
@@ -561,17 +632,20 @@
         {
           "kind": "trail",
           "variant": "stab-line",
-          "anchor": "actor"
+          "anchor": "actor",
+          "art": "thrust"
         },
         {
           "kind": "impact",
           "variant": "hit-spark",
-          "anchor": "target"
+          "anchor": "target",
+          "art": "impact"
         },
         {
           "kind": "parry",
           "variant": "parry-arc",
-          "anchor": "target"
+          "anchor": "target",
+          "art": "parry"
         }
       ],
       "frameset": "raster-v1",
@@ -620,6 +694,17 @@
         "heavy"
       ],
       "actorMotion": "drive",
+      "keyPoses": {
+        "prepare": "heavy_windup",
+        "contact": "heavy_strike",
+        "finish": "heavy_finish",
+        "reachWith": "hand"
+      },
+      "approach": {
+        "pose": "approach_palm_drive",
+        "durationMs": 165,
+        "lift": 1
+      },
       "targetReaction": {
         "hit": "hit",
         "dodge": "dodge",
@@ -630,17 +715,20 @@
         {
           "kind": "trail",
           "variant": "slash-arc",
-          "anchor": "actor"
+          "anchor": "actor",
+          "art": "slash"
         },
         {
           "kind": "impact",
           "variant": "hit-spark",
-          "anchor": "target"
+          "anchor": "target",
+          "art": "impact"
         },
         {
           "kind": "parry",
           "variant": "parry-arc",
-          "anchor": "target"
+          "anchor": "target",
+          "art": "parry"
         }
       ],
       "frameset": "raster-v1",
@@ -690,6 +778,17 @@
         "lift"
       ],
       "actorMotion": "lunge",
+      "keyPoses": {
+        "prepare": "kick_windup",
+        "contact": "kick_strike",
+        "finish": "kick_finish",
+        "reachWith": "foot"
+      },
+      "approach": {
+        "pose": "approach_knee_hop",
+        "durationMs": 165,
+        "lift": 5
+      },
       "targetReaction": {
         "hit": "hit",
         "dodge": "dodge",
@@ -700,17 +799,20 @@
         {
           "kind": "trail",
           "variant": "uppercut-arc",
-          "anchor": "actor"
+          "anchor": "actor",
+          "art": "slash"
         },
         {
           "kind": "impact",
           "variant": "hit-spark",
-          "anchor": "target"
+          "anchor": "target",
+          "art": "impact"
         },
         {
           "kind": "parry",
           "variant": "parry-arc",
-          "anchor": "target"
+          "anchor": "target",
+          "art": "parry"
         }
       ],
       "frameset": "raster-v1",
@@ -752,6 +854,9 @@
         "self"
       ],
       "actorMotion": "focus",
+      "keyPoses": {
+        "contact": "guard"
+      },
       "targetReaction": {
         "hit": "effect",
         "dodge": "effect",
@@ -762,7 +867,8 @@
         {
           "kind": "aura",
           "variant": "guard-ring",
-          "anchor": "actor"
+          "anchor": "actor",
+          "art": "aura"
         }
       ],
       "frameset": "raster-v1",
@@ -803,6 +909,9 @@
         "self"
       ],
       "actorMotion": "focus",
+      "keyPoses": {
+        "contact": "guard"
+      },
       "targetReaction": {
         "hit": "effect",
         "dodge": "effect",
@@ -813,7 +922,8 @@
         {
           "kind": "heal",
           "variant": "heal-pulse",
-          "anchor": "actor"
+          "anchor": "actor",
+          "art": "aura"
         }
       ],
       "frameset": "raster-v1",
@@ -963,7 +1073,8 @@
         {
           "kind": "impact",
           "variant": "dot-spark",
-          "anchor": "target"
+          "anchor": "target",
+          "art": "aura"
         }
       ],
       "frameset": "raster-v1",
@@ -1004,7 +1115,8 @@
         {
           "kind": "heal",
           "variant": "heal-pulse",
-          "anchor": "target"
+          "anchor": "target",
+          "art": "aura"
         }
       ],
       "frameset": "raster-v1",

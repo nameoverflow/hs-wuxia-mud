@@ -1,5 +1,4 @@
 import type { CombatEvent, CombatResult } from "../protocol";
-import { approachForAction } from "./battleApproach";
 import { clipImpactOffsetMs } from "./animationClip";
 import { battleActionFor, idleVisualForStyle, reactionVisualFor, visualForBattleAction } from "./battleActionCatalog";
 import type {
@@ -29,7 +28,7 @@ export function resolveCombatTimeline(
   const reaction = action.targetReaction[result] || resultReaction(result);
   const actorVisual = visualForBattleAction(action.id, actorProfile, actorStyle);
   const actionDurationMs = visualDurationMs(event.visual?.durationMs, action.durationMs);
-  const approach = event.kind === 'effect_tick' ? undefined : approachForAction(action.id);
+  const approach = event.kind === 'effect_tick' ? undefined : action.approach;
   const actionDelayMs = (approach?.durationMs ?? 0) * actionDurationMs / action.durationMs;
   const impactAtMs = actionDelayMs + clipImpactOffsetMs(action.frames, action.impactFrame, actionDurationMs);
   const targetVisual =
@@ -54,6 +53,7 @@ export function resolveCombatTimeline(
       side: actorSide,
       visual: actorVisual,
       motion: action.actorMotion,
+      approach,
       actionDelayMs
     },
     target: {
@@ -127,6 +127,7 @@ function resolveVfx(action: BattleActionDefinition, actorSide: BattleSide, targe
       id: `${action.id}-${vfx.kind}-${vfx.variant}-${index}`,
       kind: vfx.kind,
       variant: vfx.variant,
+      art: vfx.art,
       side: vfx.anchor === "actor" ? actorSide : vfx.anchor === "target" ? targetSide : "center"
     }));
 }

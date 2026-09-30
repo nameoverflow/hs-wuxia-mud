@@ -7,7 +7,7 @@
   import SvgBattleActor from "./SvgBattleActor.svelte";
   import { sampleAttackTrail } from "../battle/svgAttackTrail";
   import { sampleSvgPose } from "../battle/svgBattlePose";
-  import { stageArt, vfxArt } from "../battle/stageAssets";
+  import { stageArt } from "../battle/stageAssets";
   import type { BattleSide } from "../battle/animationTypes";
 
   export let state: GameState;
@@ -29,9 +29,9 @@
   $: resultWord = timeline?.result === "dodge" ? "闪" : timeline?.result === "parry" ? "架" : timeline?.heal ? "息" : "";
   // 重招才盖招式名印章；普通招式保持克制。
   $: stampLabel = scene.force >= 1 && timeline && scene.phase !== "idle" ? timeline.label : "";
-  $: ink = timeline && scene.burst > 0 ? vfxArt("impact", timeline.vfx.find(v => v.kind === "impact")?.variant ?? "hit-spark", timeline.actor.visual.actionId) : null;
+  $: ink = timeline && scene.burst > 0 ? stageArt[timeline.vfx.find(v => v.kind === "impact")?.art ?? "impact"] : null;
   $: arc = timeline && scene.trail > 0
-    ? (timeline.result === "parry" ? stageArt.parry : vfxArt("trail", timeline.vfx.find(v => v.kind === "trail")?.variant ?? "slash-arc", timeline.actor.visual.actionId))
+    ? (timeline.result === "parry" ? stageArt.parry : stageArt[timeline.vfx.find(v => v.kind === "trail")?.art ?? "slash"])
     : null;
   $: auraArt = scene.aura > 0 ? stageArt.aura : null;
 

@@ -8,13 +8,16 @@ import { createHash } from "node:crypto";
 const clientRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = path.resolve(clientRoot, "..");
 const actionsPath = path.join(repoRoot, "resources/scripts/combat_actions/battle-actions.json");
+const posesPath = path.join(repoRoot, "resources/scripts/combat_poses/svg-poses.json");
 const framesPath = path.join(clientRoot, "src/assets/battle/actors/raster-v1");
 const martialArtsPath = path.join(repoRoot, "resources/scripts/martial_arts");
 const manifest = JSON.parse(readFileSync(actionsPath, "utf8"));
+const poseIds = new Set(Object.keys(JSON.parse(readFileSync(posesPath, "utf8")).poses));
+const vfxArts = ["impact", "slash", "parry", "aura", "thrust", "rising"];
 const atlas = JSON.parse(readFileSync(path.join(clientRoot, 'src/battle/frameAtlas.json'), 'utf8'));
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 
-if (manifest.schemaVersion !== 4 || !Array.isArray(manifest.actions)) fail("battle-actions.json must use schemaVersion 4 with an actions array");
+if (manifest.schemaVersion !== 5 || !Array.isArray(manifest.actions)) fail("battle-actions.json must use schemaVersion 5 with an actions array");
 const actionIds = new Set();
 const frameIds = new Set();
 for (const action of manifest.actions) {
@@ -45,10 +48,18 @@ for (const action of manifest.actions) {
   if (!c || ![c.launchAtMs, c.hitStopMs, c.recoverAtMs, c.restAtMs, c.reach, c.contactY].every(Number.isFinite)) fail(`${action.id}: missing choreography`);
   if (!(0 <= c.launchAtMs && c.launchAtMs <= impact && c.hitStopMs >= 0 && impact + c.hitStopMs <= c.recoverAtMs && c.recoverAtMs <= c.restAtMs && c.restAtMs <= durationMs)) fail(`${action.id}: unordered choreography markers`);
   if (!['light', 'heavy', 'quiet'].includes(c.weight) || c.reach < 0 || c.reach > 136 || c.contactY < 20 || c.contactY > 176) fail(`${action.id}: invalid contact geometry/weight`);
+  for (const frame of action.frames) if (!poseIds.has(frame.frameId)) fail(`${action.id}: frame ${frame.frameId} has no SVG pose`);
+  const kp = action.keyPoses;
+  for (const id of [kp?.prepare, kp?.contact, kp?.finish, action.approach?.pose].filter(Boolean)) if (!poseIds.has(id)) fail(`${action.id}: missing SVG pose ${id}`);
+  for (const vfx of action.vfx || []) if (!vfxArts.includes(vfx.art)) fail(`${action.id}: vfx ${vfx.kind} needs art in ${vfxArts.join('/')}`);
   if (['approach', 'lunge', 'drive'].includes(action.actorMotion)) {
     const idle = action.style === 'sword' ? 'sword_ready' : 'idle';
     if (action.frames[0].frameId !== idle || action.frames.at(-1).frameId !== idle) fail(`${action.id}: attack must begin and finish in ready stance`);
+    if (!kp?.prepare || !kp.contact || !kp.finish || !['hand', 'foot', 'blade'].includes(kp.reachWith)) fail(`${action.id}: attack needs keyPoses prepare/contact/finish/reachWith`);
+    if (kp.contact !== action.frames[action.impactFrame].frameId) fail(`${action.id}: keyPoses.contact must match the impact frame`);
+    if (!action.approach || !(action.approach.durationMs > 0) || !Number.isFinite(action.approach.lift)) fail(`${action.id}: attack needs approach pose/durationMs/lift`);
   }
+  if (action.actorMotion === 'focus' && !kp?.contact) fail(`${action.id}: focus action needs keyPoses.contact`);
 }
 
 for (const name of ['backdrop', 'thrust', 'slash', 'rising', 'impact', 'parry', 'aura']) {

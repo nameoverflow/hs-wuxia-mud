@@ -1,6 +1,7 @@
 import actionData from "../../../resources/scripts/combat_actions/battle-actions.json";
 import { validateClipFrames } from "./animationClip";
-import { svgFrameIds } from "./svgBattlePose";
+import { hasSvgPose } from "./svgPoseLibrary";
+import { stageArt } from "./stageAssets";
 import type {
   ActorVisual,
   ActionVfxDefinition,
@@ -17,12 +18,16 @@ interface BattleActionManifest {
 
 const manifest = actionData as BattleActionManifest;
 
-if (manifest.schemaVersion !== 4) throw new Error(`Unsupported battle action schema ${manifest.schemaVersion}`);
+if (manifest.schemaVersion !== 5) throw new Error(`Unsupported battle action schema ${manifest.schemaVersion}`);
 manifest.actions.forEach((action) => {
   validateClipFrames(action.id, action.frames, action.durationMs, action.impactFrame);
-  for (const frame of action.frames) {
-    if (!svgFrameIds.has(frame.frameId)) throw new Error(`Missing SVG pose: ${frame.frameId}`);
-  }
+  const poses = [
+    ...action.frames.map((frame) => frame.frameId),
+    ...Object.entries(action.keyPoses || {}).filter(([key]) => key !== "reachWith").map(([, id]) => id as string),
+    ...(action.approach ? [action.approach.pose] : [])
+  ];
+  for (const pose of poses) if (!hasSvgPose(pose)) throw new Error(`${action.id}: missing SVG pose ${pose}`);
+  for (const vfx of action.vfx || []) if (!(vfx.art in stageArt)) throw new Error(`${action.id}: unknown vfx art ${vfx.art}`);
 });
 
 export const battleActions: Record<string, BattleActionDefinition> = Object.fromEntries(
@@ -45,7 +50,8 @@ export function visualForBattleAction(actionId: string, profile: VisualProfile, 
     actionId: action.id,
     profile,
     style: action.style,
-    frames: action.frames
+    frames: action.frames,
+    keyPoses: action.keyPoses
   };
 }
 
