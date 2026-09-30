@@ -193,7 +193,6 @@ export interface ActionVfxDefinition extends SpriteVfxOptions {
 export interface BattleActionDefinition {
   id: string;
   label: string;
-  frameset: "raster-v1";
   style: CombatStyle;
   frames: BattleAnimationFrame[];
   impactFrame: number;

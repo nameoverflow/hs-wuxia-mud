@@ -78,7 +78,7 @@
 - 多人同房间广播、聊天可见范围、PVP 规则尚未完善；多人围攻同一个 NPC 尚未实现。
 - NPC AI 仍很简单：普通攻击来自准备武功 attack_moves，主动招式 AI 尚未成体系。
 - 普通攻击已有命中、闪避、招架和属性缩放；装备、防具、暴击和技能 hook 尚未接入。
-- 战斗剪影动画已有 catalog validator（`client/scripts/validate-animation-data.mjs`）、帧目录与图集数据（`frameCatalog.ts` / `frameAtlas.json`）、预览页（`client/battle-lab.html`）、逻辑/浏览器测试和录屏入口。武功/技能专属素材与视觉质量仍需按动作逐项验收；功能与视觉验收以相应测试和 QA 记录为准。
+- 战斗剪影动画已有 catalog validator（`client/scripts/validate-animation-data.mjs`）、SVG 姿势库与舞台参数（`resources/scripts/combat_presentation/`）、预览页（`client/battle-lab.html`、`client/pose-sheet.html`）、逻辑/浏览器测试和录屏入口。武功/技能专属素材与视觉质量仍需按动作逐项验收；功能与视觉验收以相应测试和 QA 记录为准。
 - 剧情事件是线性匹配第一个可用事件，没有优先级、冷却、复杂变量或表达式系统。
 - Lua 依赖在 package 中存在，但当前主线剧情没有使用 Lua。
 - 测试是自定义 `Spec.hs` 主程序，没有 Hspec/Tasty 结构。

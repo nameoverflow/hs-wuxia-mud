@@ -25,7 +25,6 @@
         "effect": "none"
       },
       "vfx": [],
-      "frameset": "raster-v1",
       "choreography": {
         "launchAtMs": 0,
         "hitStopMs": 0,
@@ -104,7 +103,6 @@
           "art": "parry"
         }
       ],
-      "frameset": "raster-v1",
       "choreography": {
         "launchAtMs": 130,
         "hitStopMs": 40,
@@ -183,7 +181,6 @@
           "art": "parry"
         }
       ],
-      "frameset": "raster-v1",
       "choreography": {
         "launchAtMs": 170,
         "hitStopMs": 60,
@@ -263,7 +260,6 @@
           "art": "parry"
         }
       ],
-      "frameset": "raster-v1",
       "choreography": {
         "launchAtMs": 170,
         "hitStopMs": 60,
@@ -416,7 +412,6 @@
           "art": "parry"
         }
       ],
-      "frameset": "raster-v1",
       "choreography": {
         "launchAtMs": 150,
         "hitStopMs": 40,
@@ -516,7 +511,6 @@
           "art": "parry"
         }
       ],
-      "frameset": "raster-v1",
       "choreography": {
         "launchAtMs": 170,
         "hitStopMs": 70,
@@ -637,7 +631,6 @@
           "art": "parry"
         }
       ],
-      "frameset": "raster-v1",
       "choreography": {
         "launchAtMs": 182,
         "hitStopMs": 80,
@@ -693,7 +686,6 @@
           "art": "aura"
         }
       ],
-      "frameset": "raster-v1",
       "choreography": {
         "launchAtMs": 160,
         "hitStopMs": 0,
@@ -748,7 +740,6 @@
           "art": "aura"
         }
       ],
-      "frameset": "raster-v1",
       "choreography": {
         "launchAtMs": 190,
         "hitStopMs": 0,
@@ -784,7 +775,6 @@
         "effect": "none"
       },
       "vfx": [],
-      "frameset": "raster-v1",
       "choreography": {
         "launchAtMs": 0,
         "hitStopMs": 0,
@@ -820,7 +810,6 @@
         "effect": "none"
       },
       "vfx": [],
-      "frameset": "raster-v1",
       "choreography": {
         "launchAtMs": 0,
         "hitStopMs": 0,
@@ -857,7 +846,6 @@
         "effect": "none"
       },
       "vfx": [],
-      "frameset": "raster-v1",
       "choreography": {
         "launchAtMs": 0,
         "hitStopMs": 0,

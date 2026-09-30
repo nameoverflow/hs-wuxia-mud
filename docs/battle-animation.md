@@ -1,6 +1,6 @@
 # 剪影交锋小舞台
 
-当前战斗表现采用 SVG 人物剪影、连续姿态插值、短促交锋和克制的镜头反馈。人物采用大圆头、无五官、圆润躯干与四肢的矢量轮廓，贴近原始小人素材；人物与招式特效不再使用 PNG 图集。背景仍沿用已生成的山水 WebP。此次 SVG 美术是用户明确要求的代码原生矢量方案。
+当前战斗表现采用 SVG 人物剪影、连续姿态插值、短促交锋和克制的镜头反馈。人物采用无五官的侧面头型、有起伏的躯干与四肢的矢量轮廓；人物全部由代码绘制，不使用位图。背景仍沿用已生成的山水 WebP。此次 SVG 美术是用户明确要求的代码原生矢量方案。
 
 ## 运行时
 
@@ -227,7 +227,7 @@ registerCustomVfx("blade_fan", ({ vfx, progress, direction, anchor, reduced }) =
 
 女性造型开关在 `figureStyle.ts`（battle-lab 与 `/pose-sheet.html` 都有，姿势总览可并排对比）。全身一个颜色，四肢从胸腔、骨盆两个体块里长出来。人物按由远到近拆成部件（头发、后腿、后臂、躯干与头、前腿、前臂与剑），每个部件先整体描一圈深色边再填色，所以部件内部没有接缝，前面的部件压到后面时留下一道遮挡线。肩、髋、发根这些自然连接处画完后会"缝合"：在连接点附近把相连几块的填色重铺一遍，盖掉那里的描边，只留外轮廓；真正的遮挡（前臂横过胸口、提膝挡住身体）不受影响。
 
-动作里的帧 ID 就是 SVG 姿势 ID。持剑与空手共用同一套站姿与反应姿势（idle、hurt、dodge、guard），不按伤害来源区分；持剑时剑由骨架差异（rigs.sword）画在手里。历史的 `frameset: raster-v1` 字段和 raster-v1 PNG、旧图集（`frameAtlas.json`、`frameCatalog.ts`、`pack:battle`）已与运行时和校验脱钩，只是遗留文件。
+动作里的帧 ID 就是 SVG 姿势 ID。持剑与空手共用同一套站姿与反应姿势（idle、hurt、dodge、guard），不按伤害来源区分；持剑时剑由骨架差异（rigs.sword）画在手里。
 
 背景保留 `client/src/assets/battle/ink-stage-v1/backdrop.webp`。SVG 替换的设计与 QA 记录位于 `harness/animation-qa/runs/svg-silhouette-v1/`。
 
@@ -263,7 +263,7 @@ bash .codex/skills/animation-visual-qa/scripts/storyboard-from-video.sh \
   harness/tmp/silhouette-stage-v2/storyboards 3 16 8 320
 ```
 
-`render:frames` 仍可用于单独查看角色帧顺序；它不能替代完整舞台回放。最终验收同时检查全速节奏、慢放与密集 storyboard，不以字段校验通过代替观感判断。
+单个姿势用 `/pose-sheet.html` 检查；它不能替代完整舞台回放。最终验收同时检查全速节奏、慢放与密集 storyboard，不以字段校验通过代替观感判断。
 
 ## 已知表达边界
 

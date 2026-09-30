@@ -9,14 +9,11 @@
     "preview": "vite preview",
     "check": "npm run validate:animations && svelte-check --tsconfig ./tsconfig.json",
     "validate:animations": "node scripts/validate-animation-data.mjs",
-    "render:frames": "node scripts/render-frame-preview.mjs",
     "test:battle": "node scripts/test-battle.mjs",
     "test:battle:browser": "playwright test",
-    "record:battle": "node scripts/record-battle.mjs",
-    "pack:battle": "node scripts/pack-battle-frames.mjs"
+    "record:battle": "node scripts/record-battle.mjs"
   },
   "devDependencies": {
-    "@napi-rs/canvas": "^1.0.0",
     "@playwright/test": "^1.63.0",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "svelte": "^5.56.3",

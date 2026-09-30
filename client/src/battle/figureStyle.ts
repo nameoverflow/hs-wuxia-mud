@@ -1,4 +1,4 @@
-import { get, writable } from "svelte/store";
+import { writable } from "svelte/store";
 
 /**
  * 剪影的可选画法，用来并排对比：
@@ -9,7 +9,3 @@ export interface FigureStyle {
 }
 
 export const figureStyle = writable<FigureStyle>({ look: "maiden" });
-
-export function currentFigureStyle() {
-  return get(figureStyle);
-}

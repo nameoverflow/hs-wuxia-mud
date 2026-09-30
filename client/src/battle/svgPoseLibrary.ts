@@ -191,10 +191,6 @@ export function svgPoseIds() {
   return Object.keys(library.poses);
 }
 
-export function poseParams(id: string, rig: CombatStyle): PoseParams {
-  return resolveParams(id, rig);
-}
-
 /** 返回可修改的关节坐标：采样器会在接触帧上用反解把拳、脚、剑尖送到接触点。 */
 export function svgPose(id: string, rig: CombatStyle): SvgPose {
   return poseFromParams(resolveParams(id, rig));

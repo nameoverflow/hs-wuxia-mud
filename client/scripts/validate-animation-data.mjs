@@ -33,7 +33,6 @@ const actionIds = new Set();
 for (const action of manifest.actions) {
   if (!action.id || actionIds.has(action.id)) fail(`Duplicate or empty rig action id: ${action.id || "<empty>"}`);
   actionIds.add(action.id);
-  if (action.frameset !== "raster-v1") fail(`Animation action ${action.id} must use frameset raster-v1`);
   if (action.style !== "fist" && action.style !== "sword") fail(`Animation action ${action.id} has invalid style ${action.style}`);
   if (!Array.isArray(action.frames) || action.frames.length === 0) fail(`Animation action ${action.id} has no frames`);
   if (!Number.isInteger(action.impactFrame) || action.impactFrame < 0 || action.impactFrame >= action.frames.length) {

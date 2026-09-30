@@ -16,10 +16,6 @@ export function hitIndexAt(timeline: ResolvedBattleTimeline, t: number) {
   return index;
 }
 
-export function currentHit(timeline: ResolvedBattleTimeline, t: number): ResolvedHit | undefined {
-  return timeline.hits[hitIndexAt(timeline, t)];
-}
-
 export function lastHit(timeline: ResolvedBattleTimeline) {
   return timeline.hits[timeline.hits.length - 1];
 }
