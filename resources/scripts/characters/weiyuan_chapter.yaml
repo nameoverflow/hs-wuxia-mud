@@ -1,15 +1,18 @@
 - id: wounded_escort
   name: "受伤老镖师"
-  desc: "威远镖局的老镖师，肩上中了一刀，衣襟上还沾着泥水。"
+  desc: "威远镖局的老镖师，少年叫他陈伯。肩上中了一刀，横在膝上的剑还没入鞘。"
   actions: [dialogue]
   martial_arts:
-    fist:
-      - id: nameless_trial_fist
-        level: 1
+    foundation:
+      - id: basic_sword
+        level: 12
+    sword:
+      - id: weiyuan_sword
+        level: 10
   prepared:
-    fist:
-      id: nameless_trial_fist
-      level: 1
+    sword:
+      id: weiyuan_sword
+      level: 10
   teaches: {}
   dialogue:
     - "别点火。外头有人追着镖车来的，庙里一亮，谁也走不了。"
@@ -25,7 +28,7 @@
 
 - id: grey_young_escort
   name: "灰衣少年"
-  desc: "他衣上全是泥水，脸色发白，一只手死死攥着包袱。"
+  desc: "他衣上全是泥水，脸色发白，左腿裹着渗血的布条，一只手死死攥着包袱。"
   actions: [dialogue]
   martial_arts:
     sword:
@@ -36,7 +39,7 @@
       id: weiyuan_sword
       level: 1
   dialogue:
-    - "我脑子很乱。老镖师让我听你的，我就先听你的。"
+    - "我脑子很乱。陈伯让我听你的，我就先听你的。"
   respawn: 0
   attr:
     hp: 100
@@ -49,20 +52,20 @@
 
 - id: temple_black_clad
   name: "黑衣人"
-  desc: "他穿着黑色短衣，手里提着窄刀，鞋底全是新泥。"
+  desc: "他穿着黑色短衣，手里提着一柄窄身短剑，左肋的衣裳被血浸透了一片。"
   actions: [dialogue]
   hidden: true
   martial_arts:
-    fist:
-      - id: nameless_trial_fist
+    sword:
+      - id: nameless_trial_sword
         level: 1
   prepared:
-    fist:
-      id: nameless_trial_fist
+    sword:
+      id: nameless_trial_sword
       level: 1
   dialogue:
     - "威远镖局的人在这里。你们一个都走不了。"
-  respawn: 30
+  respawn: 0
   attr:
     hp: 60
     qi: 70

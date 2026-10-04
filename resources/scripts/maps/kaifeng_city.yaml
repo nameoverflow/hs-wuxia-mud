@@ -28,6 +28,9 @@ rooms:
     name: "威远镖局门口"
     kind: building
     desc: "黑漆门匾上写着威远镖局，门前车辙被雨水泡得发亮，门内却静得不正常。"
+    desc_variants:
+      - flag: weiyuan.youth_separated
+        desc: "黑漆门匾还挂着，两扇门上却交叉贴着开封府封条。门前石阶被人冲洗过，缝里仍留着暗红。过路人走到这里都绕开几步。"
     char:
       - grey_young_escort
     exits:
@@ -38,11 +41,26 @@ rooms:
     id: weiyuan_branch_hall
     name: "威远镖局前厅"
     kind: building
-    desc: "前厅门扇半开，镖旗斜倒在地，空气里混着雨水、血腥和翻乱账册的纸墨味。"
+    desc: "前厅门扇半开，镖旗斜倒在地，空气里混着雨水、血腥和翻乱账册的纸墨味。东边月门通往内院。"
+    desc_variants:
+      - flag: weiyuan.youth_separated
+        desc: "尸首已被差役抬走，地上留着白灰圈出的人形。断了的镖旗靠在墙角，账柜被撬开的地方贴着一张捕房的封签。"
     char:
       - grey_young_escort
     exits:
       west: [1, -3]
+      east: [3, -3]
+
+  - position: [3, -3]
+    id: weiyuan_inner_court
+    name: "威远镖局内院"
+    kind: building
+    desc: "内院正房的门开着，井台边的泥地被踩得一片狼藉。后门半掩，外头就是河堤。"
+    desc_variants:
+      - flag: weiyuan.youth_separated
+        desc: "内院空了。井台青石上那几行剑刻的字被人用泥抹过，仍能摸出笔画。后门已被钉死。"
+    exits:
+      west: [2, -3]
 
   - position: [0, -2]
     id: kaifeng_stone_bridge

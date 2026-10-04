@@ -1,6 +1,6 @@
 id: weiyuan_sword_manual
 name: "威远剑谱"
-desc: "老镖师临终托出的威远镖局入门剑谱，记着押镖护身常用的基础步法和几式剑招。"
+desc: "灰衣少年塞给你的包袱里的剑谱，是他父亲骆主事手抄的威远剑法入门篇。镖局家传的剑法从不外传，用出来时，懂行的人会认得。"
 use:
   type: learn_art
   art: weiyuan_sword

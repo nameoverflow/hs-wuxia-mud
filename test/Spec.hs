@@ -901,22 +901,27 @@ testWeiyuanChapterFlow = do
   assert (questStageOf "weiyuan_bloody_case" atFerry == Just "branch_gate") "entering Kaifeng did not advance the escort"
   (_, atGate) <- runOk "approach Weiyuan branch" atFerry (playerMove "tester" East)
   (hallResponses, inHall) <- runOk "enter Weiyuan branch hall" atGate (playerMove "tester" East)
-  assert (questStageOf "weiyuan_bloody_case" inHall == Just "completed") "weiyuan quest did not complete in the branch hall"
-  assert (questStageOf "first_steps_kaifeng" inHall == Just "guide") "Kaifeng settling quest did not start"
-  case M.lookup "tester" (inHall ^. stories) of
+  assert (questStageOf "weiyuan_bloody_case" inHall == Just "inner_court") "the youth did not run into the inner court"
+  rushIndex <- requireResponseIndex "youth rushes inside" (\case StoryMsg "旁白" text -> "冲进了通往内院" `T.isInfixOf` text; _ -> False) hallResponses
+  hideIndex <- requireResponseIndex "young escort hide refresh" (\case ViewMsg _ _ characters _ -> all ((/= "grey_young_escort") . roomCharacterSummaryId) characters; _ -> False) hallResponses
+  manualIndex <- requireResponseIndex "manual handed over" (\case RewardMsg rewards -> any ((== Just "weiyuan_sword_manual") . rewardSummaryId) rewards; _ -> False) hallResponses
+  assert (rushIndex < hideIndex && hideIndex < manualIndex) "the youth vanished or the bundle arrived before he ran inside"
+
+  (courtResponses, inCourt) <- runOk "follow the youth into the inner court" inHall (playerMove "tester" East)
+  assert (questStageOf "weiyuan_bloody_case" inCourt == Just "completed") "weiyuan quest did not complete in the inner court"
+  assert (questStageOf "first_steps_kaifeng" inCourt == Just "guide") "Kaifeng settling quest did not start"
+  _ <- requireResponseIndex "well inscription" (\case StoryMsg _ text -> "别找我" `T.isInfixOf` text; _ -> False) courtResponses
+  case M.lookup "tester" (inCourt ^. stories) of
     Nothing -> fail "tester story state missing after Weiyuan separation"
     Just storyState -> do
       assert (S.member "weiyuan.youth_separated" $ storyState ^. storyFlags) "young survivor separation flag was not set"
       assert (S.member "grey_young_escort" $ storyState ^. storyHiddenNpcs) "young survivor was not hidden after separation"
-  case M.lookup "tester" (inHall ^. players) of
+  case M.lookup "tester" (inCourt ^. players) of
     Nothing -> fail "tester missing after Weiyuan completion"
     Just player -> do
       assert ((player ^. playerInventory . at "soaked_route_note") == Just 1) "route note was not retained"
       assert ((player ^. playerInventory . at "weiyuan_sword_manual") == Just 1) "Weiyuan manual was not retained"
-  farewellIndex <- requireResponseIndex "young escort farewell" (\case StoryMsg "灰衣少年" text -> "我从后院走" `T.isPrefixOf` text; _ -> False) hallResponses
-  hideIndex <- requireResponseIndex "young escort hide refresh" (\case ViewMsg _ _ characters _ -> all ((/= "grey_young_escort") . roomCharacterSummaryId) characters; _ -> False) hallResponses
-  itemRewardIndex <- requireResponseIndex "deferred clue rewards" (\case RewardMsg rewards -> any ((== Just "soaked_route_note") . rewardSummaryId) rewards; _ -> False) hallResponses
-  assert (farewellIndex < hideIndex && hideIndex < itemRewardIndex) "young escort disappeared or clue rewards appeared before the farewell completed"
+      assert ((player ^. playerPosition) == ("kaifeng_city", (-1, -3))) "player did not slip out to the willow bank"
 
 testStoryBattlesArePlayerIsolated :: IO ()
 testStoryBattlesArePlayerIsolated = do
