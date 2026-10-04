@@ -1,0 +1,600 @@
+- id: journey_luoyang
+  name: "西行车马"
+  objectives:
+    - stage: road
+      text: "在偃师驿外客栈，应付非要你报上名号的醉剑客。"
+    - stage: completed
+      text: "牡丹会旧帖上有了你的名字。洛阳剑客肯同你说话了。"
+  reward:
+    money: 0
+    items: []
+  events:
+    - id: luoyang_runner_on_road
+      trigger:
+        type: talk
+        npc: luoyang_runner
+      conditions:
+        - type: quest_stage
+          quest: journey_luoyang
+          stage: road
+        - type: in_map
+          map: luoyang_road
+      actions:
+        - type: message
+          speaker: "洛阳接引人"
+          text: "他醉了，可洛阳的规矩没醉。你不应他，他不会让车走。"
+    - id: luoyang_road_fight
+      trigger:
+        type: talk
+        npc: road_drunk_swordsman
+      conditions:
+        - type: quest_stage
+          quest: journey_luoyang
+          stage: road
+      actions:
+        - type: message
+          speaker: "醉剑客"
+          text: "报个名来！说不出，就拿剑说。"
+        - type: start_battle
+          target: road_drunk_swordsman
+    - id: luoyang_road_cleared
+      trigger:
+        type: kill
+        npc: road_drunk_swordsman
+      conditions:
+        - type: quest_stage
+          quest: journey_luoyang
+          stage: road
+      actions:
+        - type: hide_npc
+          npc: road_drunk_swordsman
+        - type: message
+          speaker: "旁白"
+          text: "醉剑客收剑入鞘，哈哈一笑，把酒碗推到你面前。"
+        - type: message
+          speaker: "洛阳接引人"
+          text: "你没报名，却让他闭了嘴。到了洛阳，我在牡丹会旧帖上替你写下名字。有了名帖，剑市和步法廊的人才肯同你说话。"
+        - type: set_flag
+          flag: luoyang.name_card
+        - type: complete_quest
+          quest: journey_luoyang
+        - type: transition
+          text: "车马过了建春门外的东驿，洛阳城墙在暮色里压得很低。"
+          ms: 2400
+        - type: move_player
+          map: luoyang_city
+          position: [0, 0]
+    - id: luoyang_return_to_kaifeng
+      trigger:
+        type: talk
+        npc: luoyang_runner
+      conditions:
+        - type: in_map
+          map: luoyang_city
+      actions:
+        - type: message
+          speaker: "洛阳接引人"
+          text: "东去的车马正在套马。回开封的路，比来时短一些。"
+        - type: transition
+          text: "车轮沿官道向东，洛阳的城墙落在身后。"
+          ms: 1800
+        - type: move_player
+          map: kaifeng_city
+          position: [-2, 2]
+    - id: luoyang_needs_pass
+      trigger:
+        type: talk
+        npc: luoyang_runner
+      conditions:
+        - type: quest_completed
+          quest: three_city_leads
+        - type: in_map
+          map: kaifeng_city
+        - type: not_has_item
+          item: three_city_route_pass
+      actions:
+        - type: message
+          speaker: "洛阳接引人"
+          text: "没有同行帖，车上不载生人。"
+    - id: luoyang_first_departure
+      trigger:
+        type: talk
+        npc: luoyang_runner
+      conditions:
+        - type: quest_completed
+          quest: three_city_leads
+        - type: in_map
+          map: kaifeng_city
+        - type: quest_not_started
+          quest: journey_luoyang
+      actions:
+        - type: message
+          speaker: "洛阳接引人"
+          text: "西行车马正要出发。同行帖带好，途中少管驿卒不肯说的事。"
+        - type: set_stage
+          quest: journey_luoyang
+          stage: road
+        - type: transition
+          text: "车轮沿官道向西，开封城声渐渐落在身后。"
+          ms: 2400
+        - type: move_player
+          map: luoyang_road
+          position: [0, 0]
+        - type: show_npc
+          npc: road_drunk_swordsman
+        - type: message
+          speaker: "旁白"
+          text: "第三日傍晚，车马在偃师驿外的客栈歇脚。邻桌一个醉剑客拍案而起，非要同车的人报上名号，说洛阳人从不和无名之辈同路。"
+    - id: luoyang_resume_departure
+      trigger:
+        type: talk
+        npc: luoyang_runner
+      conditions:
+        - type: quest_stage
+          quest: journey_luoyang
+          stage: road
+        - type: in_map
+          map: kaifeng_city
+      actions:
+        - type: message
+          speaker: "洛阳接引人"
+          text: "上回半路折回来了？这回走完它。"
+        - type: set_stage
+          quest: journey_luoyang
+          stage: road
+        - type: transition
+          text: "车轮沿官道向西，开封城声渐渐落在身后。"
+          ms: 2400
+        - type: move_player
+          map: luoyang_road
+          position: [0, 0]
+        - type: show_npc
+          npc: road_drunk_swordsman
+        - type: message
+          speaker: "旁白"
+          text: "车马又停在偃师驿外的客栈。那醉剑客还坐在原处，像是专门在等你。"
+    - id: luoyang_travel_again
+      trigger:
+        type: talk
+        npc: luoyang_runner
+      conditions:
+        - type: quest_completed
+          quest: journey_luoyang
+        - type: in_map
+          map: kaifeng_city
+      actions:
+        - type: message
+          speaker: "洛阳接引人"
+          text: "西行车马正要出发。同行帖带好，途中少管驿卒不肯说的事。"
+        - type: transition
+          text: "车轮沿官道向西，开封城声渐渐落在身后。"
+          ms: 1500
+        - type: move_player
+          map: luoyang_city
+          position: [0, 0]
+
+- id: journey_dali
+  name: "茶马长路"
+  objectives:
+    - stage: road
+      text: "在乌蒙山道替商队守住后车。"
+    - stage: completed
+      text: "护送名册上有了你一笔。去段氏旧府见护院总管。"
+  reward:
+    money: 0
+    items: []
+  events:
+    - id: dali_runner_on_road
+      trigger:
+        type: talk
+        npc: dali_runner
+      conditions:
+        - type: quest_stage
+          quest: journey_dali
+          stage: road
+        - type: in_map
+          map: dali_road
+      actions:
+        - type: message
+          speaker: "大理商队护卫"
+          text: "后车归你看，前头的我们顶着。别追进林子，护住货就是赢。"
+    - id: dali_road_fight
+      trigger:
+        type: talk
+        npc: mountain_bandit
+      conditions:
+        - type: quest_stage
+          quest: journey_dali
+          stage: road
+      actions:
+        - type: message
+          speaker: "山道劫匪"
+          text: "货留下，人滚。不肯？那就连人一起留下。"
+        - type: start_battle
+          target: mountain_bandit
+    - id: dali_road_cleared
+      trigger:
+        type: kill
+        npc: mountain_bandit
+      conditions:
+        - type: quest_stage
+          quest: journey_dali
+          stage: road
+      actions:
+        - type: hide_npc
+          npc: mountain_bandit
+        - type: message
+          speaker: "旁白"
+          text: "蒙面汉子丢下短棍钻回林子，后车的货一箱没少。"
+        - type: message
+          speaker: "大理商队护卫"
+          text: "第三场雨还肯替后车拴绳的人，才算自己人。这是护卫例的脚钱。到了大理，我在护送名册上给你记一笔，段家的护院总管认这个。"
+        - type: give_money
+          amount: 40
+        - type: set_flag
+          flag: dali.caravan_vouched
+        - type: complete_quest
+          quest: journey_dali
+        - type: transition
+          text: "商队翻过最后一道山梁，苍山与洱海之间的大理府城出现在眼前。"
+          ms: 2400
+        - type: move_player
+          map: dali_city
+          position: [0, 0]
+    - id: dali_return_to_kaifeng
+      trigger:
+        type: talk
+        npc: dali_runner
+      conditions:
+        - type: in_map
+          map: dali_city
+      actions:
+        - type: message
+          speaker: "大理商队护卫"
+          text: "北上的商队后天出发，后车还缺一个照看货绳的人。"
+        - type: transition
+          text: "商队出大理北上，苍山的雪顶一日比一日远。"
+          ms: 1800
+        - type: move_player
+          map: kaifeng_city
+          position: [2, 2]
+    - id: dali_needs_pass
+      trigger:
+        type: talk
+        npc: dali_runner
+      conditions:
+        - type: quest_completed
+          quest: three_city_leads
+        - type: in_map
+          map: kaifeng_city
+        - type: not_has_item
+          item: three_city_route_pass
+      actions:
+        - type: message
+          speaker: "大理商队护卫"
+          text: "没有同行帖，车上不载生人。"
+    - id: dali_first_departure
+      trigger:
+        type: talk
+        npc: dali_runner
+      conditions:
+        - type: quest_completed
+          quest: three_city_leads
+        - type: in_map
+          map: kaifeng_city
+        - type: quest_not_started
+          quest: journey_dali
+      actions:
+        - type: message
+          speaker: "大理商队护卫"
+          text: "后车还缺一个照看货绳的人。想南下便跟紧，掉队没人回头找。"
+        - type: set_stage
+          quest: journey_dali
+          stage: road
+        - type: transition
+          text: "商队出开封南下，平原、汉水与蜀道依次退向身后。"
+          ms: 2400
+        - type: move_player
+          map: dali_road
+          position: [0, 0]
+        - type: show_npc
+          npc: mountain_bandit
+        - type: message
+          speaker: "旁白"
+          text: "走到第三场雨，山道上滚下两块大石，拦住了后车。几个蒙面汉子从林子里钻出来，为首的一脚踩住了货绳。"
+    - id: dali_resume_departure
+      trigger:
+        type: talk
+        npc: dali_runner
+      conditions:
+        - type: quest_stage
+          quest: journey_dali
+          stage: road
+        - type: in_map
+          map: kaifeng_city
+      actions:
+        - type: message
+          speaker: "大理商队护卫"
+          text: "上回半路折回来了？这回走完它。"
+        - type: set_stage
+          quest: journey_dali
+          stage: road
+        - type: transition
+          text: "商队出开封南下，平原、汉水与蜀道依次退向身后。"
+          ms: 2400
+        - type: move_player
+          map: dali_road
+          position: [0, 0]
+        - type: show_npc
+          npc: mountain_bandit
+        - type: message
+          speaker: "旁白"
+          text: "商队又走到乌蒙山道。那几块大石还横在路上，蒙面汉子也还在。"
+    - id: dali_travel_again
+      trigger:
+        type: talk
+        npc: dali_runner
+      conditions:
+        - type: quest_completed
+          quest: journey_dali
+        - type: in_map
+          map: kaifeng_city
+      actions:
+        - type: message
+          speaker: "大理商队护卫"
+          text: "后车还缺一个照看货绳的人。想南下便跟紧，掉队没人回头找。"
+        - type: transition
+          text: "商队出开封南下，平原、汉水与蜀道依次退向身后。"
+          ms: 1500
+        - type: move_player
+          map: dali_city
+          position: [0, 0]
+
+- id: journey_taihu
+  name: "药车东行"
+  objectives:
+    - stage: road
+      text: "在运河渡口护住要送往湖东的药箱。"
+    - stage: completed
+      text: "药童会向水榭报上你的姓名。去水榭药堂见白发医者。"
+  reward:
+    money: 0
+    items: []
+  events:
+    - id: taihu_runner_on_road
+      trigger:
+        type: talk
+        npc: taihu_runner
+      conditions:
+        - type: quest_stage
+          quest: journey_taihu
+          stage: road
+        - type: in_map
+          map: taihu_road
+      actions:
+        - type: message
+          speaker: "太湖药童"
+          text: "他们是湖上水寨的人。水榭从不跟水寨动手，可这箱药是送给湖东一村伤寒病人的。"
+    - id: taihu_road_fight
+      trigger:
+        type: talk
+        npc: water_fort_bandit
+      conditions:
+        - type: quest_stage
+          quest: journey_taihu
+          stage: road
+      actions:
+        - type: message
+          speaker: "水寨喽啰"
+          text: "小药童请了帮手？水寨的规矩，坏了就得拿命补。"
+        - type: start_battle
+          target: water_fort_bandit
+    - id: taihu_road_cleared
+      trigger:
+        type: kill
+        npc: water_fort_bandit
+      conditions:
+        - type: quest_stage
+          quest: journey_taihu
+          stage: road
+      actions:
+        - type: hide_npc
+          npc: water_fort_bandit
+        - type: message
+          speaker: "旁白"
+          text: "水寨喽啰跳回快船，船尾那面“湖”字小旗朝你晃了晃，像是记下了你。"
+        - type: message
+          speaker: "太湖药童"
+          text: "水寨的人会记仇，可病人等不得。你护过药箱，到了水榭，我替你向白发先生报上姓名。"
+        - type: set_flag
+          flag: taihu.cart_guarded
+        - type: complete_quest
+          quest: journey_taihu
+        - type: transition
+          text: "小船穿过芦苇荡，太湖水榭的竹廊从雾里露了出来。"
+          ms: 2400
+        - type: move_player
+          map: taihu_water_pavilion
+          position: [0, 0]
+    - id: taihu_return_to_kaifeng
+      trigger:
+        type: talk
+        npc: taihu_runner
+      conditions:
+        - type: in_map
+          map: taihu_water_pavilion
+      actions:
+        - type: message
+          speaker: "太湖药童"
+          text: "回开封的药车明早出发。你若同行，帮我听着车铃。"
+        - type: transition
+          text: "药车离了湖岸，车铃一路向西。"
+          ms: 1800
+        - type: move_player
+          map: kaifeng_city
+          position: [3, 2]
+    - id: taihu_needs_pass
+      trigger:
+        type: talk
+        npc: taihu_runner
+      conditions:
+        - type: quest_completed
+          quest: three_city_leads
+        - type: in_map
+          map: kaifeng_city
+        - type: not_has_item
+          item: three_city_route_pass
+      actions:
+        - type: message
+          speaker: "太湖药童"
+          text: "没有同行帖，车上不载生人。"
+    - id: taihu_first_departure
+      trigger:
+        type: talk
+        npc: taihu_runner
+      conditions:
+        - type: quest_completed
+          quest: three_city_leads
+        - type: in_map
+          map: kaifeng_city
+        - type: quest_not_started
+          quest: journey_taihu
+      actions:
+        - type: message
+          speaker: "太湖药童"
+          text: "药箱已经点齐。若去太湖，帮我听着车铃，少一声便要停车。"
+        - type: set_stage
+          quest: journey_taihu
+          stage: road
+        - type: transition
+          text: "药铃一路向东，空气里的水气渐渐重了。"
+          ms: 2400
+        - type: move_player
+          map: taihu_road
+          position: [0, 0]
+        - type: show_npc
+          npc: water_fort_bandit
+        - type: message
+          speaker: "旁白"
+          text: "药车到了运河渡口，几条快船横在水面上，船头的人喊：太湖的水路，过一车，留一箱。"
+    - id: taihu_resume_departure
+      trigger:
+        type: talk
+        npc: taihu_runner
+      conditions:
+        - type: quest_stage
+          quest: journey_taihu
+          stage: road
+        - type: in_map
+          map: kaifeng_city
+      actions:
+        - type: message
+          speaker: "太湖药童"
+          text: "上回半路折回来了？这回走完它。"
+        - type: set_stage
+          quest: journey_taihu
+          stage: road
+        - type: transition
+          text: "药铃一路向东，空气里的水气渐渐重了。"
+          ms: 2400
+        - type: move_player
+          map: taihu_road
+          position: [0, 0]
+        - type: show_npc
+          npc: water_fort_bandit
+        - type: message
+          speaker: "旁白"
+          text: "药车又到了运河渡口。水寨的快船没走，船头那人正等着你。"
+    - id: taihu_travel_again
+      trigger:
+        type: talk
+        npc: taihu_runner
+      conditions:
+        - type: quest_completed
+          quest: journey_taihu
+        - type: in_map
+          map: kaifeng_city
+      actions:
+        - type: message
+          speaker: "太湖药童"
+          text: "药箱已经点齐。若去太湖，帮我听着车铃，少一声便要停车。"
+        - type: transition
+          text: "药铃一路向东，空气里的水气渐渐重了。"
+          ms: 1500
+        - type: move_player
+          map: taihu_water_pavilion
+          position: [0, 0]
+- id: city_households
+  name: "门户"
+  objectives: []
+  reward:
+    money: 0
+    items: []
+  events:
+    - id: duan_captain_accepts_vouched
+      trigger:
+        type: talk
+        npc: dali_duan_guard_captain
+      conditions:
+        - type: flag
+          flag: dali.caravan_vouched
+        - type: not_flag
+          flag: dali.duan_trusted
+      actions:
+        - type: set_flag
+          flag: dali.duan_trusted
+        - type: message
+          speaker: "段氏护院总管"
+          text: "名册上有你一笔，乌蒙山道那一场，护卫都说了。"
+        - type: message
+          speaker: "段氏护院总管"
+          text: "段家祖上坐过这座城的王位。王位没了，旧府还在，段家人靠替茶马商队护路吃饭。外头笑我们是穿锦袍的镖师，那就让他们笑。"
+        - type: message
+          speaker: "段氏护院总管"
+          text: "护身拳教给护路的人，不教给看热闹的人。你去传功屋找韩铁臂吧。至于段家真正的家传，你不必问，我也不会说。"
+
+    - id: duan_captain_turns_away_stranger
+      trigger:
+        type: talk
+        npc: dali_duan_guard_captain
+      conditions:
+        - type: not_flag
+          flag: dali.caravan_vouched
+      actions:
+        - type: message
+          speaker: "段氏护院总管"
+          text: "护送名册上没有你的名字。段家不收没走过商路的人，先跟商队走一趟再来。"
+
+    - id: taihu_senior_accepts_guest
+      trigger:
+        type: talk
+        npc: taihu_senior
+      conditions:
+        - type: flag
+          flag: taihu.cart_guarded
+        - type: not_flag
+          flag: taihu.pavilion_guest
+      actions:
+        - type: set_flag
+          flag: taihu.pavilion_guest
+        - type: message
+          speaker: "太湖白发医者"
+          text: "药童说你在渡口替药车挡了水寨的船。医者不问来历，可水榭要知道谁是自己人。"
+        - type: message
+          speaker: "太湖白发医者"
+          text: "太湖不只有医者。湖上有水寨，岸上有庄子，水榭夹在中间，靠的是谁都有病的时候。你在渡口动了手，水寨会记得水榭欠下一份人情，这份人情往后也许要你来还。"
+        - type: message
+          speaker: "太湖白发医者"
+          text: "静息室的苏姑娘会教你调息。学会了，先医自己。"
+
+    - id: taihu_senior_turns_away_stranger
+      trigger:
+        type: talk
+        npc: taihu_senior
+      conditions:
+        - type: not_flag
+          flag: taihu.cart_guarded
+      actions:
+        - type: message
+          speaker: "太湖白发医者"
+          text: "来求医的，我看；来求艺的，水榭不认生人。跟着药车走一趟，让药童知道你是什么样的人。"

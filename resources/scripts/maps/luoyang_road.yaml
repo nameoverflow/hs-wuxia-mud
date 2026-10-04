@@ -1,0 +1,16 @@
+id: luoyang_road
+name: "西行驿路"
+desc: "开封往洛阳的驿路，过了郑州便是一路黄土塬。车马在偃师驿外的客栈歇脚。"
+rooms:
+  - position: [0, 0]
+    id: luoyang_road_inn
+    name: "偃师驿外客栈"
+    kind: road
+    desc: "客栈只有三张方桌，同车的人挤在一处吃面。门外车夫在给马添草，往东的路回开封，往西再走半日便是洛阳东驿。"
+    char:
+      - luoyang_runner
+      - road_drunk_swordsman
+    exits:
+      east:
+        map: kaifeng_city
+        position: [-2, 2]

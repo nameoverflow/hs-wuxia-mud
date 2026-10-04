@@ -460,6 +460,9 @@
     basic_sword: 16
     basic_lightness: 14
     luoyang_sword: 10
+  teach_requires:
+    flag: luoyang.name_card
+    refusal: "洛阳剑不传无名之人。先让牡丹会旧帖上有你的名字。"
   dialogue:
     - "洛阳剑不怕练得慢，怕的是基础没稳就急着比试。先把步法练熟。"
   respawn: 0
@@ -593,6 +596,9 @@
     basic_internal: 18
     basic_lightness: 10
     dali_guard_fist: 16
+  teach_requires:
+    flag: dali.duan_trusted
+    refusal: "段家的拳只传护路的人。先让护院总管点头。"
   dialogue:
     - "护身拳先练站架和受击。你要知道哪里能挡，哪里必须躲。"
   respawn: 0
@@ -693,6 +699,9 @@
     basic_lightness: 14
     taihu_breath: 16
     mist_step: 10
+  teach_requires:
+    flag: taihu.pavilion_guest
+    refusal: "水榭的调息只传给水榭认过的人。"
   dialogue:
     - "调息不是坐着不动。练熟以后，受伤和奔跑时也能稳住气息。"
   respawn: 0

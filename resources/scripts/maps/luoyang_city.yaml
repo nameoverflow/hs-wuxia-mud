@@ -7,10 +7,9 @@ rooms:
     name: "洛阳东驿"
     kind: transit
     desc: "从开封西来的车马在驿院落脚，回程的车也从这里套马。北面就是建春门。"
+    char:
+      - luoyang_runner
     exits:
-      south:
-        map: kaifeng_city
-        position: [-2, 2]
       north: [0, 1]
 
   - position: [0, 1]

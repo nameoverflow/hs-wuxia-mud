@@ -1,0 +1,16 @@
+id: dali_road
+name: "南下商路"
+desc: "开封南下入蜀、再转茶马道去大理的长路。商队走了一个多月，雨季在乌蒙山里追上了他们。"
+rooms:
+  - position: [0, 0]
+    id: dali_road_pass
+    name: "乌蒙山道"
+    kind: road
+    desc: "山道贴着崖壁绕过去，雨水顺着石缝往下淌。后车的货绳被泡得发胀，前头已经能听见马帮的铃声。"
+    char:
+      - dali_runner
+      - mountain_bandit
+    exits:
+      north:
+        map: kaifeng_city
+        position: [2, 2]

@@ -1,0 +1,16 @@
+id: taihu_road
+name: "东去药路"
+desc: "开封往太湖的药车先走陆路，到运河边换船。水气一日比一日重。"
+rooms:
+  - position: [0, 0]
+    id: taihu_road_ferry
+    name: "运河渡口"
+    kind: road
+    desc: "运河在这里拐了个弯，渡口只有一座歪斜的木栈。药箱已经卸到岸边，等着装船。"
+    char:
+      - taihu_runner
+      - water_fort_bandit
+    exits:
+      west:
+        map: kaifeng_city
+        position: [3, 2]

@@ -6,11 +6,10 @@ rooms:
     id: dali_teahorse_lodge
     name: "茶马行栈"
     kind: transit
-    desc: "远道商队先在行栈验契落脚。北面是茶马车场，南边是返回开封的长途商路。"
+    desc: "远道商队先在行栈验契落脚。北面是茶马车场，回开封的商队也从这里出发。"
+    char:
+      - dali_runner
     exits:
-      south:
-        map: kaifeng_city
-        position: [2, 2]
       north: [0, 1]
 
   - position: [0, 1]

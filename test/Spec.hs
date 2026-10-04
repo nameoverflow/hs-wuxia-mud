@@ -1009,8 +1009,20 @@ testKaifengSettlingAndTravelFlow = do
   case M.lookup "tester" (inLuoyang ^. players) of
     Nothing -> fail "tester missing after travel"
     Just player -> do
-      assert ((player ^. playerPosition) == ("luoyang_city", (0, 0))) "travel contact did not move the player to Luoyang"
+      assert ((player ^. playerPosition) == ("luoyang_road", (0, 0))) "first journey did not stop on the road"
       assert ((player ^. playerInventory . at "three_city_route_pass") == Just 1) "travel contact did not hand over the route pass"
+  assert (questStageOf "journey_luoyang" inLuoyang == Just "road") "road encounter did not start"
+  (_, roadFight) <- runOk "answer the drunk swordsman" inLuoyang (playerTalk "tester" "road_drunk_swordsman")
+  let beaten = roadFight & battles . ix "tester" . battleEnemyState . battleChar . charHP .~ 0
+  (_, arrived) <- runOk "settle road fight" beaten (updateBattle 0 "tester")
+  assert (questStageOf "journey_luoyang" arrived == Just "completed") "road encounter did not complete"
+  assert (playerAt arrived == Just ("luoyang_city", (0, 0))) "road encounter did not deliver the player to Luoyang"
+  (_, home) <- runOk "ride back to Kaifeng" arrived (playerTalk "tester" "luoyang_runner")
+  assert (playerAt home == Just ("kaifeng_city", (-2, 2))) "Luoyang runner did not carry the player back to Kaifeng"
+  (_, again) <- runOk "ride to Luoyang again" home (playerTalk "tester" "luoyang_runner")
+  assert (playerAt again == Just ("luoyang_city", (0, 0))) "repeat trip did not go straight to Luoyang"
+  where
+    playerAt gs' = view playerPosition <$> M.lookup "tester" (gs' ^. players)
 
 testPlayerSaveRoundTrip :: IO ()
 testPlayerSaveRoundTrip = do

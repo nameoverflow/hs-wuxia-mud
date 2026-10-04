@@ -570,7 +570,7 @@
     - stage: choose_route
       text: "到鼓楼西侧的洛阳车马行，或北街东侧转运区的大理商队、太湖药车，选定第一次远行的方向。"
     - stage: completed
-      text: "三处接引点已经认得你。往后想远行时，找对应接引人即可。"
+      text: "你有了一张同行帖。往后想远行，找对应的接引人同行即可。"
   reward:
     money: 0
     items: []
@@ -603,7 +603,7 @@
       actions:
         - type: message
           speaker: "洛阳接引人"
-          text: "洛阳的车午后出发。那里的人先看名帖，再看剑；你若没有名帖，就带一件愿意当众说清来历的东西。"
+          text: "洛阳的车午后出发。那里的人先看名帖，再看剑；你没有名帖，路上就得自己挣一个。"
         - type: give_item
           item: three_city_route_pass
           amount: 1
@@ -611,12 +611,20 @@
           flag: travel.first.luoyang
         - type: complete_quest
           quest: three_city_leads
+        - type: set_stage
+          quest: journey_luoyang
+          stage: road
         - type: transition
           text: "车轮沿官道向西，开封城声渐渐落在身后。"
           ms: 2400
         - type: move_player
-          map: luoyang_city
+          map: luoyang_road
           position: [0, 0]
+        - type: show_npc
+          npc: road_drunk_swordsman
+        - type: message
+          speaker: "旁白"
+          text: "第三日傍晚，车马在偃师驿外的客栈歇脚。邻桌一个醉剑客拍案而起，非要同车的人报上名号，说洛阳人从不和无名之辈同路。"
 
     - id: choose_dali_route
       trigger:
@@ -629,7 +637,7 @@
       actions:
         - type: message
           speaker: "大理商队护卫"
-          text: "南下路远，商队不白载人。一路替我照看后车，到了大理，吃住和脚钱都按护卫例算。"
+          text: "南下路远，商队不白载人。一路替我照看后车，到了大理，脚钱按护卫例算。"
         - type: give_item
           item: three_city_route_pass
           amount: 1
@@ -637,12 +645,20 @@
           flag: travel.first.dali
         - type: complete_quest
           quest: three_city_leads
+        - type: set_stage
+          quest: journey_dali
+          stage: road
         - type: transition
-          text: "商队沿茶马道南下，城郭、平原与山路依次退向身后。"
+          text: "商队出开封南下，平原、汉水与蜀道依次退向身后。"
           ms: 2400
         - type: move_player
-          map: dali_city
+          map: dali_road
           position: [0, 0]
+        - type: show_npc
+          npc: mountain_bandit
+        - type: message
+          speaker: "旁白"
+          text: "走到第三场雨，山道上滚下两块大石，拦住了后车。几个蒙面汉子从林子里钻出来，为首的一脚踩住了货绳。"
 
     - id: choose_taihu_route
       trigger:
@@ -663,63 +679,17 @@
           flag: travel.first.taihu
         - type: complete_quest
           quest: three_city_leads
+        - type: set_stage
+          quest: journey_taihu
+          stage: road
         - type: transition
           text: "药铃一路向东，空气里的水气渐渐重了。"
           ms: 2400
         - type: move_player
-          map: taihu_water_pavilion
+          map: taihu_road
           position: [0, 0]
-
-    - id: travel_to_luoyang_again
-      trigger:
-        type: talk
-        npc: luoyang_runner
-      conditions:
-        - type: quest_completed
-          quest: three_city_leads
-      actions:
+        - type: show_npc
+          npc: water_fort_bandit
         - type: message
-          speaker: "洛阳接引人"
-          text: "西行车马正要出发。路引带好，途中少管驿卒不肯说的事。"
-        - type: transition
-          text: "车轮沿官道向西，开封城声渐渐落在身后。"
-          ms: 1500
-        - type: move_player
-          map: luoyang_city
-          position: [0, 0]
-
-    - id: travel_to_dali_again
-      trigger:
-        type: talk
-        npc: dali_runner
-      conditions:
-        - type: quest_completed
-          quest: three_city_leads
-      actions:
-        - type: message
-          speaker: "大理商队护卫"
-          text: "后车还缺一个照看货绳的人。想南下便跟紧，掉队没人回头找。"
-        - type: transition
-          text: "商队沿茶马道南下，城郭、平原与山路依次退向身后。"
-          ms: 1500
-        - type: move_player
-          map: dali_city
-          position: [0, 0]
-
-    - id: travel_to_taihu_again
-      trigger:
-        type: talk
-        npc: taihu_runner
-      conditions:
-        - type: quest_completed
-          quest: three_city_leads
-      actions:
-        - type: message
-          speaker: "太湖药童"
-          text: "药箱已经点齐。若去太湖，帮我听着车铃，少一声便要停车。"
-        - type: transition
-          text: "药铃一路向东，空气里的水气渐渐重了。"
-          ms: 1500
-        - type: move_player
-          map: taihu_water_pavilion
-          position: [0, 0]
+          speaker: "旁白"
+          text: "药车到了运河渡口，几条快船横在水面上，船头的人喊：太湖的水路，过一车，留一箱。"

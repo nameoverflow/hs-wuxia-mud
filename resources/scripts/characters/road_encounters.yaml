@@ -1,0 +1,91 @@
+- id: road_drunk_swordsman
+  name: "醉剑客"
+  desc: "他的剑鞘上缠着褪色的红绳，酒碗推到桌角，眼睛却很清楚。"
+  actions: [dialogue]
+  hidden: true
+  martial_arts:
+    foundation:
+      - id: basic_sword
+        level: 8
+    sword:
+      - id: luoyang_sword
+        level: 4
+  prepared:
+    sword:
+      id: luoyang_sword
+      level: 4
+  dialogue:
+    - "洛阳人不和无名之辈同路。"
+  respawn: 0
+  attr:
+    hp: 110
+    qi: 90
+    max_qi: 90
+    jing: 110
+    qi_regen: 2.0
+    innate:
+      strength: 15
+      agility: 19
+      vitality: 14
+
+- id: mountain_bandit
+  name: "山道劫匪"
+  desc: "他用黑布蒙着半张脸，手里攥着一根包了铁皮的短棍，脚下踩着后车的货绳。"
+  actions: [dialogue]
+  hidden: true
+  martial_arts:
+    foundation:
+      - id: basic_fist
+        level: 8
+    fist:
+      - id: nameless_trial_fist
+        level: 6
+  prepared:
+    fist:
+      id: nameless_trial_fist
+      level: 6
+  dialogue:
+    - "山是我们的，路也是我们的。"
+  respawn: 0
+  attr:
+    hp: 120
+    qi: 80
+    max_qi: 80
+    jing: 100
+    qi_regen: 1.5
+    innate:
+      strength: 21
+      agility: 14
+      vitality: 17
+
+- id: water_fort_bandit
+  name: "水寨喽啰"
+  desc: "他站在快船船头，赤着脚，腰上别着一把分水刺，船尾插着一面写着“湖”字的小旗。"
+  actions: [dialogue]
+  hidden: true
+  martial_arts:
+    foundation:
+      - id: basic_fist
+        level: 7
+      - id: basic_lightness
+        level: 8
+    fist:
+      - id: nameless_trial_fist
+        level: 5
+  prepared:
+    fist:
+      id: nameless_trial_fist
+      level: 5
+  dialogue:
+    - "太湖的水路，过一车，留一箱。"
+  respawn: 0
+  attr:
+    hp: 105
+    qi: 80
+    max_qi: 80
+    jing: 100
+    qi_regen: 1.5
+    innate:
+      strength: 17
+      agility: 20
+      vitality: 14
