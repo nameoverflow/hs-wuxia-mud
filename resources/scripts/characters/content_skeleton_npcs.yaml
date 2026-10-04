@@ -203,8 +203,8 @@
       vitality: 12
 
 - id: post_runner
-  name: "驿卒小梁"
-  desc: "小梁背着油布信筒，鞋底磨得很薄。"
+  name: "驿卒小乔"
+  desc: "小乔背着油布信筒，鞋底磨得很薄。"
   actions: [dialogue]
   martial_arts:
     foundation:
@@ -614,7 +614,7 @@
       vitality: 30
 
 - id: taihu_herb_boy
-  name: "太湖采药童"
+  name: "药圃小童"
   desc: "他蹲在药畦边，用小竹片拨开泥土。"
   actions: [dialogue]
   martial_arts:
