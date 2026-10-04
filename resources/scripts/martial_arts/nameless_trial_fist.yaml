@@ -44,20 +44,3 @@ active_skills:
     effect:
       self: []
       target: []
-  - id: healing_palm
-    name: "回气掌"
-    desc: "以掌按住气口，暂时稳住伤势。"
-    msg: "运气按掌，缓和伤势"
-    unlock_level: 1
-    cd: 8.0
-    target: Self
-    cost: 50
-    ap_req: 40
-    req_status: []
-    heal: 40
-    animation:
-      action: rig.fist.healing_palm
-      tags: ["heal", "self"]
-    effect:
-      self: []
-      target: []

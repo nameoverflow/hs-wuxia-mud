@@ -6,7 +6,7 @@
     - stage: inn
       text: "去西市街口北边的樊楼客舍，先找个能过夜的地方。"
     - stage: training
-      text: "回南门演武场见梁教头，为自己选一条安身练功的路。"
+      text: "回南门演武场见梁教头，让他看看你的底子。"
     - stage: practice
       text: "与南门演武场的练招木人试几招，熟悉开封武馆的规矩。"
     - stage: first_job
@@ -202,14 +202,14 @@
           quest: first_steps_kaifeng
           stage: practice
       actions:
-        - type: hide_npc
-          npc: kaifeng_training_dummy
+        - type: set_flag
+          flag: kaifeng.martial_hall_student
         - type: set_stage
           quest: first_steps_kaifeng
           stage: first_job
         - type: message
           speaker: "梁教头"
-          text: "还不算稳，但知道什么时候该退。往后想学什么，拿潜能和工夫来换。眼下先去挣顿饭钱。"
+          text: "还不算稳，但知道什么时候该退。往后你算南门武馆挂了名的学徒，想学什么，拿潜能和工夫来换。眼下先去挣顿饭钱。"
 
     - id: first_job_scribe_scholar
       trigger:

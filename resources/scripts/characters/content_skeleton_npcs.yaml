@@ -56,6 +56,9 @@
     nameless_trial_fist: 5
     nameless_trial_sword: 5
     escort_short_fist: 5
+  teach_requires:
+    flag: kaifeng.martial_hall_student
+    refusal: "先在场上对过木人，我看过你的底子，再谈教什么。"
   dialogue:
     - "府城武馆先教基础。拳脚护身，轻功跑路，内功续命，兵器拉开距离，少一样都不算入门。"
   respawn: 0
@@ -123,7 +126,7 @@
 
 - id: kaifeng_physician
   name: "柳药师"
-  desc: "柳药师眉眼温和，拿药刀的手却稳得吓人。"
+  desc: "柳药师眉眼温和，拿药刀的手却稳得吓人。她早年在太湖水榭学过医，说起水榭总是很客气。"
   actions: [dialogue]
   martial_arts:
     foundation:
@@ -138,8 +141,8 @@
       level: 6
   teaches:
     basic_internal: 8
-    taihu_breath: 4
   dialogue:
+    - "水榭的调息不是我能外传的。你真想学，得自己去太湖，让水榭认你。"
     - "伤口若不及时处理，小伤也会拖成大事。先学会止血，再谈行走江湖。"
   respawn: 0
   attr:
@@ -207,18 +210,11 @@
     foundation:
       - id: basic_lightness
         level: 10
-    lightness:
-      - id: mist_step
-        level: 6
-  prepared:
-    lightness:
-      id: mist_step
-      level: 6
+  prepared: {}
   teaches:
     basic_lightness: 8
-    mist_step: 4
   dialogue:
-    - "送信第一条规矩：信可以湿，人不能停。雁门旧道上的信，更不能停。"
+    - "送信第一条规矩：信可以湿，人不能停。北郊递道上的信，更不能停。"
   respawn: 0
   attr:
     hp: 100
@@ -242,17 +238,16 @@
       - id: basic_sword
         level: 10
     fist:
-      - id: dali_guard_fist
-        level: 7
+      - id: nameless_trial_fist
+        level: 9
   prepared:
     fist:
-      id: dali_guard_fist
-      level: 7
+      id: nameless_trial_fist
+      level: 9
   teaches:
     basic_fist: 8
-    dali_guard_fist: 4
   dialogue:
-    - "雁门旧道最近不安生。你若真想见江湖，先从能回来的一趟开始。"
+    - "北郊递道最近不安生。你若真想见江湖，先从能回来的一趟开始。"
   respawn: 0
   attr:
     hp: 180
@@ -384,7 +379,7 @@
 
 - id: yanmen_spy
   name: "雁门探子"
-  desc: "他披着湿斗篷，腰间别着短刀，正在小径上拦查行人。"
+  desc: "他披着湿斗篷，袖口缠着麻绳，拳背上全是老茧，正在小径上拦查行人。"
   actions: [dialogue]
   hidden: true
   martial_arts:
@@ -394,12 +389,12 @@
       - id: basic_lightness
         level: 4
     fist:
-      - id: dali_guard_fist
-        level: 3
+      - id: nameless_trial_fist
+        level: 6
   prepared:
     fist:
-      id: dali_guard_fist
-      level: 3
+      id: nameless_trial_fist
+      level: 6
   dialogue:
     - "这条旧道归谁管？谁能站着走出去，就归谁管。"
   respawn: 45
@@ -465,7 +460,6 @@
     basic_sword: 16
     basic_lightness: 14
     luoyang_sword: 10
-    mist_step: 8
   dialogue:
     - "洛阳剑不怕练得慢，怕的是基础没稳就急着比试。先把步法练熟。"
   respawn: 0
@@ -499,12 +493,7 @@
     sword:
       id: luoyang_sword
       level: 20
-  teaches:
-    basic_sword: 20
-    basic_lightness: 18
-    basic_internal: 12
-    luoyang_sword: 14
-    mist_step: 10
+  teaches: {}
   dialogue:
     - "完整的契书多半有人精心做过，反倒是残页肯留下不该留下的字。"
   respawn: 0
@@ -565,11 +554,7 @@
     fist:
       id: dali_guard_fist
       level: 18
-  teaches:
-    basic_fist: 18
-    basic_internal: 16
-    dali_guard_fist: 12
-    escort_short_fist: 8
+  teaches: {}
   dialogue:
     - "段家不怕你拳慢，怕你接了事又退。拳可以练，肩膀也可以练。"
   respawn: 0
@@ -608,7 +593,6 @@
     basic_internal: 18
     basic_lightness: 10
     dali_guard_fist: 16
-    escort_short_fist: 10
   dialogue:
     - "护身拳先练站架和受击。你要知道哪里能挡，哪里必须躲。"
   respawn: 0
@@ -671,11 +655,7 @@
     internal:
       id: taihu_breath
       level: 18
-  teaches:
-    basic_internal: 20
-    basic_lightness: 12
-    taihu_breath: 12
-    mist_step: 8
+  teaches: {}
   dialogue:
     - "来水榭求医的人，多半只肯说伤在哪里，不肯说伤从哪里来。医者可以不问，学医的人却要会看。"
   respawn: 0

@@ -1,7 +1,7 @@
 id: weiyuan_sword
 name: "威远剑法"
 type: sword
-desc: "威远镖局传给新镖师的入门剑法，重在稳步、护身和封路。"
+desc: "威远镖局开局镖头所创，专为押镖时护车封路，重在稳步、护身。镖局规矩：此剑只传入了镖册的自家人。"
 foundation: basic_sword
 requires:
   - art: basic_sword
