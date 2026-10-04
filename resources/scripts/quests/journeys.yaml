@@ -91,7 +91,7 @@
         - type: in_map
           map: kaifeng_city
         - type: not_has_item
-          item: three_city_route_pass
+          item: travel_pass
       actions:
         - type: message
           speaker: "洛阳接引人"
@@ -268,7 +268,7 @@
         - type: in_map
           map: kaifeng_city
         - type: not_has_item
-          item: three_city_route_pass
+          item: travel_pass
       actions:
         - type: message
           speaker: "大理商队护卫"
@@ -443,7 +443,7 @@
         - type: in_map
           map: kaifeng_city
         - type: not_has_item
-          item: three_city_route_pass
+          item: travel_pass
       actions:
         - type: message
           speaker: "太湖药童"

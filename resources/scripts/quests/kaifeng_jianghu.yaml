@@ -164,7 +164,7 @@
         npc: caoban_du_san
       conditions:
         - type: quest_completed
-          quest: yanmen_patrol
+          quest: north_road_patrol
         - type: quest_not_started
           quest: caoban_dock_rules
       actions:

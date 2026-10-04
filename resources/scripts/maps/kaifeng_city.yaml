@@ -426,5 +426,5 @@ rooms:
     exits:
       south: [0, 4]
       north:
-        map: yanmen_old_road
+        map: north_post_road
         position: [0, 0]

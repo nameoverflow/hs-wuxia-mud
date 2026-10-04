@@ -1,9 +1,9 @@
-id: yanmen_old_road
+id: north_post_road
 name: "北郊递道"
-desc: "开封北门外通往黄河渡口的旧递道。北来的公文、塘报都从这里过河进城，老驿卒仍按旧习叫它雁门道。松林很密，近来常有公文在这里失踪。"
+desc: "开封北门外通往黄河渡口的旧递道。北来的公文、塘报都从这里过河进城。松林很密，近来常有公文在这里失踪。"
 rooms:
   - position: [0, 0]
-    id: yanmen_south_marker
+    id: north_road_south_marker
     name: "旧道南口"
     desc: "石碑上刻着“北郊递道”四个字，旁边另有驿卒补刻的小字：去黄河渡口三十里，天黑莫行。"
     exits:
@@ -13,7 +13,7 @@ rooms:
       north: [0, 1]
 
   - position: [0, 1]
-    id: yanmen_low_road
+    id: north_road_low_road
     name: "低松驿路"
     desc: "松枝压得很低，车马经过时常要低头。"
     exits:
@@ -21,7 +21,7 @@ rooms:
       north: [0, 2]
 
   - position: [0, 2]
-    id: yanmen_relay_pavilion
+    id: north_road_relay_pavilion
     name: "递铺亭"
     desc: "旧递铺亭里只剩一张条凳和几只空信筒，墙上贴着开封府的告示。"
     char:
@@ -33,7 +33,7 @@ rooms:
       east: [1, 2]
 
   - position: [-1, 2]
-    id: yanmen_old_roadside_shrine
+    id: north_post_roadside_shrine
     name: "路边小祠"
     desc: "小祠里供着无名边卒牌位，香灰被雨吹成细线。"
     exits:
@@ -41,7 +41,7 @@ rooms:
       north: [-1, 3]
 
   - position: [1, 2]
-    id: yanmen_hunter_shed
+    id: north_road_hunter_shed
     name: "猎户棚"
     desc: "棚里有几张旧弓和半锅冷粥，主人离开得很匆忙。"
     exits:
@@ -49,7 +49,7 @@ rooms:
       north: [1, 3]
 
   - position: [0, 3]
-    id: yanmen_fork
+    id: north_road_fork
     name: "旧道岔口"
     desc: "官道在这里分出两条小径。西边脚印杂乱，东边是采药人走的坡道。"
     exits:
@@ -59,17 +59,17 @@ rooms:
       east: [1, 3]
 
   - position: [-1, 3]
-    id: yanmen_hidden_path
+    id: north_road_hidden_path
     name: "藏身小径"
     desc: "小径被松针盖住，只有常来的人才知道该往哪里落脚。"
     char:
-      - yanmen_spy
+      - mail_thief_spy
     exits:
       east: [0, 3]
       south: [-1, 2]
 
   - position: [1, 3]
-    id: yanmen_herb_slope
+    id: north_road_herb_slope
     name: "药草坡"
     desc: "坡上长着几丛车前和蒲公英，采药人的竹篓压出的印子还新。"
     exits:
@@ -77,7 +77,7 @@ rooms:
       south: [1, 2]
 
   - position: [0, 4]
-    id: yanmen_abandoned_shrine
+    id: north_road_abandoned_shrine
     name: "废军祠"
     desc: "废祠门歪着，门后有新烧过的灰，说明近来有人在此落脚。"
     exits:
@@ -85,7 +85,7 @@ rooms:
       north: [0, 5]
 
   - position: [0, 5]
-    id: yanmen_ridge_overlook
+    id: north_road_levee
     name: "黄河南堤"
     desc: "大堤横在北面，堤下黄水翻着泥沙。渡口的船要到天明才开，守渡军士只验公牒，不许无故过河。"
     exits:

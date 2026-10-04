@@ -69,7 +69,7 @@ Faction YAML
 
 ## 北郊递道
 
-北郊递道（地图 id `yanmen_old_road`，沿用旧名）是开封北门外到黄河南堤的独立差事区：
+北郊递道（地图 id `north_post_road`）是开封北门外到黄河南堤的独立差事区：
 
 - 递铺亭触发追踪。
 - 西侧小径出现玩家独立可见的截信探子。
@@ -84,7 +84,7 @@ Faction YAML
 - `resources/scripts/maps/weiyuan_road.yaml`
 - `resources/scripts/maps/bianshui_road.yaml`
 - `resources/scripts/maps/kaifeng_city.yaml`
-- `resources/scripts/maps/yanmen_old_road.yaml`
+- `resources/scripts/maps/north_post_road.yaml`
 - `resources/scripts/maps/luoyang_city.yaml`
 - `resources/scripts/maps/dali_city.yaml`
 - `resources/scripts/maps/taihu_water_pavilion.yaml`

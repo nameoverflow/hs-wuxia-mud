@@ -47,7 +47,7 @@
 - `three_city_leads`：玩家可见为“远行门路”，从洛阳、大理、太湖中选择第一次远行方向。
 - `journey_luoyang` / `journey_dali` / `journey_taihu`：首次远行的路上事件，取得各城的门户信任。
 - `city_households`：段氏护院总管、太湖白发医者认人。
-- `yanmen_patrol`：北郊递道失信（id 沿用旧名）。
+- `north_road_patrol`：北郊递道失信。
 
 主要 NPC：
 

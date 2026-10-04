@@ -370,7 +370,7 @@
         - type: complete_quest
           quest: first_steps_kaifeng
 
-- id: yanmen_patrol
+- id: north_road_patrol
   name: "北郊递道失信"
   objectives:
     - stage: accepted
@@ -414,7 +414,7 @@
         - type: quest_completed
           quest: first_steps_kaifeng
         - type: quest_not_started
-          quest: yanmen_patrol
+          quest: north_road_patrol
         - type: flag
           flag: jianghu.caoban_friend
       actions:
@@ -425,7 +425,7 @@
           speaker: "顾捕头"
           text: "北门递铺少了两封北来的公文。你若想接一件正经差事，就去亭里看一眼；见到人先问话，别越过岔口往北追。"
         - type: set_stage
-          quest: yanmen_patrol
+          quest: north_road_patrol
           stage: accepted
 
     - id: constable_starts_patrol
@@ -436,7 +436,7 @@
         - type: quest_completed
           quest: first_steps_kaifeng
         - type: quest_not_started
-          quest: yanmen_patrol
+          quest: north_road_patrol
       actions:
         - type: message
           speaker: "顾捕头"
@@ -445,66 +445,66 @@
           speaker: "顾捕头"
           text: "先说一句：替捕房跑腿的人，江湖上有人会叫你鹰犬。接不接，你自己想清楚。"
         - type: set_stage
-          quest: yanmen_patrol
+          quest: north_road_patrol
           stage: accepted
 
     - id: inspect_relay_pavilion
       trigger:
         type: enter_room
-        map: yanmen_old_road
+        map: north_post_road
         position: [0, 2]
       conditions:
         - type: quest_stage
-          quest: yanmen_patrol
+          quest: north_road_patrol
           stage: accepted
         - type: not_flag
-          flag: yanmen.tracks_seen
+          flag: north_road.tracks_seen
       actions:
         - type: set_flag
-          flag: yanmen.tracks_seen
+          flag: north_road.tracks_seen
         - type: show_npc
-          npc: yanmen_spy
+          npc: mail_thief_spy
         - type: set_stage
-          quest: yanmen_patrol
+          quest: north_road_patrol
           stage: found_tracks
         - type: message
           speaker: "旁白"
           text: "亭柱后有一串被松枝扫过的马蹄印，仍能看出向西折进小径。泥里还压着半截断掉的信筒铜扣。"
 
-    - id: confront_yanmen_spy
+    - id: confront_mail_thief_spy
       trigger:
         type: talk
-        npc: yanmen_spy
+        npc: mail_thief_spy
       conditions:
         - type: quest_stage
-          quest: yanmen_patrol
+          quest: north_road_patrol
           stage: found_tracks
       actions:
         - type: message
           speaker: "截信探子"
           text: "开封府养的脚倒快。信已经不在我身上，你还想问，就先让我开不了口。"
         - type: set_stage
-          quest: yanmen_patrol
+          quest: north_road_patrol
           stage: confronting
         - type: start_battle
-          target: yanmen_spy
+          target: mail_thief_spy
 
-    - id: defeat_yanmen_spy
+    - id: defeat_mail_thief_spy
       trigger:
         type: kill
-        npc: yanmen_spy
+        npc: mail_thief_spy
       conditions:
         - type: quest_stage
-          quest: yanmen_patrol
+          quest: north_road_patrol
           stage: confronting
       actions:
         - type: hide_npc
-          npc: yanmen_spy
+          npc: mail_thief_spy
         - type: give_item
-          item: yanmen_wooden_badge
+          item: relay_wooden_badge
           amount: 1
         - type: set_stage
-          quest: yanmen_patrol
+          quest: north_road_patrol
           stage: report
         - type: message
           speaker: "旁白"
@@ -513,17 +513,17 @@
     - id: patrol_overstepped_north
       trigger:
         type: enter_room
-        map: yanmen_old_road
+        map: north_post_road
         position: [0, 4]
       conditions:
         - type: quest_stage
-          quest: yanmen_patrol
+          quest: north_road_patrol
           stage: found_tracks
         - type: not_flag
-          flag: yanmen.overstepped
+          flag: north_road.overstepped
       actions:
         - type: set_flag
-          flag: yanmen.overstepped
+          flag: north_road.overstepped
         - type: message
           speaker: "旁白"
           text: "你越过了顾捕头说的岔口。废祠里的灰还温着，人却早走了。"
@@ -534,10 +534,10 @@
         npc: kaifeng_constable
       conditions:
         - type: quest_stage
-          quest: yanmen_patrol
+          quest: north_road_patrol
           stage: report
         - type: flag
-          flag: yanmen.overstepped
+          flag: north_road.overstepped
       actions:
         - type: message
           speaker: "顾捕头"
@@ -545,7 +545,7 @@
         - type: give_money
           amount: 50
         - type: complete_quest
-          quest: yanmen_patrol
+          quest: north_road_patrol
 
     - id: constable_completes_patrol
       trigger:
@@ -553,7 +553,7 @@
         npc: kaifeng_constable
       conditions:
         - type: quest_stage
-          quest: yanmen_patrol
+          quest: north_road_patrol
           stage: report
       actions:
         - type: message
@@ -562,7 +562,7 @@
         - type: give_money
           amount: 50
         - type: complete_quest
-          quest: yanmen_patrol
+          quest: north_road_patrol
 
 - id: three_city_leads
   name: "远行门路"
@@ -605,7 +605,7 @@
           speaker: "洛阳接引人"
           text: "洛阳的车午后出发。那里的人先看名帖，再看剑；你没有名帖，路上就得自己挣一个。"
         - type: give_item
-          item: three_city_route_pass
+          item: travel_pass
           amount: 1
         - type: set_flag
           flag: travel.first.luoyang
@@ -639,7 +639,7 @@
           speaker: "大理商队护卫"
           text: "南下路远，商队不白载人。一路替我照看后车，到了大理，脚钱按护卫例算。"
         - type: give_item
-          item: three_city_route_pass
+          item: travel_pass
           amount: 1
         - type: set_flag
           flag: travel.first.dali
@@ -673,7 +673,7 @@
           speaker: "太湖药童"
           text: "药车不赶夜路，也不收闲客。你若肯沿途看着药箱，到了湖边，我替你向水榭报一声姓名。"
         - type: give_item
-          item: three_city_route_pass
+          item: travel_pass
           amount: 1
         - type: set_flag
           flag: travel.first.taihu

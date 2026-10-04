@@ -377,7 +377,7 @@
       agility: 17
       vitality: 10
 
-- id: yanmen_spy
+- id: mail_thief_spy
   name: "截信探子"
   desc: "他披着湿斗篷，袖口缠着麻绳，拳背上全是老茧，正在小径上拦查行人。"
   actions: [dialogue]

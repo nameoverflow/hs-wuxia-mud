@@ -949,7 +949,7 @@ testKaifengJianghuFlow = do
   (_, suspected) <- runOk "constable sizes up the player" atConstable (playerTalk "tester" "kaifeng_constable")
   assert (hasFlag "kaifeng.constable_suspects" suspected) "constable did not question the night at the ferry"
   (patrolResponses, patrol) <- runOk "constable offers patrol" suspected (playerTalk "tester" "kaifeng_constable")
-  assert (questStageOf "yanmen_patrol" patrol == Just "accepted") "constable did not offer the patrol"
+  assert (questStageOf "north_road_patrol" patrol == Just "accepted") "constable did not offer the patrol"
   _ <- requireResponseIndex "constable notes the caoban tie" (\case StoryMsg _ text -> "南渡客" `T.isInfixOf` text; _ -> False) patrolResponses
   pure ()
   where
@@ -1010,7 +1010,7 @@ testKaifengSettlingAndTravelFlow = do
     Nothing -> fail "tester missing after travel"
     Just player -> do
       assert ((player ^. playerPosition) == ("luoyang_road", (0, 0))) "first journey did not stop on the road"
-      assert ((player ^. playerInventory . at "three_city_route_pass") == Just 1) "travel contact did not hand over the route pass"
+      assert ((player ^. playerInventory . at "travel_pass") == Just 1) "travel contact did not hand over the route pass"
   assert (questStageOf "journey_luoyang" inLuoyang == Just "road") "road encounter did not start"
   (_, roadFight) <- runOk "answer the drunk swordsman" inLuoyang (playerTalk "tester" "road_drunk_swordsman")
   let beaten = roadFight & battles . ix "tester" . battleEnemyState . battleChar . charHP .~ 0
