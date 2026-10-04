@@ -16,7 +16,7 @@ import Control.Monad.RWS (tell)
 import Control.Monad.Random (getStdGen, MonadIO (liftIO), newStdGen, runRand)
 import Data.List (find, maximumBy)
 import qualified Data.Map.Strict as M
-import Data.Maybe (catMaybes, fromMaybe, isJust)
+import Data.Maybe (catMaybes, fromMaybe, isJust, listToMaybe)
 import Data.Ord (comparing)
 import qualified Data.Set as S
 import qualified Data.Text as T
@@ -190,8 +190,11 @@ playerView pid = do
                     roomExitSummaryRoomName = dstRoom ^. roomName,
                     roomExitSummaryPosition = dst ^. roomRefPos
                   }
+  storyState <- ensureStoryState pid
   let curRoomName = curRoom ^. roomName
-  let curRoomDesc = curRoom ^. roomDesc
+  let curRoomDesc =
+        fromMaybe (curRoom ^. roomDesc) $
+          listToMaybe [desc | (flag, desc) <- curRoom ^. roomDescVariants, S.member flag (storyState ^. storyFlags)]
   tell [(pid, ViewMsg curRoomName curRoomDesc curRoomChars curRoomExits)]
   sendPlayerStats pid
   sendPlayerInventory pid
@@ -337,6 +340,13 @@ storyConditionMet pid condition = do
     NpcAlive cid -> do
       npc <- liftWorld $ getsCharacter cid
       return $ npc ^. charStatus == CharAlive
+    HasItem itemId -> playerHoldsItem itemId
+    LacksItem itemId -> not <$> playerHoldsItem itemId
+    InMap mid -> (== mid) . fst . view playerPosition <$> getsPlayer pid
+  where
+    playerHoldsItem itemId = do
+      player <- getsPlayer pid
+      return $ maybe False (> 0) $ player ^. playerInventory . at itemId
 
 executeStoryActions :: PlayerId -> [StoryAction] -> GameStateT ()
 executeStoryActions pid actions = do
@@ -601,6 +611,10 @@ playerLearnArt pid teacherId artId times = do
   when (times <= 0) $
     throwStructured "learn_times_must_be_positive" [("times", showText times)]
   teacher <- getsRoomCharacter pid teacherId Dialogue
+  storyState <- ensureStoryState pid
+  forM_ (teacher ^. charTeachRequires) $ \requirement ->
+    unless (S.member (requirement ^. teachRequiresFlag) (storyState ^. storyFlags)) $
+      throwStructured "teacher_refuses" [("teacher", teacher ^. charName), ("reason", requirement ^. teachRefusal)]
   teacherMaxLevel <- case teacher ^. charTeaches . at artId of
     Nothing -> throwStructured "teacher_cannot_teach_art" [("teacher", teacher ^. charName), ("artId", artId)]
     Just maxLevel -> return maxLevel

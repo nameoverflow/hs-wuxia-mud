@@ -3,6 +3,7 @@
 
 import Control.Lens
 import Control.Monad (replicateM_, unless)
+import Control.Monad.Except (throwError)
 import Control.Monad.Random (mkStdGen, runRand)
 import Data.Aeson (eitherDecode)
 import Data.List (findIndex)
@@ -53,6 +54,8 @@ main = do
   testJingRequirementFailure
   testJingTickRecovery
   testLearningRequirementFailure
+  testTeacherRequiresStoryFlag
+  testStoryConditionsAndRoomVariants
   testArtsQuery
   testWeiyuanChapterFlow
   testKaifengSettlingAndTravelFlow
@@ -746,6 +749,46 @@ testProgressionActions = do
       assert ((player ^. playerCharacter . charQi) == 60) "meditation did not consume qi"
       assert ((player ^. playerCharacter . charMaxQi) == 102) "meditation did not raise max qi"
       assert ((player ^. playerCharacter . charJing) == 69) "meditation did not consume jing"
+
+testTeacherRequiresStoryFlag :: IO ()
+testTeacherRequiresStoryFlag = do
+  gs <- newTestPlayerState
+  let gated =
+        withCombatNpcInStarterRoom gs
+          & world . chars . ix testCombatNpcId . charTeachRequires ?~ TeachRequirement "test.trusted" "门外人不教。"
+  refused <- runGameState gated (playerLearnArt "tester" testCombatNpcId "weiyuan_sword" 1)
+  case refused of
+    Left (StructuredException (ErrorSummary code params)) -> do
+      assert (code == "teacher_refuses") "gated teacher used the wrong error code"
+      assert (M.lookup "reason" params == Just "门外人不教。") "gated teacher did not pass the refusal line"
+    Left err -> fail $ "expected teacher refusal, got: " <> show err
+    Right _ -> fail "gated teacher taught a player without the required flag"
+  let trusted = gated & stories . ix "tester" . storyFlags %~ S.insert "test.trusted"
+  (_, learned) <- runOk "learn from trusting teacher" trusted (playerLearnArt "tester" testCombatNpcId "weiyuan_sword" 1)
+  case M.lookup "tester" (learned ^. players) of
+    Nothing -> fail "tester missing after gated learning"
+    Just player -> assert (knowsArtAt "weiyuan_sword" 1 player) "trusted player could not learn from the gated teacher"
+
+testStoryConditionsAndRoomVariants :: IO ()
+testStoryConditionsAndRoomVariants = do
+  gs <- newTestPlayerState
+  (_, holding) <- runOk "check item and map conditions" gs $ do
+    lacking <- storyConditionMet "tester" (LacksItem "soaked_route_note")
+    inTemple <- storyConditionMet "tester" (InMap "weiyuan_road")
+    elsewhere <- storyConditionMet "tester" (InMap "kaifeng_city")
+    unless (lacking && inTemple && not elsewhere) $ throwError $ OtherException "conditions misjudged a fresh player"
+    addInventoryItem "tester" "soaked_route_note" 1
+  (_, checked) <- runOk "check item condition after pickup" holding $ do
+    holds <- storyConditionMet "tester" (HasItem "soaked_route_note")
+    unless holds $ throwError $ OtherException "has_item missed a held item"
+  let variant =
+        checked
+          & world . maps . ix "weiyuan_road" . mapRooms . ix (3, 3) . roomDescVariants .~ [("test.later", "庙里只剩冷灰。")]
+  (plainResponses, _) <- runOk "view room without flag" variant (playerView "tester")
+  assert (any (\case ViewMsg _ desc _ _ -> desc /= "庙里只剩冷灰。"; _ -> False) (map snd plainResponses)) "room variant shown without its flag"
+  let flagged = variant & stories . ix "tester" . storyFlags %~ S.insert "test.later"
+  (flaggedResponses, _) <- runOk "view room with flag" flagged (playerView "tester")
+  assert (any (\case ViewMsg _ desc _ _ -> desc == "庙里只剩冷灰。"; _ -> False) (map snd flaggedResponses)) "room variant not shown with its flag"
 
 testJingRequirementFailure :: IO ()
 testJingRequirementFailure = do

@@ -274,6 +274,12 @@ validateWorld wrld =
       FlagUnset _ -> []
       NpcDead cid -> requireChar qid eid "condition" cid
       NpcAlive cid -> requireChar qid eid "condition" cid
+      HasItem itemId -> requireItem qid eid "condition" itemId
+      LacksItem itemId -> requireItem qid eid "condition" itemId
+      InMap mid ->
+        [ "quest " <> qid <> " event " <> eid <> " condition references missing map " <> mid
+          | M.notMember mid (wrld ^. maps)
+        ]
 
     validateAction qid eid = \case
       StoryMessage _ _ -> []

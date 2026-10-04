@@ -71,6 +71,9 @@ data StoryCondition
   | FlagUnset FlagId
   | NpcDead CharId
   | NpcAlive CharId
+  | HasItem ItemId
+  | LacksItem ItemId
+  | InMap MapId
   deriving (Show, Eq, Generic)
 
 data StoryAction
@@ -170,6 +173,9 @@ instance FromJSON StoryCondition where
       "not_flag" -> FlagUnset <$> o .: "flag"
       "npc_dead" -> NpcDead <$> o .: "npc"
       "npc_alive" -> NpcAlive <$> o .: "npc"
+      "has_item" -> HasItem <$> o .: "item"
+      "not_has_item" -> LacksItem <$> o .: "item"
+      "in_map" -> InMap <$> o .: "map"
       _ -> fail $ "Invalid story condition type: " <> show typ
 
 instance FromJSON StoryAction where

@@ -30,6 +30,13 @@ resources/scripts/
 - `id`, `name`, `desc`
 - `rooms`
 - room 的 `position`, `id`, `name`, `desc`, `exits`, `char`
+- room 可选 `desc_variants`：按剧情 flag 替换房间描述，第一条命中的生效。用于让世界记得发生过的事，例如命案现场后来贴上封条：
+
+```yaml
+desc_variants:
+  - flag: weiyuan.youth_separated
+    desc: "门上交叉贴着开封府封条……"
+```
 
 方向使用：
 
@@ -62,6 +69,7 @@ NPC YAML 定义：
 - `actions`: `dialogue`, `attacking`, `sparring`
 - `martial_arts` / `prepared`
 - `dialogue`
+- `teach_requires`: 可选，`{flag, refusal}`。门派武学不传外人：玩家没有该剧情 flag 时，传授会被拒绝并显示 `refusal`。
 - `hidden`: 可选，`true` 表示新玩家初始不可见，需要剧情 `show_npc` 放出。
 - `respawn`
 - `attr`: `hp`, `qi`, `max_qi`, `qi_regen`, `str`, `agi`, `vit`
@@ -107,6 +115,8 @@ events:
 - `not_flag`
 - `npc_dead`
 - `npc_alive`
+- `has_item` / `not_has_item`: 玩家背包里是否有指定物品，字段 `item`。
+- `in_map`: 玩家当前是否在指定地图，字段 `map`。同一 NPC 出现在多张地图时，用它区分去程和回程。
 
 ### Action
 

@@ -640,6 +640,20 @@ makeLenses ''DerivedStatModifiers
 makeLenses ''DerivedStatSources
 makeLenses ''CharacterVitals
 
+-- | A teacher only passes on arts to players carrying the story flag;
+-- everyone else hears the refusal line.
+data TeachRequirement = TeachRequirement
+  { _teachRequiresFlag :: Text,
+    _teachRefusal :: Text
+  }
+  deriving (Show, Generic, Eq)
+
+makeLenses ''TeachRequirement
+
+instance FromJSON TeachRequirement where
+  parseJSON = withObject "TeachRequirement" $ \o ->
+    TeachRequirement <$> o .: "flag" <*> o .: "refusal"
+
 data Character = Character
   { _charId :: CharId,
     _charName :: Text,
@@ -665,6 +679,7 @@ data Character = Character
     _charPrepare :: M.Map ArtType ArtEntity,
     _charEnabled :: M.Map ArtType ArtEntity,
     _charTeaches :: M.Map ArtId Int,
+    _charTeachRequires :: Maybe TeachRequirement,
     _charItems :: S.Set ItemEntity,
     _charArt :: M.Map ArtType [ArtEntity],
     -- Status
@@ -673,6 +688,7 @@ data Character = Character
   deriving (Show, Generic, Eq)
 
 makeLenses ''Character
+
 
 newCharacter :: CharId -> Text -> Character
 newCharacter cid cname =
@@ -699,6 +715,7 @@ newCharacter cid cname =
       _charPrepare = M.empty,
       _charEnabled = M.empty,
       _charTeaches = M.empty,
+      _charTeachRequires = Nothing,
       _charItems = S.empty,
       _charArt = M.empty,
       _charStatus = CharAlive
@@ -739,6 +756,7 @@ instance FromJSON Character where
     _charPrepare <- o .: "prepared"
     _charEnabled <- o .:? "enabled" .!= _charPrepare
     _charTeaches <- o .:? "teaches" .!= M.empty
+    _charTeachRequires <- o .:? "teach_requires"
     -- _charItems <- o .: "items"
     -- _charRoutine <- o .: "routine"
     let _charItems = S.empty
@@ -1085,6 +1103,9 @@ data Room = Room
     _roomPos :: (Int, Int),
     _roomName :: Text,
     _roomDesc :: Text,
+    -- | Story-flag dependent descriptions; the first variant whose flag the
+    -- player has set replaces the default description.
+    _roomDescVariants :: [(Text, Text)],
     _roomKind :: Text,
     _roomScript :: Maybe Text, -- Change this to store the Lua script content
     _roomExits :: M.Map Direction RoomRef,
@@ -1101,6 +1122,9 @@ instance FromJSON Room where
     _roomPos <- o .: "position"
     _roomName <- o .: "name"
     _roomDesc <- o .: "desc"
+    variantObjects <- o .:? "desc_variants" .!= []
+    _roomDescVariants <- mapM (withObject "RoomDescVariant" $ \v ->
+      (,) <$> v .: "flag" <*> v .: "desc") variantObjects
     _roomKind <- o .:? "kind" .!= "building"
     _roomScript <- o .:? "script"
     exitConfigs <- o .: "exits"
@@ -1115,6 +1139,7 @@ instance ToJSON Room where
       [ "id" .= _roomId,
         "name" .= _roomName,
         "desc" .= _roomDesc,
+        "desc_variants" .= [object ["flag" .= flag, "desc" .= desc] | (flag, desc) <- _roomDescVariants],
         "kind" .= _roomKind,
         "script" .= _roomScript,
         "exits" .= _roomExits,
