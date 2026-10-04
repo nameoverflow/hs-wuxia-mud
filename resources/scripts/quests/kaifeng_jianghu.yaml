@@ -1,0 +1,277 @@
+- id: kaifeng_echoes
+  name: "开封风声"
+  objectives: []
+  reward:
+    money: 0
+    items: []
+  events:
+    - id: notice_wall_weiyuan_case
+      trigger:
+        type: enter_room
+        map: kaifeng_city
+        position: [-3, 0]
+      conditions:
+        - type: quest_completed
+          quest: weiyuan_bloody_case
+        - type: not_flag
+          flag: kaifeng.notice_weiyuan_seen
+      actions:
+        - type: set_flag
+          flag: kaifeng.notice_weiyuan_seen
+        - type: message
+          speaker: "旁白"
+          text: "墙上新贴了一张开封府告示：南渡威远分局命案，镖师、眷属十一人遇害，凶徒不明。凡当夜见可疑人等出入者，赴府衙捕房具报。告示边角已经有人用炭笔写了个“暗”字。"
+
+    - id: weiyuan_envoy_arrives_at_ferry
+      trigger:
+        type: enter_room
+        map: kaifeng_city
+        position: [0, -3]
+      conditions:
+        - type: quest_completed
+          quest: first_steps_kaifeng
+        - type: not_flag
+          flag: kaifeng.envoy_arrived
+      actions:
+        - type: set_flag
+          flag: kaifeng.envoy_arrived
+        - type: show_npc
+          npc: weiyuan_envoy
+        - type: message
+          speaker: "旁白"
+          text: "威远分局的封条前，有人把一杆卷起的镖旗插在石阶缝里。旗下站着个背剑的老镖头，正挨个拦住码头上的人问话。"
+
+    - id: storyteller_speaks_of_player
+      trigger:
+        type: talk
+        npc: tea_storyteller
+      conditions:
+        - type: flag
+          flag: jianghu.name.nandu_ke
+        - type: not_flag
+          flag: kaifeng.heard_own_name
+      actions:
+        - type: set_flag
+          flag: kaifeng.heard_own_name
+        - type: message
+          speaker: "张一嘴"
+          text: "列位，今儿说段新的：南渡码头来了个生面孔，一人把盐帮的打手请出了船棚，漕帮杜三爷当场送了个名号，叫“南渡客”。……哟，客官，您怎么脸红了？"
+
+    - id: storyteller_after_envoy
+      trigger:
+        type: talk
+        npc: tea_storyteller
+      conditions:
+        - type: flag
+          flag: weiyuan.met_envoy
+      actions:
+        - type: message
+          speaker: "张一嘴"
+          text: "威远那桩案子，如今有三种说法。有说骆家少主死在了汴水里，有说他投了哪座山门，还有说他压根没死，是自己引的人来。三种我都讲，信哪个随客官。"
+
+    - id: storyteller_envoy_rumor
+      trigger:
+        type: talk
+        npc: tea_storyteller
+      conditions:
+        - type: quest_completed
+          quest: first_steps_kaifeng
+      actions:
+        - type: show_npc
+          npc: weiyuan_envoy
+        - type: set_flag
+          flag: kaifeng.envoy_arrived
+        - type: message
+          speaker: "张一嘴"
+          text: "威远总局来人了，是扛旗三十年的“铁旗”罗万川。人就站在南渡封条底下，挨个问那晚破庙里还有谁。客官若有门路，倒是可以去讨杯酒钱。"
+
+    - id: storyteller_first_rumor
+      trigger:
+        type: talk
+        npc: tea_storyteller
+      conditions:
+        - type: quest_completed
+          quest: weiyuan_bloody_case
+      actions:
+        - type: message
+          speaker: "张一嘴"
+          text: "南渡威远分局一夜死了十一口。茶客都说是威远私走暗镖，吞了黑道的东西，人家上门讨账来了。我说书的不信——讨账的人，不会把账册也一并抢走。"
+
+    - id: weiyuan_envoy_questions_player
+      trigger:
+        type: talk
+        npc: weiyuan_envoy
+      conditions:
+        - type: not_flag
+          flag: weiyuan.met_envoy
+      actions:
+        - type: set_flag
+          flag: weiyuan.met_envoy
+        - type: message
+          speaker: "铁旗罗万川"
+          text: "码头上有人说，那晚从威远后门出来的，是个衣上带血的外乡人。是你？"
+        - type: message
+          speaker: "旁白"
+          text: "你把破庙、陈伯和井台上的字说了一遍。老镖头听到陈伯合眼那一段，背过身去，半晌没有作声。"
+        - type: message
+          speaker: "铁旗罗万川"
+          text: "陈老哥和我一起扛过旗。……少主还活着就好。他既然留字不让人找，我也不逼你，你本来也不知道他往哪去。"
+        - type: message
+          speaker: "铁旗罗万川"
+          text: "底单是总局的东西。可它眼下在谁手上，谁就是靶子。你若不怕，先替他收着；等总局清理了门户，自会来取。"
+        - type: message
+          speaker: "旁白"
+          text: "他说“清理门户”四个字时，目光在你的包袱上停了一停。"
+        - type: message
+          speaker: "铁旗罗万川"
+          text: "剑谱是骆兄弟的私抄本，你留着也罢。只记住，威远剑法不传外人。你在人前用出来，总局的人会来问你，别处的人也会。"
+
+- id: caoban_dock_rules
+  name: "码头规矩"
+  objectives:
+    - stage: accepted
+      text: "到州桥东侧的船棚，把占了漕帮缆桩的盐帮打手请走。"
+    - stage: report
+      text: "回柳岸码头向杜三交代。"
+    - stage: completed
+      text: "漕帮记下了你这份情，码头上的人开始叫你“南渡客”。"
+  reward:
+    money: 0
+    items: []
+  events:
+    - id: du_san_saw_the_back_door
+      trigger:
+        type: talk
+        npc: caoban_du_san
+      conditions:
+        - type: quest_completed
+          quest: weiyuan_bloody_case
+        - type: not_flag
+          flag: caoban.saw_you
+      actions:
+        - type: set_flag
+          flag: caoban.saw_you
+        - type: message
+          speaker: "过江鳅杜三"
+          text: "那晚从威远后门出来的，就你一个。别紧张，码头上看见的事，从不先告诉官府。"
+        - type: message
+          speaker: "过江鳅杜三"
+          text: "先进城找个落脚处吧。日后在开封住下了，再来码头喝碗茶。"
+
+    - id: du_san_refuses_constable_runner
+      trigger:
+        type: talk
+        npc: caoban_du_san
+      conditions:
+        - type: quest_completed
+          quest: yanmen_patrol
+        - type: quest_not_started
+          quest: caoban_dock_rules
+      actions:
+        - type: message
+          speaker: "过江鳅杜三"
+          text: "听说你替顾捕头跑过北郊递道。码头的事，不劳官府的腿。茶照样请你喝，旁的就免了。"
+
+    - id: du_san_offers_dock_job
+      trigger:
+        type: talk
+        npc: caoban_du_san
+      conditions:
+        - type: quest_completed
+          quest: first_steps_kaifeng
+        - type: quest_not_started
+          quest: caoban_dock_rules
+      actions:
+        - type: message
+          speaker: "过江鳅杜三"
+          text: "盐帮的人占了船棚的缆桩，说汴河上的船从此要分他们一成。这种事报官没用，官府只认税，不认缆桩。"
+        - type: message
+          speaker: "过江鳅杜三"
+          text: "我的人一动手，就是两帮开片。你是生面孔，打赢了算你路见不平，打输了也牵扯不到漕帮。肯不肯，你自己掂量。"
+        - type: set_stage
+          quest: caoban_dock_rules
+          stage: accepted
+        - type: show_npc
+          npc: salt_gang_thug
+
+    - id: du_san_waits_for_dock_job
+      trigger:
+        type: talk
+        npc: caoban_du_san
+      conditions:
+        - type: quest_stage
+          quest: caoban_dock_rules
+          stage: accepted
+      actions:
+        - type: message
+          speaker: "过江鳅杜三"
+          text: "船棚就在州桥东边。不必下死手，让他知道这根缆桩有主就行。"
+
+    - id: confront_salt_gang_thug
+      trigger:
+        type: talk
+        npc: salt_gang_thug
+      conditions:
+        - type: quest_stage
+          quest: caoban_dock_rules
+          stage: accepted
+      actions:
+        - type: message
+          speaker: "盐帮打手"
+          text: "漕帮请不动自家人，就请了个过路的？行，我先替杜三教教你码头的规矩。"
+        - type: start_battle
+          target: salt_gang_thug
+
+    - id: salt_gang_thug_driven_off
+      trigger:
+        type: kill
+        npc: salt_gang_thug
+      conditions:
+        - type: quest_stage
+          quest: caoban_dock_rules
+          stage: accepted
+      actions:
+        - type: hide_npc
+          npc: salt_gang_thug
+        - type: set_stage
+          quest: caoban_dock_rules
+          stage: report
+        - type: message
+          speaker: "旁白"
+          text: "盐帮打手捂着手腕退出船棚，临走前狠狠看了你一眼，把你的脸记住了。"
+
+    - id: du_san_names_the_player
+      trigger:
+        type: talk
+        npc: caoban_du_san
+      conditions:
+        - type: quest_stage
+          quest: caoban_dock_rules
+          stage: report
+      actions:
+        - type: message
+          speaker: "过江鳅杜三"
+          text: "利落。这二十文不算工钱，算码头请你的酒。"
+        - type: give_money
+          amount: 20
+        - type: message
+          speaker: "过江鳅杜三"
+          text: "从今往后，汴河码头上的人叫你一声“南渡客”。名号是别人给的，好坏全看你往后怎么用。盐帮那边也会记住这三个字。"
+        - type: set_flag
+          flag: jianghu.caoban_friend
+        - type: set_flag
+          flag: jianghu.name.nandu_ke
+        - type: complete_quest
+          quest: caoban_dock_rules
+
+    - id: du_san_after_dock_job
+      trigger:
+        type: talk
+        npc: caoban_du_san
+      conditions:
+        - type: quest_completed
+          quest: caoban_dock_rules
+      actions:
+        - type: message
+          speaker: "过江鳅杜三"
+          text: "南渡客来了。码头上的船随时载你一程，只要不是替官府办事。"

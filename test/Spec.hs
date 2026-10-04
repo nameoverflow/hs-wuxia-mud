@@ -59,6 +59,7 @@ main = do
   testArtsQuery
   testWeiyuanChapterFlow
   testKaifengSettlingAndTravelFlow
+  testKaifengJianghuFlow
   testStoryBattlesArePlayerIsolated
   testPlayerSaveRoundTrip
   putStrLn "All tests passed"
@@ -922,6 +923,37 @@ testWeiyuanChapterFlow = do
       assert ((player ^. playerInventory . at "soaked_route_note") == Just 1) "route note was not retained"
       assert ((player ^. playerInventory . at "weiyuan_sword_manual") == Just 1) "Weiyuan manual was not retained"
       assert ((player ^. playerPosition) == ("kaifeng_city", (-1, -3))) "player did not slip out to the willow bank"
+
+testKaifengJianghuFlow :: IO ()
+testKaifengJianghuFlow = do
+  gs <- newTestPlayerState
+  let settled =
+        gs
+          & stories . ix "tester" . storyQuestStages . at "weiyuan_bloody_case" ?~ "completed"
+          & stories . ix "tester" . storyQuestStages . at "first_steps_kaifeng" ?~ "completed"
+  (_, atDock) <- runOk "move to willow bank" settled (movePlayerToRoom "tester" "kaifeng_city" (-1, -3))
+  (_, recognised) <- runOk "du san recognises the player" atDock (playerTalk "tester" "caoban_du_san")
+  assert (hasFlag "caoban.saw_you" recognised) "du san did not remember the back door"
+  (_, accepted) <- runOk "accept dock job" recognised (playerTalk "tester" "caoban_du_san")
+  assert (questStageOf "caoban_dock_rules" accepted == Just "accepted") "dock job did not start"
+  (_, atShed) <- runOk "move to boat shed" accepted (movePlayerToRoom "tester" "kaifeng_city" (1, -2))
+  (_, fighting) <- runOk "confront salt gang thug" atShed (playerTalk "tester" "salt_gang_thug")
+  let beaten = fighting & battles . ix "tester" . battleEnemyState . battleChar . charHP .~ 0
+  (_, drivenOff) <- runOk "settle dock fight" beaten (updateBattle 0 "tester")
+  assert (questStageOf "caoban_dock_rules" drivenOff == Just "report") "dock fight did not advance to report"
+  (_, backAtDock) <- runOk "return to du san" drivenOff (movePlayerToRoom "tester" "kaifeng_city" (-1, -3))
+  (_, named) <- runOk "report to du san" backAtDock (playerTalk "tester" "caoban_du_san")
+  assert (questStageOf "caoban_dock_rules" named == Just "completed") "dock job did not complete"
+  assert (hasFlag "jianghu.name.nandu_ke" named) "player did not earn a jianghu name"
+  (_, atConstable) <- runOk "move to constable office" named (movePlayerToRoom "tester" "kaifeng_city" (1, 2))
+  (_, suspected) <- runOk "constable sizes up the player" atConstable (playerTalk "tester" "kaifeng_constable")
+  assert (hasFlag "kaifeng.constable_suspects" suspected) "constable did not question the night at the ferry"
+  (patrolResponses, patrol) <- runOk "constable offers patrol" suspected (playerTalk "tester" "kaifeng_constable")
+  assert (questStageOf "yanmen_patrol" patrol == Just "accepted") "constable did not offer the patrol"
+  _ <- requireResponseIndex "constable notes the caoban tie" (\case StoryMsg _ text -> "南渡客" `T.isInfixOf` text; _ -> False) patrolResponses
+  pure ()
+  where
+    hasFlag flag gs' = maybe False (S.member flag . view storyFlags) (M.lookup "tester" (gs' ^. stories))
 
 testStoryBattlesArePlayerIsolated :: IO ()
 testStoryBattlesArePlayerIsolated = do

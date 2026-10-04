@@ -30,7 +30,7 @@
       actions:
         - type: message
           speaker: "周引路"
-          text: "看你站门洞、避差役的样子，像是从小自己讨生活。开封不比小地方，先找张能闩门的床。御街南段西侧是西市街口，往北就是樊楼客舍。报我姓周，伙计会给你留间后房。"
+          text: "看你站门洞、避差役的样子，像是从小自己讨生活。城门再过一刻就落锁，衣角那片血先拿雨水搓一搓。御街南段西侧是西市街口，往北就是樊楼客舍。报我姓周，伙计会给你留间后房。"
         - type: set_stage
           quest: first_steps_kaifeng
           stage: inn
@@ -48,7 +48,7 @@
       actions:
         - type: message
           speaker: "周引路"
-          text: "第一次进开封，别急着问事。御街南段西侧是西市街口，往北就是樊楼客舍。报我姓周，伙计会给你留间后房。先把湿衣换了，再想明日往哪里走。"
+          text: "城门再过一刻就落锁。你衣角那片血，我没看见，守门的差役未必也没看见。御街南段西侧是西市街口，往北就是樊楼客舍。报我姓周，伙计会给你留间后房。先把湿衣换了，再想明日往哪里走。"
         - type: set_stage
           quest: first_steps_kaifeng
           stage: inn
@@ -387,6 +387,47 @@
     money: 0
     items: []
   events:
+    - id: constable_sizes_up_player
+      trigger:
+        type: talk
+        npc: kaifeng_constable
+      conditions:
+        - type: quest_completed
+          quest: weiyuan_bloody_case
+        - type: not_flag
+          flag: kaifeng.constable_suspects
+      actions:
+        - type: set_flag
+          flag: kaifeng.constable_suspects
+        - type: message
+          speaker: "顾捕头"
+          text: "南渡命案那晚，南门进城的人里有个衣上带血的外乡人，守门差役记得清楚。是你吧。"
+        - type: message
+          speaker: "顾捕头"
+          text: "我不拿你。杀十一口的人，不会傻到再从南门进城。可你知道些什么，迟早要有人来问；想说的时候，捕房的门开着。"
+
+    - id: constable_starts_patrol_caoban
+      trigger:
+        type: talk
+        npc: kaifeng_constable
+      conditions:
+        - type: quest_completed
+          quest: first_steps_kaifeng
+        - type: quest_not_started
+          quest: yanmen_patrol
+        - type: flag
+          flag: jianghu.caoban_friend
+      actions:
+        - type: message
+          speaker: "顾捕头"
+          text: "听说码头上管你叫“南渡客”，杜三请你喝过酒。江湖上的情分我不管，捕房的差事别掺进去。"
+        - type: message
+          speaker: "顾捕头"
+          text: "北门递铺少了两封北来的公文。你若想接一件正经差事，就去亭里看一眼；见到人先问话，别越过岔口往北追。"
+        - type: set_stage
+          quest: yanmen_patrol
+          stage: accepted
+
     - id: constable_starts_patrol
       trigger:
         type: talk
@@ -399,7 +440,10 @@
       actions:
         - type: message
           speaker: "顾捕头"
-          text: "北门递铺少了两封边报。你若想接一件正经差事，就去亭里看一眼；见到人先问话，别追过旧道岔口。"
+          text: "北门递铺少了两封北来的公文。你若想接一件正经差事，就去亭里看一眼；见到人先问话，别越过岔口往北追。"
+        - type: message
+          speaker: "顾捕头"
+          text: "先说一句：替捕房跑腿的人，江湖上有人会叫你鹰犬。接不接，你自己想清楚。"
         - type: set_stage
           quest: yanmen_patrol
           stage: accepted

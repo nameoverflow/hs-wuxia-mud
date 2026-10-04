@@ -1,0 +1,92 @@
+- id: caoban_du_san
+  name: "过江鳅杜三"
+  desc: "汴河漕帮在南渡的码头把头，蹲在老柳下抽旱烟，眼睛却没离开过河面和威远分局的后墙。"
+  actions: [dialogue]
+  martial_arts:
+    foundation:
+      - id: basic_fist
+        level: 10
+      - id: basic_lightness
+        level: 12
+    fist:
+      - id: nameless_trial_fist
+        level: 8
+  prepared:
+    fist:
+      id: nameless_trial_fist
+      level: 8
+  dialogue:
+    - "汴河上的船认漕帮的旗，不认官府的牌。码头的事，码头自己了。"
+  respawn: 0
+  attr:
+    hp: 160
+    qi: 100
+    max_qi: 100
+    jing: 130
+    qi_regen: 2.0
+    innate:
+      strength: 20
+      agility: 22
+      vitality: 18
+
+- id: salt_gang_thug
+  name: "盐帮打手"
+  desc: "他把脚踩在漕帮的缆桩上，腰里别着一根短铁尺，正数着棚下的船。"
+  actions: [dialogue]
+  hidden: true
+  martial_arts:
+    foundation:
+      - id: basic_fist
+        level: 5
+    fist:
+      - id: nameless_trial_fist
+        level: 4
+  prepared:
+    fist:
+      id: nameless_trial_fist
+      level: 4
+  dialogue:
+    - "这根缆桩从今天起姓盐。"
+  respawn: 0
+  attr:
+    hp: 90
+    qi: 70
+    max_qi: 70
+    jing: 100
+    qi_regen: 1.5
+    innate:
+      strength: 19
+      agility: 13
+      vitality: 15
+
+- id: weiyuan_envoy
+  name: "铁旗罗万川"
+  desc: "威远总局的老镖头，背着一杆卷起的镖旗。江湖上说他扛旗走过三十年镖，旗没倒过一次。"
+  actions: [dialogue]
+  hidden: true
+  martial_arts:
+    foundation:
+      - id: basic_sword
+        level: 24
+      - id: basic_internal
+        level: 18
+    sword:
+      - id: weiyuan_sword
+        level: 18
+  prepared:
+    sword:
+      id: weiyuan_sword
+      level: 18
+  dialogue:
+    - "开封府的案子由官府查，威远的仇由威远报。"
+  respawn: 0
+  attr:
+    hp: 240
+    qi: 160
+    max_qi: 160
+    jing: 150
+    qi_regen: 3.0
+    innate:
+      strength: 26
+      agility: 18
+      vitality: 24

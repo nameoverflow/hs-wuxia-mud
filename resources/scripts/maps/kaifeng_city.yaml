@@ -19,7 +19,9 @@ rooms:
     id: kaifeng_willow_bank
     name: "柳岸码头"
     kind: road
-    desc: "几株老柳伏在水边，脚夫在树下等船，也等一份能换饭钱的差事。"
+    desc: "几株老柳伏在水边，漕帮的船一溜排开，脚夫在树下等船，也等一份能换饭钱的差事。"
+    char:
+      - caoban_du_san
     exits:
       east: [0, -3]
 
@@ -33,6 +35,7 @@ rooms:
         desc: "黑漆门匾还挂着，两扇门上却交叉贴着开封府封条。门前石阶被人冲洗过，缝里仍留着暗红。过路人走到这里都绕开几步。"
     char:
       - grey_young_escort
+      - weiyuan_envoy
     exits:
       east: [2, -3]
       west: [0, -3]
@@ -76,7 +79,9 @@ rooms:
     id: kaifeng_boat_shed
     name: "船棚"
     kind: building
-    desc: "棚下堆着缆绳、破桨和几盏备用风灯。这里是州桥东侧的水运杂役棚，不通城内。"
+    desc: "棚下堆着缆绳、破桨和几盏备用风灯。这里是漕帮在州桥东侧的缆桩棚，不通城内。"
+    char:
+      - salt_gang_thug
     exits:
       west: [0, -2]
 
@@ -184,7 +189,7 @@ rooms:
     id: kaifeng_tea_house
     name: "瓦子茶楼"
     kind: building
-    desc: "茶楼只有竹帘和说书人的醒木。闲话从这里出去，第二天就能传遍半个西市。"
+    desc: "茶楼只有竹帘和说书人张一嘴的醒木。闲话从这里出去，第二天就能传遍半个西市，江湖上的事也多半先在这里走一遍样。"
     char:
       - tea_storyteller
     exits:
@@ -202,7 +207,7 @@ rooms:
     id: kaifeng_inn
     name: "樊楼客舍"
     kind: building
-    desc: "客舍正门朝向西市街口。火盆烧得正旺，住客围桌谈着路引、房钱和外地消息。"
+    desc: "樊楼早不是旧京时的大酒楼了，前堂仍卖酒，后院辟成了客舍。火盆烧得正旺，住客围桌谈着路引、房钱和外地消息。"
     char:
       - fanlou_innkeeper
     exits:
