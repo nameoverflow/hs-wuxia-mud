@@ -101,7 +101,7 @@ rooms:
     id: kaifeng_training_yard
     name: "南门演武场"
     kind: building
-    desc: "校场紧贴南门内墙，地面铺着粗砂。西侧武馆的弟子常在这里练站桩和拆招。"
+    desc: "校场紧贴南门内墙，地面铺着粗砂。南边城墙根下就是武馆，弟子常在这里练站桩和拆招。"
     char:
       - kaifeng_martial_instructor
       - kaifeng_training_dummy
@@ -113,7 +113,7 @@ rooms:
     id: kaifeng_martial_hall
     name: "南门武馆"
     kind: building
-    desc: "武馆正门开向演武场，墙上写着四个字：先站得住。"
+    desc: "武馆背靠南城墙根，正门开向演武场，墙上写着四个字：先站得住。"
     exits:
       north: [-1, -1]
 
@@ -217,7 +217,7 @@ rooms:
     id: kaifeng_east_market
     name: "东市街口"
     kind: street
-    desc: "东市卖的多是新货。向东是府后东巷，向北进官署区，府学外舍在南面。"
+    desc: "东市卖的多是新货。向东是府后东巷，府学外舍在南面；府衙官署要从府前十字进。"
     exits:
       west: [0, 0]
       east: [2, 0]
@@ -244,7 +244,7 @@ rooms:
 
   - position: [3, 1]
     id: kaifeng_smithy
-    name: "府前铁铺"
+    name: "东巷铁铺"
     kind: building
     desc: "炉火照亮半条街。铁匠把一截红铁放进雨水里，白气轰然升起。"
     char:
@@ -395,7 +395,7 @@ rooms:
     id: kaifeng_north_gate
     name: "开封北门"
     kind: landmark
-    desc: "北门外接雁门递道南线。东西望台只通城门马道，不再兼作城内街巷。"
+    desc: "北门外是通往黄河渡口的递道。东西望台只通城门马道，不兼作城内街巷。"
     exits:
       north: [0, 5]
       south: [0, 3]
@@ -422,7 +422,7 @@ rooms:
     id: kaifeng_north_outskirts
     name: "北郊驿路"
     kind: road
-    desc: "城声在身后渐远，雁门旧道的南线在前方铺开。路边石碑写着：夜行自负。"
+    desc: "城声在身后渐远，北郊递道在前方铺开，一直通到黄河南堤。路边石碑写着：夜行自负。"
     exits:
       south: [0, 4]
       north:

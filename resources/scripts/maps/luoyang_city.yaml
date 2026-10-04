@@ -1,12 +1,12 @@
 id: luoyang_city
 name: "洛阳"
-desc: "旧都洛阳以西驿、天津桥和牡丹街为骨架。剑市临桥，牡丹会场居北，白马寺须沿寺前官道出城方可到达。"
+desc: "旧都洛阳以东驿、天津桥和牡丹街为骨架。剑市临桥，牡丹会场居北，白马寺在城东郊外，须沿寺前官道出城方可到达。"
 rooms:
   - position: [0, 0]
     id: luoyang_carriage_inn
-    name: "洛阳西驿"
+    name: "洛阳东驿"
     kind: transit
-    desc: "西行车马在驿院落脚。北门通向洛阳城，南边是返回开封的官道。"
+    desc: "从开封西来的车马在驿院落脚，回程的车也从这里套马。北面就是建春门。"
     exits:
       south:
         map: kaifeng_city
@@ -15,18 +15,18 @@ rooms:
 
   - position: [0, 1]
     id: luoyang_west_gate
-    name: "洛阳西门"
+    name: "建春门"
     kind: landmark
-    desc: "西门夹在两段旧城墙之间。入城是西市口，出城便到车马驿院。"
+    desc: "洛阳东面的城门，夹在两段旧城墙之间。入城是南市口，出城便到东驿。"
     exits:
       south: [0, 0]
       north: [0, 2]
 
   - position: [0, 2]
     id: luoyang_market_cross
-    name: "西市口"
+    name: "南市口"
     kind: street
-    desc: "西市口把剑市、天津桥和牡丹街分开。卖剑的在西，过洛水向东，赴牡丹会则向北。"
+    desc: "南市口把剑市、天津桥和牡丹街分开。卖剑的在西，过洛水向东，赴牡丹会则向北。"
     exits:
       south: [0, 1]
       north: [0, 3]
@@ -37,7 +37,7 @@ rooms:
     id: luoyang_sword_rack
     name: "旧剑市"
     kind: street
-    desc: "木剑、旧剑和剑匣沿街排开，每柄剑柄上都有淡淡雨痕。街尽头不通别处，只能折回西市口。"
+    desc: "木剑、旧剑和剑匣沿街排开，每柄剑柄上都有淡淡雨痕。街尽头不通别处，只能折回南市口。"
     exits:
       east: [0, 2]
 
@@ -45,7 +45,7 @@ rooms:
     id: luoyang_outer_gate
     name: "天津桥头"
     kind: landmark
-    desc: "天津桥横跨洛水。桥西接西市，桥东沿水铺着步法廊，湿滑石阶落到南岸水边。"
+    desc: "天津桥横跨洛水。桥西接南市，桥东沿水铺着步法廊，湿滑石阶落到南岸水边。"
     char:
       - luoyang_bridge_swordsman
     exits:
@@ -73,7 +73,7 @@ rooms:
     id: luoyang_peony_street
     name: "牡丹街"
     kind: street
-    desc: "长街从西市口直通牡丹会场。酒楼和花棚列在两旁，路中央留给赴会车马。"
+    desc: "长街从南市口直通牡丹会场。酒楼和花棚列在两旁，路中央留给赴会车马。"
     exits:
       south: [0, 2]
       north: [0, 4]
@@ -109,7 +109,7 @@ rooms:
     id: luoyang_inner_hall
     name: "聚义旧堂"
     kind: landmark
-    desc: "旧堂位于会场北院。西侧残谱室、东侧冷泉各有院门，北门通往白马寺官道。"
+    desc: "旧堂位于会场北院。西侧残谱室、东侧冷泉各有院门，后门通往出城去白马寺的官道。"
     char:
       - luoyang_swordswoman
     exits:
@@ -140,7 +140,7 @@ rooms:
     id: luoyang_temple_road
     name: "白马寺官道"
     kind: road
-    desc: "官道离开牡丹会北院，沿旧城北郊通向白马寺。城声在身后逐渐淡去。"
+    desc: "官道从牡丹会后门出城，绕向东郊的白马寺。城声在身后逐渐淡去。"
     exits:
       south: [0, 5]
       north: [0, 7]
@@ -149,6 +149,6 @@ rooms:
     id: luoyang_sealed_terrace
     name: "白马寺外山门"
     kind: landmark
-    desc: "山门与洛阳城隔着一段北郊官道。知客僧闭门不见外客，只让香客把名帖压在石灯下。"
+    desc: "山门与洛阳城隔着一段东郊官道。知客僧闭门不见外客，只让香客把名帖压在石灯下。"
     exits:
       south: [0, 6]

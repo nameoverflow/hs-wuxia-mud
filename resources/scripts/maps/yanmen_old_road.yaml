@@ -1,11 +1,11 @@
 id: yanmen_old_road
-name: "雁门递道南线"
-desc: "开封北去边关的旧驿路南段，专递雁门边报，江湖人便把这一线都叫作雁门旧道。松林很密，近来常有边报在这里失踪。"
+name: "北郊递道"
+desc: "开封北门外通往黄河渡口的旧递道。北来的公文、塘报都从这里过河进城，老驿卒仍按旧习叫它雁门道。松林很密，近来常有公文在这里失踪。"
 rooms:
   - position: [0, 0]
     id: yanmen_south_marker
     name: "旧道南口"
-    desc: "石碑上刻着雁门旧道四个字，旁边另有驿卒补刻的小字：此为南线，天黑莫行。"
+    desc: "石碑上刻着“北郊递道”四个字，旁边另有驿卒补刻的小字：去黄河渡口三十里，天黑莫行。"
     exits:
       south:
         map: kaifeng_city
@@ -23,7 +23,7 @@ rooms:
   - position: [0, 2]
     id: yanmen_relay_pavilion
     name: "递铺亭"
-    desc: "旧递铺亭里空空如也，墙上贴着开封府的告示。"
+    desc: "旧递铺亭里只剩一张条凳和几只空信筒，墙上贴着开封府的告示。"
     char:
       - roadside_runner
     exits:
@@ -51,7 +51,7 @@ rooms:
   - position: [0, 3]
     id: yanmen_fork
     name: "旧道岔口"
-    desc: "官道在这里分出两条小径。西边脚印杂乱，东边药香很淡。"
+    desc: "官道在这里分出两条小径。西边脚印杂乱，东边是采药人走的坡道。"
     exits:
       south: [0, 2]
       north: [0, 4]
@@ -71,7 +71,7 @@ rooms:
   - position: [1, 3]
     id: yanmen_herb_slope
     name: "药草坡"
-    desc: "坡上长着几丛苦草。雨打过以后，药气反而更重。"
+    desc: "坡上长着几丛车前和蒲公英，采药人的竹篓压出的印子还新。"
     exits:
       west: [0, 3]
       south: [1, 2]
@@ -86,7 +86,7 @@ rooms:
 
   - position: [0, 5]
     id: yanmen_ridge_overlook
-    name: "雁门望处"
-    desc: "岭北云沉得很低，旧关卡横在风口。守关军士只验边牒，不许无故北行。"
+    name: "黄河南堤"
+    desc: "大堤横在北面，堤下黄水翻着泥沙。渡口的船要到天明才开，守渡军士只验公牒，不许无故过河。"
     exits:
       south: [0, 4]

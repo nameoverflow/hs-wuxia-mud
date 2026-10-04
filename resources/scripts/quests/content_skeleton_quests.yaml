@@ -371,10 +371,10 @@
           quest: first_steps_kaifeng
 
 - id: yanmen_patrol
-  name: "雁门旧道巡查"
+  name: "北郊递道失信"
   objectives:
     - stage: accepted
-      text: "沿北门出城，到雁门旧道递铺亭查探失信之事。"
+      text: "沿北门出城，到北郊递道的递铺亭查探失信之事。"
     - stage: found_tracks
       text: "循着被擦过的马蹄印，到旧道西侧小径查问拦路人。"
     - stage: confronting
@@ -382,7 +382,7 @@
     - stage: report
       text: "回开封府捕房向顾捕头复命。"
     - stage: completed
-      text: "失信案已经报回开封府，雁门旧道暂时恢复通行。"
+      text: "失信案已经报回开封府，北郊递道暂时恢复通行。"
   reward:
     money: 0
     items: []
@@ -481,8 +481,8 @@
           stage: found_tracks
       actions:
         - type: message
-          speaker: "雁门探子"
-          text: "开封府养的脚倒快。信已经不在我身上，你若还想问，只能先让我闭不了你的嘴。"
+          speaker: "截信探子"
+          text: "开封府养的脚倒快。信已经不在我身上，你还想问，就先让我开不了口。"
         - type: set_stage
           quest: yanmen_patrol
           stage: confronting
@@ -508,7 +508,44 @@
           stage: report
         - type: message
           speaker: "旁白"
-          text: "探子袖中掉出一块递铺木牌，背面刻着交接时辰。失去的边报已被送往更北处，眼下只能先把木牌带回开封府。"
+          text: "探子袖中掉出一块递铺木牌，背面刻着交接时辰。丢失的公文已被人带过了河，眼下只能先把木牌带回开封府。"
+
+    - id: patrol_overstepped_north
+      trigger:
+        type: enter_room
+        map: yanmen_old_road
+        position: [0, 4]
+      conditions:
+        - type: quest_stage
+          quest: yanmen_patrol
+          stage: found_tracks
+        - type: not_flag
+          flag: yanmen.overstepped
+      actions:
+        - type: set_flag
+          flag: yanmen.overstepped
+        - type: message
+          speaker: "旁白"
+          text: "你越过了顾捕头说的岔口。废祠里的灰还温着，人却早走了。"
+
+    - id: constable_completes_patrol_overstepped
+      trigger:
+        type: talk
+        npc: kaifeng_constable
+      conditions:
+        - type: quest_stage
+          quest: yanmen_patrol
+          stage: report
+        - type: flag
+          flag: yanmen.overstepped
+      actions:
+        - type: message
+          speaker: "顾捕头"
+          text: "木牌留下。我让你别越过岔口，你还是往北去了。这回没出事，下回未必。五十文脚钱照给，分寸你自己记着。"
+        - type: give_money
+          amount: 50
+        - type: complete_quest
+          quest: yanmen_patrol
 
     - id: constable_completes_patrol
       trigger:
