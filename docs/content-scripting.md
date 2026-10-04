@@ -260,18 +260,14 @@ active_skills:
 
 ## 威远镖局旧案章节
 
-当前唯一完整章节是 `weiyuan_bloody_case`：
+剧情因果以 [主线剧情大纲](./story-outline.md) 为准，这里只记录脚本结构：
 
-1. 玩家在开封城外破庙遇见受伤老镖师和灰衣少年。
-2. 老镖师第一句阻止点火，说明有人追着镖车而来。
-3. 旁白触发闯门，隐藏的黑衣人通过 `show_npc` 出现在同一房间并放话。
-4. 玩家与黑衣人对话进入战斗。
-5. 黑衣人由 `start_battle` 开启玩家独立剧情战斗，不占用全局 NPC 战斗锁。杀死黑衣人后：
-   - 黑衣人对该玩家隐藏。
-   - 任务进入 `escort_dying` 阶段，提示玩家回头找老镖师。
-6. 与老镖师对话后，获得来源明确的三十文盘缠，并被送到 `汴水官道`。
-7. 玩家亲自沿官道护送少年到开封城南的汴水南渡，再进入威远镖局前厅：
-   - 旁白描述前厅惨状。
-   - 灰衣少年把水浸路单和威远剑谱交给玩家。
-   - 设置长期分离 flag，少年独自离开，不自动开启追案任务。
-8. 序章之后的 `first_steps_kaifeng` 属于玩家自己的住宿、试招和谋生流程。
+1. 与老镖师对话：`set_stage intruder`，旁白闯门，`show_npc` 放出隐藏的黑衣人。
+2. 与黑衣人对话：`start_battle` 开启玩家独立剧情战斗，不占用全局 NPC 战斗锁。
+3. `kill` 黑衣人：隐藏黑衣人，设置 `weiyuan.saw_ink_mark`，进入 `escort_dying`。
+4. 再与老镖师对话：给盘缠和水浸路单，老镖师断气并隐藏，`transition` + `move_player` 送到汴水官道。
+5. `enter_room` 汴水南渡进入 `branch_gate`；`enter_room` 前厅时少年交出剑谱、隐藏，进入 `inner_court`。
+6. `enter_room` 内院：井台留言，设置分离 flag，完成本章并开启 `first_steps_kaifeng`，再转场到柳岸码头。
+7. 前厅、门口、内院通过 `desc_variants` 在 `weiyuan.youth_separated` 后显示封条现场。
+
+序章之后的 `first_steps_kaifeng` 属于玩家自己的住宿、试招和谋生流程；城中风声在 `kaifeng_echoes`，没有 objectives，因此不出现在任务栏。
