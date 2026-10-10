@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -10,7 +11,7 @@ import Control.Lens
 import Control.Monad (filterM, forM_, unless, when)
 import qualified Control.Monad
 import Control.Monad.Except
-  ( MonadError (throwError)
+  ( MonadError (catchError, throwError)
   )
 import Control.Monad.RWS (tell)
 import Control.Monad.Random (getStdGen, MonadIO (liftIO), newStdGen, runRand)
@@ -51,16 +52,17 @@ processPlayerAction pid action = do
 
 processNormalAction :: PlayerId -> PlayerAction -> GameStateT ()
 processNormalAction pid action = case action of
-  Go direction -> playerMove pid direction
-  Attack (target :: CharId) -> playerAttack pid target
-  Talk (target :: CharId) -> playerTalk pid target
-  Use itemId -> playerUseItem pid itemId
-  Train artId -> playerTrainArt pid artId
-  Practice artId -> playerPracticeArt pid artId
-  Learn teacherId artId times -> playerLearnArt pid teacherId artId times
-  Study itemId -> playerStudyItem pid itemId
-  Research artId -> playerResearchArt pid artId
-  Meditate amount -> playerMeditate pid amount
+  Go direction -> haltTraining pid >> playerMove pid direction
+  Attack (target :: CharId) -> haltTraining pid >> playerAttack pid target
+  Talk (target :: CharId) -> haltTraining pid >> playerTalk pid target
+  Use itemId -> haltTraining pid >> playerUseItem pid itemId
+  Train artId -> startTraining pid (TrainPractice artId) 1
+  Practice artId times -> startTraining pid (TrainPractice artId) times
+  Learn teacherId artId times -> startTraining pid (TrainLearn teacherId artId) times
+  Study itemId times -> startTraining pid (TrainStudy itemId) times
+  Research artId times -> startTraining pid (TrainResearch artId) times
+  Meditate amount times -> startTraining pid (TrainMeditate amount) times
+  Other "halt" -> haltTraining pid
   EnableArt artType' artId -> playerEnableArt pid artType' artId
   PrepareArt artType' artId -> playerPrepareArt pid artType' artId
   Other "quests" -> playerQuestLog pid
@@ -131,7 +133,15 @@ sendPlayerStats pid = do
         PlayerBanned -> "banned"
   runtime <- usePlayerRuntime pid
   let summary = playerStatsSummary player hp maxHp qi maxQi ap status
-  tell [(pid, PlayerStatsMsg $ summary {playerStatsSummaryInjuredSeconds = ceiling (runtime ^. runtimeInjuredRemaining)})]
+  tell
+    [ ( pid,
+        PlayerStatsMsg $
+          summary
+            { playerStatsSummaryInjuredSeconds = ceiling (runtime ^. runtimeInjuredRemaining),
+              playerStatsSummaryBusy = busySummary <$> runtime ^. runtimeBusy
+            }
+      )
+    ]
 
 playerStatsSummary :: Player -> Int -> Int -> Int -> Int -> Int -> T.Text -> PlayerStatsSummary
 playerStatsSummary player hp maxHp qi maxQi ap status =
@@ -151,7 +161,8 @@ playerStatsSummary player hp maxHp qi maxQi ap status =
       playerStatsSummaryStrength = innate ^. innateStrength,
       playerStatsSummaryAgility = innate ^. innateAgility,
       playerStatsSummaryVitality = innate ^. innateVitality,
-      playerStatsSummaryInjuredSeconds = 0
+      playerStatsSummaryInjuredSeconds = 0,
+      playerStatsSummaryBusy = Nothing
     }
   where
     char = player ^. playerCharacter
@@ -610,11 +621,116 @@ grantArtRewards pid artId level =
               markPlayerDirty pid
               return [martialArtRewardSummary martialArt level]
 
+-- | Run the first step now and queue the rest; each step keeps the player busy
+-- for its duration. A step that fails now changes nothing and reports why.
+startTraining :: PlayerId -> TrainingAction -> Int -> GameStateT ()
+startTraining pid trainingAction times = do
+  when (times <= 0) $
+    throwStructured "training_times_must_be_positive" [("times", showText times)]
+  runtime <- usePlayerRuntime pid
+  forM_ (runtime ^. runtimeBusy) $ \busy ->
+    throwStructured "player_busy" [("seconds", showText (ceiling (busy ^. busyTimer) :: Int))]
+  runTrainingStep pid trainingAction
+  let task = BusyTask trainingAction (min maxTrainingTimes times - 1) (trainingStepSeconds trainingAction) 1
+  playerRuntime . at pid ?= (runtime & runtimeBusy ?~ task)
+  sendPlayerStats pid
+
+maxTrainingTimes :: Int
+maxTrainingTimes = 100
+
+runTrainingStep :: PlayerId -> TrainingAction -> GameStateT ()
+runTrainingStep pid = \case
+  TrainPractice artId' -> practiceStep pid artId'
+  TrainLearn teacherId artId' -> learnStep pid teacherId artId'
+  TrainStudy itemId' -> studyStep pid itemId'
+  TrainResearch artId' -> researchStep pid artId'
+  TrainMeditate amount -> meditateStep pid amount
+
+trainingStepSeconds :: TrainingAction -> Double
+trainingStepSeconds = \case
+  TrainPractice _ -> practiceBusySeconds
+  TrainLearn _ _ -> learnBusySeconds
+  TrainStudy _ -> studyBusySeconds
+  TrainResearch _ -> researchBusySeconds
+  TrainMeditate amount -> meditateBusySeconds amount
+
+trainingActionCode :: TrainingAction -> (T.Text, T.Text)
+trainingActionCode = \case
+  TrainPractice artId' -> ("practice", artId')
+  TrainLearn _ artId' -> ("learn", artId')
+  TrainStudy itemId' -> ("study", itemId')
+  TrainResearch artId' -> ("research", artId')
+  TrainMeditate amount -> ("meditate", showText amount)
+
+busySummary :: BusyTask -> BusySummary
+busySummary task =
+  BusySummary
+    { busySummaryAction = actionCode,
+      busySummaryTarget = target,
+      busySummaryCompleted = task ^. busyCompleted,
+      busySummaryRemaining = task ^. busyRemaining,
+      busySummarySeconds = max 0 (task ^. busyTimer)
+    }
+  where
+    (actionCode, target) = trainingActionCode (task ^. busyAction)
+
+-- | Stop queued training, e.g. when the player walks off or picks a fight.
+haltTraining :: PlayerId -> GameStateT ()
+haltTraining pid = do
+  runtime <- usePlayerRuntime pid
+  forM_ (runtime ^. runtimeBusy) $ \task ->
+    finishTraining pid task (Just "halted")
+
+finishTraining :: PlayerId -> BusyTask -> Maybe T.Text -> GameStateT ()
+finishTraining pid task reason = do
+  playerRuntime . ix pid . runtimeBusy .= Nothing
+  let (actionCode, target) = trainingActionCode (task ^. busyAction)
+  tell
+    [ ( pid,
+        SystemMsg $
+          SystemMessage "training_finished" $
+            M.fromList $
+              [ ("action", actionCode),
+                ("target", target),
+                ("completed", showText $ task ^. busyCompleted)
+              ]
+                <> [("reason", r) | Just r <- [reason]]
+      )
+    ]
+  sendPlayerStats pid
+
+-- | Count down busy players and run their next queued step. A failing step
+-- rolls back on its own and ends the queue with the reason.
+tickTraining :: Double -> GameStateT ()
+tickTraining dt = do
+  runtimes <- use playerRuntime
+  forM_ [(pid, task) | (pid, runtime) <- M.toList runtimes, Just task <- [runtime ^. runtimeBusy]] $ \(pid, task) -> do
+    status <- preuse $ players . ix pid . playerStatus
+    let timer = task ^. busyTimer - dt
+    if
+      | status /= Just PlayerNormal -> finishTraining pid task (Just "interrupted")
+      | timer > 0 -> playerRuntime . ix pid . runtimeBusy . _Just . busyTimer .= timer
+      | task ^. busyRemaining <= 0 -> finishTraining pid task Nothing
+      | otherwise -> do
+          result <- (Nothing <$ runTrainingStep pid (task ^. busyAction)) `catchError` (pure . Just)
+          case result of
+            Nothing -> do
+              playerRuntime . ix pid . runtimeBusy
+                ?= ( task
+                       & busyRemaining -~ 1
+                       & busyCompleted +~ 1
+                       & busyTimer .~ trainingStepSeconds (task ^. busyAction)
+                   )
+              sendPlayerStats pid
+            Just err -> do
+              tell [(pid, ErrorMsg $ gameExceptionToSummary err)]
+              finishTraining pid task (Just $ errorSummaryCode $ gameExceptionToSummary err)
+
 playerTrainArt :: PlayerId -> ArtId -> GameStateT ()
 playerTrainArt = playerPracticeArt
 
 playerPracticeArt :: PlayerId -> ArtId -> GameStateT ()
-playerPracticeArt = practiceStep
+playerPracticeArt pid artId' = startTraining pid (TrainPractice artId') 1
 
 -- | Practise alone: cheap and slow, never past the art's foundation. Once the
 -- art has caught up with its foundation, the effort goes into the foundation.
@@ -663,10 +779,7 @@ consumePracticeBody pid martialArt level = do
       | otherwise -> pure ()
 
 playerLearnArt :: PlayerId -> CharId -> ArtId -> Int -> GameStateT ()
-playerLearnArt pid teacherId artId times = do
-  when (times <= 0) $
-    throwStructured "learn_times_must_be_positive" [("times", showText times)]
-  forM_ [1 .. times] $ \_ -> learnStep pid teacherId artId
+playerLearnArt pid teacherId artId' = startTraining pid (TrainLearn teacherId artId')
 
 -- | One lesson: one point of potential for a quick block of proficiency, up to what the teacher knows.
 learnStep :: PlayerId -> CharId -> ArtId -> GameStateT ()
@@ -702,7 +815,7 @@ learnStep pid teacherId artId = do
       sendTrainingResult pid rewards
 
 playerStudyItem :: PlayerId -> ItemId -> GameStateT ()
-playerStudyItem = studyStep
+playerStudyItem pid itemId' = startTraining pid (TrainStudy itemId') 1
 
 -- | Read a manual: no potential, but only within the book's level band.
 studyStep :: PlayerId -> ItemId -> GameStateT ()
@@ -738,7 +851,7 @@ studyStep pid itemId = do
     _ -> throwStructured "item_not_in_inventory" [("itemId", itemId)]
 
 playerResearchArt :: PlayerId -> ArtId -> GameStateT ()
-playerResearchArt = researchStep
+playerResearchArt pid artId' = startTraining pid (TrainResearch artId') 1
 
 -- | Work an art out alone once teachers and books have nothing left to give.
 researchStep :: PlayerId -> ArtId -> GameStateT ()
@@ -759,7 +872,7 @@ researchStep pid artId = do
   sendTrainingResult pid rewards
 
 playerMeditate :: PlayerId -> Int -> GameStateT ()
-playerMeditate = meditateStep
+playerMeditate pid amount = startTraining pid (TrainMeditate amount) 1
 
 -- | Turn current Qi into long-term max Qi, up to what the internal arts can hold.
 meditateStep :: PlayerId -> Int -> GameStateT ()
@@ -1260,6 +1373,7 @@ onGameTick dt = do
   tickBattleMaintenance dt
   tickRespawns dt
   tickPlayerRecovery dt
+  tickTraining dt
 
 onBattleTick :: Double -> GameStateT ()
 onBattleTick = tickBattleActions

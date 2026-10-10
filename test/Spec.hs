@@ -7,6 +7,7 @@ import Control.Monad.Except (throwError)
 import Control.Monad.Random (mkStdGen, runRand)
 import Data.Aeson (eitherDecode)
 import Data.List (findIndex)
+import Data.Maybe (isNothing)
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import qualified Data.Text as T
@@ -54,6 +55,7 @@ main = do
   testProgressionFormulas
   testProgressionActions
   testBattleAndQuestGrowthRewards
+  testTrainingQueue
   testJingRequirementFailure
   testJingTickRecovery
   testOutOfCombatRecovery
@@ -744,7 +746,9 @@ testProgressionFormulas = do
 testProgressionActions :: IO ()
 testProgressionActions = do
   gs <- withCombatNpcInStarterRoom <$> newTestPlayerState
-  (_, learned) <- runOk "learn from teacher" gs (playerLearnArt "tester" testCombatNpcId "weiyuan_sword" 2)
+  (_, firstLesson) <- runOk "learn from teacher" gs (playerLearnArt "tester" testCombatNpcId "weiyuan_sword" 2)
+  (_, secondLesson) <- runOk "second queued lesson" firstLesson (tickTraining learnBusySeconds)
+  let learned = idle secondLesson
   player <- requirePlayer learned
   assert (knowsArtAt "weiyuan_sword" 1 player) "the first lesson should teach level 1"
   assert (artProgressOf "weiyuan_sword" player == Just 12) "the second lesson did not add proficiency"
@@ -834,6 +838,43 @@ testBattleAndQuestGrowthRewards = do
   assert ((cappedPlayer ^. playerPotential) == 204) "potential went past the soft cap"
   assert (any (\case SystemMsg (SystemMessage "potential_full" _) -> True; _ -> False) (map snd capResponses)) "potential cap was not reported"
 
+testTrainingQueue :: IO ()
+testTrainingQueue = do
+  assert (eitherDecode "{\"practice\":\"weiyuan_sword\"}" == Right (Practice "weiyuan_sword" 1)) "bare practice did not decode"
+  assert (eitherDecode "{\"practice\":{\"art\":\"weiyuan_sword\",\"times\":10}}" == Right (Practice "weiyuan_sword" 10)) "timed practice did not decode"
+  assert (eitherDecode "{\"meditate\":40}" == Right (Meditate 40 1)) "bare meditate did not decode"
+  assert (eitherDecode "{\"study\":{\"item\":\"weiyuan_sword_manual\",\"times\":3}}" == Right (Study "weiyuan_sword_manual" 3)) "timed study did not decode"
+  gs <- newTestPlayerState
+  let ready =
+        gs
+          & players . ix "tester" . playerCombatExp .~ 1000
+          & setTesterArt Foundation "basic_sword" 10 0
+  (_, started) <- runOk "queue practice" ready (processPlayerAction "tester" (Practice "nameless_trial_sword" 5))
+  startedPlayer <- requirePlayer started
+  assert (artProgressOf "nameless_trial_sword" startedPlayer == Just 5) "the first queued step did not run at once"
+  expectError "practice while busy" "player_busy" started (processPlayerAction "tester" (Practice "nameless_trial_sword" 1))
+
+  (_, halfway) <- runOk "tick two steps" started (tickTraining practiceBusySeconds >> tickTraining practiceBusySeconds)
+  halfwayPlayer <- requirePlayer halfway
+  assert (artProgressOf "nameless_trial_sword" halfwayPlayer == Just 15) "ticks did not run the queued steps"
+
+  (finishResponses, finished) <- runOk "finish the queue" halfway (replicateM_ 3 (tickTraining practiceBusySeconds))
+  finishedPlayer <- requirePlayer finished
+  assert (artProgressOf "nameless_trial_sword" finishedPlayer == Just 25) "the queue ran more or fewer than five steps"
+  assert (isNothing $ finished ^? playerRuntime . ix "tester" . runtimeBusy . _Just) "the queue did not end"
+  assert (any (\case SystemMsg (SystemMessage "training_finished" params) -> M.lookup "completed" params == Just "5"; _ -> False) (map snd finishResponses)) "finishing did not report five steps"
+
+  -- Jing for exactly two steps: the third fails, the first two stay.
+  let tired = ready & players . ix "tester" . playerCharacter . charJing .~ 12
+  (_, tiredStart) <- runOk "queue while tired" tired (processPlayerAction "tester" (Practice "nameless_trial_sword" 5))
+  (stopResponses, stopped) <- runOk "run out of jing" tiredStart (replicateM_ 3 (tickTraining practiceBusySeconds))
+  stoppedPlayer <- requirePlayer stopped
+  assert (artProgressOf "nameless_trial_sword" stoppedPlayer == Just 10) "a failed step undid the completed ones"
+  assert (any (\case SystemMsg (SystemMessage "training_finished" params) -> M.lookup "reason" params == Just "not_enough_jing"; _ -> False) (map snd stopResponses)) "the stop reason was not reported"
+
+  (_, walkedOff) <- runOk "walk away mid-queue" (withStarterExit East (RoomRef "bianshui_road" (0, 0)) started) (processPlayerAction "tester" (Go East))
+  assert (isNothing $ walkedOff ^? playerRuntime . ix "tester" . runtimeBusy . _Just) "moving did not halt training"
+
 expectError :: String -> T.Text -> GameState -> GameStateT a -> IO ()
 expectError label expectedCode gs action = do
   result <- runGameState gs action
@@ -842,6 +883,10 @@ expectError label expectedCode gs action = do
       assert (code == expectedCode) $ label <> ": expected " <> T.unpack expectedCode <> ", got " <> T.unpack code
     Left err -> fail $ label <> ": expected " <> T.unpack expectedCode <> ", got " <> show err
     Right _ -> fail $ label <> ": expected " <> T.unpack expectedCode <> ", but it succeeded"
+
+-- | Drop any queued training so the next command is not refused as busy.
+idle :: GameState -> GameState
+idle = playerRuntime . ix "tester" . runtimeBusy .~ Nothing
 
 restTester :: GameStateT ()
 restTester = do

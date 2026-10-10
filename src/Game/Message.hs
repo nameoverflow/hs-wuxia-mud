@@ -21,11 +21,13 @@ data PlayerAction
   | Attack CharId
   | Perform ActiveSkillId
   | Train ArtId
-  | Practice ArtId
+  | -- | art, times
+    Practice ArtId Int
   | Learn CharId ArtId Int
-  | Study ItemId
-  | Research ArtId
-  | Meditate Int
+  | Study ItemId Int
+  | Research ArtId Int
+  | -- | Qi amount, times
+    Meditate Int Int
   | EnableArt ArtType ArtId
   | PrepareArt ArtType ArtId
   | Use T.Text
@@ -39,11 +41,11 @@ instance FromJSON PlayerAction where
       <|> (Attack <$> o .: "attack")
       <|> (Perform <$> o .: "perform")
       <|> (Train <$> o .: "train")
-      <|> (Practice <$> o .: "practice")
+      <|> parseTimed "practice" "art" Practice o
       <|> parseLearn o
-      <|> (Study <$> o .: "study")
-      <|> (Research <$> o .: "research")
-      <|> (Meditate <$> o .: "meditate")
+      <|> parseTimed "study" "item" Study o
+      <|> parseTimed "research" "art" Research o
+      <|> parseTimed "meditate" "amount" Meditate o
       <|> parseEnable o
       <|> parsePrepare o
       <|> (Use <$> o .: "use")
@@ -51,6 +53,13 @@ instance FromJSON PlayerAction where
       <|> (Other <$> o .: "other")
       <|> (Talk <$> o .: "talk")
     where
+      -- Either a bare target (one step) or {"<field>": target, "times": n}.
+      parseTimed key field build o = do
+        value <- o .: key
+        case value of
+          Object timed -> build <$> timed .: field <*> timed .:? "times" .!= 1
+          _ -> (`build` 1) <$> parseJSON value
+
       parseLearn o = do
         learnObj <- o .: "learn"
         Learn
@@ -76,12 +85,12 @@ instance ToJSON PlayerAction where
   toJSON (Attack targetId) = object ["attack" .= targetId]
   toJSON (Perform targetActiveSkillId) = object ["perform" .= targetActiveSkillId]
   toJSON (Train targetArtId) = object ["train" .= targetArtId]
-  toJSON (Practice targetArtId) = object ["practice" .= targetArtId]
+  toJSON (Practice targetArtId times) = object ["practice" .= object ["art" .= targetArtId, "times" .= times]]
   toJSON (Learn teacherId targetArtId times) =
     object ["learn" .= object ["teacher" .= teacherId, "art" .= targetArtId, "times" .= times]]
-  toJSON (Study itemId) = object ["study" .= itemId]
-  toJSON (Research targetArtId) = object ["research" .= targetArtId]
-  toJSON (Meditate amount) = object ["meditate" .= amount]
+  toJSON (Study itemId times) = object ["study" .= object ["item" .= itemId, "times" .= times]]
+  toJSON (Research targetArtId times) = object ["research" .= object ["art" .= targetArtId, "times" .= times]]
+  toJSON (Meditate amount times) = object ["meditate" .= object ["amount" .= amount, "times" .= times]]
   toJSON (EnableArt artType' targetArtId) = object ["enable" .= object ["type" .= artType', "art" .= targetArtId]]
   toJSON (PrepareArt artType' targetArtId) = object ["prepare" .= object ["type" .= artType', "art" .= targetArtId]]
   toJSON (Use usedItemId) = object ["use" .= usedItemId]
@@ -453,6 +462,19 @@ instance ToJSON ActiveSkillFailureReason where
         "activeSkillId" .= sid
       ]
 
+-- | A queued training command the player is busy with.
+data BusySummary = BusySummary
+  { busySummaryAction :: T.Text,
+    busySummaryTarget :: T.Text,
+    busySummaryCompleted :: Int,
+    busySummaryRemaining :: Int,
+    -- | Seconds until the running step finishes.
+    busySummarySeconds :: Double
+  }
+  deriving (Show, Eq, Generic)
+
+instance ToJSON BusySummary
+
 data PlayerStatsSummary = PlayerStatsSummary
   { playerStatsSummaryHp :: Int,
     playerStatsSummaryMaxHp :: Int,
@@ -469,7 +491,8 @@ data PlayerStatsSummary = PlayerStatsSummary
     playerStatsSummaryStrength :: Int,
     playerStatsSummaryAgility :: Int,
     playerStatsSummaryVitality :: Int,
-    playerStatsSummaryInjuredSeconds :: Int
+    playerStatsSummaryInjuredSeconds :: Int,
+    playerStatsSummaryBusy :: Maybe BusySummary
   }
   deriving (Show, Eq, Generic)
 
