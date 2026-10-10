@@ -28,6 +28,7 @@ main :: IO ()
 main = do
   testWorldValidationCatchesBrokenQuestRefs
   testWorldValidationCatchesBrokenRoomExit
+  testWorldValidationCatchesUngatedRegionalArt
   testRandomSelectEmpty
   testDefaultFoundationArts
   testCharacterCreationChoiceAppliesInitialAttrs
@@ -209,6 +210,14 @@ testWorldValidationCatchesBrokenRoomExit = do
         Left err ->
           assert ("missing_map" `T.isInfixOf` err) "world validation error did not identify the missing exit map"
         Right _ -> fail "world validation accepted an exit to a missing room"
+
+testWorldValidationCatchesUngatedRegionalArt :: IO ()
+testWorldValidationCatchesUngatedRegionalArt = do
+  gs <- loadFreshState
+  let broken = gs ^. world & martialArts . ix "luoyang_sword" . artRequires .~ [ArtRequirement "basic_sword" 1]
+  case validateWorld broken of
+    Left err -> assert ("luoyang_sword" `T.isInfixOf` err) "world validation did not name the ungated regional art"
+    Right _ -> fail "world validation accepted a regional art gated at foundation level 1"
 
 testRandomSelectEmpty :: IO ()
 testRandomSelectEmpty = do

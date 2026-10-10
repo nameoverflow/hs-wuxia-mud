@@ -1,11 +1,12 @@
 - id: luoyang_sword
   name: "洛阳剑法"
   type: sword
+  tier: regional
   desc: "相传是旧都天津桥上一位不肯报名的剑客所遗，后经牡丹会世代剑客增补，讲究步法、出剑角度和截断来势。洛阳剑客以此剑示名：出剑之前，先报姓名。"
   foundation: basic_sword
   requires:
     - art: basic_sword
-      level: 1
+      level: 10
   max_level: 40
   attack_moves:
     - id: luoyang_bridge_cut
@@ -51,11 +52,12 @@
 - id: dali_guard_fist
   name: "茶马护身拳"
   type: fist
+  tier: regional
   desc: "段氏旧府护院为茶马商队编的拳法。拳架低，步子沉，适合护送和近身防守。段家失了王位，以护送商路为生，这套拳便成了段家对外示人的功夫；真正的家传，从不在人前露。"
   foundation: basic_fist
   requires:
     - art: basic_fist
-      level: 1
+      level: 10
   max_level: 40
   attack_moves:
     - id: dali_door_push
@@ -100,11 +102,12 @@
 - id: taihu_breath
   name: "太湖调息"
   type: internal
+  tier: regional
   desc: "太湖水榭医者代代相传的调息法，本为行医时稳住自己的气息，后来才拿它疗伤。先调息，再辨寒热虚实。水榭规矩：只传给认过的人。"
   foundation: basic_internal
   requires:
     - art: basic_internal
-      level: 1
+      level: 10
   max_level: 40
   active_skills:
     - id: taihu_return_breath
@@ -128,9 +131,10 @@
 - id: mist_step
   name: "烟水步"
   type: lightness
+  tier: regional
   desc: "太湖渡口的摇橹人和水榭药童在湿滑石岸上练出来的步法，重在不让脚步声先出卖自己。"
   foundation: basic_lightness
   requires:
     - art: basic_lightness
-      level: 1
+      level: 10
   max_level: 40

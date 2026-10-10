@@ -128,6 +128,7 @@ data ArtSummary = ArtSummary
   { artSummaryId :: ArtId,
     artSummaryName :: T.Text,
     artSummaryType :: T.Text,
+    artSummaryTier :: T.Text,
     artSummaryLevel :: Int,
     artSummaryProgress :: Int,
     artSummaryNextProgress :: Int,

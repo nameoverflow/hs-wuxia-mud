@@ -1128,6 +1128,7 @@ artToSummary martialArtMap player known martialArt =
     { artSummaryId = martialArt ^. artId,
       artSummaryName = martialArt ^. artName,
       artSummaryType = artTypeToText $ martialArt ^. artType,
+      artSummaryTier = artTierToText $ martialArt ^. artTier,
       artSummaryLevel = level,
       artSummaryProgress = known ^. artProgress,
       artSummaryNextProgress =

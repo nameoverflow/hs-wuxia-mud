@@ -395,9 +395,28 @@ instance FromJSON ArtRequirement where
     _artRequirementLevel <- o .: "level"
     pure ArtRequirement {..}
 
+-- | Content tier: entry arts for newcomers, regional arts behind a city's
+-- trust, lineage arts behind a sect.
+data ArtTier = EntryTier | RegionalTier | LineageTier
+  deriving (Generic, Show, Eq, Ord)
+
+artTierToText :: ArtTier -> Text
+artTierToText = \case
+  EntryTier -> "entry"
+  RegionalTier -> "regional"
+  LineageTier -> "lineage"
+
+instance FromJSON ArtTier where
+  parseJSON = withText "ArtTier" $ \case
+    "entry" -> pure EntryTier
+    "regional" -> pure RegionalTier
+    "lineage" -> pure LineageTier
+    _ -> fail "Invalid ArtTier"
+
 data MartialArt = MartialArt
   { _artId :: ArtId,
     _artType :: ArtType,
+    _artTier :: ArtTier,
     _artName :: Text,
     _artDesc :: Text,
     _artFoundation :: Maybe ArtId,
@@ -421,6 +440,7 @@ instance FromJSON MartialArt where
   parseJSON = withObject "MartialArt" $ \o -> do
     _artId <- o .: "id"
     _artType <- o .: "type"
+    _artTier <- o .:? "tier" .!= EntryTier
     _artName <- o .: "name"
     _artDesc <- o .: "desc"
     _artFoundation <- o .:? "foundation"

@@ -165,6 +165,10 @@ validateWorld wrld =
       [ "martial art " <> artId' <> " has non-positive max_level"
         | martialArt ^. artMaxLevel <= 0
       ]
+        <> [ "martial art " <> artId' <> " is above entry tier but requires no foundation beyond level 1"
+             | martialArt ^. artTier /= EntryTier,
+               all ((<= 1) . view artRequirementLevel) (martialArt ^. artRequires)
+           ]
         <> [ "martial art " <> artId' <> " research_from is outside 1..max_level"
              | martialArt ^. artResearchFrom < 1 || martialArt ^. artResearchFrom > martialArt ^. artMaxLevel
            ]

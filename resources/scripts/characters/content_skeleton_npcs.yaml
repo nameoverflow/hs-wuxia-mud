@@ -48,6 +48,7 @@
     fist:
       id: nameless_trial_fist
       level: 8
+  teach_bonus: 2
   teaches:
     basic_fist: 12
     basic_sword: 10
@@ -456,6 +457,7 @@
     sword:
       id: luoyang_sword
       level: 16
+  teach_bonus: 4
   teaches:
     basic_sword: 16
     basic_lightness: 14
@@ -591,6 +593,7 @@
     fist:
       id: dali_guard_fist
       level: 22
+  teach_bonus: 4
   teaches:
     basic_fist: 22
     basic_internal: 18
@@ -694,6 +697,7 @@
     internal:
       id: taihu_breath
       level: 24
+  teach_bonus: 4
   teaches:
     basic_internal: 24
     basic_lightness: 14
