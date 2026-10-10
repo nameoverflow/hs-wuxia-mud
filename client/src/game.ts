@@ -11,6 +11,7 @@ import type {
   ActiveSkillFailureReason,
   ActiveSkillSummary,
   ArtSummary,
+  BusySummary,
   BattleSnapshot,
   CharacterCreationChoice,
   CharacterCreationConfig,
@@ -49,6 +50,10 @@ export interface PlayerStats {
   strength: number;
   agility: number;
   vitality: number;
+  potential: number;
+  combatExp: number;
+  injuredSeconds: number;
+  busy: BusySummary | null;
 }
 
 export interface MessageEntry {
@@ -130,7 +135,11 @@ const initialState: GameState = {
     portraitKey: "beauty-score-05",
     strength: 18,
     agility: 18,
-    vitality: 18
+    vitality: 18,
+    potential: 0,
+    combatExp: 0,
+    injuredSeconds: 0,
+    busy: null
   },
   room: { name: "", desc: "", characters: [], exits: [] },
   mapOverview: null,
@@ -732,7 +741,11 @@ function normalizePlayerStats(payload: PlayerStatsPayload, current: PlayerStats,
       portraitKey: payload.playerStatsSummaryPortraitKey || current.portraitKey,
       strength: payload.playerStatsSummaryStrength ?? current.strength,
       agility: payload.playerStatsSummaryAgility ?? current.agility,
-      vitality: payload.playerStatsSummaryVitality ?? current.vitality
+      vitality: payload.playerStatsSummaryVitality ?? current.vitality,
+      potential: payload.playerStatsSummaryPotential ?? current.potential,
+      combatExp: payload.playerStatsSummaryCombatExp ?? current.combatExp,
+      injuredSeconds: payload.playerStatsSummaryInjuredSeconds ?? 0,
+      busy: payload.playerStatsSummaryBusy ?? null
     }
   };
 }
@@ -908,6 +921,10 @@ function handleReward(rewards: RewardSummary[]) {
 }
 
 function handleSystem(contents: { systemMessageKey: string; systemMessageParams: Record<string, string> }) {
+  if (contents?.systemMessageKey === "training_finished") {
+    addMessage("system", withLocale((locale) => formatTrainingFinished(locale, contents.systemMessageParams || {})));
+    return;
+  }
   const key = `system.${contents?.systemMessageKey || "unknown"}`;
   addMessage(
     "system",
@@ -917,6 +934,28 @@ function handleSystem(contents: { systemMessageKey: string; systemMessageParams:
         : t(locale, "system.unknown", { code: contents?.systemMessageKey || "unknown" })
     )
   );
+}
+
+function formatTrainingFinished(locale: Locale, params: Record<string, string>) {
+  const action = t(locale, `training.action.${params.action || "practice"}`);
+  const completed = params.completed || "0";
+  if (!params.reason) return t(locale, "system.training_finished", { action, completed });
+  if (params.reason === "halted" || params.reason === "interrupted") return t(locale, "system.training_halted", { action, completed });
+  return t(locale, "system.training_stopped", { action, completed });
+}
+
+export function trainingLabel(locale: Locale, busy: BusySummary, arts: ArtSummary[]) {
+  const action = t(locale, `training.action.${busy.busySummaryAction}`);
+  const art = arts.find((candidate) => candidate.artSummaryId === busy.busySummaryTarget);
+  const total = busy.busySummaryCompleted + busy.busySummaryRemaining;
+  return t(locale, "training.busy", { action, target: art?.artSummaryName ?? "", completed: busy.busySummaryCompleted, total });
+}
+
+/** 初学乍练 … 登峰造极 for a martial art level. */
+export function artRankTitle(locale: Locale, level: number) {
+  const thresholds = [90, 70, 50, 35, 20, 10, 1];
+  const rank = thresholds.find((threshold) => level >= threshold) ?? 1;
+  return t(locale, `art.rank.${rank}`);
 }
 
 function handleError(contents: { errorSummaryCode: string; errorSummaryParams: Record<string, string> }) {
@@ -986,11 +1025,17 @@ function normalizeCharacters(chars: unknown[]): RoomCharacterSummary[] {
         id: typeof obj.id === "string" ? obj.id : null,
         name: String(obj.name || obj.id || "Unknown"),
         desc: String(obj.desc || ""),
-        actions: Array.isArray(obj.actions) ? obj.actions.map((action) => String(action).toLowerCase()) : []
+        actions: Array.isArray(obj.actions) ? obj.actions.map((action) => String(action).toLowerCase()) : [],
+        teaches: Array.isArray(obj.teaches)
+          ? obj.teaches.map((taught) => {
+              const entry = (taught || {}) as Record<string, unknown>;
+              return { artId: String(entry.artId || ""), name: String(entry.name || entry.artId || ""), maxLevel: Number(entry.maxLevel || 0) };
+            })
+          : []
       };
     }
     const text = String(char || "");
-    return { id: null, name: text, desc: "", actions: [] };
+    return { id: null, name: text, desc: "", actions: [], teaches: [] };
   });
 }
 
@@ -1082,7 +1127,7 @@ export function formatArtType(locale: Locale, type: string) {
 
 export function formatReward(reward: RewardSummary) {
   if (reward.rewardSummaryKind === "money") return `${reward.rewardSummaryAmount} ${reward.rewardSummaryName}`;
-  if (reward.rewardSummaryKind === "martial_art") return reward.rewardSummaryName;
+  if (reward.rewardSummaryKind === "martial_art") return `${reward.rewardSummaryName} ${reward.rewardSummaryAmount}`;
   return `${reward.rewardSummaryName} x${reward.rewardSummaryAmount}`;
 }
 

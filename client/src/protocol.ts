@@ -16,6 +16,12 @@ export type PlayerAction =
   | { attack: string }
   | { perform: string }
   | { train: string }
+  | { practice: string | { art: string; times: number } }
+  | { learn: { teacher: string; art: string; times: number } }
+  | { study: string | { item: string; times: number } }
+  | { research: string | { art: string; times: number } }
+  | { meditate: number | { amount: number; times: number } }
+  | { enable: { type: string; art: string } }
   | { use: string }
   | { say: string }
   | { other: "view" | "quests" | "inventory" | "arts" | string };
@@ -71,11 +77,18 @@ export interface LoginEvent {
   creation?: CharacterCreationChoice | null;
 }
 
+export interface TeachableArtSummary {
+  artId: string;
+  name: string;
+  maxLevel: number;
+}
+
 export interface RoomCharacterSummary {
   id: string | null;
   name: string;
   desc: string;
   actions: string[];
+  teaches: TeachableArtSummary[];
 }
 
 export interface RoomExitSummary {
@@ -178,6 +191,19 @@ export interface PlayerStatsSummary {
   playerStatsSummaryStrength: number;
   playerStatsSummaryAgility: number;
   playerStatsSummaryVitality: number;
+  playerStatsSummaryPotential?: number;
+  playerStatsSummaryCombatExp?: number;
+  playerStatsSummaryInjuredSeconds?: number;
+  playerStatsSummaryBusy?: BusySummary | null;
+}
+
+/** A queued training command the player is busy with. */
+export interface BusySummary {
+  busySummaryAction: string;
+  busySummaryTarget: string;
+  busySummaryCompleted: number;
+  busySummaryRemaining: number;
+  busySummarySeconds: number;
 }
 
 export type PlayerStatsPayload = PlayerStatsSummary | PlayerStatsLegacyPayload;
@@ -215,9 +241,17 @@ export interface ArtSummary {
   artSummaryId: string;
   artSummaryName: string;
   artSummaryType: string;
+  artSummaryTier?: string;
   artSummaryLevel: number;
+  artSummaryProgress?: number;
+  artSummaryNextProgress?: number;
   artSummaryMaxLevel: number;
   artSummaryIsFoundation: boolean;
+  artSummaryEnabled?: boolean;
+  artSummaryResearchFrom?: number;
+  artSummaryNextCombatExp?: number;
+  /** What stops the next level: "max_level", "combat_exp", or "foundation" (practice only). */
+  artSummaryBlocker?: string | null;
   artSummaryFoundation: string | null;
   artSummaryRequirements: ArtRequirementSummary[];
   artSummaryUnlockedAttackMoves: string[];

@@ -134,6 +134,7 @@ data ArtSummary = ArtSummary
     artSummaryNextProgress :: Int,
     artSummaryMaxLevel :: Int,
     artSummaryIsFoundation :: Bool,
+    artSummaryEnabled :: Bool,
     artSummaryFoundation :: Maybe ArtId,
     artSummaryRequirements :: [ArtRequirementSummary],
     artSummaryUnlockedAttackMoves :: [T.Text],
@@ -196,11 +197,28 @@ data BattleSnapshot = BattleSnapshot
 
 instance ToJSON BattleSnapshot
 
+-- | An art an NPC is willing to teach, and how far.
+data TeachableArtSummary = TeachableArtSummary
+  { teachableArtId :: ArtId,
+    teachableArtName :: T.Text,
+    teachableArtMaxLevel :: Int
+  }
+  deriving (Show, Eq, Generic)
+
+instance ToJSON TeachableArtSummary where
+  toJSON TeachableArtSummary {..} =
+    object
+      [ "artId" .= teachableArtId,
+        "name" .= teachableArtName,
+        "maxLevel" .= teachableArtMaxLevel
+      ]
+
 data RoomCharacterSummary = RoomCharacterSummary
   { roomCharacterSummaryId :: CharId,
     roomCharacterSummaryName :: T.Text,
     roomCharacterSummaryDesc :: T.Text,
-    roomCharacterSummaryActions :: [T.Text]
+    roomCharacterSummaryActions :: [T.Text],
+    roomCharacterSummaryTeaches :: [TeachableArtSummary]
   }
   deriving (Show, Eq, Generic)
 
@@ -210,7 +228,8 @@ instance ToJSON RoomCharacterSummary where
       [ "id" .= roomCharacterSummaryId,
         "name" .= roomCharacterSummaryName,
         "desc" .= roomCharacterSummaryDesc,
-        "actions" .= roomCharacterSummaryActions
+        "actions" .= roomCharacterSummaryActions,
+        "teaches" .= roomCharacterSummaryTeaches
       ]
 
 data RoomExitSummary = RoomExitSummary
@@ -492,6 +511,8 @@ data PlayerStatsSummary = PlayerStatsSummary
     playerStatsSummaryStrength :: Int,
     playerStatsSummaryAgility :: Int,
     playerStatsSummaryVitality :: Int,
+    playerStatsSummaryPotential :: Int,
+    playerStatsSummaryCombatExp :: Int,
     playerStatsSummaryInjuredSeconds :: Int,
     playerStatsSummaryBusy :: Maybe BusySummary
   }

@@ -13,6 +13,10 @@
 
   let activeTab: "status" | "inventory" = "status";
   $: presentedHp = state.battle.active ? state.battle.presentation?.playerHp ?? state.stats.hp : state.stats.hp;
+  $: idle = state.connected && !state.battle.active && !state.storyActive && !state.stats.busy;
+
+  // Ten rounds of turning 20 Qi into max Qi; the server stops early when Qi runs out.
+  const meditate = () => sendAction({ meditate: { amount: 20, times: 10 } });
 
   const requestRefresh = () => {
     sendAction({ other: "view" });
@@ -102,12 +106,29 @@
         <dt>{translate(state.locale, "field.money")}</dt>
         <dd>{state.money}</dd>
       </div>
+      <div>
+        <dt>{translate(state.locale, "field.potential")}</dt>
+        <dd>{state.stats.potential}</dd>
+      </div>
+      <div>
+        <dt>{translate(state.locale, "field.combat_exp")}</dt>
+        <dd>{state.stats.combatExp}</dd>
+      </div>
+      {#if state.stats.injuredSeconds > 0}
+        <div class="injured">
+          <dt>{translate(state.locale, "field.injured")}</dt>
+          <dd>{translate(state.locale, "status.injured", { seconds: state.stats.injuredSeconds })}</dd>
+        </div>
+      {/if}
     </dl>
 
     <div class="meter-stack">
       <ResourceMeter label={translate(state.locale, "resource.hp")} value={presentedHp} max={state.stats.maxHp} tone="hp" snapDecrease={state.battle.active} />
       <ResourceMeter label={translate(state.locale, "resource.qi")} value={state.stats.qi} max={state.stats.maxQi} tone="qi" />
       <ResourceMeter label={translate(state.locale, "resource.jing")} value={state.stats.jing} max={state.stats.maxJing} tone="ap" />
+      <button class="ghost-button meditate-button" type="button" disabled={!idle || state.stats.qi < 20} on:click={meditate}>
+        {translate(state.locale, "action.meditate")}
+      </button>
     </div>
 
     <section class="compact-section">
@@ -160,9 +181,14 @@
                 <span>x{item.inventoryItemSummaryAmount}</span>
               </div>
               {#if item.inventoryItemSummaryUsable}
-                <button type="button" disabled={!state.connected || state.battle.active || state.storyActive} on:click={() => sendAction({ use: item.inventoryItemSummaryId })}>
-                  {translate(state.locale, "action.use")}
-                </button>
+                <span class="inventory-actions">
+                  <button type="button" disabled={!state.connected || state.battle.active || state.storyActive} on:click={() => sendAction({ use: item.inventoryItemSummaryId })}>
+                    {translate(state.locale, "action.use")}
+                  </button>
+                  <button type="button" disabled={!idle} on:click={() => sendAction({ study: { item: item.inventoryItemSummaryId, times: 10 } })}>
+                    {translate(state.locale, "action.study")}
+                  </button>
+                </span>
               {/if}
             </article>
           {/each}

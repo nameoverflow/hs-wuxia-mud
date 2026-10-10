@@ -120,6 +120,13 @@
     sendAction({ go: exit.direction });
   }
 
+  $: trainingIdle = state.connected && !state.battle.active && !state.storyActive && !state.stats.busy;
+
+  function learn(character: RoomCharacterSummary, art: string, times: number) {
+    if (!character.id) return;
+    sendAction({ learn: { teacher: character.id, art, times } });
+  }
+
   function act(character: RoomCharacterSummary, action: "talk" | "attack") {
     if (!character.id || state.storyActive) return;
     sendAction(action === "talk" ? { talk: character.id } : { attack: character.id });
@@ -675,6 +682,18 @@
           <span class="npc-no-actions">{translate(state.locale, "ui.none")}</span>
         {/if}
       </div>
+      {#if selectedCharacter.teaches.length > 0}
+        <section class="npc-teaches">
+          <h3>{translate(state.locale, "npc.teaches")}</h3>
+          {#each selectedCharacter.teaches as taught}
+            <div class="npc-teach-row">
+              <span>{taught.name} <small>{translate(state.locale, "npc.teach_cap", { max: taught.maxLevel })}</small></span>
+              <button type="button" disabled={!trainingIdle} on:click={() => learn(selectedCharacter!, taught.artId, 1)}>{translate(state.locale, "action.learn")}</button>
+              <button type="button" disabled={!trainingIdle} on:click={() => learn(selectedCharacter!, taught.artId, 10)}>{translate(state.locale, "action.learn_many")}</button>
+            </div>
+          {/each}
+        </section>
+      {/if}
     </div>
   </div>
 {/if}

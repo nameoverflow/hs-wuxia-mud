@@ -161,6 +161,8 @@ playerStatsSummary player hp maxHp qi maxQi ap status =
       playerStatsSummaryStrength = innate ^. innateStrength,
       playerStatsSummaryAgility = innate ^. innateAgility,
       playerStatsSummaryVitality = innate ^. innateVitality,
+      playerStatsSummaryPotential = player ^. playerPotential,
+      playerStatsSummaryCombatExp = player ^. playerCombatExp,
       playerStatsSummaryInjuredSeconds = 0,
       playerStatsSummaryBusy = Nothing
     }
@@ -176,6 +178,7 @@ playerView pid = do
   curRoom <- liftWorld $ getsMapRoom curMapId curPos
   allChars <- use $ world . chars
   worldMaps <- use $ world . maps
+  martialArtMap <- use $ world . martialArts
   let roomChar' = curRoom ^. roomChar
   visibleRoomCharIds <- filterM (npcVisibleToPlayer pid) roomChar'
   let curRoomChars = catMaybes $ flip map visibleRoomCharIds $ \cid ->
@@ -189,7 +192,11 @@ playerView pid = do
                     { roomCharacterSummaryId = cid,
                       roomCharacterSummaryName = char ^. charName,
                       roomCharacterSummaryDesc = char ^. charDesc,
-                      roomCharacterSummaryActions = map charActionText . S.toList $ char ^. charActions
+                      roomCharacterSummaryActions = map charActionText . S.toList $ char ^. charActions,
+                      roomCharacterSummaryTeaches =
+                        [ TeachableArtSummary taughtArtId (maybe taughtArtId (^. artName) $ M.lookup taughtArtId martialArtMap) maxLevel
+                          | (taughtArtId, maxLevel) <- M.toList $ char ^. charTeaches
+                        ]
                     }
               else Nothing
   let curRoomExits = catMaybes $
@@ -562,7 +569,9 @@ grantGrowth pid combatExpGain potentialGain = do
       cap = potentialCap (player ^. playerCombatExp)
       gainedPotential = min (max 0 (cap - current)) (max 0 potentialGain)
   players . ix pid . playerPotential += gainedPotential
-  when (combatExpGain > 0 || gainedPotential > 0) $ markPlayerDirty pid
+  when (combatExpGain > 0 || gainedPotential > 0) $ do
+    markPlayerDirty pid
+    sendPlayerStats pid
   when (potentialGain > 0 && gainedPotential < potentialGain) $
     tell [(pid, SystemMsg $ SystemMessage "potential_full" (M.fromList [("cap", showText cap)]))]
   return $
@@ -1137,6 +1146,7 @@ artToSummary martialArtMap player known martialArt =
           else artProgressRequired (level + 1),
       artSummaryMaxLevel = martialArt ^. artMaxLevel,
       artSummaryIsFoundation = martialArt ^. artType == Foundation,
+      artSummaryEnabled = maybe False ((== martialArt ^. artId) . view artDef) (player ^. playerCharacter . charEnabled . at (martialArt ^. artType)),
       artSummaryFoundation = martialArt ^. artFoundation,
       artSummaryRequirements = map (artRequirementToSummary martialArtMap) (martialArt ^. artRequires),
       artSummaryUnlockedAttackMoves = [move ^. attackMoveName | move <- martialArt ^. artAttackMoves, move ^. attackMoveUnlockLevel <= level],
