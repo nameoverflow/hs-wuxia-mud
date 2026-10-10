@@ -39,6 +39,10 @@ type ArtId = Text
 data ItemUse = LearnArtUse
   { _itemUseArt :: ArtId,
     _itemUseLevel :: Int,
+    -- | Level band in which @study@ still adds proficiency; the max is exclusive of further study.
+    _itemUseMinLevel :: Int,
+    _itemUseMaxLevel :: Maybe Int,
+    _itemUseQuality :: Int,
     _itemUseConsume :: Bool,
     _itemUseMessage :: Maybe Text,
     _itemUseRepeatMessage :: Maybe Text
@@ -52,6 +56,9 @@ instance FromJSON ItemUse where
       String "learn_art" -> do
         _itemUseArt <- o .: "art"
         _itemUseLevel <- o .:? "level" .!= 1
+        _itemUseMinLevel <- o .:? "min_level" .!= 1
+        _itemUseMaxLevel <- o .:? "max_level"
+        _itemUseQuality <- o .:? "quality" .!= 0
         _itemUseConsume <- o .:? "consume" .!= False
         _itemUseMessage <- o .:? "message"
         _itemUseRepeatMessage <- o .:? "repeat_message"
@@ -64,6 +71,9 @@ instance ToJSON ItemUse where
       [ "type" .= ("learn_art" :: Text),
         "art" .= _itemUseArt,
         "level" .= _itemUseLevel,
+        "min_level" .= _itemUseMinLevel,
+        "max_level" .= _itemUseMaxLevel,
+        "quality" .= _itemUseQuality,
         "consume" .= _itemUseConsume,
         "message" .= _itemUseMessage,
         "repeat_message" .= _itemUseRepeatMessage
@@ -393,6 +403,8 @@ data MartialArt = MartialArt
     _artFoundation :: Maybe ArtId,
     _artRequires :: [ArtRequirement],
     _artMaxLevel :: Int,
+    -- | Level from which @research@ can push the art further on one's own.
+    _artResearchFrom :: Int,
     _artAttackMoves :: [AttackMove],
     _artActiveSkills :: [ActiveSkill]
   }
@@ -414,6 +426,7 @@ instance FromJSON MartialArt where
     _artFoundation <- o .:? "foundation"
     _artRequires <- o .:? "requires" .!= []
     _artMaxLevel <- o .:? "max_level" .!= 100
+    _artResearchFrom <- o .:? "research_from" .!= ((_artMaxLevel + 1) `div` 2)
     _artAttackMoves <- o .:? "attack_moves" .!= []
     _artActiveSkills <- o .:? "active_skills" .!= []
     pure MartialArt {..}
@@ -681,6 +694,8 @@ data Character = Character
     _charPrepare :: M.Map ArtType ArtEntity,
     _charEnabled :: M.Map ArtType ArtEntity,
     _charTeaches :: M.Map ArtId Int,
+    -- | Extra proficiency per lesson from this teacher.
+    _charTeachBonus :: Int,
     _charTeachRequires :: Maybe TeachRequirement,
     _charItems :: S.Set ItemEntity,
     _charArt :: M.Map ArtType [ArtEntity],
@@ -717,6 +732,7 @@ newCharacter cid cname =
       _charPrepare = M.empty,
       _charEnabled = M.empty,
       _charTeaches = M.empty,
+      _charTeachBonus = 0,
       _charTeachRequires = Nothing,
       _charItems = S.empty,
       _charArt = M.empty,
@@ -758,6 +774,7 @@ instance FromJSON Character where
     _charPrepare <- o .: "prepared"
     _charEnabled <- o .:? "enabled" .!= _charPrepare
     _charTeaches <- o .:? "teaches" .!= M.empty
+    _charTeachBonus <- o .:? "teach_bonus" .!= 0
     _charTeachRequires <- o .:? "teach_requires"
     -- _charItems <- o .: "items"
     -- _charRoutine <- o .: "routine"

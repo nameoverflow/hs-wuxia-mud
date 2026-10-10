@@ -128,7 +128,12 @@ data ArtSummary = ArtSummary
     artSummaryRequirements :: [ArtRequirementSummary],
     artSummaryUnlockedAttackMoves :: [T.Text],
     artSummaryUnlockedActiveSkills :: [T.Text],
-    artSummaryNextUnlocks :: [T.Text]
+    artSummaryNextUnlocks :: [T.Text],
+    -- | Level from which @research@ is possible.
+    artSummaryResearchFrom :: Int,
+    artSummaryNextCombatExp :: Int,
+    -- | What stops the next level: "max_level", "combat_exp", or "foundation" (practice only).
+    artSummaryBlocker :: Maybe T.Text
   }
   deriving (Show, Eq, Generic)
 

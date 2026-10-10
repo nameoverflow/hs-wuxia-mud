@@ -130,7 +130,7 @@ validateWorld wrld =
     validateItemUse item =
       case item ^. itemUse of
         Nothing -> []
-        Just (LearnArtUse artId level _ _ _) ->
+        Just use'@(LearnArtUse artId level _ _ _ _ _ _) ->
           [ "item " <> item ^. itemId <> " use learn_art references missing martial art " <> artId
             | M.notMember artId (wrld ^. martialArts)
           ]
@@ -138,6 +138,14 @@ validateWorld wrld =
                  | level <= 0
                ]
             <> validateLearnArtLevel ("item " <> item ^. itemId <> " use learn_art") artId level
+            <> [ "item " <> item ^. itemId <> " study band has min_level above max_level"
+                 | Just bandMax <- [use' ^. itemUseMaxLevel],
+                   use' ^. itemUseMinLevel > bandMax
+               ]
+            <> concat
+              [ validateLearnArtLevel ("item " <> item ^. itemId <> " study max_level") artId bandMax
+                | Just bandMax <- [use' ^. itemUseMaxLevel]
+              ]
 
     validateCharacter char =
       [ "character " <> char ^. charId <> " teaches missing martial art " <> artId
@@ -157,6 +165,9 @@ validateWorld wrld =
       [ "martial art " <> artId' <> " has non-positive max_level"
         | martialArt ^. artMaxLevel <= 0
       ]
+        <> [ "martial art " <> artId' <> " research_from is outside 1..max_level"
+             | martialArt ^. artResearchFrom < 1 || martialArt ^. artResearchFrom > martialArt ^. artMaxLevel
+           ]
         <> validateFoundationRef martialArt
         <> concatMap (validateArtRequirement artId') (martialArt ^. artRequires)
         <> concatMap (validateAttackMoveUnlock martialArt $ martialArt ^. artMaxLevel) (martialArt ^. artAttackMoves)

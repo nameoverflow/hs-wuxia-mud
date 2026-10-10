@@ -15,6 +15,7 @@ import Game.CharacterCreation
 import Game.Combat
 import Game.Entity
 import Game.Message
+import Game.Progression
 import Game.Quest
 import Game.World
 import GamePlay
@@ -50,6 +51,7 @@ main = do
   testBattleActionLockBlocksApGrowth
   testDotEffectTicks
   testTrainRaisesFoundationAndUnlocksActiveSkills
+  testProgressionFormulas
   testProgressionActions
   testJingRequirementFailure
   testJingTickRecovery
@@ -230,7 +232,7 @@ testDefaultFoundationArts = do
       assert (enabledArtIn Sword "nameless_trial_sword" player) "default player did not enable the starter sword art"
       assert ((player ^. playerCharacter . charPrepare . at Foundation) == Nothing) "foundation art should not be prepared"
       assert ((player ^. playerPotential) == 20) "default player potential did not load"
-      assert ((player ^. playerCombatExp) == 1000) "default player combat exp did not load"
+      assert ((player ^. playerCombatExp) == 0) "new players should start without combat exp"
       assert ((player ^. playerCharacter . charGender) == UnknownGender) "default player gender did not load"
       assert ((player ^. playerCharacter . charAppearance) == 5) "default player appearance did not load"
       assert ((player ^. playerCharacter . charJing) == 120) "default player jing did not load"
@@ -697,21 +699,28 @@ testDotEffectTicks = do
 testTrainRaisesFoundationAndUnlocksActiveSkills :: IO ()
 testTrainRaisesFoundationAndUnlocksActiveSkills = do
   gs <- newTestPlayerState
-  (_, learned) <- runOk "learn weiyuan sword" gs (grantArt "tester" "weiyuan_sword" 1)
+  (_, learned) <- runOk "learn weiyuan sword" gs $ do
+    grantArt "tester" "weiyuan_sword" 1
+    playerEnableArt "tester" Sword "weiyuan_sword"
+    playerPrepareArt "tester" Sword "weiyuan_sword"
+  let seasoned =
+        learned
+          & players . ix "tester" . playerCombatExp .~ 1000
+          & players . ix "tester" . playerCharacter . charArt . ix Foundation %~ setArtLevel "basic_sword" 10
 
-  (lowBattleMsgs, _) <- startTrainingBattle learned
+  (lowBattleMsgs, _) <- startTrainingBattle seasoned
   let lowActiveSkillIds = battleActiveSkillIds lowBattleMsgs
   assert ("steady_cut" `elem` lowActiveSkillIds) "level 1 weiyuan_sword did not expose steady_cut"
   assert ("eight_direction_thrusts" `notElem` lowActiveSkillIds) "eight_direction_thrusts unlocked before level 5"
 
-  (_, trained) <- runOk "train weiyuan sword to 5" learned $
-    replicateM_ 4 (playerTrainArt "tester" "weiyuan_sword")
-  case M.lookup "tester" (trained ^. players) of
-    Nothing -> fail "tester missing after training"
-    Just player -> do
-      assert (knowsArtAt "weiyuan_sword" 5 player) "training did not raise weiyuan_sword to level 5"
-      assert (knowsArtAt "basic_sword" 5 player) "training did not raise basic_sword to level 5"
-      assert (preparedArtIn Sword "weiyuan_sword" player) "training did not keep weiyuan_sword prepared"
+  -- 2->5 needs 40+50+60+70 = 220 proficiency at 5 per practice.
+  (_, trained) <- runOk "practise weiyuan sword to 5" seasoned $
+    replicateM_ 44 (restTester >> practiceStep "tester" "weiyuan_sword")
+  player <- requirePlayer trained
+  assert (knowsArtAt "weiyuan_sword" 5 player) "practice did not raise weiyuan_sword to level 5"
+  assert (knowsArtAt "basic_sword" 10 player) "half the proficiency should not yet lift basic_sword past 10"
+  assert (artProgressOf "basic_sword" player == Just 88) "practice did not share proficiency with the foundation"
+  assert (enabledArtIn Sword "weiyuan_sword" player) "practice did not keep weiyuan_sword enabled"
 
   (highBattleMsgs, _) <- startTrainingBattle trained
   let highActiveSkillIds = battleActiveSkillIds highBattleMsgs
@@ -723,35 +732,107 @@ testTrainRaisesFoundationAndUnlocksActiveSkills = do
           activeSkill <- battleSnapshotActiveSkills snapshot
       ]
 
+testProgressionFormulas :: IO ()
+testProgressionFormulas = do
+  assert (map combatExpRequiredForLevel [1, 2, 10, 30, 100] == [0, 0, 100, 2700, 100000]) "combat exp curve changed"
+  assert (map artProgressRequired [2, 10, 30] == [40, 120, 320]) "proficiency curve changed"
+  -- Overflow carries into the next level: 1 -> 2 needs 40, 2 -> 3 needs 50.
+  assert (addArtProgress 20 1000 Nothing 100 1 0 == (3, 10)) "proficiency overflow did not carry over"
+  assert (addArtProgress 20 1000 (Just 2) 100 1 0 == (2, 49)) "source cap did not hold proficiency one short"
+  assert (addArtProgress 20 0 Nothing 100 2 0 == (2, 49)) "combat exp gate did not hold proficiency one short"
+  assert (addArtProgress 3 1000 Nothing 500 2 0 == (3, 0)) "max level did not clear proficiency"
+  assert (canGainProgress 20 0 Nothing 2 10 == Nothing) "a gated art should still fill its bar"
+  assert (canGainProgress 20 1000 (Just 2) 2 10 == Just (BlockedBySourceCap 2)) "a source cap should stop the step"
+  assert (battleCombatExpGain 10 10 == 10 && battleCombatExpGain 30 10 == 1 && battleCombatExpGain 10 15 == 16) "battle reward scaling changed"
+  assert (potentialCap 1000 == 300) "potential cap changed"
+
 testProgressionActions :: IO ()
 testProgressionActions = do
-  gs <- newTestPlayerState
-  (_, learned) <- runOk "learn from teacher" (withCombatNpcInStarterRoom gs) (playerLearnArt "tester" "weiyuan_training_dummy" "weiyuan_sword" 2)
-  case M.lookup "tester" (learned ^. players) of
-    Nothing -> fail "tester missing after teacher learning"
-    Just player -> do
-      assert (knowsArtAt "weiyuan_sword" 2 player) "teacher learning did not raise weiyuan_sword to level 2"
-      assert (knowsArtAt "basic_sword" 2 player) "teacher learning did not sync foundation art"
-      assert (preparedArtIn Sword "weiyuan_sword" player) "teacher learning did not prepare learned art"
-      assert (enabledArtIn Sword "weiyuan_sword" player) "teacher learning did not enable learned art"
-      assert ((player ^. playerPotential) == 18) "teacher learning did not consume potential"
-      assert ((player ^. playerCharacter . charJing) == 96) "teacher learning did not consume jing"
+  gs <- withCombatNpcInStarterRoom <$> newTestPlayerState
+  (_, learned) <- runOk "learn from teacher" gs (playerLearnArt "tester" testCombatNpcId "weiyuan_sword" 2)
+  player <- requirePlayer learned
+  assert (knowsArtAt "weiyuan_sword" 1 player) "the first lesson should teach level 1"
+  assert (artProgressOf "weiyuan_sword" player == Just 12) "the second lesson did not add proficiency"
+  assert (artProgressOf "basic_sword" player == Just 6) "the lesson did not share proficiency with the foundation"
+  assert (enabledArtIn Sword "nameless_trial_sword" player) "learning must not replace the enabled sword art"
+  assert ((player ^. playerPotential) == 18) "teacher learning did not consume potential"
+  assert ((player ^. playerCharacter . charJing) == 96) "teacher learning did not consume jing"
 
-  (_, researched) <- runOk "research learned art" learned (playerResearchArt "tester" "weiyuan_sword")
-  case M.lookup "tester" (researched ^. players) of
-    Nothing -> fail "tester missing after research"
-    Just player -> do
-      assert (knowsArtAt "weiyuan_sword" 3 player) "research did not improve the learned art"
-      assert ((player ^. playerPotential) == 17) "research did not consume potential"
-      assert ((player ^. playerCharacter . charJing) == 74) "research did not consume jing"
+  expectError "research before research_from" "research_too_early" learned (playerResearchArt "tester" "weiyuan_sword")
 
-  (_, meditated) <- runOk "meditate for max qi" researched (playerMeditate "tester" 40)
-  case M.lookup "tester" (meditated ^. players) of
-    Nothing -> fail "tester missing after meditation"
-    Just player -> do
-      assert ((player ^. playerCharacter . charQi) == 60) "meditation did not consume qi"
-      assert ((player ^. playerCharacter . charMaxQi) == 102) "meditation did not raise max qi"
-      assert ((player ^. playerCharacter . charJing) == 69) "meditation did not consume jing"
+  let atTeacherCap = learned & setTesterArt Sword "weiyuan_sword" 5 0 & players . ix "tester" . playerCombatExp .~ 1000
+  expectError "learn past teacher cap" "teacher_art_level_cap" atTeacherCap (playerLearnArt "tester" testCombatNpcId "weiyuan_sword" 1)
+
+  let fullBar = learned & setTesterArt Sword "weiyuan_sword" 3 59
+  expectError "learn without combat exp" "combat_exp_too_low" fullBar (playerLearnArt "tester" testCombatNpcId "weiyuan_sword" 1)
+  (_, filled) <- runOk "fill the bar without combat exp" (learned & setTesterArt Sword "weiyuan_sword" 3 50) (playerLearnArt "tester" testCombatNpcId "weiyuan_sword" 1)
+  filledPlayer <- requirePlayer filled
+  assert (knowsArtAt "weiyuan_sword" 3 filledPlayer && artProgressOf "weiyuan_sword" filledPlayer == Just 59) "missing combat exp should hold proficiency one short of the next level"
+
+  let caughtUp =
+        learned
+          & setTesterArt Sword "weiyuan_sword" 3 0
+          & setTesterArt Foundation "basic_sword" 3 0
+          & players . ix "tester" . playerCombatExp .~ 1000
+  (_, intoFoundation) <- runOk "practise at the foundation's level" caughtUp (practiceStep "tester" "weiyuan_sword")
+  foundationPlayer <- requirePlayer intoFoundation
+  assert (artProgressOf "weiyuan_sword" foundationPlayer == Just 0) "practice raised an art past its foundation"
+  assert (artProgressOf "basic_sword" foundationPlayer == Just 4) "practice at the bottleneck did not go to the foundation"
+  assert ((foundationPlayer ^. playerCharacter . charHP) < (player ^. playerCharacter . charHP)) "sword practice did not cost hp"
+
+  let researchable = learned & setTesterArt Sword "weiyuan_sword" 10 0 & players . ix "tester" . playerCombatExp .~ 2000
+  (_, researched) <- runOk "research learned art" researchable (playerResearchArt "tester" "weiyuan_sword")
+  researchedPlayer <- requirePlayer researched
+  assert (artProgressOf "weiyuan_sword" researchedPlayer == Just 20) "research did not add proficiency"
+  assert ((researchedPlayer ^. playerPotential) == 17) "research did not consume potential"
+  assert ((researchedPlayer ^. playerCharacter . charJing) == 66) "research did not consume jing"
+
+  let withManual = researchable & players . ix "tester" . playerInventory . at "weiyuan_sword_manual" ?~ 1
+  expectError "study past the manual's band" "book_exhausted" withManual (playerStudyItem "tester" "weiyuan_sword_manual")
+  (_, studied) <- runOk "study within the band" (withManual & setTesterArt Sword "weiyuan_sword" 4 0) (playerStudyItem "tester" "weiyuan_sword_manual")
+  studiedPlayer <- requirePlayer studied
+  assert (artProgressOf "weiyuan_sword" studiedPlayer == Just 14) "study did not add the manual's proficiency"
+
+  (_, meditated) <- runOk "meditate for max qi" learned (playerMeditate "tester" 40)
+  meditatedPlayer <- requirePlayer meditated
+  assert ((meditatedPlayer ^. playerCharacter . charQi) == 60) "meditation did not consume qi"
+  assert ((meditatedPlayer ^. playerCharacter . charMaxQi) == 102) "meditation did not raise max qi"
+  assert ((meditatedPlayer ^. playerCharacter . charJing) == 91) "meditation did not consume jing"
+  let atQiCap = learned & players . ix "tester" . playerCharacter . charMaxQi .~ 110
+  expectError "meditate at the internal cap" "max_qi_at_cap" atQiCap (playerMeditate "tester" 40)
+
+expectError :: String -> T.Text -> GameState -> GameStateT a -> IO ()
+expectError label expectedCode gs action = do
+  result <- runGameState gs action
+  case result of
+    Left (StructuredException (ErrorSummary code _)) ->
+      assert (code == expectedCode) $ label <> ": expected " <> T.unpack expectedCode <> ", got " <> T.unpack code
+    Left err -> fail $ label <> ": expected " <> T.unpack expectedCode <> ", got " <> show err
+    Right _ -> fail $ label <> ": expected " <> T.unpack expectedCode <> ", but it succeeded"
+
+restTester :: GameStateT ()
+restTester = do
+  players . ix "tester" . playerCharacter . charJing .= 999
+  players . ix "tester" . playerCharacter . charHP .= 999
+  players . ix "tester" . playerCharacter . charQi .= 999
+
+setArtLevel :: ArtId -> Int -> [ArtEntity] -> [ArtEntity]
+setArtLevel targetArtId level =
+  map (\known -> if known ^. artDef == targetArtId then known & artLevel .~ level & artProgress .~ 0 else known)
+
+setTesterArt :: ArtType -> ArtId -> Int -> Int -> GameState -> GameState
+setTesterArt artType' targetArtId level progress =
+  players . ix "tester" . playerCharacter . charArt . ix artType' %~ map setOne
+  where
+    setOne known
+      | known ^. artDef == targetArtId = known & artLevel .~ level & artProgress .~ progress
+      | otherwise = known
+
+artProgressOf :: ArtId -> Player -> Maybe Int
+artProgressOf targetArtId player =
+  case [known ^. artProgress | knownArts <- M.elems $ player ^. playerCharacter . charArt, known <- knownArts, known ^. artDef == targetArtId] of
+    [] -> Nothing
+    progresses -> Just $ maximum progresses
 
 testTeacherRequiresStoryFlag :: IO ()
 testTeacherRequiresStoryFlag = do
