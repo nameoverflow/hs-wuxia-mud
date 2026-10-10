@@ -202,7 +202,7 @@ busyReason    :: Text
 优先级建议：
 
 1. 增加 `tickConditions`，把战斗内外 condition 统一。
-2. 增加 busy 机制，让 learn/practice/study/research/meditate 走耗时动作。
+2. ~~增加 busy 机制，让 learn/practice/study/research/meditate 走耗时动作。~~ 已落地为养成 busy 队列（`tickTraining`）；战斗内 busy 仍待做。
 3. 为普通攻击流水线接入装备、护甲、暴击和技能 hook。
 4. 引入慢速 tick phase，处理 NPC AI、动态任务和世界事件。
 5. 在 `PlayerSave.version` 基础上补显式迁移函数。

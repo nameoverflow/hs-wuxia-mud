@@ -17,7 +17,7 @@ tick 时：
 1. 主动招式冷却减少。
 2. DoT/HoT 生效。
 3. 过期状态移除。
-4. 双方恢复 Qi，封顶到 `charMaxQi`。
+4. 战斗内不自然恢复 HP/Qi，只把 Qi 夹紧到派生上限。战斗外的 HP/Qi/Jing 恢复见养成文档“资源闭环”。
 5. 双方按 `agility * dt * apGainRate` 增加 AP。当前 `targetCombatantActionSeconds = 2.0`，基准敏捷约每 2 秒行动一次。
 6. AP 到 `100` 的一方自动普通攻击。
 7. 任一方 HP 小于等于 0 时结算。
@@ -159,15 +159,14 @@ effect:
 
 给自己或目标加状态。
 
-## 武功学习与准备
+## 武功学习与启用
 
 更完整的角色养成规则见 [角色养成系统设计](./character-progression.md)。本节只记录当前战斗系统如何消费武功数据。
 
 玩家角色有：
 
 - `charArt`: 已学武功，按 `ArtType` 分组。
-- `charPrepare`: 当前准备的武功，按 `ArtType` 分组。
-- `charEnabled`: 当前启用的武功，按 `ArtType` 分组。
+- `charEnabled`: 当前启用的武功，每个 `ArtType` 一门。普通攻击、派生数值和主动招式都只读这里。旧内容和旧存档里的 `prepared` 读取时并入 `enabled`。
 - `Player.potential`: 潜能，供学习和自研消耗。
 - `Player.combatExp`: 实战经验，用于限制武功可提升等级。
 
@@ -183,23 +182,19 @@ effect:
 
 - 先检查目标武功的 `requires` 是否满足。
 - 如果未学过该武功，加入 `charArt`。
-- 如果已学过，保留更高等级。
-- 非基础功会自动把该武功设为对应类型的 prepared/enabled art。
+- 如果已学过且等级不低于秘籍等级，什么也不改。
+- 非基础功只在该类型还没有启用武功时自动启用，不覆盖玩家的选择。
 - 发出 `RewardMsg`，kind 为 `martial_art`。
 
-升级和养成动作：
+升级和养成动作（成本、上限和熟练度公式见养成文档）：
 
-- 客户端发送 `{"train":"art_id"}`。
-- 新客户端也可以发送 `{"practice":"art_id"}`，二者当前等价。
-- 基础功不能直接训练。
-- 等级不能超过 `max_level`。
-- 实战经验必须满足目标等级门槛。
-- 若武功声明了 `foundation`，训练后同步提升该基础功等级。
-- `{"learn":{"teacher":"npc_id","art":"art_id","times":1}}` 向同房间 NPC 学习，消耗潜能，NPC 必须在 `teaches` 中声明可教武功。
-- `{"study":"item_id"}` 研读秘籍；未学会时学习，已学会后推进熟练度。
-- `{"research":"art_id"}` 自研已学武功，消耗潜能。
-- `{"meditate":40}` 消耗当前 Qi 提升 `charMaxQi`。
-- `{"enable":{"type":"sword","art":"art_id"}}` 与 `{"prepare":{"type":"sword","art":"art_id"}}` 分别切换启用/准备武功。
+- `{"practice":"art_id"}` 或 `{"practice":{"art":"art_id","times":10}}` 自练；`{"train":"art_id"}` 是旧入口，等价于练一次。
+- `{"learn":{"teacher":"npc_id","art":"art_id","times":1}}` 向同房间 NPC 学习，NPC 必须在 `teaches` 中声明可教武功。
+- `{"study":"item_id"}` 或 `{"study":{"item":"item_id","times":n}}` 研读秘籍。
+- `{"research":"art_id"}` 或带 `times` 的对象形式自研。
+- `{"meditate":40}` 或 `{"meditate":{"amount":20,"times":10}}` 打坐。
+- 带 `times` 的动作进入 busy 队列：第一步立即执行，其余每步在 game tick 中等上一步的 busy 时间后执行；某一步失败时队列停止，已完成的步数保留。移动、攻击、交谈、使用物品会中止队列，`{"other":"halt"}` 主动停下。
+- `{"enable":{"type":"sword","art":"art_id"}}` 切换启用武功；`prepare` 是它的别名。
 
 ## 物品和秘籍
 
@@ -237,9 +232,9 @@ use:
 
 当前有两类来源：
 
-- `complete_quest`: 发 quest reward 中的 money/items。
+- `complete_quest`: 发 quest reward 中的 money/items/combat_exp/potential。
 - 剧情 action：`give_item`, `give_money`, `learn_art`。
-- 战斗胜利：发实战经验和潜能。
+- 战斗胜利：按双方武功档次差发实战经验和潜能；训练对象超过 `reward_exp_ceiling` 后不再给，NPC `reward` 可写死奖励。潜能超过软上限的部分不发。
 - 打坐：发内力上限成长。
 
 威远镖局旧案当前设计：

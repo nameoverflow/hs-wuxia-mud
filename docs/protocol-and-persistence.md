@@ -56,10 +56,13 @@ server 监听：
 {"perform":"steady_cut"}
 {"train":"weiyuan_sword"}
 {"practice":"weiyuan_sword"}
+{"practice":{"art":"weiyuan_sword","times":10}}
 {"learn":{"teacher":"wounded_escort","art":"weiyuan_sword","times":1}}
 {"study":"weiyuan_sword_manual"}
+{"study":{"item":"weiyuan_sword_manual","times":10}}
 {"research":"weiyuan_sword"}
 {"meditate":40}
+{"meditate":{"amount":20,"times":10}}
 {"enable":{"type":"sword","art":"weiyuan_sword"}}
 {"prepare":{"type":"sword","art":"weiyuan_sword"}}
 {"use":"weiyuan_sword_manual"}
@@ -68,9 +71,12 @@ server 监听：
 {"other":"quests"}
 {"other":"inventory"}
 {"other":"arts"}
+{"other":"halt"}
 ```
 
-`train` 是旧客户端兼容入口，当前等价于 `practice`。基础功由具体武功升级带动，不能直接训练。
+`train` 是旧客户端兼容入口，等价于练一次。养成动作可带 `times`（上限 100），进入 busy 队列，`{"other":"halt"}` 停下；规则见 [角色养成系统设计](./character-progression.md)。`prepare` 是 `enable` 的别名。
+
+`PlayerStatsMsg` 额外带 `playerStatsSummaryPotential`、`playerStatsSummaryCombatExp`、`playerStatsSummaryInjuredSeconds` 和 `playerStatsSummaryBusy`（当前 busy 队列：动作、目标、已完成、剩余、本步剩余秒数）。`ViewMsg` 的人物带 `teaches`（可教武功和上限）。`ArtsMsg` 每项带熟练度、阶、是否启用、`research_from` 和下一级的阻碍。队列结束发 `SystemMsg training_finished`，参数为 `action`、`target`、`completed` 和可选的 `reason`。
 
 `other: "arts"` 用于查询已学武功、等级、学习门槛和已解锁招式。
 
@@ -186,7 +192,7 @@ client 根据 `systemMessageKey` / `errorSummaryCode` 和参数做本地化。�
   "inventory": {},
   "money": 0,
   "potential": 20,
-  "combat_exp": 1000,
+  "combat_exp": 0,
   "profile": {
     "gender": "unknown",
     "appearance": 5
@@ -216,7 +222,6 @@ client 根据 `systemMessageKey` / `errorSummaryCode` 和参数做本地化。�
     "vitality": 20
   },
   "arts": {},
-  "prepared": {},
   "enabled": {}
 }
 ```
@@ -232,13 +237,13 @@ client 根据 `systemMessageKey` / `errorSummaryCode` 和参数做本地化。�
 - 潜能和实战经验。
 - 角色描述、性别、容貌、先天属性和 HP/Qi/Jing 等长期资源状态。
 - 已学武功，包括基础功和具体武功的等级与熟练度。
-- 已准备武功。基础功不需要进入 prepared。
-- 已启用武功。主动招式会从 prepared/enabled 合并暴露。
+- 已启用武功，每个类型一门；基础功不启用。旧存档的 `prepared` 读取时并入 `enabled`（`enabled` 里已有的优先），写回时不再写 `prepared`。这次没有提升存档版本，因为版本号同时决定是否保留剧情状态。
+- busy 队列和重伤状态是运行态，不保存；重启后清空。
 
 加载流程：
 
 1. server 使用 `default_player.yaml` 创建玩家。
-2. 如果 `saves/<player>.json` 存在，覆盖 story/position/inventory/money/potential/combat_exp/desc/profile/innate/HP/Qi/Jing/arts/prepared/enabled。
+2. 如果 `saves/<player>.json` 存在，覆盖 story/position/inventory/money/potential/combat_exp/desc/profile/innate/HP/Qi/Jing/arts/enabled。
 3. 位置存在且仍指向有效房间时，同步修正新旧房间的玩家占位；旧存档没有位置时保留默认出生点。
 
 dev reset 登录流程：

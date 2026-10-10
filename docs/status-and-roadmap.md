@@ -19,18 +19,18 @@
 - 奖励消息、背包消息。
 - 剧情杀敌后隐藏 NPC。
 - 剧情掉落物。
-- 可使用秘籍物品，使用后学习并准备武功。
-- 角色养成系统：角色无等级，武功有等级和熟练度，基础功由具体武功升级带动。
-- learn/practice/train/study/research/meditate 服务端动作。
-- prepared/enabled 武功映射，主动招式从两者合并暴露。
-- 战斗胜利奖励实战经验和潜能。
-- 玩家 story/inventory/money/potential/combat_exp/HP/Qi/Jing/profile/innate/arts/prepared/enabled JSON 存档。
+- 可使用秘籍物品，使用后学习武功；研读在秘籍等级带内推进熟练度。
+- 长线养成（见 [角色养成系统设计](./character-progression.md)）：熟练度逐步累积；实战经验三次曲线卡上限；learn/practice/study/research/meditate 各有成本与来源上限；practice 不超过基础功、瓶颈时回流基础功；基础功按具体武功熟练度的一半累积；武学分入门/地域两阶并写真实门槛。
+- 养成动作可带次数，进入 busy 队列，逐步结算，可中止。
+- 每个类型一个启用武功槽，普通攻击、派生数值、主动招式都读它；`prepare` 是别名。
+- 战斗胜利按双方武功档次差奖励实战经验和潜能，训练对象有奖励上限；剧情任务可奖励实战经验和潜能；潜能有软上限。
+- 战斗外 HP/Qi/Jing 按派生速度恢复，客舍休息三倍；战败后重伤 5 分钟，恢复减半且不能主动开战。
+- 玩家 story/inventory/money/potential/combat_exp/HP/Qi/Jing/profile/innate/arts/enabled JSON 存档。
 - 原生 Web 客户端。
-- 武侠风房间 UI、方位图移动、NPC 弹框、背包使用按钮。
+- 武侠风房间 UI、方位图移动、NPC 弹框（含学艺）、背包使用/研读按钮、武学面板（熟练度、练功、自研、启用、busy 停下）、打坐按钮。
 - 战斗快照驱动的敌我资源条和主动招式 UI。
 - 角色属性第一层模型：`gender`、数值容貌、`InnateAttrs`、`Jing`、`DerivedStats` 纯计算和角色面板展示。
 - `DerivedStats` 已接入 AP 增长、普通攻击、主动招式、状态 modifier、战斗快照 HP/Qi 上限和战斗奖励估算。
-- `Jing` 已接入 learn/practice/study/research/meditate 消耗，并在 tick 中按派生恢复速度回复。
 - 数据驱动战斗剪影动画：`CombatEventMsg`、YAML `animation` hint、客户端 catalog/resolver、half-turn 队列。
 - UI 固定字段中/英文 i18n。
 - 本地 dev 测试入口：`?test=1` 自动登录，`MUD_DEV_MODE=1` 下重置同名测试存档。
@@ -76,12 +76,13 @@
 - NPC 战斗锁、死亡状态和复活倒计时仍只在内存中维护，server 重启后回到 YAML 初始状态。
 - 完整游戏的 dev 测试入口仍只能重置到默认初始状态，没有指定剧情阶段的 seed 机制；客户端 battle lab 已有战斗 fixtures，但不等同于服务端剧情或存档 seed。
 - 物品系统只有背包数量和 `learn_art` 使用效果，没有装备、消耗品、交易、掉落表。
-- prepared/enabled 已有服务端命令，但还没有玩家主动切换 UI。
 - 没有全局角色等级；基础属性成长尚未实现。
 - `DerivedStats` 的装备、心法细项 hook 已预留，但装备实例和心法实例尚未落地。
-- `Jing` 已成为养成动作消耗和 tick 恢复资源，但 busy/耗时动作尚未落地，仍可能在资源足够时连续点击。
+- 养成节奏的数值只经过公式估算和单元测试，还没有确定性的节奏模拟测试，也没有经过实际游玩验证。
+- 师承只有一层（`teach_requires` flag），记名/入室和门派绝学尚未实现；没有可重复的江湖差事，实战经验和潜能主要来自战斗和一次性剧情。
+- 重伤只能等时间恢复，还没有治伤药品。
 - 多人同房间广播、聊天可见范围、PVP 规则尚未完善；多人围攻同一个 NPC 尚未实现。
-- NPC AI 仍很简单：普通攻击来自准备武功 attack_moves，主动招式 AI 尚未成体系。
+- NPC AI 仍很简单：普通攻击来自启用武功 attack_moves，主动招式 AI 尚未成体系。
 - 普通攻击已有命中、闪避、招架和属性缩放；装备、防具、暴击和技能 hook 尚未接入。
 - 战斗剪影动画已有 catalog validator（`client/scripts/validate-animation-data.mjs`）、SVG 姿势库与舞台参数（`resources/scripts/combat_presentation/`）、预览页（`client/battle-lab.html`、`client/pose-sheet.html`）、逻辑/浏览器测试和录屏入口。武功/技能专属素材与视觉质量仍需按动作逐项验收；功能与视觉验收以相应测试和 QA 记录为准。
 - 剧情事件是线性匹配第一个可用事件，没有优先级、冷却、复杂变量或表达式系统。
@@ -95,7 +96,6 @@
 1. **收紧当前已落地系统**
    - 保存玩家当前位置。
    - 增加 `PlayerSave` 显式迁移函数。
-   - 把已有 `enable/prepare` 命令接入 UI。
    - 增加 action registry 的最小版本，用于返回当前可用动作。
 
 2. **装备实例接入 DerivedStats**
@@ -107,10 +107,10 @@
    - 把剧情掉落从单个 action 扩展成可配置 drop table。
    - 增加 TTL、归属保护和拾取规则。
 
-4. **busy、condition 和行动时间**
-   - busy 机制，让学习、练功、研读、自研、打坐成为耗时动作。
-   - 基于现有 `Jing` 消耗补休息/睡眠等恢复动作。
-   - 增加 `tickConditions`，统一战斗内外状态。
+4. **condition 和战斗内 busy**
+   - 养成动作的 busy 队列已落地；战斗内 busy（出招后摇、控制）尚未实现。
+   - 增加 `tickConditions`，统一战斗内外状态（重伤目前单独计时）。
+   - 治伤药品。
 
 5. **门派/师承与循环 job**
    - 增加门派/师承规则和可学列表。
