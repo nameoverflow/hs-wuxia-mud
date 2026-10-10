@@ -697,6 +697,12 @@ data Character = Character
     -- | Extra proficiency per lesson from this teacher.
     _charTeachBonus :: Int,
     _charTeachRequires :: Maybe TeachRequirement,
+    -- | Overrides the rank computed from the character's arts when judging battle rewards.
+    _charRank :: Maybe Int,
+    -- | Training targets stop paying once the player's combat exp reaches this.
+    _charRewardExpCeiling :: Maybe Int,
+    -- | Fixed (combat exp, potential) for beating this character, bypassing the formula.
+    _charFixedReward :: Maybe (Int, Int),
     _charItems :: S.Set ItemEntity,
     _charArt :: M.Map ArtType [ArtEntity],
     -- Status
@@ -734,6 +740,9 @@ newCharacter cid cname =
       _charTeaches = M.empty,
       _charTeachBonus = 0,
       _charTeachRequires = Nothing,
+      _charRank = Nothing,
+      _charRewardExpCeiling = Nothing,
+      _charFixedReward = Nothing,
       _charItems = S.empty,
       _charArt = M.empty,
       _charStatus = CharAlive
@@ -776,6 +785,10 @@ instance FromJSON Character where
     _charTeaches <- o .:? "teaches" .!= M.empty
     _charTeachBonus <- o .:? "teach_bonus" .!= 0
     _charTeachRequires <- o .:? "teach_requires"
+    _charRank <- o .:? "rank"
+    _charRewardExpCeiling <- o .:? "reward_exp_ceiling"
+    fixedReward <- o .:? "reward"
+    _charFixedReward <- traverse (withObject "CharacterReward" $ \r -> (,) <$> r .:? "combat_exp" .!= 0 <*> r .:? "potential" .!= 0) fixedReward
     -- _charItems <- o .: "items"
     -- _charRoutine <- o .: "routine"
     let _charItems = S.empty
@@ -1040,6 +1053,20 @@ characterKnownArtLevel targetArtId char =
           known <- knownArts,
           known ^. artDef == targetArtId
       ]
+
+-- | How strong a fighter is, for scaling battle rewards: the best enabled
+-- sword/fist art or its foundation, unless the content sets a rank.
+characterCombatRank :: Character -> Int
+characterCombatRank char =
+  fromMaybe computed (char ^. charRank)
+  where
+    computed =
+      maximum
+        [ equippedArtLevel Sword char,
+          equippedArtLevel Fist char,
+          characterKnownArtLevel "basic_sword" char,
+          characterKnownArtLevel "basic_fist" char
+        ]
 
 equippedArtLevel :: ArtType -> Character -> Int
 equippedArtLevel artType' char =

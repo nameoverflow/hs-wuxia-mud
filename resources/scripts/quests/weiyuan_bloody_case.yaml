@@ -17,6 +17,8 @@ objectives:
     text: "灰衣少年留书出走。你替他收着路单和剑谱，先在开封找个落脚处。"
 reward:
   money: 0
+  combat_exp: 20
+  potential: 10
   items: []
 events:
   - id: young_escort_before_warning

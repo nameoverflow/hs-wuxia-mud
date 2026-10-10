@@ -25,3 +25,4 @@ attr:
   str: 514
   agi: 19
   vit: 18
+reward_exp_ceiling: 300

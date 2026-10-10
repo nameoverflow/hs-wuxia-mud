@@ -15,6 +15,8 @@
       text: "你有了住处、练功门路和一枚工筹，可以自行安排往后的江湖生活。"
   reward:
     money: 0
+    combat_exp: 15
+    potential: 15
     items: []
   events:
     - id: guide_after_weiyuan_orphan
@@ -385,6 +387,8 @@
       text: "失信案已经报回开封府，北郊递道暂时恢复通行。"
   reward:
     money: 0
+    combat_exp: 30
+    potential: 20
     items: []
   events:
     - id: constable_sizes_up_player
@@ -573,6 +577,8 @@
       text: "你有了一张同行帖。往后想远行，找对应的接引人同行即可。"
   reward:
     money: 0
+    combat_exp: 10
+    potential: 10
     items: []
   events:
     - id: guide_opens_travel_routes

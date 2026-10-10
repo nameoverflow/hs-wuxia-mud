@@ -537,7 +537,26 @@ grantQuestRewardSummaries pid qid = do
         players . ix pid . playerMoney += reward ^. questRewardMoney
       forM_ (reward ^. questRewardItems) $ \rewardItem ->
         addInventoryItem pid (rewardItem ^. questRewardItemId) (rewardItem ^. questRewardItemAmount)
-      questRewardSummaries reward
+      growth <- grantGrowth pid (reward ^. questRewardCombatExp) (reward ^. questRewardPotential)
+      summaries <- questRewardSummaries (reward & questRewardCombatExp .~ 0 & questRewardPotential .~ 0)
+      return $ summaries <> growth
+
+-- | Add combat exp and potential; potential above the soft cap is dropped.
+-- Returns the reward lines for what was actually gained.
+grantGrowth :: PlayerId -> Int -> Int -> GameStateT [RewardSummary]
+grantGrowth pid combatExpGain potentialGain = do
+  players . ix pid . playerCombatExp += max 0 combatExpGain
+  player <- getsPlayer pid
+  let current = player ^. playerPotential
+      cap = potentialCap (player ^. playerCombatExp)
+      gainedPotential = min (max 0 (cap - current)) (max 0 potentialGain)
+  players . ix pid . playerPotential += gainedPotential
+  when (combatExpGain > 0 || gainedPotential > 0) $ markPlayerDirty pid
+  when (potentialGain > 0 && gainedPotential < potentialGain) $
+    tell [(pid, SystemMsg $ SystemMessage "potential_full" (M.fromList [("cap", showText cap)]))]
+  return $
+    [resourceRewardSummary "combat_exp" "实战经验" combatExpGain | combatExpGain > 0]
+      <> [resourceRewardSummary "potential" "潜能" gainedPotential | gainedPotential > 0]
 
 grantItem :: PlayerId -> ItemId -> Int -> GameStateT ()
 grantItem pid itemId amount =
@@ -1079,8 +1098,11 @@ questRewardSummaries reward = do
 
 questRewardSummariesPure :: M.Map ItemId Item -> QuestReward -> [RewardSummary]
 questRewardSummariesPure itemMap reward =
-  moneyPart <> itemPart
+  moneyPart <> itemPart <> growthPart
   where
+    growthPart =
+      [resourceRewardSummary "combat_exp" "实战经验" (reward ^. questRewardCombatExp) | reward ^. questRewardCombatExp > 0]
+        <> [resourceRewardSummary "potential" "潜能" (reward ^. questRewardPotential) | reward ^. questRewardPotential > 0]
     moneyPart =
       [ moneyRewardSummary $ reward ^. questRewardMoney
         | reward ^. questRewardMoney > 0
@@ -1549,16 +1571,19 @@ releasePlayerBattleLock pid gs =
 
 grantBattleGrowthReward :: PlayerId -> Character -> GameStateT ()
 grantBattleGrowthReward pid enemy = do
-  let enemyStats = deriveCharacterStats enemy 0 emptyDerivedStatSources
-      combatExpGain = max 1 ((enemyStats ^. dsMaxHp + enemyStats ^. dsAttack + enemyStats ^. dsDodge + enemyStats ^. dsParry) `div` 20)
-      potentialGain = max 1 (combatExpGain `div` 2)
-  players . ix pid . playerCombatExp += combatExpGain
-  players . ix pid . playerPotential += potentialGain
-  tell
-    [ ( pid,
-        RewardMsg
-          [ resourceRewardSummary "combat_exp" "实战经验" combatExpGain,
-            resourceRewardSummary "potential" "潜能" potentialGain
-          ]
-      )
-    ]
+  player <- getsPlayer pid
+  let playerRank = characterCombatRank (player ^. playerCharacter)
+      enemyRank = characterCombatRank enemy
+      outgrown = maybe False (player ^. playerCombatExp >=) (enemy ^. charRewardExpCeiling)
+      (combatExpGain, potentialGain) =
+        case enemy ^. charFixedReward of
+          Just fixed -> fixed
+          Nothing
+            | outgrown -> (0, 0)
+            | otherwise ->
+                let expGain = battleCombatExpGain playerRank enemyRank
+                 in (expGain, battlePotentialGain expGain)
+  rewards <- grantGrowth pid combatExpGain potentialGain
+  if null rewards
+    then tell [(pid, SystemMsg $ SystemMessage "battle_reward_none" (M.fromList [("enemy", enemy ^. charName)]))]
+    else tell [(pid, RewardMsg rewards)]

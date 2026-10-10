@@ -39,7 +39,9 @@ data QuestObjective = QuestObjective
 
 data QuestReward = QuestReward
   { _questRewardMoney :: Int,
-    _questRewardItems :: [QuestRewardItem]
+    _questRewardItems :: [QuestRewardItem],
+    _questRewardCombatExp :: Int,
+    _questRewardPotential :: Int
   }
   deriving (Show, Eq, Generic)
 
@@ -127,7 +129,7 @@ instance FromJSON Quest where
 instance Configurable Quest
 
 emptyQuestReward :: QuestReward
-emptyQuestReward = QuestReward 0 []
+emptyQuestReward = QuestReward 0 [] 0 0
 
 instance FromJSON QuestObjective where
   parseJSON = withObject "QuestObjective" $ \o -> do
@@ -139,6 +141,8 @@ instance FromJSON QuestReward where
   parseJSON = withObject "QuestReward" $ \o -> do
     _questRewardMoney <- o .:? "money" .!= 0
     _questRewardItems <- o .:? "items" .!= []
+    _questRewardCombatExp <- o .:? "combat_exp" .!= 0
+    _questRewardPotential <- o .:? "potential" .!= 0
     pure QuestReward {..}
 
 instance FromJSON QuestRewardItem where

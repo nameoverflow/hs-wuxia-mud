@@ -53,6 +53,7 @@ main = do
   testTrainRaisesFoundationAndUnlocksActiveSkills
   testProgressionFormulas
   testProgressionActions
+  testBattleAndQuestGrowthRewards
   testJingRequirementFailure
   testJingTickRecovery
   testOutOfCombatRecovery
@@ -800,6 +801,44 @@ testProgressionActions = do
   assert ((meditatedPlayer ^. playerCharacter . charJing) == 91) "meditation did not consume jing"
   let atQiCap = learned & players . ix "tester" . playerCharacter . charMaxQi .~ 110
   expectError "meditate at the internal cap" "max_qi_at_cap" atQiCap (playerMeditate "tester" 40)
+
+testBattleAndQuestGrowthRewards :: IO ()
+testBattleAndQuestGrowthRewards = do
+  gs <- newTestPlayerState
+  let winBattle state = do
+        (_, inBattle) <- startTrainingBattle state
+        let defeatedEnemy = inBattle & battles . ix "tester" . battleEnemyState . battleChar . charHP .~ 0
+        runOk "win battle" defeatedEnemy (updateBattle 0 "tester")
+  (_, won) <- winBattle gs
+  wonPlayer <- requirePlayer won
+  -- Rank 1 against rank 1: 3 combat exp and 1 potential.
+  assert ((wonPlayer ^. playerCombatExp) == 3) "equal-rank win did not grant base combat exp"
+  assert ((wonPlayer ^. playerPotential) == 21) "equal-rank win did not grant potential"
+
+  let outgrown = gs & players . ix "tester" . playerCombatExp .~ 300
+  (outgrownResponses, outgrownWin) <- winBattle outgrown
+  outgrownPlayer <- requirePlayer outgrownWin
+  assert ((outgrownPlayer ^. playerCombatExp) == 300) "training dummy kept paying past its ceiling"
+  assert (any (\case SystemMsg (SystemMessage "battle_reward_none" _) -> True; _ -> False) (map snd outgrownResponses)) "no-reward win was not explained"
+
+  let strongPlayer =
+        gs
+          & players . ix "tester" . playerCharacter . charArt . ix Foundation %~ setArtLevel "basic_sword" 20
+  (_, weakWin) <- winBattle strongPlayer
+  weakWinPlayer <- requirePlayer weakWin
+  assert ((weakWinPlayer ^. playerCombatExp) == 0) "beating a far weaker enemy paid full reward"
+
+  (_, questDone) <- runOk "complete quest" gs (grantQuestReward "tester" "journey_luoyang")
+  questPlayer <- requirePlayer questDone
+  assert ((questPlayer ^. playerCombatExp) == 40) "quest did not grant combat exp"
+  assert ((questPlayer ^. playerPotential) == 45) "quest did not grant potential"
+
+  let nearCap = gs & players . ix "tester" . playerPotential .~ 195
+  (capResponses, capped) <- runOk "quest at potential cap" nearCap (grantQuestReward "tester" "journey_luoyang")
+  cappedPlayer <- requirePlayer capped
+  -- Cap after the quest: 200 + 40 / 10 = 204.
+  assert ((cappedPlayer ^. playerPotential) == 204) "potential went past the soft cap"
+  assert (any (\case SystemMsg (SystemMessage "potential_full" _) -> True; _ -> False) (map snd capResponses)) "potential cap was not reported"
 
 expectError :: String -> T.Text -> GameState -> GameStateT a -> IO ()
 expectError label expectedCode gs action = do

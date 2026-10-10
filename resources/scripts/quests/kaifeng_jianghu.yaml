@@ -137,6 +137,8 @@
       text: "漕帮记下了你这份情，码头上的人开始叫你“南渡客”。"
   reward:
     money: 0
+    combat_exp: 30
+    potential: 20
     items: []
   events:
     - id: du_san_saw_the_back_door

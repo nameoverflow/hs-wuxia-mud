@@ -7,6 +7,8 @@
       text: "牡丹会旧帖上有了你的名字。洛阳剑客肯同你说话了。"
   reward:
     money: 0
+    combat_exp: 40
+    potential: 25
     items: []
   events:
     - id: luoyang_runner_on_road
@@ -182,6 +184,8 @@
       text: "护送名册上有了你一笔。去段氏旧府见护院总管。"
   reward:
     money: 0
+    combat_exp: 40
+    potential: 25
     items: []
   events:
     - id: dali_runner_on_road
@@ -359,6 +363,8 @@
       text: "药童会向水榭报上你的姓名。去水榭药堂见白发医者。"
   reward:
     money: 0
+    combat_exp: 40
+    potential: 25
     items: []
   events:
     - id: taihu_runner_on_road
