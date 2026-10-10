@@ -13,7 +13,7 @@
 - [内容骨架规划](./content-skeleton.md)：第一版中心镇、三门派、野外路线和新手后续任务的制作基准。
 - [战斗、武功与物品](./gameplay-systems.md)：AP/Qi 战斗、主动招式、秘籍学习、奖励与掉落。
 - [角色属性与派生数值设计](./character-attributes.md)：性别/容貌、先天属性、精神资源、DerivedStats、战斗公式、迁移和落地计划。
-- [角色养成系统设计](./character-progression.md)：无角色等级、基础功门槛、武功升级、招式解锁。
+- [角色养成系统设计](./character-progression.md)：无角色等级的长线养成：等级上限栈、熟练度、各养成动作的成本与分工、基础功、武学分阶、门路、资源闭环、奖励与节奏目标。
 - [角色头像立绘风格预设](./character-portrait-style.md)：粗线稿、低细节、老式武侠手游头像生成基准。
 - [半回合制战斗动画系统](./battle-animation.md)：`CombatEventMsg`、YAML animation hint、客户端 catalog/resolver 和剪影素材规范。
 - [战斗动画表现设计指南](./combat-animation-design-guide.md)：少关键帧战斗动画的节奏、位移、特效、结果反馈和 QA 判断标准。
