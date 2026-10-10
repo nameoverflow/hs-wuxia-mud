@@ -14,6 +14,7 @@ import Control.Monad.Except (ExceptT, MonadError (throwError), withExceptT, runE
 import Control.Monad.State.Strict
 import Control.Monad.Trans.Writer
 import qualified Data.Map.Strict as M
+import Data.Maybe (fromMaybe)
 import Data.Text
 import GHC.Generics (Generic)
 import Game.Combat
@@ -31,6 +32,41 @@ import qualified Data.Set as S
 import Relude (ToText)
 import Relude.String.Conversion (ToText(..))
 
+-- | One step of a queued training command. Each step runs when it is issued
+-- and then keeps the player busy for the step's duration.
+data TrainingAction
+  = TrainPractice ArtId
+  | TrainLearn CharId ArtId
+  | TrainStudy ItemId
+  | TrainResearch ArtId
+  | TrainMeditate Int
+  deriving (Show, Eq, Generic)
+
+data BusyTask = BusyTask
+  { _busyAction :: TrainingAction,
+    -- | Steps still queued after the one currently running.
+    _busyRemaining :: Int,
+    -- | Seconds until the running step finishes.
+    _busyTimer :: Double,
+    _busyCompleted :: Int
+  }
+  deriving (Show, Eq, Generic)
+
+-- | Per-player runtime state. Never saved: a restart clears injuries and queued training.
+data PlayerRuntime = PlayerRuntime
+  { -- | Fractional HP/Qi/Jing recovery carried between ticks.
+    _runtimeRecoveryCarry :: (Double, Double, Double),
+    _runtimeInjuredRemaining :: Double,
+    _runtimeBusy :: Maybe BusyTask
+  }
+  deriving (Show, Eq, Generic)
+
+newPlayerRuntime :: PlayerRuntime
+newPlayerRuntime = PlayerRuntime (0, 0, 0) 0 Nothing
+
+makeLenses ''BusyTask
+makeLenses ''PlayerRuntime
+
 data GameState = GameState
   { -- world properties
     _world :: !World,
@@ -40,7 +76,8 @@ data GameState = GameState
     _respawn :: !(M.Map CharId Double),
     _stories :: !(M.Map PlayerId PlayerStoryState),
     _isolatedBattles :: !(S.Set PlayerId),
-    _dirtyPlayers :: !(S.Set PlayerId)
+    _dirtyPlayers :: !(S.Set PlayerId),
+    _playerRuntime :: !(M.Map PlayerId PlayerRuntime)
   }
   deriving (Show, Eq, Generic)
 
@@ -117,7 +154,10 @@ runGameState :: (MonadIO m) => GameState -> GameStateT a -> m (Either GameExcept
 runGameState gs m = liftIO $ Control.Monad.Except.runExceptT $ runStateT (execWriterT $ unGameStateT m) gs
 
 newGameState :: World -> GameState
-newGameState w = GameState w M.empty M.empty M.empty M.empty S.empty S.empty
+newGameState w = GameState w M.empty M.empty M.empty M.empty S.empty S.empty M.empty
+
+usePlayerRuntime :: PlayerId -> GameStateT PlayerRuntime
+usePlayerRuntime pid = fromMaybe newPlayerRuntime <$> use (playerRuntime . at pid)
 
 markPlayerDirty :: PlayerId -> GameStateT ()
 markPlayerDirty pid =

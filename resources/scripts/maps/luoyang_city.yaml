@@ -100,6 +100,7 @@ rooms:
     id: luoyang_guest_room
     name: "豪客客舍"
     kind: building
+    rest: true
     desc: "客舍备着竹榻、油灯和茶水。院门只朝牡丹会场。"
     exits:
       west: [0, 4]

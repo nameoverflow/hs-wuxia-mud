@@ -463,7 +463,8 @@ data PlayerStatsSummary = PlayerStatsSummary
     playerStatsSummaryPortraitKey :: T.Text,
     playerStatsSummaryStrength :: Int,
     playerStatsSummaryAgility :: Int,
-    playerStatsSummaryVitality :: Int
+    playerStatsSummaryVitality :: Int,
+    playerStatsSummaryInjuredSeconds :: Int
   }
   deriving (Show, Eq, Generic)
 

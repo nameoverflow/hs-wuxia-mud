@@ -128,7 +128,9 @@ sendPlayerStats pid = do
         PlayerInBattle -> "in_battle"
         PlayerDead -> "dead"
         PlayerBanned -> "banned"
-  tell [(pid, PlayerStatsMsg $ playerStatsSummary player hp maxHp qi maxQi ap status)]
+  runtime <- usePlayerRuntime pid
+  let summary = playerStatsSummary player hp maxHp qi maxQi ap status
+  tell [(pid, PlayerStatsMsg $ summary {playerStatsSummaryInjuredSeconds = ceiling (runtime ^. runtimeInjuredRemaining)})]
 
 playerStatsSummary :: Player -> Int -> Int -> Int -> Int -> Int -> T.Text -> PlayerStatsSummary
 playerStatsSummary player hp maxHp qi maxQi ap status =
@@ -147,7 +149,8 @@ playerStatsSummary player hp maxHp qi maxQi ap status =
       playerStatsSummaryPortraitKey = appearancePortraitKey appearance,
       playerStatsSummaryStrength = innate ^. innateStrength,
       playerStatsSummaryAgility = innate ^. innateAgility,
-      playerStatsSummaryVitality = innate ^. innateVitality
+      playerStatsSummaryVitality = innate ^. innateVitality,
+      playerStatsSummaryInjuredSeconds = 0
     }
   where
     char = player ^. playerCharacter
@@ -273,6 +276,9 @@ playerAttack pid target = do
   player <- getsPlayer pid
   npc <- getsRoomCharacter pid target Attacking
   unless (charAttackable npc) $ throwError $ UnableToInteract npc Attacking
+  runtime <- usePlayerRuntime pid
+  when (runtime ^. runtimeInjuredRemaining > 0) $
+    throwStructured "player_injured" [("seconds", showText (ceiling (runtime ^. runtimeInjuredRemaining) :: Int))]
   let battle = newBattle player npc
   world . chars . ix target . charStatus .= CharBattle
   battles . at pid .= Just battle
@@ -1218,15 +1224,53 @@ tickPlayerRecovery dt = do
   playerIds <- M.keys <$> use players
   forM_ playerIds $ \pid -> do
     player <- getsPlayer pid
-    when ((player ^. playerStatus) `elem` [PlayerNormal, PlayerInBattle]) $ do
-      let derived = deriveStats player
-          currentJing = player ^. playerCharacter . charJing
-          maxJing = derived ^. dsMaxJing
-          jingGain = max 0 . round $ dt * (derived ^. dsJingRegen)
-          nextJing = min maxJing (currentJing + jingGain)
-      when (nextJing /= currentJing) $ do
+    runtime <- usePlayerRuntime pid
+    resting <- playerIsResting player
+    let status = player ^. playerStatus
+        outOfCombat = status == PlayerNormal
+        injured = runtime ^. runtimeInjuredRemaining > 0
+        derived = deriveStats player
+        char = player ^. playerCharacter
+        restFactor = if resting && outOfCombat then 3 else 1
+        hpRate = if outOfCombat then derived ^. dsHpRegen * restFactor * (if injured then 0.5 else 1) else 0
+        qiRate = if outOfCombat then derived ^. dsQiRegen * restFactor else 0
+        jingRate = derived ^. dsJingRegen * restFactor
+        (hpCarry, qiCarry, jingCarry) = runtime ^. runtimeRecoveryCarry
+        (nextHp, hpCarry') = recoverResource dt hpRate (char ^. charHP) (derived ^. dsMaxHp) hpCarry
+        (nextQi, qiCarry') = recoverResource dt qiRate (char ^. charQi) (derived ^. dsMaxQi) qiCarry
+        (nextJing, jingCarry') = recoverResource dt jingRate (char ^. charJing) (derived ^. dsMaxJing) jingCarry
+        changed = nextHp /= char ^. charHP || nextQi /= char ^. charQi || nextJing /= char ^. charJing
+        wasInjured = injured
+        injuredRemaining = max 0 (runtime ^. runtimeInjuredRemaining - dt)
+    when (status `elem` [PlayerNormal, PlayerInBattle]) $ do
+      playerRuntime . at pid ?= (runtime & runtimeRecoveryCarry .~ (hpCarry', qiCarry', jingCarry') & runtimeInjuredRemaining .~ injuredRemaining)
+      when changed $ do
+        players . ix pid . playerCharacter . charHP .= nextHp
+        players . ix pid . playerCharacter . charQi .= nextQi
         players . ix pid . playerCharacter . charJing .= nextJing
         markPlayerDirty pid
+      when (outOfCombat && (changed || (wasInjured && injuredRemaining <= 0))) $
+        sendPlayerStats pid
+
+-- | Advance one resource by @rate@ per second, carrying the fraction to the next tick.
+-- The carry resets once the resource is full so idle players do not bank recovery.
+recoverResource :: Double -> Double -> Int -> Int -> Double -> (Int, Double)
+recoverResource dt rate current maxValue carry
+  | current >= maxValue = (current, 0)
+  | rate <= 0 = (current, carry)
+  | otherwise =
+      let total = carry + dt * rate
+          gain = floor total
+          next = min maxValue (current + gain)
+       in (next, if next >= maxValue then 0 else total - fromIntegral gain)
+
+playerIsResting :: Player -> GameStateT Bool
+playerIsResting player = do
+  let (mapId', pos) = player ^. playerPosition
+  fromMaybe False <$> preuse (world . maps . ix mapId' . mapRooms . ix pos . roomRest)
+
+injuredSecondsAfterDefeat :: Double
+injuredSecondsAfterDefeat = 300
 
 reviveCharacter :: Character -> Character
 reviveCharacter char =
@@ -1401,6 +1445,10 @@ battleSettlement won battle = do
   when (won && not isolated) $ do
     -- set respawn time
     respawn . at (eChar ^. charId) .= Just (fromIntegral (eChar ^. charRespawn))
+
+  unless won $ do
+    runtime <- usePlayerRuntime player
+    playerRuntime . at player ?= (runtime & runtimeInjuredRemaining .~ injuredSecondsAfterDefeat)
 
   -- send message
   tell [(player, CombatSettlementMsg player (eChar ^. charName) won)]

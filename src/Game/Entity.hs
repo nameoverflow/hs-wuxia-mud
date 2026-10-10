@@ -513,6 +513,7 @@ data DerivedStats = DerivedStats
   { _dsMaxHp :: Int,
     _dsMaxQi :: Int,
     _dsMaxJing :: Int,
+    _dsHpRegen :: Double,
     _dsQiRegen :: Double,
     _dsJingRegen :: Double,
     _dsStrength :: Int,
@@ -536,6 +537,7 @@ data DerivedStatModifiers = DerivedStatModifiers
     _dsmMaxHp :: Int,
     _dsmMaxQi :: Int,
     _dsmMaxJing :: Int,
+    _dsmHpRegen :: Double,
     _dsmQiRegen :: Double,
     _dsmJingRegen :: Double,
     _dsmHit :: Int,
@@ -854,6 +856,7 @@ deriveCharacterStats char combatExp statSources =
     { _dsMaxHp = 80 + vit * 5 + internalPower * 4 + combatExpHpBonus + maxHpBonus,
       _dsMaxQi = char ^. charMaxQi + vit * 2 + internalPower * 6 + maxQiBonus,
       _dsMaxJing = 80 + vit * 4 + internalPower * 2 + combatExpJingBonus + maxJingBonus,
+      _dsHpRegen = 0.5 + fromIntegral vit / 30.0 + hpRegenBonus,
       _dsQiRegen = 1.0 + fromIntegral vit / 25.0 + fromIntegral internalPower / 30.0 + qiRegenBonus,
       _dsJingRegen = 0.5 + fromIntegral vit / 40.0 + fromIntegral internalPower / 60.0 + jingRegenBonus,
       _dsStrength = str,
@@ -891,6 +894,7 @@ deriveCharacterStats char combatExp statSources =
     maxHpBonus = modifiers ^. dsmMaxHp
     maxQiBonus = modifiers ^. dsmMaxQi
     maxJingBonus = modifiers ^. dsmMaxJing
+    hpRegenBonus = modifiers ^. dsmHpRegen
     qiRegenBonus = modifiers ^. dsmQiRegen
     jingRegenBonus = modifiers ^. dsmJingRegen
     hitBonus = modifiers ^. dsmHit
@@ -911,6 +915,7 @@ emptyDerivedStatModifiers =
       _dsmMaxHp = 0,
       _dsmMaxQi = 0,
       _dsmMaxJing = 0,
+      _dsmHpRegen = 0.0,
       _dsmQiRegen = 0.0,
       _dsmJingRegen = 0.0,
       _dsmHit = 0,
@@ -938,6 +943,7 @@ combineDerivedStatModifiers left right =
       _dsmMaxHp = sumInt dsmMaxHp,
       _dsmMaxQi = sumInt dsmMaxQi,
       _dsmMaxJing = sumInt dsmMaxJing,
+      _dsmHpRegen = sumDouble dsmHpRegen,
       _dsmQiRegen = sumDouble dsmQiRegen,
       _dsmJingRegen = sumDouble dsmJingRegen,
       _dsmHit = sumInt dsmHit,
@@ -1107,6 +1113,8 @@ data Room = Room
     -- player has set replaces the default description.
     _roomDescVariants :: [(Text, Text)],
     _roomKind :: Text,
+    -- | Resting here triples out-of-combat HP/Qi/Jing recovery (inns, sect quarters).
+    _roomRest :: Bool,
     _roomScript :: Maybe Text, -- Change this to store the Lua script content
     _roomExits :: M.Map Direction RoomRef,
     _roomChar :: [CharId],
@@ -1126,6 +1134,7 @@ instance FromJSON Room where
     _roomDescVariants <- mapM (withObject "RoomDescVariant" $ \v ->
       (,) <$> v .: "flag" <*> v .: "desc") variantObjects
     _roomKind <- o .:? "kind" .!= "building"
+    _roomRest <- o .:? "rest" .!= False
     _roomScript <- o .:? "script"
     exitConfigs <- o .: "exits"
     let _roomExits = M.map (roomExitConfigToRef "") exitConfigs
@@ -1141,6 +1150,7 @@ instance ToJSON Room where
         "desc" .= _roomDesc,
         "desc_variants" .= [object ["flag" .= flag, "desc" .= desc] | (flag, desc) <- _roomDescVariants],
         "kind" .= _roomKind,
+        "rest" .= _roomRest,
         "script" .= _roomScript,
         "exits" .= _roomExits,
         "char" .= _roomChar

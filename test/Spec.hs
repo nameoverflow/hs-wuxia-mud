@@ -53,6 +53,8 @@ main = do
   testProgressionActions
   testJingRequirementFailure
   testJingTickRecovery
+  testOutOfCombatRecovery
+  testDefeatLeavesPlayerInjured
   testLearningRequirementFailure
   testTeacherRequiresStoryFlag
   testStoryConditionsAndRoomVariants
@@ -812,12 +814,70 @@ testJingTickRecovery = do
   let tired =
         gs
           & players . ix "tester" . playerCharacter . charJing .~ 10
-  (_, recovered) <- runOk "recover jing tick" tired (onGameTick 1)
+  (_, recovered) <- runOk "recover jing tick" tired (onGameTick 2)
   case M.lookup "tester" (recovered ^. players) of
     Nothing -> fail "tester missing after jing recovery"
     Just player -> do
       assert ((player ^. playerCharacter . charJing) > 10) "jing did not recover on tick"
       assert ((player ^. playerCharacter . charJing) <= (deriveStats player ^. dsMaxJing)) "jing recovery exceeded derived max"
+
+testOutOfCombatRecovery :: IO ()
+testOutOfCombatRecovery = do
+  gs <- newTestPlayerState
+  let hurt =
+        gs
+          & players . ix "tester" . playerCharacter . charHP .~ 1
+          & players . ix "tester" . playerCharacter . charQi .~ 0
+  (_, outside) <- runOk "recover outside" hurt (onGameTick 10)
+  outsidePlayer <- requirePlayer outside
+  let outsideHp = outsidePlayer ^. playerCharacter . charHP
+      outsideQi = outsidePlayer ^. playerCharacter . charQi
+  assert (outsideHp > 1) "hp did not recover out of combat"
+  assert (outsideQi > 0) "qi did not recover out of combat"
+
+  (_, carried) <- runOk "recover in small steps" hurt (replicateM_ 10 (onGameTick 1))
+  carriedPlayer <- requirePlayer carried
+  assert ((carriedPlayer ^. playerCharacter . charHP) == outsideHp) "one-second ticks lost the fractional recovery"
+
+  (_, atInn) <- runOk "move to inn" hurt (movePlayerToRoom "tester" "kaifeng_city" (-1, 1))
+  (_, rested) <- runOk "recover at inn" atInn (onGameTick 10)
+  restedPlayer <- requirePlayer rested
+  assert ((restedPlayer ^. playerCharacter . charHP) > outsideHp) "resting at the inn did not speed up recovery"
+
+  (_, full) <- runOk "recover to full" hurt (onGameTick 100000)
+  fullPlayer <- requirePlayer full
+  let derived = deriveStats fullPlayer
+  assert ((fullPlayer ^. playerCharacter . charHP) == derived ^. dsMaxHp) "hp recovery did not stop at max"
+  assert ((fullPlayer ^. playerCharacter . charQi) == derived ^. dsMaxQi) "qi recovery did not stop at max"
+
+testDefeatLeavesPlayerInjured :: IO ()
+testDefeatLeavesPlayerInjured = do
+  gs <- newTestPlayerState
+  (_, inBattle) <- startTrainingBattle gs
+  let defeated = inBattle & battles . ix "tester" . battleState . battleChar . charHP .~ 0
+  (_, settled) <- runOk "settle defeat" defeated (updateBattle 0 "tester")
+  injuredAttack <- runGameState settled (playerAttack "tester" testCombatNpcId)
+  case injuredAttack of
+    Left (StructuredException (ErrorSummary code _)) -> assert (code == "player_injured") "injured attack used the wrong error code"
+    Left err -> fail $ "expected injured refusal, got: " <> show err
+    Right _ -> fail "injured player started a battle"
+
+  (_, injuredTick) <- runOk "injured recovery" settled (onGameTick 10)
+  let healthy = settled & playerRuntime . ix "tester" . runtimeInjuredRemaining .~ 0
+  (_, healthyTick) <- runOk "healthy recovery" healthy (onGameTick 10)
+  injuredPlayer <- requirePlayer injuredTick
+  healthyPlayer <- requirePlayer healthyTick
+  assert ((injuredPlayer ^. playerCharacter . charHP) < (healthyPlayer ^. playerCharacter . charHP)) "injury did not slow hp recovery"
+
+  (_, recovered) <- runOk "injury wears off" settled (onGameTick 301)
+  (_, _) <- runOk "attack after injury" recovered (playerAttack "tester" testCombatNpcId)
+  pure ()
+
+requirePlayer :: GameState -> IO Player
+requirePlayer gs =
+  case M.lookup "tester" (gs ^. players) of
+    Nothing -> fail "tester missing"
+    Just player -> pure player
 
 testLearningRequirementFailure :: IO ()
 testLearningRequirementFailure = do

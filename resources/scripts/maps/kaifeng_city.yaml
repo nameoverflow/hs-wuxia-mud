@@ -207,6 +207,7 @@ rooms:
     id: kaifeng_inn
     name: "樊楼客舍"
     kind: building
+    rest: true
     desc: "樊楼早不是旧京时的大酒楼了，前堂仍卖酒，后院辟成了客舍。火盆烧得正旺，住客围桌谈着路引、房钱和外地消息。"
     char:
       - fanlou_innkeeper
