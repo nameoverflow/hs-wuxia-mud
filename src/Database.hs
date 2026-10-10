@@ -52,7 +52,6 @@ data PlayerSave = PlayerSave
     saveAppearance :: Maybe Int,
     saveInnate :: Maybe InnateAttrs,
     saveArts :: M.Map ArtType [ArtEntity],
-    savePrepared :: M.Map ArtType ArtEntity,
     saveEnabled :: M.Map ArtType ArtEntity
   }
   deriving (Show, Eq, Generic)
@@ -129,8 +128,10 @@ instance FromJSON PlayerSave where
     let saveAppearance = (clampAppearanceScore <$> topAppearance) <|> saveProfileAppearance profile
     let saveInnate = topInnate <|> saveCharacterInnate character
     saveArts <- o .:? "arts" .!= M.empty
-    savePrepared <- o .:? "prepared" .!= M.empty
-    saveEnabled <- o .:? "enabled" .!= savePrepared
+    -- Saves before the single art slot kept a separate "prepared" map; fold it in.
+    savedPrepared <- o .:? "prepared" .!= M.empty
+    savedEnabled <- o .:? "enabled" .!= M.empty
+    let saveEnabled = M.union savedEnabled (savedPrepared :: M.Map ArtType ArtEntity)
     pure PlayerSave {..}
 
 instance ToJSON PlayerSave where
@@ -167,7 +168,6 @@ instance ToJSON PlayerSave where
         "desc" .= saveDesc,
         "innate" .= saveInnate,
         "arts" .= saveArts,
-        "prepared" .= savePrepared,
         "enabled" .= saveEnabled
       ]
 
@@ -209,7 +209,6 @@ applyPlayerSaveToGameState PlayerSave {..} gs =
     . (players . ix savePlayerId . playerPotential .~ savePotential)
     . (players . ix savePlayerId . playerCombatExp .~ saveCombatExp)
     . (players . ix savePlayerId . playerCharacter . charArt .~ saveArts)
-    . (players . ix savePlayerId . playerCharacter . charPrepare .~ savePrepared)
     . (players . ix savePlayerId . playerCharacter . charEnabled .~ saveEnabled)
     . maybe id (\hp -> players . ix savePlayerId . playerCharacter . charHP .~ hp) saveHp
     . maybe id (\maxHp -> players . ix savePlayerId . playerCharacter . charMaxHP .~ maxHp) saveMaxHp
@@ -263,7 +262,6 @@ playerSaveFromGameState pid gs = do
       saveAppearance = Just $ player ^. playerCharacter . charAppearance
       saveInnate = Just $ player ^. playerCharacter . charInnate
       saveArts = player ^. playerCharacter . charArt
-      savePrepared = player ^. playerCharacter . charPrepare
       saveEnabled = player ^. playerCharacter . charEnabled
   pure PlayerSave {..}
 

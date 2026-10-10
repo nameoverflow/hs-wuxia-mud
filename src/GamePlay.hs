@@ -882,15 +882,9 @@ playerEnableArt pid artType' artId = do
   playerArts pid
   markPlayerDirty pid
 
+-- | Kept for older clients: preparing and enabling are one slot now.
 playerPrepareArt :: PlayerId -> ArtType -> ArtId -> GameStateT ()
-playerPrepareArt pid artType' artId = do
-  artEntity <- ensureKnownTypedArt pid artType' artId "prepare_art_type_mismatch"
-  when (artType' == Foundation) $
-    throwStructured "foundation_art_cannot_prepare" [("artId", artId)]
-  players . ix pid . playerCharacter . charPrepare . at artType' .= Just artEntity
-  tell [(pid, SystemMsg $ SystemMessage "art_prepared" (M.fromList [("type", artTypeToText artType'), ("artId", artId)]))]
-  playerArts pid
-  markPlayerDirty pid
+playerPrepareArt = playerEnableArt
 
 upsertKnownArtEntity :: PlayerId -> ArtType -> ArtEntity -> GameStateT ()
 upsertKnownArtEntity pid artType' artEntity = do
@@ -906,9 +900,6 @@ upsertArtEntity artEntity (known : rest)
 refreshEquippedArt :: PlayerId -> ArtType -> ArtEntity -> GameStateT ()
 refreshEquippedArt pid artType' artEntity =
   when (artType' /= Foundation) $ do
-    prepared <- preuse $ players . ix pid . playerCharacter . charPrepare . ix artType'
-    when (maybe False ((== artEntity ^. artDef) . view artDef) prepared) $
-      players . ix pid . playerCharacter . charPrepare . at artType' .= Just artEntity
     enabled <- preuse $ players . ix pid . playerCharacter . charEnabled . ix artType'
     when (maybe False ((== artEntity ^. artDef) . view artDef) enabled) $
       players . ix pid . playerCharacter . charEnabled . at artType' .= Just artEntity
@@ -1223,11 +1214,7 @@ activeSkillArtEntities :: Player -> [ArtEntity]
 activeSkillArtEntities player =
   [ artEntity
     | artType' <- activeSkillArtTypes,
-      artEntity <-
-        catMaybes
-          [ player ^. playerCharacter . charPrepare . at artType',
-            player ^. playerCharacter . charEnabled . at artType'
-          ]
+      Just artEntity <- [player ^. playerCharacter . charEnabled . at artType']
   ]
 
 activeSkillReqArtsMet :: Player -> ActiveSkill -> Bool
@@ -1469,13 +1456,9 @@ battleStateDerivedStats effectDefs state =
 
 combatStyleForCharacter :: Character -> T.Text
 combatStyleForCharacter char
-  | M.member Sword prepared = "sword"
-  | M.member Fist prepared = "fist"
   | M.member Sword enabled = "sword"
-  | M.member Fist enabled = "fist"
   | otherwise = "fist"
   where
-    prepared = char ^. charPrepare
     enabled = char ^. charEnabled
 
 updateBattle :: Double -> BattleId -> GameStateT ()

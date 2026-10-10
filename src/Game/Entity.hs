@@ -691,7 +691,6 @@ data Character = Character
     _charAgility :: Int,
     _charVitality :: Int,
     -- Equipment
-    _charPrepare :: M.Map ArtType ArtEntity,
     _charEnabled :: M.Map ArtType ArtEntity,
     _charTeaches :: M.Map ArtId Int,
     -- | Extra proficiency per lesson from this teacher.
@@ -735,7 +734,6 @@ newCharacter cid cname =
       _charStrength = 0,
       _charAgility = 0,
       _charVitality = 0,
-      _charPrepare = M.empty,
       _charEnabled = M.empty,
       _charTeaches = M.empty,
       _charTeachBonus = 0,
@@ -780,8 +778,10 @@ instance FromJSON Character where
     let _charVitality = fromMaybe (_innateVitality _charInnate) legacyVitality
 
     _charArt <- o .: "martial_arts"
-    _charPrepare <- o .: "prepared"
-    _charEnabled <- o .:? "enabled" .!= _charPrepare
+    -- One slot per art type. Older content lists it under "prepared"; an explicit "enabled" wins.
+    prepared <- o .:? "prepared" .!= M.empty
+    explicitEnabled <- o .:? "enabled" .!= M.empty
+    let _charEnabled = M.union explicitEnabled prepared
     _charTeaches <- o .:? "teaches" .!= M.empty
     _charTeachBonus <- o .:? "teach_bonus" .!= 0
     _charTeachRequires <- o .:? "teach_requires"

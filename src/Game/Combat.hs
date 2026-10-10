@@ -388,7 +388,7 @@ battleAttack left right = do
   attack <- selectPreparedAttack attacker
   case attack of
     Nothing -> do
-      throwError $ CombatException $ pack $ "No unlocked move selected, prepared arts: " <> show (attacker ^. charPrepare)
+      throwError $ CombatException $ pack $ "No unlocked move selected, enabled arts: " <> show (attacker ^. charEnabled)
     Just preparedAttack -> runAttackPipeline left right preparedAttack attacker defender
 
 runAttackPipeline :: Lens' Battle BattleState -> Lens' Battle BattleState -> PreparedAttack -> Character -> Character -> Combat ()
@@ -459,7 +459,7 @@ unlockedPreparedAttacks :: M.Map ArtId MartialArt -> Character -> [PreparedAttac
 unlockedPreparedAttacks martialArtMap char =
   [ PreparedAttack artEntity martialArt move
     | artType' <- [Sword, Fist],
-      Just artEntity <- [char ^. charPrepare . at artType'],
+      Just artEntity <- [char ^. charEnabled . at artType'],
       Just martialArt <- [M.lookup (artEntity ^. artDef) martialArtMap],
       move <- martialArt ^. artAttackMoves,
       move ^. attackMoveUnlockLevel <= artEntity ^. artLevel
@@ -596,7 +596,7 @@ activeSkillArtLevel activeSkill char =
     levels -> maximum levels
   where
     requiredLevels = map (`characterKnownArtLevel` char) (activeSkill ^. activeSkillReqArts)
-    preparedLevels = map (^. artLevel) . M.elems $ char ^. charPrepare
+    preparedLevels = map (^. artLevel) . M.elems $ char ^. charEnabled
 
 applyActiveSkillEffects :: ActiveSkill -> Lens' Battle BattleState -> Lens' Battle BattleState -> Maybe Int -> Maybe Int -> Combat ()
 applyActiveSkillEffects activeSkill caster target damageAmount healAmount = do

@@ -67,6 +67,7 @@ main = do
   testKaifengJianghuFlow
   testStoryBattlesArePlayerIsolated
   testPlayerSaveRoundTrip
+  testLegacyPreparedSlotFoldsIntoEnabled
   putStrLn "All tests passed"
 
 assert :: Bool -> String -> IO ()
@@ -100,8 +101,7 @@ newTestPlayerState = do
 
 enableStarterFistForTester :: GameState -> GameState
 enableStarterFistForTester =
-  (players . ix "tester" . playerCharacter . charPrepare . at Fist ?~ ArtEntity "nameless_trial_fist" 1 0)
-    . (players . ix "tester" . playerCharacter . charEnabled . at Fist ?~ ArtEntity "nameless_trial_fist" 1 0)
+  players . ix "tester" . playerCharacter . charEnabled . at Fist ?~ ArtEntity "nameless_trial_fist" 1 0
 
 roomPlayersAtMap :: MapId -> GameState -> (Int, Int) -> S.Set PlayerId
 roomPlayersAtMap targetMapId gs pos =
@@ -170,10 +170,6 @@ knowsArtAt :: ArtId -> Int -> Player -> Bool
 knowsArtAt targetArtId expectedLevel player =
   knownArtLevel targetArtId player == Just expectedLevel
 
-preparedArtIn :: ArtType -> ArtId -> Player -> Bool
-preparedArtIn artType' expectedId player =
-  maybe False ((== expectedId) . view artDef) (player ^. playerCharacter . charPrepare . at artType')
-
 enabledArtIn :: ArtType -> ArtId -> Player -> Bool
 enabledArtIn artType' expectedId player =
   maybe False ((== expectedId) . view artDef) (player ^. playerCharacter . charEnabled . at artType')
@@ -229,9 +225,8 @@ testDefaultFoundationArts = do
       assert (knowsArtAt "basic_fist" 1 player) "default player is missing basic_fist"
       assert (knowsArtAt "nameless_trial_fist" 1 player) "default player is missing the starter fist art"
       assert (knowsArtAt "nameless_trial_sword" 1 player) "default player is missing the starter sword art"
-      assert (preparedArtIn Sword "nameless_trial_sword" player) "default player did not prepare the starter sword art"
       assert (enabledArtIn Sword "nameless_trial_sword" player) "default player did not enable the starter sword art"
-      assert ((player ^. playerCharacter . charPrepare . at Foundation) == Nothing) "foundation art should not be prepared"
+      assert ((player ^. playerCharacter . charEnabled . at Foundation) == Nothing) "foundation art should not be enabled"
       assert ((player ^. playerPotential) == 20) "default player potential did not load"
       assert ((player ^. playerCombatExp) == 0) "new players should start without combat exp"
       assert ((player ^. playerCharacter . charGender) == UnknownGender) "default player gender did not load"
@@ -548,7 +543,7 @@ testNormalAttackUsesCombatPipeline = do
           & battles . ix "tester" . battleState . battleAp .~ 100
           & battles . ix "tester" . battleState . battleChar . charInnate . innateStrength .~ 60
           & battles . ix "tester" . battleEnemyState . battleEffects . at "weakened" ?~ ActiveEffect "weakened" 5.0 100
-          & battles . ix "tester" . battleEnemyState . battleChar . charPrepare .~ M.empty
+          & battles . ix "tester" . battleEnemyState . battleChar . charEnabled .~ M.empty
   (responses, afterTick) <- runOk "normal attack pipeline tick" ready (updateBattle 0 "tester")
   let combatDamages =
         [ dmg
@@ -703,7 +698,6 @@ testTrainRaisesFoundationAndUnlocksActiveSkills = do
   (_, learned) <- runOk "learn weiyuan sword" gs $ do
     grantArt "tester" "weiyuan_sword" 1
     playerEnableArt "tester" Sword "weiyuan_sword"
-    playerPrepareArt "tester" Sword "weiyuan_sword"
   let seasoned =
         learned
           & players . ix "tester" . playerCombatExp .~ 1000
@@ -1204,6 +1198,19 @@ testKaifengSettlingAndTravelFlow = do
   where
     playerAt gs' = view playerPosition <$> M.lookup "tester" (gs' ^. players)
 
+testLegacyPreparedSlotFoldsIntoEnabled :: IO ()
+testLegacyPreparedSlotFoldsIntoEnabled = do
+  let legacyJson =
+        "{\"player_id\":\"tester\",\"version\":6,"
+          <> "\"prepared\":{\"sword\":{\"id\":\"weiyuan_sword\",\"level\":3},\"fist\":{\"id\":\"nameless_trial_fist\",\"level\":1}},"
+          <> "\"enabled\":{\"sword\":{\"id\":\"nameless_trial_sword\",\"level\":1}}}"
+  case eitherDecode legacyJson of
+    Left err -> fail $ "legacy save did not decode: " <> err
+    Right save -> do
+      let enabled = saveEnabled save
+      assert (fmap (view artDef) (M.lookup Sword enabled) == Just "nameless_trial_sword") "explicit enabled art should win over prepared"
+      assert (fmap (view artDef) (M.lookup Fist enabled) == Just "nameless_trial_fist") "prepared-only art was not folded into enabled"
+
 testPlayerSaveRoundTrip :: IO ()
 testPlayerSaveRoundTrip = do
   gs <- newTestPlayerState
@@ -1228,7 +1235,6 @@ testPlayerSaveRoundTrip = do
           & players . ix "tester" . playerCharacter . charInnate .~ InnateAttrs 21 17 16
           & players . ix "tester" . playerCharacter . charArt . at Foundation .~ Just [ArtEntity "basic_sword" 5 0]
           & players . ix "tester" . playerCharacter . charArt . at Sword .~ Just [ArtEntity "saved_sword_art" 5 0]
-          & players . ix "tester" . playerCharacter . charPrepare . at Sword .~ Just (ArtEntity "saved_sword_art" 5 0)
           & players . ix "tester" . playerCharacter . charEnabled . at Sword .~ Just (ArtEntity "saved_sword_art" 5 0)
   savePlayerState ".stack-work/test-saves" "tester" rewarded
   saveResult <- loadPlayerSave ".stack-work/test-saves" "tester"
@@ -1258,7 +1264,6 @@ testPlayerSaveRoundTrip = do
       assert ((player ^. playerCharacter . charInnate) == InnateAttrs 21 17 16) "saved innate attrs were not restored"
       assert ((player ^. playerCharacter . charArt . at Foundation) == Just [ArtEntity "basic_sword" 5 0]) "saved foundation art was not restored"
       assert ((player ^. playerCharacter . charArt . at Sword) == Just [ArtEntity "saved_sword_art" 5 0]) "saved learned martial art was not restored"
-      assert ((player ^. playerCharacter . charPrepare . at Sword) == Just (ArtEntity "saved_sword_art" 5 0)) "saved prepared martial art was not restored"
       assert ((player ^. playerCharacter . charEnabled . at Sword) == Just (ArtEntity "saved_sword_art" 5 0)) "saved enabled martial art was not restored"
       assert (S.member "tester" $ roomPlayersAtMap "kaifeng_city" restored (0, 1)) "restored room occupancy did not include the player"
       assert (not $ S.member "tester" $ roomPlayersAt restored (3, 3)) "default room occupancy still contained the restored player"
